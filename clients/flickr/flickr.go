@@ -1,17 +1,17 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 
-	"github.com/attic-labs/noms/chunks"
 	"github.com/attic-labs/noms/datas"
+	"github.com/attic-labs/noms/dataset"
 	"github.com/attic-labs/noms/types"
 	"github.com/garyburd/go-oauth/oauth"
-	"github.com/stretchr/testify/assert"
 )
 
 // Session state keys.
@@ -29,10 +29,6 @@ var oauthClient = oauth.Client{
 		Secret: "0aacb9788ab8d010",
 	},
 }
-
-var (
-	appDataStoreFlags = user.AppDataFlags()
-)
 
 var tempCred *oauth.Credentials
 
@@ -79,25 +75,17 @@ func callAPI(tokenCred *oauth.Credentials) {
 
 	fmt.Println(text)
 
-	userEmail := "foo@bar.com"
-	appId := "flickrnoms"
+	datasetDataStoreFlags := dataset.DatasetDataFlags()
+	flag.Parse()
 
-	ds := appDataStoreFlags.CreateStore()
+	ds := datasetDataStoreFlags.CreateStore()
+	roots := ds.Roots()
 
-	ms := &chunks.MemoryStore{}
-	rootDs := datas.NewDataStore(ms, ms)
-	rootDs = user.CommitUsers(rootDs, user.InsertUser(user.NewUserSet(), userEmail))
-	users := user.GetUsers(rootDs)
-	assert.Equal(nil, user.GetAppRoot(users, userEmail, appId))
-
-	art := &appRootTracker{rootDs, userEmail, appId}
-	appDs := datas.NewDataStore(ms, art)
 	appRoot := types.NewString("Hello, AppRoot!")
-	appDs = appDs.Commit(datas.NewRootSet().Insert(
+	ds.Commit(datas.NewRootSet().Insert(
 		datas.NewRoot().SetParents(
-			types.NewSet()).SetValue(
+			roots.NomsValue()).SetValue(
 			appRoot)))
-	assert.EqualValues(1, appDs.Roots().Len())
 }
 
 func newHandler(l *net.TCPListener) http.HandlerFunc {
