@@ -14,6 +14,8 @@ import (
 	"github.com/garyburd/go-oauth/oauth"
 )
 
+//go:generate go run gen/types.go -o types.go
+
 // Session state keys.
 const (
 	tempCredKey  = "tempCred"
@@ -103,11 +105,12 @@ func callAPI(tokenCred *oauth.Credentials) {
 	ds := datasetDataStoreFlags.CreateStore()
 	roots := ds.Roots()
 
-	appRoot := types.NewString("Hello, AppRoot!")
+	flickrImport := NewFlickrImport().SetUserId(types.NewString("123")).SetUserName(types.NewString("rafaelw")).SetOAuthToken(types.NewString("asf"))
+
 	ds.Commit(datas.NewRootSet().Insert(
 		datas.NewRoot().SetParents(
 			roots.NomsValue()).SetValue(
-			appRoot)))
+			flickrImport.NomsValue())))
 
 	callGetPhotoSetList(tokenCred)
 }
