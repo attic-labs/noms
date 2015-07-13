@@ -54,8 +54,30 @@ func main() {
 	srv.Serve(l)
 }
 
+func callGetPhotoSetList(tokenCred *oauth.Credentials) {
+	fmt.Println("flickr.photosets.getList")
+
+	res, err := oauthClient.Get(nil, tokenCred, "https://api.flickr.com/services/rest/", url.Values{
+		"method": []string{"flickr.photosets.getList"},
+		"format": []string{"json"},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	defer res.Body.Close()
+	if err != nil {
+		panic(err)
+	}
+
+	body, _ := ioutil.ReadAll(res.Body)
+	text := string(body)
+
+	fmt.Println(text)
+}
+
 func callAPI(tokenCred *oauth.Credentials) {
-	fmt.Println("callAPI")
+	fmt.Println("flickr.test.login")
 
 	res, err := oauthClient.Get(nil, tokenCred, "https://api.flickr.com/services/rest/", url.Values{
 		"method": []string{"flickr.test.login"},
@@ -86,6 +108,8 @@ func callAPI(tokenCred *oauth.Credentials) {
 		datas.NewRoot().SetParents(
 			roots.NomsValue()).SetValue(
 			appRoot)))
+
+	callGetPhotoSetList(tokenCred)
 }
 
 func newHandler(l *net.TCPListener) http.HandlerFunc {
