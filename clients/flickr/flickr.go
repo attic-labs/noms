@@ -3,11 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -38,13 +38,68 @@ var oauthClient = oauth.Client{
 }
 
 var (
+	tempCred            *oauth.Credentials
 	jsonResponsePrefix  = []byte("jsonFlickrApi(")
 	jsonResponsePostfix = []byte(")")
+	ds                  *datas.DataStore
+	user                User
 )
 
-var tempCred *oauth.Credentials
-
 func main() {
+	datasetDataStoreFlags := dataset.DatasetDataFlags()
+	flag.Parse()
+	ds = datasetDataStoreFlags.CreateStore()
+
+	getUser()
+}
+
+func getUser() {
+	roots := ds.Roots()
+	if roots.Len() > uint64(0) {
+		user = UserFromVal(roots.Any().Value())
+		if checkAuth() == nil {
+			fmt.Println("OAuth credentials are still good.")
+			return
+		}
+	} else {
+		user = NewUser()
+	}
+
+	fmt.Println("OAuth authentication required.")
+	authUser()
+}
+
+func checkAuth() error {
+	response := struct {
+		User struct {
+			Id       string `json:"id"`
+			Username struct {
+				Content string `json:"_content"`
+			} `json:"username"`
+		} `json:"user"`
+		Stat string `json:"stat"`
+	}{}
+
+	res, err := callFlickrAPI("flickr.test.login")
+	if err != nil {
+		return err
+	}
+
+	defer res.Body.Close()
+	err = json.Unmarshal(getJSONBytes(res.Body), &response)
+	if err != nil {
+		return err
+	}
+
+	if response.Stat != "ok" {
+		return errors.New(fmt.Sprintf("Failed test login. Status %v", response.Stat))
+	}
+
+	user = user.SetId(types.NewString(response.User.Id)).SetName(types.NewString(response.User.Username.Content))
+	return nil
+}
+
+func authUser() {
 	var err error
 
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
@@ -55,37 +110,54 @@ func main() {
 	})
 
 	if err != nil {
-		fmt.Printf("Error getting temp cred, %v\n", err.Error())
-		return
+		panic(fmt.Sprintf("Error getting temp cred, %v\n", err.Error()))
 	}
 
-	url := oauthClient.AuthorizationURL(tempCred, nil)
-	fmt.Printf("Go to the following URL to authorize: %v\n", url)
+	authUrl := oauthClient.AuthorizationURL(tempCred, nil)
+	fmt.Printf("Go to the following URL to authorize: %v\n", authUrl)
+
+	newHandler := func(l *net.TCPListener) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			tokenCred, _, err := oauthClient.RequestToken(nil, tempCred, r.FormValue("oauth_verifier"))
+
+			user = user.SetOAuthToken(types.NewString(tokenCred.Token)).SetOAuthSecret(types.NewString(tokenCred.Secret))
+
+			if err != nil {
+				http.Error(w, "Error getting request token, "+err.Error(), 500)
+				return
+			}
+
+			l.Close()
+			// TODO: handle error
+		}
+	}
 
 	srv := &http.Server{Handler: newHandler(l)}
 	srv.Serve(l)
+
+	checkAuth()
+	commitUser()
 }
 
-func callGetPhotoSetList(tokenCred *oauth.Credentials) {
-	fmt.Println("flickr.photosets.getList")
+func commitUser() {
+	roots := ds.Roots()
+	rootSet := datas.NewRootSet().Insert(
+		datas.NewRoot().SetParents(
+			roots.NomsValue()).SetValue(
+			user.NomsValue()))
+	ds.Commit(rootSet)
+}
 
-	res, err := oauthClient.Get(nil, tokenCred, "https://api.flickr.com/services/rest/", url.Values{
-		"method": []string{"flickr.photosets.getList"},
+func callFlickrAPI(method string) (*http.Response, error) {
+	tokenCred := &oauth.Credentials{
+		user.OAuthToken().String(),
+		user.OAuthSecret().String(),
+	}
+
+	return oauthClient.Get(nil, tokenCred, "https://api.flickr.com/services/rest/", url.Values{
+		"method": []string{method},
 		"format": []string{"json"},
 	})
-	if err != nil {
-		panic(err)
-	}
-
-	defer res.Body.Close()
-	if err != nil {
-		panic(err)
-	}
-
-	body, _ := ioutil.ReadAll(res.Body)
-	text := string(body)
-
-	fmt.Println(text)
 }
 
 func getJSONBytes(reader io.Reader) []byte {
@@ -99,21 +171,8 @@ func getJSONBytes(reader io.Reader) []byte {
 	return buff[len(jsonResponsePrefix) : len(buff)-len(jsonResponsePostfix)]
 }
 
-func callAPI(tokenCred *oauth.Credentials) {
-	response := struct {
-		User struct {
-			Id       string `json:"id"`
-			Username struct {
-				Content string `json:"_content"`
-			} `json:"username"`
-		} `json:"user"`
-		Stat string `json:"stat"`
-	}{}
-
-	res, err := oauthClient.Get(nil, tokenCred, "https://api.flickr.com/services/rest/", url.Values{
-		"method": []string{"flickr.test.login"},
-		"format": []string{"json"},
-	})
+func callGetPhotoSetList() {
+	res, err := callFlickrAPI("flickr.photosets.getList")
 	if err != nil {
 		panic(err)
 	}
@@ -123,36 +182,8 @@ func callAPI(tokenCred *oauth.Credentials) {
 		panic(err)
 	}
 
-	err = json.Unmarshal(getJSONBytes(res.Body), &response)
-	if err != nil {
-		log.Fatalln("Error decoding JSON: ", err)
-	}
+	body, _ := ioutil.ReadAll(res.Body)
+	text := string(body)
 
-	datasetDataStoreFlags := dataset.DatasetDataFlags()
-	flag.Parse()
-
-	ds := datasetDataStoreFlags.CreateStore()
-	roots := ds.Roots()
-
-	flickrImport := NewFlickrImport().SetUserId(types.NewString(response.User.Id)).SetUserName(types.NewString(response.User.Username.Content)).SetOAuthToken(types.NewString(tokenCred.Token)).SetOAuthSecret(types.NewString(tokenCred.Secret))
-
-	ds.Commit(datas.NewRootSet().Insert(
-		datas.NewRoot().SetParents(
-			roots.NomsValue()).SetValue(
-			flickrImport.NomsValue())))
-
-	// callGetPhotoSetList(tokenCred)
-}
-
-func newHandler(l *net.TCPListener) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		tokenCred, _, err := oauthClient.RequestToken(nil, tempCred, r.FormValue("oauth_verifier"))
-		if err != nil {
-			http.Error(w, "Error getting request token, "+err.Error(), 500)
-			return
-		}
-
-		callAPI(tokenCred)
-		l.Close()
-	}
+	fmt.Println(text)
 }

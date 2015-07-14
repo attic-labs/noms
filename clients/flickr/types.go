@@ -8,57 +8,57 @@ import (
 	"github.com/attic-labs/noms/types"
 )
 
-// FlickrImport
+// User
 
-type FlickrImport struct {
+type User struct {
 	m types.Map
 }
 
-func NewFlickrImport() FlickrImport {
-	return FlickrImport{types.NewMap()}
+func NewUser() User {
+	return User{types.NewMap()}
 }
 
-func FlickrImportFromVal(v types.Value) FlickrImport {
-	return FlickrImport{v.(types.Map)}
+func UserFromVal(v types.Value) User {
+	return User{v.(types.Map)}
 }
 
 // TODO: This was going to be called Value() but it collides with root.value. We need some other place to put the built-in fields like Value() and Equals().
-func (s FlickrImport) NomsValue() types.Map {
+func (s User) NomsValue() types.Map {
 	return s.m
 }
 
-func (s FlickrImport) Equals(p FlickrImport) bool {
+func (s User) Equals(p User) bool {
 	return s.m.Equals(p.m)
 }
 
-func (s FlickrImport) Ref() ref.Ref {
+func (s User) Ref() ref.Ref {
 	return s.m.Ref()
 }
-func (s FlickrImport) UserId() types.String {
-	return s.m.Get(types.NewString("userId")).(types.String)
+func (s User) Id() types.String {
+	return s.m.Get(types.NewString("id")).(types.String)
 }
 
-func (s FlickrImport) SetUserId(p types.String) FlickrImport {
-	return FlickrImportFromVal(s.m.Set(types.NewString("userId"), p))
+func (s User) SetId(p types.String) User {
+	return UserFromVal(s.m.Set(types.NewString("id"), p))
 }
-func (s FlickrImport) UserName() types.String {
-	return s.m.Get(types.NewString("userName")).(types.String)
+func (s User) Name() types.String {
+	return s.m.Get(types.NewString("name")).(types.String)
 }
 
-func (s FlickrImport) SetUserName(p types.String) FlickrImport {
-	return FlickrImportFromVal(s.m.Set(types.NewString("userName"), p))
+func (s User) SetName(p types.String) User {
+	return UserFromVal(s.m.Set(types.NewString("name"), p))
 }
-func (s FlickrImport) OAuthToken() types.String {
+func (s User) OAuthToken() types.String {
 	return s.m.Get(types.NewString("oAuthToken")).(types.String)
 }
 
-func (s FlickrImport) SetOAuthToken(p types.String) FlickrImport {
-	return FlickrImportFromVal(s.m.Set(types.NewString("oAuthToken"), p))
+func (s User) SetOAuthToken(p types.String) User {
+	return UserFromVal(s.m.Set(types.NewString("oAuthToken"), p))
 }
-func (s FlickrImport) OAuthSecret() types.String {
+func (s User) OAuthSecret() types.String {
 	return s.m.Get(types.NewString("oAuthSecret")).(types.String)
 }
 
-func (s FlickrImport) SetOAuthSecret(p types.String) FlickrImport {
-	return FlickrImportFromVal(s.m.Set(types.NewString("oAuthSecret"), p))
+func (s User) SetOAuthSecret(p types.String) User {
+	return UserFromVal(s.m.Set(types.NewString("oAuthSecret"), p))
 }
