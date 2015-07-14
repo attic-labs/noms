@@ -38,7 +38,6 @@ var oauthClient = oauth.Client{
 }
 
 var (
-	tempCred            *oauth.Credentials
 	jsonResponsePrefix  = []byte("jsonFlickrApi(")
 	jsonResponsePostfix = []byte(")")
 	ds                  *datas.DataStore
@@ -100,20 +99,30 @@ func checkAuth() error {
 
 func authUser() {
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
-	callback := "http://" + l.Addr().String()
-
-	tempCred, err := oauthClient.RequestTemporaryCredentials(nil, callback, url.Values{
+	tempCred, err := oauthClient.RequestTemporaryCredentials(nil, "http://"+l.Addr().String(), url.Values{
 		"perms": []string{"read"},
 	})
-
 	if err != nil {
-		panic(fmt.Sprintf("Error getting temp cred, %v\n", err.Error()))
+		panic(err)
 	}
 
 	authUrl := oauthClient.AuthorizationURL(tempCred, nil)
 	fmt.Printf("Go to the following URL to authorize: %v\n", authUrl)
 
+	if err = awaitOAuthResponse(l, tempCred); err != nil {
+		panic(err)
+	}
+
+	if err = checkAuth(); err != nil {
+		panic(err)
+	}
+
+	commitUser()
+}
+
+func awaitOAuthResponse(l *net.TCPListener, tempCred *oauth.Credentials) error {
 	var handlerError error
+
 	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("content-type", "text/plain")
 		var cred *oauth.Credentials
@@ -127,15 +136,8 @@ func authUser() {
 		l.Close()
 	})}
 	srv.Serve(l)
-	if handlerError != nil {
-		panic(handlerError)
-	}
 
-	if err = checkAuth(); err != nil {
-		panic(err)
-	}
-
-	commitUser()
+	return handlerError
 }
 
 func commitUser() {
