@@ -1,15 +1,20 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
 
 	"github.com/attic-labs/noms/datas"
 	"github.com/attic-labs/noms/dataset"
+	. "github.com/attic-labs/noms/dbg"
 	"github.com/attic-labs/noms/types"
 	"github.com/garyburd/go-oauth/oauth"
 )
@@ -31,6 +36,11 @@ var oauthClient = oauth.Client{
 		Secret: "0aacb9788ab8d010",
 	},
 }
+
+var (
+	jsonResponsePrefix  = []byte("jsonFlickrApi(")
+	jsonResponsePostfix = []byte(")")
+)
 
 var tempCred *oauth.Credentials
 
@@ -78,8 +88,27 @@ func callGetPhotoSetList(tokenCred *oauth.Credentials) {
 	fmt.Println(text)
 }
 
+func getJSONBytes(reader io.Reader) []byte {
+	buff, err := ioutil.ReadAll(reader)
+	Chk.NoError(err)
+	if !bytes.Equal(buff[0:len(jsonResponsePrefix)], jsonResponsePrefix) ||
+		!bytes.Equal(buff[len(buff)-len(jsonResponsePostfix):], jsonResponsePostfix) {
+		panic(fmt.Sprintf("Unexpect json response: %v", buff))
+	}
+
+	return buff[len(jsonResponsePrefix) : len(buff)-len(jsonResponsePostfix)]
+}
+
 func callAPI(tokenCred *oauth.Credentials) {
-	fmt.Println("flickr.test.login")
+	response := struct {
+		User struct {
+			Id       string `json:"id"`
+			Username struct {
+				Content string `json:"_content"`
+			} `json:"username"`
+		} `json:"user"`
+		Stat string `json:"stat"`
+	}{}
 
 	res, err := oauthClient.Get(nil, tokenCred, "https://api.flickr.com/services/rest/", url.Values{
 		"method": []string{"flickr.test.login"},
@@ -94,10 +123,10 @@ func callAPI(tokenCred *oauth.Credentials) {
 		panic(err)
 	}
 
-	body, _ := ioutil.ReadAll(res.Body)
-	text := string(body)
-
-	fmt.Println(text)
+	err = json.Unmarshal(getJSONBytes(res.Body), &response)
+	if err != nil {
+		log.Fatalln("Error decoding JSON: ", err)
+	}
 
 	datasetDataStoreFlags := dataset.DatasetDataFlags()
 	flag.Parse()
@@ -105,14 +134,14 @@ func callAPI(tokenCred *oauth.Credentials) {
 	ds := datasetDataStoreFlags.CreateStore()
 	roots := ds.Roots()
 
-	flickrImport := NewFlickrImport().SetUserId(types.NewString("123")).SetUserName(types.NewString("rafaelw")).SetOAuthToken(types.NewString("asf"))
+	flickrImport := NewFlickrImport().SetUserId(types.NewString(response.User.Id)).SetUserName(types.NewString(response.User.Username.Content)).SetOAuthToken(types.NewString(tokenCred.Token)).SetOAuthSecret(types.NewString(tokenCred.Secret))
 
 	ds.Commit(datas.NewRootSet().Insert(
 		datas.NewRoot().SetParents(
 			roots.NomsValue()).SetValue(
 			flickrImport.NomsValue())))
 
-	callGetPhotoSetList(tokenCred)
+	// callGetPhotoSetList(tokenCred)
 }
 
 func newHandler(l *net.TCPListener) http.HandlerFunc {
