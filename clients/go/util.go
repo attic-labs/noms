@@ -39,6 +39,15 @@ func NomsValueFromDecodedJSON(o interface{}) types.Value {
 			}
 		}
 		return out
+	case []map[string]interface{}:
+		out := types.NewList()
+		for _, v := range o {
+			nv := NomsValueFromDecodedJSON(v)
+			if nv != nil {
+				out = out.Append(nv)
+			}
+		}
+		return out
 	case map[string]interface{}:
 		out := types.NewMap()
 		for k, v := range o {
