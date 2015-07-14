@@ -78,13 +78,7 @@ func checkAuth() error {
 		Stat string `json:"stat"`
 	}{}
 
-	res, err := callFlickrAPI("flickr.test.login")
-	if err != nil {
-		return err
-	}
-
-	defer res.Body.Close()
-	err = json.Unmarshal(getJSONBytes(res.Body), &response)
+	err := callFlickrAPI("flickr.test.login", &response)
 	if err != nil {
 		return err
 	}
@@ -94,6 +88,29 @@ func checkAuth() error {
 	}
 
 	user = user.SetId(types.NewString(response.User.Id)).SetName(types.NewString(response.User.Username.Content))
+	return nil
+}
+
+func callGetPhotoSetList() error {
+	response := struct {
+		Photosets struct {
+			Id       string `json:"id"`
+			Username struct {
+				Content string `json:"_content"`
+			} `json:"username"`
+		} `json:"photosets"`
+		Stat string `json:"stat"`
+	}{}
+
+	err := callFlickrAPI("flickr.photosets.getList", &response)
+	if err != nil {
+		return err
+	}
+
+	if response.Stat != "ok" {
+		return errors.New(fmt.Sprintf("Failed test login. Status %v", response.Stat))
+	}
+
 	return nil
 }
 
@@ -149,16 +166,23 @@ func commitUser() {
 	ds.Commit(rootSet)
 }
 
-func callFlickrAPI(method string) (*http.Response, error) {
+func callFlickrAPI(method string, response interface{}) error {
 	tokenCred := &oauth.Credentials{
 		user.OAuthToken().String(),
 		user.OAuthSecret().String(),
 	}
 
-	return oauthClient.Get(nil, tokenCred, "https://api.flickr.com/services/rest/", url.Values{
+	res, err := oauthClient.Get(nil, tokenCred, "https://api.flickr.com/services/rest/", url.Values{
 		"method": []string{method},
 		"format": []string{"json"},
 	})
+
+	if err != nil {
+		return err
+	}
+
+	defer res.Body.Close()
+	return json.Unmarshal(getJSONBytes(res.Body), response)
 }
 
 func getJSONBytes(reader io.Reader) []byte {
@@ -170,21 +194,4 @@ func getJSONBytes(reader io.Reader) []byte {
 	}
 
 	return buff[len(jsonResponsePrefix) : len(buff)-len(jsonResponsePostfix)]
-}
-
-func callGetPhotoSetList() {
-	res, err := callFlickrAPI("flickr.photosets.getList")
-	if err != nil {
-		panic(err)
-	}
-
-	defer res.Body.Close()
-	if err != nil {
-		panic(err)
-	}
-
-	body, _ := ioutil.ReadAll(res.Body)
-	text := string(body)
-
-	fmt.Println(text)
 }
