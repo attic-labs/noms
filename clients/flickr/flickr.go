@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 
 	"github.com/attic-labs/noms/datas"
@@ -147,9 +148,63 @@ func getPhotosetPhotos(id string) error {
 		fmt.Println(p.Id)
 		fmt.Println(p.Title)
 
+		getPhotoSizes(p.Id)
 		break
 	}
 
+	return nil
+}
+
+func getPhotoSizes(id string) error {
+
+	response := struct {
+		flickrCall
+		Sizes struct {
+			Size []struct {
+				Label  string `json:"label"`
+				Source string `json:"source"`
+				// TODO: For some reason json unmarshalling was getting confused about types. Not sure why.
+				// Width  int `json:"width"`
+				// Height int `json:"height"`
+			} `json:"size"`
+		} `json:"sizes"`
+	}{}
+
+	err := callFlickrAPI("flickr.photos.getSizes", &response, &map[string]string{
+		"photo_id": id,
+	})
+
+	if err != nil {
+		panic(err)
+		return err
+	}
+
+	fmt.Println(len(response.Sizes.Size))
+	for _, p := range response.Sizes.Size {
+		fmt.Println(p.Label)
+		fmt.Println(p.Source)
+
+		getPhotoBytes(p.Label, p.Source)
+		break
+	}
+
+	return nil
+}
+
+func getPhotoBytes(label, url string) error {
+	resp, err := http.Get(url)
+	defer resp.Body.Close()
+	if err != nil {
+		panic(err)
+	}
+
+	file, err := os.OpenFile(label, os.O_RDWR|os.O_CREATE, os.ModePerm)
+	defer file.Close()
+	if err != nil {
+		panic(err)
+	}
+
+	io.Copy(file, resp.Body)
 	return nil
 }
 
@@ -210,7 +265,7 @@ type flickrCall struct {
 }
 
 func callFlickrAPI(method string, response interface{}, args *map[string]string) (err error) {
-	// fmt.Printf("\n\nCalling: %v\n", method)
+	fmt.Printf("\n\nCalling: %v\n", method)
 
 	tokenCred := &oauth.Credentials{
 		user.OAuthToken().String(),

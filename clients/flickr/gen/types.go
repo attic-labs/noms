@@ -17,7 +17,7 @@ func main() {
 		return
 	}
 
-	flickrImport := types.NewMap(
+	user := types.NewMap(
 		types.NewString("$type"), types.NewString("noms.StructDef"),
 		types.NewString("$name"), types.NewString("User"),
 		types.NewString("id"), types.NewString("string"),
@@ -29,5 +29,5 @@ func main() {
 	defer f.Close()
 	Chk.NoError(err)
 	ng := nomgen.New(f)
-	ng.WriteGo(flickrImport, "main")
+	ng.WriteGo(user, "main")
 }
