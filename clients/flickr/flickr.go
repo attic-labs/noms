@@ -65,7 +65,6 @@ func getUser() {
 		user = NewUser()
 	}
 
-	fmt.Println("OAuth authentication required.")
 	authUser()
 }
 
@@ -100,12 +99,10 @@ func checkAuth() error {
 }
 
 func authUser() {
-	var err error
-
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
 	callback := "http://" + l.Addr().String()
 
-	tempCred, err = oauthClient.RequestTemporaryCredentials(nil, callback, url.Values{
+	tempCred, err := oauthClient.RequestTemporaryCredentials(nil, callback, url.Values{
 		"perms": []string{"read"},
 	})
 
@@ -116,26 +113,28 @@ func authUser() {
 	authUrl := oauthClient.AuthorizationURL(tempCred, nil)
 	fmt.Printf("Go to the following URL to authorize: %v\n", authUrl)
 
-	newHandler := func(l *net.TCPListener) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			tokenCred, _, err := oauthClient.RequestToken(nil, tempCred, r.FormValue("oauth_verifier"))
-
-			user = user.SetOAuthToken(types.NewString(tokenCred.Token)).SetOAuthSecret(types.NewString(tokenCred.Secret))
-
-			if err != nil {
-				http.Error(w, "Error getting request token, "+err.Error(), 500)
-				return
-			}
-
-			l.Close()
-			// TODO: handle error
+	var handlerError error
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("content-type", "text/plain")
+		var cred *oauth.Credentials
+		cred, _, handlerError = oauthClient.RequestToken(nil, tempCred, r.FormValue("oauth_verifier"))
+		if handlerError != nil {
+			fmt.Fprintf(w, "%v", handlerError)
+		} else {
+			fmt.Fprintf(w, "Authorized")
+			user = user.SetOAuthToken(types.NewString(cred.Token)).SetOAuthSecret(types.NewString(cred.Secret))
 		}
+		l.Close()
+	})}
+	srv.Serve(l)
+	if handlerError != nil {
+		panic(handlerError)
 	}
 
-	srv := &http.Server{Handler: newHandler(l)}
-	srv.Serve(l)
+	if err = checkAuth(); err != nil {
+		panic(err)
+	}
 
-	checkAuth()
 	commitUser()
 }
 
