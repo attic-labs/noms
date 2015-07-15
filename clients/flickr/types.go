@@ -55,10 +55,3 @@ func (s FlickrImport) OAuthToken() types.String {
 func (s FlickrImport) SetOAuthToken(p types.String) FlickrImport {
 	return FlickrImportFromVal(s.m.Set(types.NewString("oAuthToken"), p))
 }
-func (s FlickrImport) OAuthSecret() types.String {
-	return s.m.Get(types.NewString("oAuthSecret")).(types.String)
-}
-
-func (s FlickrImport) SetOAuthSecret(p types.String) FlickrImport {
-	return FlickrImportFromVal(s.m.Set(types.NewString("oAuthSecret"), p))
-}

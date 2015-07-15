@@ -22,8 +22,7 @@ func main() {
 		types.NewString("$name"), types.NewString("FlickrImport"),
 		types.NewString("userId"), types.NewString("string"),
 		types.NewString("userName"), types.NewString("string"),
-		types.NewString("oAuthToken"), types.NewString("string"),
-		types.NewString("oAuthSecret"), types.NewString("string"))
+		types.NewString("oAuthToken"), types.NewString("string"))
 
 	f, err := os.OpenFile(*outFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	defer f.Close()
