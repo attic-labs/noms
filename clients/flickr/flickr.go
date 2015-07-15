@@ -20,19 +20,12 @@ import (
 )
 
 var (
-	ds   *dataset.Dataset
-	user User
+	apiKeyFlag       *string = flag.String("api-key", "", "API keys for flickr can be created at https://www.flickr.com/services/apps/create/apply")
+	apiKeySecretFlag *string = flag.String("api-key-secret", "", "API keys for flickr can be created at https://www.flickr.com/services/apps/create/apply")
+	ds               *dataset.Dataset
+	user             User
+	oauthClient      oauth.Client
 )
-
-var oauthClient = oauth.Client{
-	TemporaryCredentialRequestURI: "https://www.flickr.com/services/oauth/request_token",
-	ResourceOwnerAuthorizationURI: "https://www.flickr.com/services/oauth/authorize",
-	TokenRequestURI:               "https://www.flickr.com/services/oauth/access_token",
-	Credentials: oauth.Credentials{
-		Token:  "b404ebc4edc07f75f9ae6e14820ef591",
-		Secret: "0aacb9788ab8d010",
-	},
-}
 
 type flickrCall struct {
 	Stat string
@@ -41,6 +34,21 @@ type flickrCall struct {
 func main() {
 	dsFlags := dataset.Flags()
 	flag.Parse()
+
+	if *apiKeyFlag == "" || *apiKeySecretFlag == "" {
+		flag.Usage()
+		return
+	}
+
+	oauthClient = oauth.Client{
+		TemporaryCredentialRequestURI: "https://www.flickr.com/services/oauth/request_token",
+		ResourceOwnerAuthorizationURI: "https://www.flickr.com/services/oauth/authorize",
+		TokenRequestURI:               "https://www.flickr.com/services/oauth/access_token",
+		Credentials: oauth.Credentials{
+			Token:  *apiKeyFlag,
+			Secret: *apiKeySecretFlag,
+		},
+	}
 
 	ds = dsFlags.CreateDataset()
 	if ds == nil {
@@ -104,7 +112,7 @@ func authUser() {
 	Chk.NoError(err)
 
 	if !checkAuth() {
-		panic(errors.New("checkAuth failed after oauth succeded"))
+		Chk.Fail("checkAuth failed after oauth succeded")
 	}
 }
 
