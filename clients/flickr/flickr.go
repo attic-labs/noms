@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"reflect"
 
 	"github.com/attic-labs/noms/datas"
 	"github.com/attic-labs/noms/dataset"
@@ -51,8 +50,6 @@ func main() {
 	ds = datasetDataStoreFlags.CreateStore()
 
 	getUser()
-	getPhotosets()
-	// commitUser()
 }
 
 func getUser() {
@@ -72,13 +69,13 @@ func getUser() {
 
 func checkAuth() error {
 	response := struct {
-		flickrCall
 		User struct {
 			Id       string `json:"id"`
 			Username struct {
 				Content string `json:"_content"`
 			} `json:"username"`
 		} `json:"user"`
+		Stat string `json:"stat"`
 	}{}
 
 	err := callFlickrAPI("flickr.test.login", &response)
@@ -86,24 +83,23 @@ func checkAuth() error {
 		return err
 	}
 
+	if response.Stat != "ok" {
+		return errors.New(fmt.Sprintf("Failed test login. Status %v", response.Stat))
+	}
+
 	user = user.SetId(types.NewString(response.User.Id)).SetName(types.NewString(response.User.Username.Content))
 	return nil
 }
 
-func getPhotosets() error {
+func callGetPhotoSetList() error {
 	response := struct {
-		flickrCall
 		Photosets struct {
-			Photoset []struct {
-				Id    string
-				Title struct {
-					Content string `json:"_content"`
-				} `json:"title"`
-				Description struct {
-					Content string `json:"_content"`
-				} `json:"description"`
-			} `json:"photoset"`
+			Id       string `json:"id"`
+			Username struct {
+				Content string `json:"_content"`
+			} `json:"username"`
 		} `json:"photosets"`
+		Stat string `json:"stat"`
 	}{}
 
 	err := callFlickrAPI("flickr.photosets.getList", &response)
@@ -111,10 +107,8 @@ func getPhotosets() error {
 		return err
 	}
 
-	for _, p := range response.Photosets.Photoset {
-		fmt.Println(p.Id)
-		fmt.Println(p.Title.Content)
-		fmt.Println(p.Description.Content)
+	if response.Stat != "ok" {
+		return errors.New(fmt.Sprintf("Failed test login. Status %v", response.Stat))
 	}
 
 	return nil
@@ -172,11 +166,7 @@ func commitUser() {
 	ds.Commit(rootSet)
 }
 
-type flickrCall struct {
-	Stat string
-}
-
-func callFlickrAPI(method string, response interface{}) (err error) {
+func callFlickrAPI(method string, response interface{}) error {
 	tokenCred := &oauth.Credentials{
 		user.OAuthToken().String(),
 		user.OAuthSecret().String(),
@@ -188,19 +178,11 @@ func callFlickrAPI(method string, response interface{}) (err error) {
 	})
 
 	if err != nil {
-		return
+		return err
 	}
 
 	defer res.Body.Close()
-	if err = json.Unmarshal(getJSONBytes(res.Body), response); err != nil {
-		return
-	}
-
-	status := reflect.ValueOf(response).Elem().FieldByName("Stat").Interface().(string)
-	if status != "ok" {
-		err = errors.New(fmt.Sprintf("Failed flickr API call: %v, status: &v", method, status))
-	}
-	return
+	return json.Unmarshal(getJSONBytes(res.Body), response)
 }
 
 func getJSONBytes(reader io.Reader) []byte {
