@@ -22,16 +22,10 @@ import (
 
 //go:generate go run gen/types.go -o types.go
 
-// Session state keys.
-const (
-	tempCredKey  = "tempCred"
-	tokenCredKey = "tokenCred"
-)
-
 var (
 	jsonResponsePrefix  = []byte("jsonFlickrApi(")
 	jsonResponsePostfix = []byte(")")
-	ds                  *datas.DataStore
+	ds                  *dataset.Dataset
 	user                User
 )
 
@@ -50,9 +44,14 @@ type flickrCall struct {
 }
 
 func main() {
-	datasetDataStoreFlags := dataset.DatasetDataFlags()
+	dsFlags := dataset.Flags()
 	flag.Parse()
-	ds = datasetDataStoreFlags.CreateStore()
+
+	ds = dsFlags.CreateDataset()
+	if ds == nil {
+		flag.Usage()
+		return
+	}
 
 	getUser()
 	getPhotosets()
