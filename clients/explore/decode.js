@@ -102,15 +102,11 @@ function decodeValue(value, getChunk) {
 function readValue(ref, getChunk) {
   return new Promise(function(fulfill) {
     getChunk(ref).then(function(data) {
-      switch(data[0]) {
-        case 'j':
-          var json = JSON.parse(data.substring(2))
-          return decodeValue(json, getChunk).then(fulfill);
-        case 'b':
-          return decodeValue("(blob) ref: " + ref, getChunk).then(fulfill)
-        default :
-          throw Error('Unsupported encoding');
-      }
+      if (data[0] != 'j')
+        throw Error('Unsupported encoding');
+
+      var json = JSON.parse(data.substring(2));
+      return decodeValue(json, getChunk).then(fulfill);
     });
   });
 }
