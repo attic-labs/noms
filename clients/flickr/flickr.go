@@ -66,7 +66,6 @@ func getUser() {
 	if roots.Len() > uint64(0) {
 		user = UserFromVal(roots.Any().Value())
 		if checkAuth() {
-			fmt.Println("OAuth credentials are still good.")
 			return
 		}
 	} else {
@@ -104,6 +103,7 @@ func authUser() {
 	tempCred, err := oauthClient.RequestTemporaryCredentials(nil, callbackURL, url.Values{
 		"perms": []string{"read"},
 	})
+	// If we ever hear anything from the oauth handshake, it'll be acceptance. The user declining will mean we never get called.
 	Chk.NoError(err)
 
 	authUrl := oauthClient.AuthorizationURL(tempCred, nil)
