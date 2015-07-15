@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -20,13 +19,9 @@ import (
 	"github.com/garyburd/go-oauth/oauth"
 )
 
-//go:generate go run gen/types.go -o types.go
-
 var (
-	jsonResponsePrefix  = []byte("jsonFlickrApi(")
-	jsonResponsePostfix = []byte(")")
-	ds                  *dataset.Dataset
-	user                User
+	ds   *dataset.Dataset
+	user User
 )
 
 var oauthClient = oauth.Client{
@@ -95,6 +90,8 @@ func checkAuth() bool {
 
 func authUser() {
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
+	Chk.NoError(err)
+
 	callbackURL := "http://" + l.Addr().String()
 	tempCred, err := oauthClient.RequestTemporaryCredentials(nil, callbackURL, url.Values{
 		"perms": []string{"read"},
@@ -149,6 +146,7 @@ func getPhotosetPhotos(id string) PhotoSet {
 		} `json:"photoset"`
 	}{}
 
+	// TODO: Implement paging. This call returns a maximum of 500 pictures in each response.
 	err := callFlickrAPI("flickr.photosets.getPhotos", &response, &map[string]string{
 		"photoset_id": id,
 		"user_id":     user.Id().String(),
@@ -243,9 +241,11 @@ func callFlickrAPI(method string, response interface{}, args *map[string]string)
 	}
 
 	values := url.Values{
-		"method": []string{method},
-		"format": []string{"json"},
+		"method":         []string{method},
+		"format":         []string{"json"},
+		"nojsoncallback": []string{"1"},
 	}
+
 	if args != nil {
 		for k, v := range *args {
 			values[k] = []string{v}
@@ -253,13 +253,14 @@ func callFlickrAPI(method string, response interface{}, args *map[string]string)
 	}
 
 	res, err := oauthClient.Get(nil, tokenCred, "https://api.flickr.com/services/rest/", values)
-	Chk.NoError(err)
 	if err != nil {
 		return err
 	}
 
 	defer res.Body.Close()
-	if err = json.Unmarshal(getJSONBytes(res.Body), response); err != nil {
+	buff, err := ioutil.ReadAll(res.Body)
+	Chk.NoError(err)
+	if err = json.Unmarshal(buff, response); err != nil {
 		return err
 	}
 
@@ -268,16 +269,4 @@ func callFlickrAPI(method string, response interface{}, args *map[string]string)
 		err = errors.New(fmt.Sprintf("Failed flickr API call: %v, status: &v", method, status))
 	}
 	return nil
-}
-
-func getJSONBytes(reader io.Reader) []byte {
-	buff, err := ioutil.ReadAll(reader)
-	Chk.NoError(err)
-
-	if !bytes.Equal(buff[0:len(jsonResponsePrefix)], jsonResponsePrefix) ||
-		!bytes.Equal(buff[len(buff)-len(jsonResponsePostfix):], jsonResponsePostfix) {
-		panic(fmt.Sprintf("Unexpect json response: %v", buff))
-	}
-
-	return buff[len(jsonResponsePrefix) : len(buff)-len(jsonResponsePostfix)]
 }

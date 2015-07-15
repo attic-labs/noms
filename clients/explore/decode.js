@@ -109,7 +109,7 @@ function readValue(ref, getChunk) {
         case 'b':
           return decodeValue("(blob) ref: " + ref, getChunk).then(fulfill)
         default :
-          throw Error('Unsupported encoding');
+          throw Error('Unsupported encoding: ' + data[0]);
       }
     });
   });
