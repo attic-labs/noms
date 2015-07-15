@@ -19,9 +19,9 @@ func main() {
 
 	flickrImport := types.NewMap(
 		types.NewString("$type"), types.NewString("noms.StructDef"),
-		types.NewString("$name"), types.NewString("User"),
-		types.NewString("id"), types.NewString("string"),
-		types.NewString("name"), types.NewString("string"),
+		types.NewString("$name"), types.NewString("FlickrImport"),
+		types.NewString("userId"), types.NewString("string"),
+		types.NewString("userName"), types.NewString("string"),
 		types.NewString("oAuthToken"), types.NewString("string"),
 		types.NewString("oAuthSecret"), types.NewString("string"))
 
