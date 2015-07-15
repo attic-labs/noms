@@ -28,13 +28,6 @@ const (
 	tokenCredKey = "tokenCred"
 )
 
-var (
-	jsonResponsePrefix  = []byte("jsonFlickrApi(")
-	jsonResponsePostfix = []byte(")")
-	ds                  *datas.DataStore
-	user                User
-)
-
 var oauthClient = oauth.Client{
 	TemporaryCredentialRequestURI: "https://www.flickr.com/services/oauth/request_token",
 	ResourceOwnerAuthorizationURI: "https://www.flickr.com/services/oauth/authorize",
@@ -45,9 +38,12 @@ var oauthClient = oauth.Client{
 	},
 }
 
-type flickrCall struct {
-	Stat string
-}
+var (
+	jsonResponsePrefix  = []byte("jsonFlickrApi(")
+	jsonResponsePostfix = []byte(")")
+	ds                  *datas.DataStore
+	user                User
+)
 
 func main() {
 	datasetDataStoreFlags := dataset.DatasetDataFlags()
@@ -63,7 +59,7 @@ func getUser() {
 	roots := ds.Roots()
 	if roots.Len() > uint64(0) {
 		user = UserFromVal(roots.Any().Value())
-		if checkAuth() {
+		if checkAuth() == nil {
 			fmt.Println("OAuth credentials are still good.")
 			return
 		}
@@ -74,7 +70,7 @@ func getUser() {
 	authUser()
 }
 
-func checkAuth() bool {
+func checkAuth() error {
 	response := struct {
 		flickrCall
 		User struct {
@@ -87,30 +83,11 @@ func checkAuth() bool {
 
 	err := callFlickrAPI("flickr.test.login", &response, nil)
 	if err != nil {
-		return false
+		return err
 	}
 
 	user = user.SetId(types.NewString(response.User.Id)).SetName(types.NewString(response.User.Username.Content))
-	return true
-}
-
-func authUser() {
-	l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
-	callbackURL := "http://" + l.Addr().String()
-	tempCred, err := oauthClient.RequestTemporaryCredentials(nil, callbackURL, url.Values{
-		"perms": []string{"read"},
-	})
-	Chk.NoError(err)
-
-	authUrl := oauthClient.AuthorizationURL(tempCred, nil)
-	fmt.Printf("Go to the following URL to authorize: %v\n", authUrl)
-	err = awaitOAuthResponse(l, tempCred)
-	Chk.NoError(err)
-
-	if !checkAuth() {
-		panic(errors.New("checkAuth failed after oauth succeded"))
-	}
-	Chk.NoError(err)
+	return nil
 }
 
 func getPhotosets() {
@@ -127,16 +104,18 @@ func getPhotosets() {
 	}{}
 
 	err := callFlickrAPI("flickr.photosets.getList", &response, nil)
-	Chk.NoError(err)
+	if err != nil {
+		panic(err)
+	}
 
 	photosets := NewPhotosetSet()
-	for _, p := range response.Photosets.Photoset {
-		fmt.Printf("\nPhotoset: %v\n", p.Title)
 
-		photos := getPhotosetPhotos(p.Id)
-		photoset := NewPhotoset().SetId(types.NewString(p.Id)).SetTitle(types.NewString(p.Title.Content)).SetPhotos(photos)
+	for _, p := range response.Photosets.Photoset {
+		photoset := NewPhotoset().SetId(types.NewString(p.Id)).SetTitle(types.NewString(p.Title.Content)).SetPhotos(getPhotosetPhotos(p.Id))
 		photosets = photosets.Insert(photoset)
+		break
 	}
+
 	user = user.SetPhotosets(photosets)
 }
 
@@ -155,16 +134,20 @@ func getPhotosetPhotos(id string) PhotoSet {
 		"photoset_id": id,
 		"user_id":     user.Id().String(),
 	})
-	Chk.NoError(err)
+
+	if err != nil {
+		panic(err)
+	}
 
 	photoSet := NewPhotoSet()
 	for _, p := range response.Photoset.Photo {
 		url := getOriginalUrl(p.Id)
-		fmt.Printf(" . %v\n", url)
-		photoBytes := getPhotoBytes(url)
-		photo := NewPhoto().SetId(types.NewString(p.Id)).SetTitle(types.NewString(p.Title)).SetUrl(types.NewString(url)).SetImage(types.NewBlob(photoBytes))
+		bytes := getPhotoBytes(url)
+		photo := NewPhoto().SetId(types.NewString(p.Id)).SetTitle(types.NewString(p.Title)).SetUrl(types.NewString(url)).SetImage(types.NewBlob(bytes))
 		photoSet = photoSet.Insert(photo)
+		break
 	}
+
 	return photoSet
 }
 
@@ -185,6 +168,7 @@ func getOriginalUrl(id string) string {
 	err := callFlickrAPI("flickr.photos.getSizes", &response, &map[string]string{
 		"photo_id": id,
 	})
+
 	if err != nil {
 		panic(err)
 	}
@@ -194,19 +178,41 @@ func getOriginalUrl(id string) string {
 			return p.Source
 		}
 	}
+
 	panic(errors.New(fmt.Sprintf("No Original image size found photo: %v", id)))
 }
 
 func getPhotoBytes(url string) []byte {
 	resp, err := http.Get(url)
+	defer resp.Body.Close()
 	if err != nil {
 		panic(err)
 	}
 
-	defer resp.Body.Close()
 	var buff bytes.Buffer
 	buff.ReadFrom(resp.Body)
 	return buff.Bytes()
+}
+
+func authUser() {
+	l, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
+	tempCred, err := oauthClient.RequestTemporaryCredentials(nil, "http://"+l.Addr().String(), url.Values{
+		"perms": []string{"read"},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	authUrl := oauthClient.AuthorizationURL(tempCred, nil)
+	fmt.Printf("Go to the following URL to authorize: %v\n", authUrl)
+
+	if err = awaitOAuthResponse(l, tempCred); err != nil {
+		panic(err)
+	}
+
+	if err = checkAuth(); err != nil {
+		panic(err)
+	}
 }
 
 func awaitOAuthResponse(l *net.TCPListener, tempCred *oauth.Credentials) error {
@@ -238,7 +244,11 @@ func commitUser() {
 	ds.Commit(rootSet)
 }
 
-func callFlickrAPI(method string, response interface{}, args *map[string]string) error {
+type flickrCall struct {
+	Stat string
+}
+
+func callFlickrAPI(method string, response interface{}, args *map[string]string) (err error) {
 	tokenCred := &oauth.Credentials{
 		user.OAuthToken().String(),
 		user.OAuthSecret().String(),
@@ -255,27 +265,25 @@ func callFlickrAPI(method string, response interface{}, args *map[string]string)
 	}
 
 	res, err := oauthClient.Get(nil, tokenCred, "https://api.flickr.com/services/rest/", values)
-	Chk.NoError(err)
 	if err != nil {
-		return err
+		return
 	}
 
 	defer res.Body.Close()
 	if err = json.Unmarshal(getJSONBytes(res.Body), response); err != nil {
-		return err
+		return
 	}
 
 	status := reflect.ValueOf(response).Elem().FieldByName("Stat").Interface().(string)
 	if status != "ok" {
 		err = errors.New(fmt.Sprintf("Failed flickr API call: %v, status: &v", method, status))
 	}
-	return nil
+	return
 }
 
 func getJSONBytes(reader io.Reader) []byte {
 	buff, err := ioutil.ReadAll(reader)
 	Chk.NoError(err)
-
 	if !bytes.Equal(buff[0:len(jsonResponsePrefix)], jsonResponsePrefix) ||
 		!bytes.Equal(buff[len(buff)-len(jsonResponsePostfix):], jsonResponsePostfix) {
 		panic(fmt.Sprintf("Unexpect json response: %v", buff))
