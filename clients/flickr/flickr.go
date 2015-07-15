@@ -81,7 +81,7 @@ func checkAuth() error {
 		} `json:"user"`
 	}{}
 
-	err := callFlickrAPI("flickr.test.login", &response, nil)
+	err := callFlickrAPI("flickr.test.login", &response)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func getPhotosets() error {
 		flickrCall
 		Photosets struct {
 			Photoset []struct {
-				Id    string `json:"id"`
+				Id    string
 				Title struct {
 					Content string `json:"_content"`
 				} `json:"title"`
@@ -106,7 +106,7 @@ func getPhotosets() error {
 		} `json:"photosets"`
 	}{}
 
-	err := callFlickrAPI("flickr.photosets.getList", &response, nil)
+	err := callFlickrAPI("flickr.photosets.getList", &response)
 	if err != nil {
 		return err
 	}
@@ -115,39 +115,6 @@ func getPhotosets() error {
 		fmt.Println(p.Id)
 		fmt.Println(p.Title.Content)
 		fmt.Println(p.Description.Content)
-
-		getPhotosetPhotos(p.Id)
-		break
-	}
-
-	return nil
-}
-
-func getPhotosetPhotos(id string) error {
-	response := struct {
-		flickrCall
-		Photoset struct {
-			Photo []struct {
-				Id    string `json:"id"`
-				Title string `json:"title"`
-			} `json:"photo"`
-		} `json:"photoset"`
-	}{}
-
-	err := callFlickrAPI("flickr.photosets.getPhotos", &response, &map[string]string{
-		"photoset_id": id,
-		"user_id":     user.Id().String(),
-	})
-
-	if err != nil {
-		return err
-	}
-
-	for _, p := range response.Photoset.Photo {
-		fmt.Println(p.Id)
-		fmt.Println(p.Title)
-
-		break
 	}
 
 	return nil
@@ -209,33 +176,23 @@ type flickrCall struct {
 	Stat string
 }
 
-func callFlickrAPI(method string, response interface{}, args *map[string]string) (err error) {
-	// fmt.Printf("\n\nCalling: %v\n", method)
-
+func callFlickrAPI(method string, response interface{}) (err error) {
 	tokenCred := &oauth.Credentials{
 		user.OAuthToken().String(),
 		user.OAuthSecret().String(),
 	}
 
-	values := url.Values{
+	res, err := oauthClient.Get(nil, tokenCred, "https://api.flickr.com/services/rest/", url.Values{
 		"method": []string{method},
 		"format": []string{"json"},
-	}
-	if args != nil {
-		for k, v := range *args {
-			values[k] = []string{v}
-		}
-	}
+	})
 
-	res, err := oauthClient.Get(nil, tokenCred, "https://api.flickr.com/services/rest/", values)
 	if err != nil {
 		return
 	}
 
 	defer res.Body.Close()
-	jsonBytes := getJSONBytes(res.Body)
-	fmt.Println(string(jsonBytes))
-	if err = json.Unmarshal(jsonBytes, response); err != nil {
+	if err = json.Unmarshal(getJSONBytes(res.Body), response); err != nil {
 		return
 	}
 
