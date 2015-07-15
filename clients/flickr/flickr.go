@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"reflect"
 
 	"github.com/attic-labs/noms/datas"
@@ -53,7 +52,7 @@ func main() {
 
 	getUser()
 	getPhotosets()
-	// commitUser()
+	commitUser()
 }
 
 func getUser() {
@@ -91,7 +90,7 @@ func checkAuth() error {
 	return nil
 }
 
-func getPhotosets() error {
+func getPhotosets() {
 	response := struct {
 		flickrCall
 		Photosets struct {
@@ -100,31 +99,27 @@ func getPhotosets() error {
 				Title struct {
 					Content string `json:"_content"`
 				} `json:"title"`
-				Description struct {
-					Content string `json:"_content"`
-				} `json:"description"`
 			} `json:"photoset"`
 		} `json:"photosets"`
 	}{}
 
 	err := callFlickrAPI("flickr.photosets.getList", &response, nil)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
-	for _, p := range response.Photosets.Photoset {
-		fmt.Println(p.Id)
-		fmt.Println(p.Title.Content)
-		fmt.Println(p.Description.Content)
+	photosets := NewPhotosetSet()
 
-		getPhotosetPhotos(p.Id)
+	for _, p := range response.Photosets.Photoset {
+		photoset := NewPhotoset().SetId(types.NewString(p.Id)).SetTitle(types.NewString(p.Title.Content)).SetPhotos(getPhotosetPhotos(p.Id))
+		photosets = photosets.Insert(photoset)
 		break
 	}
 
-	return nil
+	user = user.SetPhotosets(photosets)
 }
 
-func getPhotosetPhotos(id string) error {
+func getPhotosetPhotos(id string) PhotoSet {
 	response := struct {
 		flickrCall
 		Photoset struct {
@@ -141,22 +136,22 @@ func getPhotosetPhotos(id string) error {
 	})
 
 	if err != nil {
-		return err
+		panic(err)
 	}
 
+	photoSet := NewPhotoSet()
 	for _, p := range response.Photoset.Photo {
-		fmt.Println(p.Id)
-		fmt.Println(p.Title)
-
-		getPhotoSizes(p.Id)
+		url := getOriginalUrl(p.Id)
+		bytes := getPhotoBytes(url)
+		photo := NewPhoto().SetId(types.NewString(p.Id)).SetTitle(types.NewString(p.Title)).SetUrl(types.NewString(url)).SetImage(types.NewBlob(bytes))
+		photoSet = photoSet.Insert(photo)
 		break
 	}
 
-	return nil
+	return photoSet
 }
 
-func getPhotoSizes(id string) error {
-
+func getOriginalUrl(id string) string {
 	response := struct {
 		flickrCall
 		Sizes struct {
@@ -176,36 +171,27 @@ func getPhotoSizes(id string) error {
 
 	if err != nil {
 		panic(err)
-		return err
 	}
 
-	fmt.Println(len(response.Sizes.Size))
 	for _, p := range response.Sizes.Size {
-		fmt.Println(p.Label)
-		fmt.Println(p.Source)
-
-		getPhotoBytes(p.Label, p.Source)
-		break
+		if p.Label == "Original" {
+			return p.Source
+		}
 	}
 
-	return nil
+	panic(errors.New(fmt.Sprintf("No Original image size found photo: %v", id)))
 }
 
-func getPhotoBytes(label, url string) error {
+func getPhotoBytes(url string) []byte {
 	resp, err := http.Get(url)
 	defer resp.Body.Close()
 	if err != nil {
 		panic(err)
 	}
 
-	file, err := os.OpenFile(label, os.O_RDWR|os.O_CREATE, os.ModePerm)
-	defer file.Close()
-	if err != nil {
-		panic(err)
-	}
-
-	io.Copy(file, resp.Body)
-	return nil
+	var buff bytes.Buffer
+	buff.ReadFrom(resp.Body)
+	return buff.Bytes()
 }
 
 func authUser() {
@@ -227,8 +213,6 @@ func authUser() {
 	if err = checkAuth(); err != nil {
 		panic(err)
 	}
-
-	commitUser()
 }
 
 func awaitOAuthResponse(l *net.TCPListener, tempCred *oauth.Credentials) error {
@@ -265,8 +249,6 @@ type flickrCall struct {
 }
 
 func callFlickrAPI(method string, response interface{}, args *map[string]string) (err error) {
-	fmt.Printf("\n\nCalling: %v\n", method)
-
 	tokenCred := &oauth.Credentials{
 		user.OAuthToken().String(),
 		user.OAuthSecret().String(),
@@ -288,9 +270,7 @@ func callFlickrAPI(method string, response interface{}, args *map[string]string)
 	}
 
 	defer res.Body.Close()
-	jsonBytes := getJSONBytes(res.Body)
-	fmt.Println(string(jsonBytes))
-	if err = json.Unmarshal(jsonBytes, response); err != nil {
+	if err = json.Unmarshal(getJSONBytes(res.Body), response); err != nil {
 		return
 	}
 
