@@ -22,6 +22,7 @@ import (
 var (
 	apiKeyFlag       *string = flag.String("api-key", "", "API keys for flickr can be created at https://www.flickr.com/services/apps/create/apply")
 	apiKeySecretFlag *string = flag.String("api-key-secret", "", "API keys for flickr can be created at https://www.flickr.com/services/apps/create/apply")
+	albumIdFlag      *string = flag.String("album-id", "", "Import a specific album, identified by id")
 	ds               *dataset.Dataset
 	user             User
 	oauthClient      oauth.Client
@@ -57,7 +58,11 @@ func main() {
 	}
 
 	getUser()
-	getPhotosets()
+	if *albumIdFlag != "" {
+		getPhotoset(*albumIdFlag)
+	} else {
+		getPhotosets()
+	}
 	commitUser()
 }
 
@@ -116,6 +121,39 @@ func authUser() {
 	}
 }
 
+func getPhotoset(id string) {
+	response := struct {
+		flickrCall
+		Photoset struct {
+			Id    string `json:"id"`
+			Title struct {
+				Content string `json:"_content"`
+			} `json:"title"`
+		} `json:"photoset"`
+	}{}
+
+	err := callFlickrAPI("flickr.photosets.getInfo", &response, &map[string]string{
+		"photoset_id": id,
+		"user_id":     user.Id().String(),
+	})
+	Chk.NoError(err)
+
+	fmt.Printf("\nPhotoset: %v\n", response.Photoset.Title)
+
+	// TODO: Retrieving a field which hasn't been set will crash, so we have to reach inside and test the untyped
+	var photosets PhotosetSet
+	if !user.NomsValue().Has(types.NewString("photosets")) {
+		photosets = NewPhotosetSet()
+	} else {
+		photosets = user.Photosets()
+	}
+
+	photos := getPhotosetPhotos(id)
+	photoset := NewPhotoset().SetId(types.NewString(id)).SetTitle(types.NewString(response.Photoset.Title.Content)).SetPhotos(photos)
+	photosets = photosets.Insert(photoset)
+	user = user.SetPhotosets(photosets)
+}
+
 func getPhotosets() {
 	response := struct {
 		flickrCall
@@ -132,15 +170,9 @@ func getPhotosets() {
 	err := callFlickrAPI("flickr.photosets.getList", &response, nil)
 	Chk.NoError(err)
 
-	photosets := NewPhotosetSet()
 	for _, p := range response.Photosets.Photoset {
-		fmt.Printf("\nPhotoset: %v\n", p.Title)
-
-		photos := getPhotosetPhotos(p.Id)
-		photoset := NewPhotoset().SetId(types.NewString(p.Id)).SetTitle(types.NewString(p.Title.Content)).SetPhotos(photos)
-		photosets = photosets.Insert(photoset)
+		getPhotoset(p.Id)
 	}
-	user = user.SetPhotosets(photosets)
 }
 
 func getPhotosetPhotos(id string) PhotoSet {

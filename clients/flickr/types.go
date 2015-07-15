@@ -34,6 +34,13 @@ func (s User) Equals(p User) bool {
 func (s User) Ref() ref.Ref {
 	return s.m.Ref()
 }
+func (s User) Id() types.String {
+	return s.m.Get(types.NewString("id")).(types.String)
+}
+
+func (s User) SetId(p types.String) User {
+	return UserFromVal(s.m.Set(types.NewString("id"), p))
+}
 func (s User) Name() types.String {
 	return s.m.Get(types.NewString("name")).(types.String)
 }
@@ -61,13 +68,6 @@ func (s User) Photosets() PhotosetSet {
 
 func (s User) SetPhotosets(p PhotosetSet) User {
 	return UserFromVal(s.m.Set(types.NewString("photosets"), p.NomsValue()))
-}
-func (s User) Id() types.String {
-	return s.m.Get(types.NewString("id")).(types.String)
-}
-
-func (s User) SetId(p types.String) User {
-	return UserFromVal(s.m.Set(types.NewString("id"), p))
 }
 // PhotosetSet
 
@@ -177,6 +177,13 @@ func (s Photoset) Equals(p Photoset) bool {
 func (s Photoset) Ref() ref.Ref {
 	return s.m.Ref()
 }
+func (s Photoset) Id() types.String {
+	return s.m.Get(types.NewString("id")).(types.String)
+}
+
+func (s Photoset) SetId(p types.String) Photoset {
+	return PhotosetFromVal(s.m.Set(types.NewString("id"), p))
+}
 func (s Photoset) Title() types.String {
 	return s.m.Get(types.NewString("title")).(types.String)
 }
@@ -190,13 +197,6 @@ func (s Photoset) Photos() PhotoSet {
 
 func (s Photoset) SetPhotos(p PhotoSet) Photoset {
 	return PhotosetFromVal(s.m.Set(types.NewString("photos"), p.NomsValue()))
-}
-func (s Photoset) Id() types.String {
-	return s.m.Get(types.NewString("id")).(types.String)
-}
-
-func (s Photoset) SetId(p types.String) Photoset {
-	return PhotosetFromVal(s.m.Set(types.NewString("id"), p))
 }
 // PhotoSet
 
