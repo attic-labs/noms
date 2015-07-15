@@ -109,7 +109,6 @@ func authUser() {
 	if !checkAuth() {
 		panic(errors.New("checkAuth failed after oauth succeded"))
 	}
-	Chk.NoError(err)
 }
 
 func getPhotosets() {
