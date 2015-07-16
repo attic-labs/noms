@@ -221,24 +221,19 @@ func getOriginalUrl(id string) string {
 	err := callFlickrAPI("flickr.photos.getSizes", &response, &map[string]string{
 		"photo_id": id,
 	})
-	if err != nil {
-		panic(err)
-	}
+	Chk.NoError(err)
 
 	for _, p := range response.Sizes.Size {
 		if p.Label == "Original" {
 			return p.Source
 		}
 	}
-	panic(errors.New(fmt.Sprintf("No Original image size found photo: %v", id)))
+	Chk.Fail(fmt.Sprintf("No Original image size found photo: %v", id))
 }
 
 func getPhotoBytes(url string) []byte {
 	resp, err := http.Get(url)
-	if err != nil {
-		panic(err)
-	}
-
+	Chk.NoError(err)
 	defer resp.Body.Close()
 	var buff bytes.Buffer
 	buff.ReadFrom(resp.Body)
