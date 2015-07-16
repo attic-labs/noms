@@ -229,6 +229,7 @@ func getOriginalUrl(id string) string {
 		}
 	}
 	Chk.Fail(fmt.Sprintf("No Original image size found photo: %v", id))
+	return "NOT REACHED"
 }
 
 func getPhotoBytes(url string) []byte {
