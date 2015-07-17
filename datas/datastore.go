@@ -42,45 +42,54 @@ func (ds *DataStore) Roots() RootSet {
 
 func (ds *DataStore) Commit(newRoots RootSet) DataStore {
 	Chk.True(newRoots.Len() > 0)
-
-	parentsList := make([]types.Set, newRoots.Len())
-	i := uint64(0)
-	newRoots.Iter(func(root Root) (stop bool) {
-		parentsList[i] = root.Parents()
-		i++
-		return
-	})
-
-	superceded := types.NewSet().Union(parentsList...)
-	for !ds.doCommit(newRoots, RootSet{superceded}) {
+	for !ds.doCommit(newRoots) {
 	}
-
 	return newDataStoreInternal(ds.ChunkStore, ds.rt, ds.rc)
 }
 
-func (ds *DataStore) doCommit(add, remove RootSet) bool {
+func (ds *DataStore) doCommit(roots RootSet) bool {
 	// Note that |oldRoots| may be different from |ds.Roots| if someone else has commited since this Datastore was created. This computation must be based on the *current root* not the root associated with this Datastore.
+	Chk.True(roots.Len() > 0)
 	currentRootRef := ds.rt.Root()
 	oldRoots := rootSetFromRef(currentRootRef, ds)
+	newRoots := roots.Union(oldRoots)
 
-	prexisting := make([]Root, 0)
-	ds.rc.Update(currentRootRef)
-	add.Iter(func(r Root) (stop bool) {
-		if ds.rc.Contains(r.Ref()) {
-			prexisting = append(prexisting, r)
+	roots.Iter(func(root Root) (stop bool) {
+		if ds.isPrexisting(root, oldRoots) {
+			newRoots = newRoots.Remove(root)
+		} else {
+			newRoots = RootSetFromVal(newRoots.NomsValue().Subtract(root.Parents()))
 		}
+
 		return
 	})
-	add = add.Remove(prexisting...)
-	if add.Len() == 0 {
+
+	if newRoots.Len() == 0 || newRoots.Equals(oldRoots) {
 		return true
 	}
-
-	newRoots := oldRoots.Subtract(remove).Union(add)
 
 	// TODO: This set will be orphaned if this UpdateRoot below fails
 	newRootRef, err := types.WriteValue(newRoots.NomsValue(), ds)
 	Chk.NoError(err)
 
 	return ds.rt.UpdateRoot(newRootRef, currentRootRef)
+}
+
+func (ds *DataStore) isPrexisting(root Root, currentRoots RootSet) bool {
+	if currentRoots.Has(root) {
+		return true
+	}
+
+	// If a new root superceeds a (non-reachable) current root, it can't have already been committed because it hash would be uncomputable
+	superceedsCurrentRoot := false
+	root.Parents().Iter(func(parent types.Value) (stop bool) {
+		superceedsCurrentRoot = currentRoots.Has(RootFromVal(parent))
+		return superceedsCurrentRoot
+	})
+	if superceedsCurrentRoot {
+		return false
+	}
+
+	ds.rc.Update(currentRoots)
+	return ds.rc.Contains(root.Ref())
 }
