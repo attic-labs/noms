@@ -20,16 +20,20 @@ func NewDataStore(cs chunks.ChunkStore, rt chunks.RootTracker) DataStore {
 }
 
 func newDataStoreInternal(cs chunks.ChunkStore, rt chunks.RootTracker, rc *rootCache) DataStore {
+	return DataStore{
+		cs, rt, rc, rootSetFromRef(rt.Root(), cs),
+	}
+}
+
+func rootSetFromRef(rootRef ref.Ref, cs chunks.ChunkSource) RootSet {
 	var roots RootSet
-	rootRef := rt.Root()
 	if (rootRef == ref.Ref{}) {
 		roots = NewRootSet()
 	} else {
 		roots = RootSetFromVal(types.MustReadValue(rootRef, cs).(types.Set))
 	}
-	return DataStore{
-		cs, rt, rc, roots,
-	}
+
+	return roots
 }
 
 func (ds *DataStore) Roots() RootSet {
@@ -56,7 +60,7 @@ func (ds *DataStore) Commit(newRoots RootSet) DataStore {
 
 func (ds *DataStore) doCommit(add, remove RootSet) bool {
 	oldRootRef := ds.rt.Root()
-	oldRoots := ds.Roots()
+	oldRoots := rootSetFromRef(oldRootRef, ds)
 
 	prexisting := make([]Root, 0)
 	ds.rc.Update(oldRootRef)
