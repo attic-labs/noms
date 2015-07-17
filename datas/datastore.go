@@ -48,14 +48,22 @@ func (ds *DataStore) Commit(newRoots RootSet) DataStore {
 }
 
 func (ds *DataStore) doCommit(roots RootSet) bool {
-	// Note that |oldRoots| may be different from |ds.Roots| if someone else has commited since this Datastore was created. This computation must be based on the *current root* not the root associated with this Datastore.
 	Chk.True(roots.Len() > 0)
+
 	currentRootRef := ds.rt.Root()
-	oldRoots := rootSetFromRef(currentRootRef, ds)
-	newRoots := roots.Union(oldRoots)
+
+	// Note that |currentRoots| may be different from |ds.Roots| if someone else has commited since this Datastore was created. This computation must be based on the *current root* not the root associated with this Datastore.
+	var currentRoots RootSet
+	if currentRootRef == ds.roots.Ref() {
+		currentRoots = ds.roots
+	} else {
+		currentRoots = rootSetFromRef(currentRootRef, ds)
+	}
+
+	newRoots := roots.Union(currentRoots)
 
 	roots.Iter(func(root Root) (stop bool) {
-		if ds.isPrexisting(root, oldRoots) {
+		if ds.isPrexisting(root, currentRoots) {
 			newRoots = newRoots.Remove(root)
 		} else {
 			newRoots = RootSetFromVal(newRoots.NomsValue().Subtract(root.Parents()))
@@ -64,7 +72,7 @@ func (ds *DataStore) doCommit(roots RootSet) bool {
 		return
 	})
 
-	if newRoots.Len() == 0 || newRoots.Equals(oldRoots) {
+	if newRoots.Len() == 0 || newRoots.Equals(currentRoots) {
 		return true
 	}
 
