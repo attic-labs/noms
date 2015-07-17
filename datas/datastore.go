@@ -59,11 +59,12 @@ func (ds *DataStore) Commit(newRoots RootSet) DataStore {
 }
 
 func (ds *DataStore) doCommit(add, remove RootSet) bool {
-	oldRootRef := ds.rt.Root()
-	oldRoots := rootSetFromRef(oldRootRef, ds)
+	// Note that |oldRoots| may be different from |ds.Roots| if someone else has commited since this Datastore was created. This computation must be based on the *current root* not the root associated with this Datastore.
+	currentRootRef := ds.rt.Root()
+	oldRoots := rootSetFromRef(currentRootRef, ds)
 
 	prexisting := make([]Root, 0)
-	ds.rc.Update(oldRootRef)
+	ds.rc.Update(currentRootRef)
 	add.Iter(func(r Root) (stop bool) {
 		if ds.rc.Contains(r.Ref()) {
 			prexisting = append(prexisting, r)
@@ -81,5 +82,5 @@ func (ds *DataStore) doCommit(add, remove RootSet) bool {
 	newRootRef, err := types.WriteValue(newRoots.NomsValue(), ds)
 	Chk.NoError(err)
 
-	return ds.rt.UpdateRoot(newRootRef, oldRootRef)
+	return ds.rt.UpdateRoot(newRootRef, currentRootRef)
 }
