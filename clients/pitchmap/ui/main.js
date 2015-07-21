@@ -1,13 +1,11 @@
 'use strict';
 
-var store = require('./noms_store.js');
-var decode = require('./decode.js');
-var Immutable = require('immutable');
+var noms = require('noms');
 var React = require('react');
 var Map = require('./map.js');
 
-store.getRoot().then(function(s) {
-  return decode.readValue(s, store.getChunk);
+noms.getRoot().then(function(s) {
+  return noms.readValue(s, noms.getChunk);
 }).then(function(v) {
   return getDatasetRoot(v, 'mlb/heatmap');
 }).then(getPitchers).then(renderPitchersList).catch(function(err) {
