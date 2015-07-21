@@ -5,12 +5,12 @@ var Immutable = require('immutable');
 var refMapping = new WeakMap();
 
 function decodeMap(input, ref, getChunk) {
-  return Promise.all(input.map(function(value) {
+  return Promise.all(input.map(function (value) {
     return decodeValue(value, ref, getChunk);
-  })).then(function(values) {
+  })).then(function (values) {
     var pairs = [];
     for (var i = 0; i < input.length; i += 2) {
-      pairs.push([values[i], values[i+1]]);
+      pairs.push([values[i], values[i + 1]]);
     }
     var value = Immutable.Map(pairs);
     refMapping.set(value, ref);
@@ -19,9 +19,9 @@ function decodeMap(input, ref, getChunk) {
 }
 
 function decodeList(input, ref, getChunk) {
-  return Promise.all(input.map(function(value) {
+  return Promise.all(input.map(function (value) {
     return decodeValue(value, ref, getChunk);
-  })).then(function(values) {
+  })).then(function (values) {
     var value = Immutable.List(values);
     refMapping.set(value, ref);
     return value;
@@ -29,9 +29,9 @@ function decodeList(input, ref, getChunk) {
 }
 
 function decodeSet(input, ref, getChunk) {
-  return Promise.all(input.map(function(value) {
+  return Promise.all(input.map(function (value) {
     return decodeValue(value, ref, getChunk);
-  })).then(function(values) {
+  })).then(function (values) {
     var value = Immutable.Set(values);
     refMapping.set(value, ref);
     return value;
@@ -93,14 +93,14 @@ function decodeValue(value, ref, getChunk) {
 }
 
 function readValue(ref, getChunk) {
-  return getChunk(ref).then(function(data) {
-    switch(data[0]) {
+  return getChunk(ref).then(function (data) {
+    switch (data[0]) {
       case 'j':
-        var json = JSON.parse(data.substring(2))
+        var json = JSON.parse(data.substring(2));
         return decodeValue(json, ref, getChunk);
       case 'b':
-        return decodeValue("(blob) ref: " + ref, ref, getChunk);
-      default :
+        return decodeValue('(blob) ref: ' + ref, ref, getChunk);
+      default:
         throw Error('Unsupported encoding: ' + data[0]);
     }
   });
@@ -112,5 +112,5 @@ function getRef(value) {
 
 module.exports = {
   readValue: readValue,
-  getRef: getRef,
+  getRef: getRef
 };
