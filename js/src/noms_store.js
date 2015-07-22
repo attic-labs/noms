@@ -13,19 +13,14 @@ var rpc = {
   root: nomsServer + '/root',
 };
 
-// TODO: Not sure 6 is the right number here. I found some discussion that it's 6 in chrome, but it might be better to set this dynamically based on xhr.send() throwing.
-var maxConnections = 6;
+// TODO: Chrome seems to start spitting out uncatchable errors if we queue too many XHRs. This limit probably doesn't actually slow us down because the user agent has its own queue of fetches to service.
+var maxConnections = 512;
 var activeFetches = 0;
 var pendingFetches = [];
 
 function requestFetch(url) {
   return new Promise((resolve, reject) => {
-    pendingFetches.push({
-      url: url,
-      resolve: resolve,
-      reject: reject
-    });
-
+    pendingFetches.push({ url, resolve, reject });
     pumpFetchQueue();
   });
 }
