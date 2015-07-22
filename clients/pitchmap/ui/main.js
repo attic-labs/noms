@@ -20,11 +20,7 @@ function getPitchers(datasetRoot) {
 
 var PitcherList = React.createClass({
   getInitialState() {
-    var pitchers = [];
-    this.props.data.map((v, key) => {
-      pitchers.push(key)
-    });
-
+    var pitchers = this.props.data.map((v, key) => key).toArray();
     pitchers.sort();
 
     return {
