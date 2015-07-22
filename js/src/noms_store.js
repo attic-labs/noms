@@ -13,31 +13,64 @@ var rpc = {
   root: nomsServer + '/root',
 };
 
-// TODO: Use whatwg-fetch
-function fetch(url) {
+// TODO: Not sure 6 is the right number here. I found some discussion that it's 6 in chrome, but it might be better to set this dynamically based on xhr.send() throwing.
+var maxConnections = 6;
+var activeFetches = 0;
+var pendingFetches = [];
+
+function requestFetch(url) {
   return new Promise((resolve, reject) => {
-    var xhr = new XMLHttpRequest();
-    xhr.onload = (e) => {
-      resolve(e.target.responseText);
-    };
-    xhr.onerror = (e) => {
-      reject(e.target.statusText);
-    };
-    xhr.open('get', url, true);
-    xhr.send();
+    pendingFetches.push({
+      url: url,
+      resolve: resolve,
+      reject: reject
+    });
+
+    pumpFetchQueue();
   });
 }
 
+function beginFetch(req) {
+  activeFetches++;
+  fetch(req.url, req.resolve, req.reject);
+}
+
+function endFetch() {
+  activeFetches--;
+  pumpFetchQueue();
+}
+
+function pumpFetchQueue() {
+  while (pendingFetches.length && activeFetches < maxConnections) {
+    beginFetch(pendingFetches.shift())
+  }
+}
+
+// TODO: Use whatwg-fetch
+function fetch(url, resolve, reject) {
+  var xhr = new XMLHttpRequest();
+  xhr.onload = (e) => {
+    endFetch();
+    resolve(e.target.responseText);
+  };
+  xhr.onerror = (e) => {
+    endFetch();
+    reject(e.target.statusText);
+  };
+  xhr.open('get', url, true);
+  xhr.send();
+}
+
 function getChunk(ref) {
-  return fetch(rpc.get + '?ref=' + ref);
+  return requestFetch(rpc.get + '?ref=' + ref);
 }
 
 function getRoot() {
-  return fetch(rpc.root);
+  return requestFetch(rpc.root);
 }
 
 function getDataset(id) {
-  return fetch(rpc.dataset + '?id=' + id)
+  return requestFetch(rpc.dataset + '?id=' + id)
 }
 
 module.exports = {
