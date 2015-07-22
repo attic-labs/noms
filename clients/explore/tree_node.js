@@ -2,7 +2,7 @@
 
 var React = require('react');
 var Immutable = require('immutable');
-var {getRef, Ref} = require('noms');
+var Ref = require('noms').Ref
 
 function merge(a, b) {
   var result = {};
@@ -133,6 +133,10 @@ var TreeNode = React.createClass({
     return this.props.value;
   },
 
+  getRef: function() {
+    return Ref.isRef(this.props.value) ? this.props.value.ref : undefined;
+  },
+
   render: function() {
     var value = this.getValue();
     var type = this.getTypeOf(value);
@@ -160,7 +164,7 @@ var TreeNode = React.createClass({
     headerItems.push(React.DOM.span({
       className: 'ref',
       style: style.ref
-    }, getRef(value)));
+    }, this.getRef()));
     var header = React.DOM.div({
       className: 'tree-header',
       onClick: this.toggleExpand,

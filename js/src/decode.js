@@ -2,17 +2,14 @@
 
 var Immutable = require('immutable');
 
-var refMapping = new WeakMap();
-
 var isRef = {};
 
 class Ref{
   constructor(ref, fetchFn) {
-    this._ref = ref;
     this._isRef = isRef;
+    this.ref = ref;
     this._fetch = fetchFn;
     this._promise = null;
-    refMapping.set(this, ref);
   }
 
   deref() {
@@ -47,7 +44,6 @@ function decodeMap(input, ref, getChunk) {
         pairs.push([values[i], values[i+1]]);
       }
       var value = Immutable.Map(pairs);
-      refMapping.set(value, ref);
       return value;
     });
   });
@@ -59,7 +55,6 @@ function decodeList(input, ref, getChunk) {
       return decodeValue(value, ref, getChunk);
     })).then((values) => {
       var value = Immutable.List(values);
-      refMapping.set(value, ref);
       return value;
     });
   });
@@ -71,7 +66,6 @@ function decodeSet(input, ref, getChunk) {
       return decodeValue(value, ref, getChunk);
     })).then((values) => {
       var value = Immutable.Set(values);
-      refMapping.set(value, ref);
       return value;
     });
   });
@@ -147,12 +141,7 @@ function readValue(ref, getChunk) {
   });
 }
 
-function getRef(value) {
-  return typeof value !== 'object' ? undefined : refMapping.get(value);
-}
-
 module.exports = {
   readValue: readValue,
-  getRef: getRef,
   Ref: Ref
 };
