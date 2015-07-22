@@ -3,6 +3,7 @@
 var React = require('react');
 var Immutable = require('immutable');
 var getRef = require('noms').getRef;
+var Ref = require('noms').Ref;
 
 function merge(a, b) {
   var result = {};
@@ -54,14 +55,16 @@ style.collapsed = merge(style.arrow, style.collapsed);
 style.expanded = merge(style.arrow, style.expanded);
 
 var isInteger = Number.isInteger || function(nVal) {
-    return typeof nVal === "number" && isFinite(nVal) && nVal > -9007199254740992 && nVal < 9007199254740992 && Math.floor(nVal) === nVal;
+    return typeof nVal === 'number' && isFinite(nVal) && nVal > -9007199254740992 && nVal < 9007199254740992 && Math.floor(nVal) === nVal;
 }
 
 var TreeNode = React.createClass({
   getInitialState: function() {
     return {
       expand: this.props.expandAll,
-      expandAll: this.props.expandAll
+      expandAll: this.props.expandAll,
+      loaded: false,
+      value: null
     };
   },
 
@@ -73,26 +76,34 @@ var TreeNode = React.createClass({
 
   getTypeOf: function(value) {
     if (this.isCollection(value))
-      return "collection";
+      return 'collection';
+
+    if (value instanceof Ref)
+      return 'ref';
+
     var type = typeof value;
-    if (type == "number") {
-      return isInteger(value) ? "int" : "float"
+    if (type == 'number') {
+      return isInteger(value) ? 'int' : 'float'
     }
     return type;
   },
 
   getCollectionName: function(value) {
     if (Immutable.List.isList(value))
-      return "List";
+      return 'List';
     if (Immutable.Set.isSet(value))
-      return "Set";
+      return 'Set';
     if (Immutable.Map.isMap(value))
-      return "Map";
+      return 'Map';
   },
 
   valueAsString: function(value) {
     if (this.isCollection(value)) {
-      return this.getCollectionName(value) + " (" + value.size + " values)";
+      return this.getCollectionName(value) + ' (' + value.size + ' values)';
+    }
+
+    if (Ref.isRef(value)) {
+      return "(loading)";
     }
 
     return String(value);
@@ -101,14 +112,33 @@ var TreeNode = React.createClass({
   toggleExpand: function(e) {
     this.setState({
       expand: !this.state.expand,
-      expandAll: e.getModifierState("Shift")
+      expandAll: e.getModifierState('Shift')
     });
   },
 
+  getValue: function() {
+    var self = this;
+
+    if (Ref.isRef(this.props.value)) {
+      if (this.state.loaded) {
+        return this.state.value;
+      }
+
+      this.props.value.deref().then((value) => {
+        this.setState({
+          value: value,
+          loaded: true
+        });
+      });
+    }
+
+    return this.props.value;
+  },
+
   render: function() {
-    var value = this.props.value;
+    var value = this.getValue();
     var type = this.getTypeOf(value);
-    var isCollection = this.isCollection(value);
+    var isCollection = type == 'collection';
 
     var arrowStyle;
     var arrowContent;
@@ -125,8 +155,9 @@ var TreeNode = React.createClass({
     var headerItems = [expander];
 
     if (this.props.name !== undefined) {
-      headerItems.push(React.DOM.span({}, this.props.name + ": "))
+      headerItems.push(React.DOM.span({}, this.props.name + ': '))
     }
+
     headerItems.push(React.DOM.span({ style: style.types[type] }, this.valueAsString(value)))
     headerItems.push(React.DOM.span({
       className: 'ref',
@@ -142,6 +173,7 @@ var TreeNode = React.createClass({
     if (this.state.expand && isCollection) {
       var isSet = Immutable.Set.isSet(value);
       value.forEach(function(subvalue, index) {
+        // TODO: If index is a ref, it won't have been loaded here.
         var name = isSet ? undefined : index;
         content.push(TreeNodeFactory({ value: subvalue, name: name, expandAll: this.state.expandAll }));
       }, this);
