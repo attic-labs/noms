@@ -6,12 +6,27 @@ var refMapping = new WeakMap();
 
 var isRef = {};
 
-function Ref(ref, fetchFn) {
-  this._ref = ref;
-  this._isRef = isRef;
-  this._fetch = fetchFn;
-  this._promise = null;
-  refMapping.set(this, ref);
+class Ref{
+  constructor(ref, fetchFn) {
+    this._ref = ref;
+    this._isRef = isRef;
+    this._fetch = fetchFn;
+    this._promise = null;
+    refMapping.set(this, ref);
+  }
+
+  deref() {
+    if (this._promise === null) {
+      this._promise = recursiveRef(this);
+    }
+
+    return this._promise;
+  }
+
+  // BUG 88 (instance of is failing in dev build)
+  static isRef(ref) {
+    return ref && ref._isRef === isRef;
+  }
 }
 
 function recursiveRef(ref) {
@@ -20,18 +35,6 @@ function recursiveRef(ref) {
   }
 
   return Promise.resolve(ref);
-}
-
-Ref.prototype.deref = function() {
-  if (this._promise == null) {
-    this._promise = recursiveRef(this);
-  }
-
-  return this._promise;
-}
-
-Ref.isRef = function(ref) {
-  return ref && ref._isRef == isRef;
 }
 
 function decodeMap(input, ref, getChunk) {

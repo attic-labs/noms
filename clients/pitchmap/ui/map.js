@@ -70,7 +70,7 @@ var Map = React.createClass({
       return [];
     }
 
-    return this.state.points.map(function(p) {
+    return this.state.points.map((p) => {
       var w = 2;
       var h = 2;
       var x = - w / 2 + ORIGIN_X_PIXELS + feetToPixels(p.get('X'));
@@ -85,7 +85,7 @@ var Map = React.createClass({
           boxShadow: '0px 0px 16px 16px rgba(0,255,0,0.4)',
           borderRadius: '50%',
         } }/>;
-    }, this);
+    });
   },
 });
 

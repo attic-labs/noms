@@ -2,8 +2,7 @@
 
 var React = require('react');
 var Immutable = require('immutable');
-var getRef = require('noms').getRef;
-var Ref = require('noms').Ref;
+var {getRef, Ref} = require('noms');
 
 function merge(a, b) {
   var result = {};
@@ -81,6 +80,7 @@ var TreeNode = React.createClass({
     if (value instanceof Ref)
       return 'ref';
 
+    // TODO: This is inaccurate. Since JS only has Number, the actual underlying type is lost by this point.
     var type = typeof value;
     if (type == 'number') {
       return isInteger(value) ? 'int' : 'float'
@@ -103,7 +103,7 @@ var TreeNode = React.createClass({
     }
 
     if (Ref.isRef(value)) {
-      return "(loading)";
+      return '(loading)';
     }
 
     return String(value);
@@ -117,8 +117,6 @@ var TreeNode = React.createClass({
   },
 
   getValue: function() {
-    var self = this;
-
     if (Ref.isRef(this.props.value)) {
       if (this.state.loaded) {
         return this.state.value;
@@ -138,7 +136,7 @@ var TreeNode = React.createClass({
   render: function() {
     var value = this.getValue();
     var type = this.getTypeOf(value);
-    var isCollection = type == 'collection';
+    var isCollection = type === 'collection';
 
     var arrowStyle;
     var arrowContent;
