@@ -6,8 +6,10 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -91,6 +93,36 @@ func (f FileStore) Put() ChunkWriter {
 	}
 }
 
+func (f FileStore) findGarbage(refMap map[ref.Ref]bool) (garbage []ref.Ref) {
+	filepath.Walk(f.dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Fatalln("Error in chunkRefs:", err)
+		}
+		r, ok := ref.Parse(info.Name())
+		if ok == nil && !refMap[r] {
+			garbage = append(garbage, r)
+		}
+		return nil
+	})
+
+	return garbage
+}
+
+func (f FileStore) removeFile(r ref.Ref) error {
+	return os.Remove(getPath(f.dir, r))
+}
+
+func (f FileStore) GarbageCollect(refs map[ref.Ref]bool) int {
+	garbage := f.findGarbage(refs)
+	count := 0
+	for _, g := range garbage {
+		if f.removeFile(g) == nil {
+			count++
+		}
+	}
+	return count
+}
+
 type fileChunkWriter struct {
 	root     string
 	buffer   *bytes.Buffer
@@ -165,3 +197,4 @@ func (f fileStoreFlags) createStore() ChunkStore {
 		return &fs
 	}
 }
+

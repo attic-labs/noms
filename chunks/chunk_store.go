@@ -32,6 +32,11 @@ type ChunkWriter interface {
 	Ref() (ref.Ref, error)
 }
 
+// Add this to the ChunkStore interface once all chunkstores implement it.
+type GarbageCollector interface {
+	GarbageCollect(refs map[ref.Ref]bool)
+}
+
 type Flags struct {
 	aws    awsStoreFlags
 	file   fileStoreFlags
