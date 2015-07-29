@@ -2,8 +2,10 @@ package chunks
 
 import (
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
+	"strconv"
 	"testing"
 
 	"github.com/attic-labs/noms/ref"
@@ -171,4 +173,25 @@ func (suite *FileStoreTestSuite) TestFileStoreGetNonExisting() {
 	r, err := suite.store.Get(ref)
 	suite.NoError(err)
 	suite.Nil(r)
+}
+
+func (suite *FileStoreTestSuite) TestFileGarbageCollection() {
+	refs := []ref.Ref{}
+	for i := 0; i < 100; i++ {
+		input := strconv.FormatInt(rand.Int63(), 16)
+		w := suite.store.Put()
+		_, err := w.Write([]byte(input))
+		suite.NoError(err)
+		ref, err := w.Ref()
+		suite.NoError(err)
+		refs = append(refs, ref)
+	}
+	m := map[ref.Ref]bool{}
+	for i, r := range refs {
+		if i % 5 != 0 {
+			m[r] = true
+		}
+	}
+	numDeleted := suite.store.GarbageCollect(m)
+	suite.Equal(len(refs) - len(m), numDeleted)
 }
