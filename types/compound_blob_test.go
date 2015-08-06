@@ -144,6 +144,8 @@ func TestCompoundBlobReaderLazySeek(t *testing.T) {
 	n, err := r.Seek(3, 0)
 	assert.NoError(err)
 	assert.Equal(int64(3), n)
+	assert.Equal(0, readCount1)
+	assert.Equal(1, readCount2)
 
 	n2, err := r.Read(p)
 	assert.NoError(err)
@@ -155,6 +157,8 @@ func TestCompoundBlobReaderLazySeek(t *testing.T) {
 	n, err = r.Seek(-1, 1)
 	assert.NoError(err)
 	assert.Equal(int64(3), n)
+	assert.Equal(0, readCount1)
+	assert.Equal(1, readCount2)
 
 	n2, err = r.Read(p)
 	assert.NoError(err)
@@ -166,6 +170,8 @@ func TestCompoundBlobReaderLazySeek(t *testing.T) {
 	n, err = r.Seek(-5, 2)
 	assert.NoError(err)
 	assert.Equal(int64(0), n)
+	assert.Equal(1, readCount1)
+	assert.Equal(1, readCount2)
 
 	n2, err = r.Read(p)
 	assert.NoError(err)
@@ -177,22 +183,32 @@ func TestCompoundBlobReaderLazySeek(t *testing.T) {
 	n, err = r.Seek(100, 0)
 	assert.NoError(err)
 	assert.Equal(int64(100), n)
+	assert.Equal(1, readCount1)
+	assert.Equal(1, readCount2)
+
+	n2, err = r.Read(p)
+	assert.Equal(io.EOF, err)
+	assert.Equal(0, n2)
+	assert.Equal(1, readCount1)
+	assert.Equal(1, readCount2)
 
 	n, err = r.Seek(-99, 1)
 	assert.NoError(err)
 	assert.Equal(int64(1), n)
+	assert.Equal(2, readCount1)
+	assert.Equal(1, readCount2)
 
 	n2, err = r.Read(p)
 	assert.NoError(err)
 	assert.Equal(1, n2)
-	assert.Equal(1, readCount1) // still on the first reader
+	assert.Equal(2, readCount1)
 	assert.Equal(1, readCount2)
 	assert.Equal("i", string(p))
 
 	n2, err = r.Read(p)
 	assert.NoError(err)
 	assert.Equal(1, n2)
-	assert.Equal(1, readCount1) // still on the first reader
+	assert.Equal(2, readCount1)
 	assert.Equal(2, readCount2)
 	assert.Equal("b", string(p))
 }
