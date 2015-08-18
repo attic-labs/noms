@@ -18,17 +18,26 @@ import (
 )
 
 const (
-	rootKey = "/root"
+	rootKeyName     = "/root"
+	chunkPrefixName = "/chunk/"
 )
+
+var rootKey []byte = []byte(rootKeyName)
+var chunkPrefix []byte = []byte(chunkPrefixName)
+
+func toChunkKey(r ref.Ref) []byte {
+	digest := r.Digest()
+	return append(chunkPrefix, digest[:]...)
+}
 
 type LevelDBStore struct {
 	db *leveldb.DB
-	m  *sync.Mutex
+	mu *sync.Mutex
 }
 
 func NewLevelDBStore(dir string) LevelDBStore {
-	d.Chk.NotEmpty(dir)
-	d.Chk.NoError(os.MkdirAll(dir, 0700))
+	d.Exp.NotEmpty(dir)
+	d.Exp.NoError(os.MkdirAll(dir, 0700))
 	db, err := leveldb.OpenFile(dir, &opt.Options{
 		Compression: opt.NoCompression,
 		Filter:      filter.NewBloomFilter(10), // 10 bits/key
@@ -49,8 +58,8 @@ func (l LevelDBStore) Root() ref.Ref {
 }
 
 func (l LevelDBStore) UpdateRoot(current, last ref.Ref) bool {
-	l.m.Lock()
-	defer l.m.Unlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if last != l.Root() {
 		return false
 	}
@@ -62,15 +71,14 @@ func (l LevelDBStore) UpdateRoot(current, last ref.Ref) bool {
 }
 
 func (l LevelDBStore) Get(ref ref.Ref) (io.ReadCloser, error) {
-	key := []byte(ref.String())
+	key := toChunkKey(ref)
 	chunk, err := l.db.Get(key, nil)
 	if err == errors.ErrNotFound {
 		return nil, nil
 	}
 	d.Chk.NoError(err)
 
-	buff := bytes.NewBuffer(chunk)
-	return ioutil.NopCloser(buff), nil
+	return ioutil.NopCloser(bytes.NewReader(chunk)), nil
 }
 
 func (l LevelDBStore) Put() ChunkWriter {
@@ -108,9 +116,9 @@ func (w *ldbChunkWriter) Close() error {
 		return nil
 	}
 
-	key := []byte(ref.FromHash(w.hash).String())
+	key := toChunkKey(ref.FromHash(w.hash))
 
-	exists, err := w.db.Has(key, &opt.ReadOptions{DontFillCache: true})
+	exists, err := w.db.Has(key, &opt.ReadOptions{DontFillCache: true}) // This isn't really a "read", so don't signal the cache to treat it as one.
 	d.Chk.NoError(err)
 	if exists {
 		return nil
@@ -128,7 +136,7 @@ type ldbStoreFlags struct {
 
 func levelDBFlags(prefix string) ldbStoreFlags {
 	return ldbStoreFlags{
-		flag.String(prefix+"db", "", "directory to use for a LevelDB-ba chunkstore"),
+		flag.String(prefix+"db", "", "directory to use for a LevelDB-backed chunkstore"),
 	}
 }
 
