@@ -17,13 +17,8 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-const (
-	rootKeyName     = "/root"
-	chunkPrefixName = "/chunk/"
-)
-
-var rootKey []byte = []byte(rootKeyName)
-var chunkPrefix []byte = []byte(chunkPrefixName)
+var rootKey []byte = []byte("/root")
+var chunkPrefix []byte = []byte("/chunk/")
 
 func toChunkKey(r ref.Ref) []byte {
 	digest := r.Digest()
