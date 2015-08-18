@@ -37,13 +37,12 @@ func DiffHeadsByRef(small, big ref.Ref, cs chunks.ChunkSource) []ref.Ref {
 // CopyChunks reads each Ref in refs out of src and writes it into sink.
 func CopyChunks(refs []ref.Ref, src chunks.ChunkSource, sink chunks.ChunkSink) {
 	for _, ref := range refs {
-		reader, err := src.Get(ref)
+		reader := src.Get(ref)
 		d.Exp.NotNil(reader, "Got back nil for %+v", ref)
-		d.Exp.NoError(err)
 
 		writer := sink.Put()
 		defer writer.Close()
-		_, err = io.Copy(writer, reader)
+		_, err := io.Copy(writer, reader)
 		d.Exp.NoError(err)
 	}
 	return

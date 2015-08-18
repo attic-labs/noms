@@ -27,7 +27,10 @@ func main() {
 		return
 	}
 
-	inputRef, err := ref.Parse(*inputRefStr)
+	var inputRef ref.Ref
+	err := d.Try(func() {
+		inputRef = ref.Parse(*inputRefStr)
+	})
 	if err != nil {
 		flag.Usage()
 		return
