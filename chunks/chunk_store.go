@@ -1,8 +1,11 @@
 package chunks
 
 import (
+	"bytes"
+	"hash"
 	"io"
 
+	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/ref"
 )
 
@@ -28,6 +31,9 @@ type ChunkSource interface {
 // ChunkSink is a place to put chunks.
 type ChunkSink interface {
 	Put() ChunkWriter
+
+	// Returns true iff the value at the address |ref| is contained in the source
+	Has(ref ref.Ref) bool
 }
 
 // ChunkWriter wraps an io.WriteCloser, additionally providing the ability to grab a Ref for all data written through the interface. Calling Ref() or Close() on an instance disallows further writing.
@@ -36,6 +42,57 @@ type ChunkWriter interface {
 	io.WriteCloser
 	// Ref returns the ref.Ref for all data written at the time of call.
 	Ref() ref.Ref
+}
+
+// ChunkWriter wraps an io.WriteCloser, additionally providing the ability to grab a Ref for all data written through the interface. Calling Ref() or Close() on an instance disallows further writing.
+type hasFn func(ref ref.Ref) bool
+type putFn func(ref ref.Ref, buff *bytes.Buffer)
+
+type chunkWriter struct {
+	// Note that the Write(p []byte) (int, error) method of WriterCloser must be retained, but implementations of ChunkWriter should never return an error.
+	hfn    hasFn
+	pfn    putFn
+	buffer *bytes.Buffer
+	writer io.Writer
+	hash   hash.Hash
+	ref    ref.Ref
+}
+
+func newChunkWriter(hfn hasFn, pfn putFn) *chunkWriter {
+	b := &bytes.Buffer{}
+	h := ref.NewHash()
+	return &chunkWriter{
+		hfn:    hfn,
+		pfn:    pfn,
+		buffer: b,
+		writer: io.MultiWriter(b, h),
+		hash:   h,
+	}
+}
+
+func (w *chunkWriter) Write(data []byte) (int, error) {
+	d.Chk.NotNil(w.buffer, "Write() cannot be called after Ref() or Close().")
+	size, err := w.writer.Write(data)
+	d.Chk.NoError(err)
+	return size, nil
+}
+
+func (w *chunkWriter) Ref() ref.Ref {
+	d.Chk.NoError(w.Close())
+	return w.ref
+}
+
+func (w *chunkWriter) Close() error {
+	if w.buffer == nil {
+		return nil
+	}
+
+	w.ref = ref.FromHash(w.hash)
+	if !w.hfn(w.ref) {
+		w.pfn(w.ref, w.buffer)
+	}
+	w.buffer = nil
+	return nil
 }
 
 // NewFlags creates a new instance of Flags, which declares a number of ChunkStore-related command-line flags using the golang flag package. Call this before flag.Parse().
