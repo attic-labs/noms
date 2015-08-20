@@ -1,11 +1,13 @@
 package util
 
 import (
-	"bytes"
+	"hash"
 	"io"
+	"io/ioutil"
 	"os"
 
 	"github.com/attic-labs/noms/chunks"
+	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/ref"
 )
 
@@ -14,10 +16,32 @@ type StdoutChunkSink struct {
 	chunks.ChunkSink
 }
 
-func (f StdoutChunkSink) Has(ref ref.Ref) bool {
-	return false
+// Put returns an implementation of chunks.ChunkWriter backed by stdout.
+func (f StdoutChunkSink) Put() chunks.ChunkWriter {
+	h := ref.NewHash()
+	// Note that we never want to close stdout, so we put a NopCloser into
+	// stdoutChunkWriter to satisfy the Closer part of the ChunkWriter interface.
+	return &stdoutChunkWriter{
+		ioutil.NopCloser(nil),
+		os.Stdout,
+		io.MultiWriter(os.Stdout, h),
+		h,
+	}
 }
 
-func (f StdoutChunkSink) Put(ref ref.Ref, data []byte) {
-	io.Copy(os.Stdout, bytes.NewReader(data))
+type stdoutChunkWriter struct {
+	io.Closer
+	file   *os.File
+	writer io.Writer
+	hash   hash.Hash
+}
+
+func (w *stdoutChunkWriter) Write(data []byte) (int, error) {
+	d.Chk.NotNil(w.file, "Write() cannot be called after Ref() or Close().")
+	return w.writer.Write(data)
+}
+
+func (w *stdoutChunkWriter) Ref() ref.Ref {
+	w.file = nil
+	return ref.FromHash(w.hash)
 }
