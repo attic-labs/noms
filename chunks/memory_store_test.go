@@ -11,8 +11,7 @@ func TestMemoryStoreTestSuite(t *testing.T) {
 }
 
 type MemoryStoreTestSuite struct {
-	suite.Suite
-	store *MemoryStore
+	ChunkStoreTestSuite
 }
 
 func (suite *MemoryStoreTestSuite) SetupTest() {
@@ -20,16 +19,4 @@ func (suite *MemoryStoreTestSuite) SetupTest() {
 }
 
 func (suite *MemoryStoreTestSuite) TearDownTest() {
-}
-
-func (suite *MemoryStoreTestSuite) Store() ChunkStore {
-	return suite.store
-}
-
-func (suite *MemoryStoreTestSuite) PutCountFn() func() int {
-	return nil
-}
-
-func (suite *MemoryStoreTestSuite) TestMemoryStoreCommon() {
-	ChunkStoreTestCommon(suite)
 }

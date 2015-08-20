@@ -13,32 +13,22 @@ func TestLevelDBStoreTestSuite(t *testing.T) {
 }
 
 type LevelDBStoreTestSuite struct {
-	suite.Suite
-	dir   string
-	store *LevelDBStore
+	ChunkStoreTestSuite
+	dir string
 }
 
 func (suite *LevelDBStoreTestSuite) SetupTest() {
 	var err error
 	suite.dir, err = ioutil.TempDir(os.TempDir(), "")
 	suite.NoError(err)
-	suite.store = NewLevelDBStore(suite.dir)
+	store := NewLevelDBStore(suite.dir)
+	suite.putCountFn = func() int {
+		return store.putCount
+	}
+
+	suite.store = store
 }
 
 func (suite *LevelDBStoreTestSuite) TearDownTest() {
 	os.Remove(suite.dir)
-}
-
-func (suite *LevelDBStoreTestSuite) Store() ChunkStore {
-	return suite.store
-}
-
-func (suite *LevelDBStoreTestSuite) PutCountFn() func() int {
-	return func() int {
-		return suite.store.putCount
-	}
-}
-
-func (suite *LevelDBStoreTestSuite) TestLevelDBStoreCommon() {
-	ChunkStoreTestCommon(suite)
 }

@@ -12,8 +12,7 @@ func TestReadThroughStoreTestSuite(t *testing.T) {
 }
 
 type ReadThroughStoreTestSuite struct {
-	suite.Suite
-	store ReadThroughStore
+	ChunkStoreTestSuite
 }
 
 func (suite *ReadThroughStoreTestSuite) SetupTest() {
@@ -21,18 +20,6 @@ func (suite *ReadThroughStoreTestSuite) SetupTest() {
 }
 
 func (suite *ReadThroughStoreTestSuite) TearDownTest() {
-}
-
-func (suite *ReadThroughStoreTestSuite) Store() ChunkStore {
-	return suite.store
-}
-
-func (suite *ReadThroughStoreTestSuite) PutCountFn() func() int {
-	return nil
-}
-
-func (suite *ReadThroughStoreTestSuite) TestReadThroughStoreCommon() {
-	ChunkStoreTestCommon(suite)
 }
 
 func (suite *LevelDBStoreTestSuite) TestReadThroughStoreGet() {

@@ -13,9 +13,8 @@ func TestFileStoreTestSuite(t *testing.T) {
 }
 
 type FileStoreTestSuite struct {
-	suite.Suite
+	ChunkStoreTestSuite
 	dir      string
-	store    FileStore
 	putCount int
 }
 
@@ -23,29 +22,19 @@ func (suite *FileStoreTestSuite) SetupTest() {
 	var err error
 	suite.dir, err = ioutil.TempDir(os.TempDir(), "")
 	suite.NoError(err)
-	suite.store = NewFileStore(suite.dir, "root")
 
+	store := NewFileStore(suite.dir, "root")
 	suite.putCount = 0
-	suite.store.mkdirAll = func(path string, perm os.FileMode) error {
+	store.mkdirAll = func(path string, perm os.FileMode) error {
 		suite.putCount++
 		return os.MkdirAll(path, perm)
 	}
+	suite.putCountFn = func() int {
+		return suite.putCount
+	}
+	suite.store = store
 }
 
 func (suite *FileStoreTestSuite) TearDownTest() {
 	os.Remove(suite.dir)
-}
-
-func (suite *FileStoreTestSuite) Store() ChunkStore {
-	return suite.store
-}
-
-func (suite *FileStoreTestSuite) PutCountFn() func() int {
-	return func() int {
-		return suite.putCount
-	}
-}
-
-func (suite *FileStoreTestSuite) TestFileStoreCommon() {
-	ChunkStoreTestCommon(suite)
 }

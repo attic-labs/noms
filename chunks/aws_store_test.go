@@ -17,9 +17,8 @@ func TestAWSStoreTestSuite(t *testing.T) {
 }
 
 type AWSStoreTestSuite struct {
-	suite.Suite
+	ChunkStoreTestSuite
 	s3svc *mockS3
-	store AWSStore
 }
 
 func (suite *AWSStoreTestSuite) SetupTest() {
@@ -33,23 +32,13 @@ func (suite *AWSStoreTestSuite) SetupTest() {
 		suite.s3svc,
 		&m,
 	}
-}
 
-func (suite *AWSStoreTestSuite) TearDownTest() {
-}
-
-func (suite *AWSStoreTestSuite) Store() ChunkStore {
-	return suite.store
-}
-
-func (suite *AWSStoreTestSuite) PutCountFn() func() int {
-	return func() int {
+	suite.putCountFn = func() int {
 		return suite.s3svc.numPuts
 	}
 }
 
-func (suite *AWSStoreTestSuite) TestAWSStoreCommon() {
-	ChunkStoreTestCommon(suite)
+func (suite *AWSStoreTestSuite) TearDownTest() {
 }
 
 type mockS3 struct {
