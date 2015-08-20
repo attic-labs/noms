@@ -2,9 +2,7 @@ package chunks
 
 import (
 	"flag"
-	"hash"
 	"io"
-	"io/ioutil"
 
 	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/ref"
@@ -22,18 +20,11 @@ func (ms *NopStore) Get(ref ref.Ref) io.ReadCloser {
 	return nil
 }
 
-func (NopStore) Put() ChunkWriter {
-	// Sigh... Go is so dreamy.
-	return nopWriter{ref.NewHash(), ioutil.NopCloser(nil)}
+func (ms *NopStore) Has(ref ref.Ref) bool {
+	return false
 }
 
-type nopWriter struct {
-	hash.Hash
-	io.Closer
-}
-
-func (nw nopWriter) Ref() ref.Ref {
-	return ref.FromHash(nw.Hash)
+func (ms *NopStore) Put(ref ref.Ref, data []byte) {
 }
 
 type nopStoreFlags struct {

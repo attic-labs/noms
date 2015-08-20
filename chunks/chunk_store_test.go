@@ -13,7 +13,7 @@ type ChunkStoreTestSuite struct {
 
 func (suite *ChunkStoreTestSuite) TestChunkStorePut() {
 	input := "abc"
-	w := suite.store.Put()
+	w := NewChunkWriter(suite.store)
 	_, err := w.Write([]byte(input))
 	suite.NoError(err)
 	ref := w.Ref()
@@ -28,7 +28,7 @@ func (suite *ChunkStoreTestSuite) TestChunkStorePut() {
 	}
 
 	// Re-writing the same data should be idempotent and should not result in a second put
-	w = suite.store.Put()
+	w = NewChunkWriter(suite.store)
 	_, err = w.Write([]byte(input))
 	suite.NoError(err)
 	suite.Equal(ref, w.Ref())
@@ -41,7 +41,7 @@ func (suite *ChunkStoreTestSuite) TestChunkStorePut() {
 
 func (suite *ChunkStoreTestSuite) TestChunkStoreWriteAfterCloseFails() {
 	input := "abc"
-	w := suite.store.Put()
+	w := NewChunkWriter(suite.store)
 	_, err := w.Write([]byte(input))
 	suite.NoError(err)
 
@@ -51,7 +51,7 @@ func (suite *ChunkStoreTestSuite) TestChunkStoreWriteAfterCloseFails() {
 
 func (suite *ChunkStoreTestSuite) TestChunkStoreWriteAfterRefFails() {
 	input := "abc"
-	w := suite.store.Put()
+	w := NewChunkWriter(suite.store)
 	_, err := w.Write([]byte(input))
 	suite.NoError(err)
 
@@ -62,7 +62,7 @@ func (suite *ChunkStoreTestSuite) TestChunkStoreWriteAfterRefFails() {
 
 func (suite *ChunkStoreTestSuite) TestChunkStorePutWithRefAfterClose() {
 	input := "abc"
-	w := suite.store.Put()
+	w := NewChunkWriter(suite.store)
 	_, err := w.Write([]byte(input))
 	suite.NoError(err)
 
@@ -75,7 +75,7 @@ func (suite *ChunkStoreTestSuite) TestChunkStorePutWithRefAfterClose() {
 
 func (suite *ChunkStoreTestSuite) TestChunkStorePutWithMultipleRef() {
 	input := "abc"
-	w := suite.store.Put()
+	w := NewChunkWriter(suite.store)
 	_, err := w.Write([]byte(input))
 	suite.NoError(err)
 

@@ -10,6 +10,7 @@ import (
 
 func assertInputInStore(input string, ref ref.Ref, s ChunkStore, assert *assert.Assertions) {
 	reader := s.Get(ref)
+	assert.NotNil(reader)
 	data, err := ioutil.ReadAll(reader)
 	assert.NoError(err)
 	assert.Equal(input, string(data))
@@ -31,7 +32,11 @@ func (s *TestStore) Get(ref ref.Ref) io.ReadCloser {
 	return s.MemoryStore.Get(ref)
 }
 
-func (s *TestStore) Put() ChunkWriter {
+func (s *TestStore) Has(ref ref.Ref) bool {
+	return s.MemoryStore.Has(ref)
+}
+
+func (s *TestStore) Put(ref ref.Ref, data []byte) {
 	s.Writes++
-	return s.MemoryStore.Put()
+	s.MemoryStore.Put(ref, data)
 }

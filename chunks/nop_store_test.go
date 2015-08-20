@@ -8,10 +8,9 @@ import (
 
 func TestPut(t *testing.T) {
 	assert := assert.New(t)
-	s := NopStore{}
 
 	input := "abc"
-	w := s.Put()
+	w := NewChunkWriter(&NopStore{})
 	_, err := w.Write([]byte(input))
 	assert.NoError(err)
 	ref := w.Ref()
