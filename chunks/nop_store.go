@@ -1,6 +1,7 @@
 package chunks
 
 import (
+	"bytes"
 	"flag"
 	"io"
 
@@ -24,8 +25,11 @@ func (ms *NopStore) Has(ref ref.Ref) bool {
 	return false
 }
 
-func (ms *NopStore) Put(ref ref.Ref, data []byte) {
+func (ms *NopStore) Put() ChunkWriter {
+	return newChunkWriter(ms.Has, ms.put)
 }
+
+func (ms *NopStore) put(ref ref.Ref, buff *bytes.Buffer) {}
 
 type nopStoreFlags struct {
 	use *bool

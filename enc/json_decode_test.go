@@ -16,7 +16,7 @@ func TestJSONDecode(t *testing.T) {
 
 	put := func(s string) ref.Ref {
 		s += "\n"
-		w := chunks.NewChunkWriter(cs)
+		w := cs.Put()
 		_, err := w.Write([]byte(s))
 		assert.NoError(err)
 		r := w.Ref()

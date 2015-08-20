@@ -27,7 +27,7 @@ func (suite *LevelDBStoreTestSuite) TestReadThroughStoreGet() {
 
 	// Prepopulate the backing store with "abc".
 	input := "abc"
-	w := NewChunkWriter(bs)
+	w := bs.Put()
 	_, err := w.Write([]byte(input))
 	suite.NoError(err)
 	ref := w.Ref()
@@ -78,7 +78,7 @@ func (suite *LevelDBStoreTestSuite) TestReadThroughStorePut() {
 
 	// Storing "abc" should store it to both backing and caching store.
 	input := "abc"
-	w := NewChunkWriter(rts)
+	w := rts.Put()
 	_, err := w.Write([]byte(input))
 	suite.NoError(err)
 	ref := w.Ref()

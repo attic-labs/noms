@@ -84,8 +84,13 @@ func (f FileStore) Has(ref ref.Ref) bool {
 	return err == nil
 }
 
-func (f FileStore) Put(ref ref.Ref, data []byte) {
-	err := f.mkdirAll(path.Dir(getPath(f.dir, ref)), 0700)
+func (f FileStore) Put() ChunkWriter {
+	return newChunkWriter(f.Has, f.put)
+}
+
+func (f FileStore) put(ref ref.Ref, buff *bytes.Buffer) {
+	p := getPath(f.dir, ref)
+	err := f.mkdirAll(path.Dir(p), 0700)
 	d.Chk.NoError(err)
 
 	file, err := os.OpenFile(p, os.O_RDWR|os.O_CREATE, os.ModePerm)
@@ -94,8 +99,8 @@ func (f FileStore) Put(ref ref.Ref, data []byte) {
 		d.Chk.True(os.IsExist(err), "%+v\n", err)
 	}
 
-	totalBytes := len(data)
-	written, err := io.Copy(file, bytes.NewReader(data))
+	totalBytes := buff.Len()
+	written, err := io.Copy(file, buff)
 	d.Chk.NoError(err)
 	d.Chk.True(int64(totalBytes) == written, "Too few bytes written.") // BUG #83
 }

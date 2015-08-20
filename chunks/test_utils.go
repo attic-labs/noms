@@ -36,7 +36,7 @@ func (s *TestStore) Has(ref ref.Ref) bool {
 	return s.MemoryStore.Has(ref)
 }
 
-func (s *TestStore) Put(ref ref.Ref, data []byte) {
+func (s *TestStore) Put() ChunkWriter {
 	s.Writes++
-	s.MemoryStore.Put(ref, data)
+	return s.MemoryStore.Put()
 }

@@ -30,54 +30,65 @@ type ChunkSource interface {
 
 // ChunkSink is a place to put chunks.
 type ChunkSink interface {
-	Put(ref ref.Ref, data []byte)
+	Put() ChunkWriter
 
 	// Returns true iff the value at the address |ref| is contained in the source
 	Has(ref ref.Ref) bool
 }
 
 // ChunkWriter wraps an io.WriteCloser, additionally providing the ability to grab a Ref for all data written through the interface. Calling Ref() or Close() on an instance disallows further writing.
-type ChunkWriter struct {
+type ChunkWriter interface {
 	// Note that the Write(p []byte) (int, error) method of WriterCloser must be retained, but implementations of ChunkWriter should never return an error.
 	io.WriteCloser
-	cs     ChunkSink
+	Ref() ref.Ref
+}
+
+// ChunkWriter wraps an io.WriteCloser, additionally providing the ability to grab a Ref for all data written through the interface. Calling Ref() or Close() on an instance disallows further writing.
+type hasFn func(ref ref.Ref) bool
+type putFn func(ref ref.Ref, buff *bytes.Buffer)
+
+type chunkWriter struct {
+	// Note that the Write(p []byte) (int, error) method of WriterCloser must be retained, but implementations of ChunkWriter should never return an error.
+	hfn    hasFn
+	pfn    putFn
 	buffer *bytes.Buffer
 	writer io.Writer
 	hash   hash.Hash
 	ref    ref.Ref
 }
 
-func NewChunkWriter(cs ChunkSink) *ChunkWriter {
+func newChunkWriter(hfn hasFn, pfn putFn) *chunkWriter {
 	b := &bytes.Buffer{}
 	h := ref.NewHash()
-	return &ChunkWriter{
-		cs:     cs,
+	return &chunkWriter{
+		hfn:    hfn,
+		pfn:    pfn,
 		buffer: b,
 		writer: io.MultiWriter(b, h),
 		hash:   h,
 	}
 }
 
-func (w *ChunkWriter) Write(data []byte) (int, error) {
+func (w *chunkWriter) Write(data []byte) (int, error) {
 	d.Chk.NotNil(w.buffer, "Write() cannot be called after Ref() or Close().")
 	size, err := w.writer.Write(data)
 	d.Chk.NoError(err)
 	return size, nil
 }
 
-func (w *ChunkWriter) Ref() ref.Ref {
+func (w *chunkWriter) Ref() ref.Ref {
 	d.Chk.NoError(w.Close())
 	return w.ref
 }
 
-func (w *ChunkWriter) Close() error {
+func (w *chunkWriter) Close() error {
 	if w.buffer == nil {
 		return nil
 	}
 
 	w.ref = ref.FromHash(w.hash)
-	if !w.cs.Has(w.ref) {
-		w.cs.Put(w.ref, w.buffer.Bytes())
+	if !w.hfn(w.ref) {
+		w.pfn(w.ref, w.buffer)
 	}
 	w.buffer = nil
 	return nil

@@ -128,11 +128,15 @@ func (s AWSStore) Has(ref ref.Ref) bool {
 	return err == nil
 }
 
-func (s AWSStore) Put(ref ref.Ref, data []byte) {
+func (s AWSStore) Put() ChunkWriter {
+	return newChunkWriter(s.Has, s.put)
+}
+
+func (s AWSStore) put(ref ref.Ref, buff *bytes.Buffer) {
 	_, err := s.awsSvc.PutObject(&s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(ref.String()),
-		Body:   bytes.NewReader(data),
+		Body:   bytes.NewReader(buff.Bytes()),
 	})
 	d.Chk.NoError(err)
 }

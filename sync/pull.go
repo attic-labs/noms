@@ -39,7 +39,7 @@ func CopyChunks(refs []ref.Ref, src chunks.ChunkSource, sink chunks.ChunkSink) {
 		reader := src.Get(ref)
 		d.Exp.NotNil(reader, "Attempt to copy ref which wasn't found: %+v", ref)
 
-		writer := chunks.NewChunkWriter(sink)
+		writer := sink.Put()
 		defer writer.Close()
 		_, err := io.Copy(writer, reader)
 		d.Exp.NoError(err)
