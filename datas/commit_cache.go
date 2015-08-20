@@ -16,12 +16,7 @@ func (cache *commitCache) updateFromCommit(commit Commit) {
 	if _, ok := cache.refs[commit.Ref()]; ok {
 		return
 	}
-
-	parents := commit.Parents()
-	parents.Iter(func(commit types.Value) (stop bool) {
-		cache.updateFromCommit(CommitFromVal(commit))
-		return
-	})
+	cache.updateFromCommit(CommitFromVal(commit.Parents()))
 	cache.refs[commit.Ref()] = true
 }
 

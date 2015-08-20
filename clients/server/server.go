@@ -8,8 +8,6 @@ import (
 
 	"github.com/attic-labs/noms/chunks"
 	"github.com/attic-labs/noms/d"
-	"github.com/attic-labs/noms/datas"
-	"github.com/attic-labs/noms/dataset/mgmt"
 	"github.com/attic-labs/noms/ref"
 )
 
@@ -34,12 +32,6 @@ func (s server) handle(w http.ResponseWriter, r *http.Request) {
 		} else {
 			http.Error(w, "Missing query param ref", http.StatusBadRequest)
 		}
-	case "dataset":
-		if ids, ok := r.URL.Query()["id"]; ok {
-			s.handleGetDataset(w, ids[0])
-		} else {
-			http.Error(w, "Missing query param id", http.StatusBadRequest)
-		}
 	default:
 		http.Error(w, fmt.Sprintf("Unrecognized: %v", r.URL.Path[1:]), http.StatusBadRequest)
 	}
@@ -63,17 +55,6 @@ func (s server) handleGetRef(w http.ResponseWriter, hashString string) {
 		http.Error(w, fmt.Sprintf("Parse error: %v", err), http.StatusBadRequest)
 		return
 	}
-}
-
-func (s server) handleGetDataset(w http.ResponseWriter, id string) {
-	dataStore := datas.NewDataStore(s.cs)
-	dataset := mgmt.GetDatasetHeads(mgmt.GetDatasets(dataStore), id)
-	if dataset == nil {
-		http.Error(w, fmt.Sprintf("Dataset not found: %s", id), http.StatusNotFound)
-		return
-	}
-	w.Header().Add("content-type", "text/plain")
-	fmt.Fprintf(w, "%s", dataset.Ref())
 }
 
 func main() {

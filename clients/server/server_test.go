@@ -15,13 +15,14 @@ import (
 
 var datasetID = "testdataset"
 
-func createTestStore() chunks.ChunkStore {
+func createTestStore(assert *assert.Assertions) chunks.ChunkStore {
 	ms := &chunks.MemoryStore{}
 	datasetDs := dataset.NewDataset(datas.NewDataStore(ms), datasetID)
 	datasetValue := types.NewString("Value for " + datasetID)
-	datasetDs = datasetDs.Commit(datas.NewSetOfCommit().Insert(
+	datasetDs, ok := datasetDs.Commit(
 		datas.NewCommit().SetParents(
-			types.NewSet()).SetValue(datasetValue)))
+			datas.NewSetOfCommit().Insert(datasetDs.Head()).NomsValue()).SetValue(datasetValue))
+	assert.True(ok)
 	return ms
 }
 
@@ -42,7 +43,7 @@ func TestRoot(t *testing.T) {
 
 	req, _ := http.NewRequest("GET", "/root", nil)
 	w := httptest.NewRecorder()
-	ms := createTestStore()
+	ms := createTestStore(assert)
 	s := server{ms}
 	s.handle(w, req)
 	assert.Equal(w.Code, http.StatusOK)
@@ -53,7 +54,7 @@ func TestRoot(t *testing.T) {
 func TestGetRef(t *testing.T) {
 	assert := assert.New(t)
 
-	ms := createTestStore()
+	ms := createTestStore(assert)
 	rootRef := ms.Root().String()
 
 	req, _ := http.NewRequest("GET", "/get?ref="+rootRef, nil)
@@ -61,14 +62,14 @@ func TestGetRef(t *testing.T) {
 	s := server{ms}
 	s.handle(w, req)
 	assert.Equal(w.Code, http.StatusOK)
-	assert.Equal(`j {"set":[{"ref":"sha1-2fb339ea1aa6787bb483aa951ea4f9bf1db5069c"}]}
+	assert.Equal(`j {"map":["parents",{"ref":"sha1-e7a6cc434e244d62262786678197643397c8139e"},"value",{"ref":"sha1-b0b44852c7048beab261086a135a8eda4c3e11c8"},"$name","Commit"]}
 `, w.Body.String())
 }
 
 func TestGetInvalidRef(t *testing.T) {
 	assert := assert.New(t)
 
-	ms := createTestStore()
+	ms := createTestStore(assert)
 	rootRef := "sha1-xxx"
 
 	req, _ := http.NewRequest("GET", "/get?ref="+rootRef, nil)
@@ -81,46 +82,10 @@ func TestGetInvalidRef(t *testing.T) {
 func TestGetNonExistingRef(t *testing.T) {
 	assert := assert.New(t)
 
-	ms := createTestStore()
+	ms := createTestStore(assert)
 	ref := "sha1-1111111111111111111111111111111111111111"
 
 	req, _ := http.NewRequest("GET", "/get?ref="+ref, nil)
-	w := httptest.NewRecorder()
-	s := server{ms}
-	s.handle(w, req)
-	assert.Equal(w.Code, http.StatusNotFound)
-}
-
-func TestGetDataset(t *testing.T) {
-	assert := assert.New(t)
-
-	ms := createTestStore()
-
-	req, _ := http.NewRequest("GET", "/dataset?id="+datasetID, nil)
-	w := httptest.NewRecorder()
-	s := server{ms}
-	s.handle(w, req)
-	assert.Equal(w.Code, http.StatusOK)
-}
-
-func TestGetDatasetMissingParam(t *testing.T) {
-	assert := assert.New(t)
-
-	ms := createTestStore()
-
-	req, _ := http.NewRequest("GET", "/dataset", nil)
-	w := httptest.NewRecorder()
-	s := server{ms}
-	s.handle(w, req)
-	assert.Equal(w.Code, http.StatusBadRequest)
-}
-
-func TestGetDatasetNotFound(t *testing.T) {
-	assert := assert.New(t)
-
-	ms := createTestStore()
-
-	req, _ := http.NewRequest("GET", "/dataset?id=notfound", nil)
 	w := httptest.NewRecorder()
 	s := server{ms}
 	s.handle(w, req)
