@@ -40,6 +40,7 @@ type ChunkSink interface {
 type ChunkWriter interface {
 	// Note that the Write(p []byte) (int, error) method of WriterCloser must be retained, but implementations of ChunkWriter should never return an error.
 	io.WriteCloser
+	// Ref returns the ref.Ref for all data written at the time of call.
 	Ref() ref.Ref
 }
 
