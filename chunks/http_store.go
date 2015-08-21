@@ -51,7 +51,7 @@ func NewHttpStoreServer(cs ChunkStore, port int) *HttpStoreServer {
 func (c *HttpStoreClient) Get(ref ref.Ref) io.ReadCloser {
 	res := c.requestRef(ref, "GET", nil)
 
-	d.Chk.True(res.StatusCode == http.StatusOK || res.StatusCode == http.StatusNotFound)
+	d.Chk.True(res.StatusCode == http.StatusOK || res.StatusCode == http.StatusNotFound, fmt.Sprintf("Unexpected response: %s", http.StatusText(res.StatusCode)))
 	if res.StatusCode == http.StatusOK {
 		return res.Body
 	}
@@ -65,7 +65,7 @@ func (c *HttpStoreClient) Has(ref ref.Ref) bool {
 	res := c.requestRef(ref, "HEAD", nil)
 	defer closeResponse(res)
 
-	d.Chk.True(res.StatusCode == http.StatusOK || res.StatusCode == http.StatusNotFound)
+	d.Chk.True(res.StatusCode == http.StatusOK || res.StatusCode == http.StatusNotFound, fmt.Sprintf("Unexpected response: %s", http.StatusText(res.StatusCode)))
 	return res.StatusCode == http.StatusOK
 }
 
@@ -78,7 +78,7 @@ func (c *HttpStoreClient) write(r ref.Ref, buff *bytes.Buffer) {
 	res := c.requestRef(r, "PUT", buff)
 	defer closeResponse(res)
 
-	d.Chk.True(res.StatusCode == http.StatusCreated)
+	d.Chk.Equal(res.StatusCode, http.StatusCreated, fmt.Sprintf("Unexpected response: %s", http.StatusText(res.StatusCode)))
 }
 
 func (c *HttpStoreClient) requestRef(ref ref.Ref, method string, body io.Reader) *http.Response {
@@ -97,7 +97,7 @@ func (c *HttpStoreClient) Root() ref.Ref {
 	res := c.requestRoot("GET", ref.Ref{}, ref.Ref{})
 	defer closeResponse(res)
 
-	d.Chk.Equal(http.StatusOK, res.StatusCode)
+	d.Chk.Equal(http.StatusOK, res.StatusCode, fmt.Sprintf("Unexpected response: %s", http.StatusText(res.StatusCode)))
 	buff := &bytes.Buffer{}
 	io.Copy(buff, res.Body)
 	return ref.Parse(string(buff.Bytes()))
@@ -108,7 +108,7 @@ func (c *HttpStoreClient) UpdateRoot(current, last ref.Ref) bool {
 	res := c.requestRoot("POST", current, last)
 	defer closeResponse(res)
 
-	d.Chk.True(res.StatusCode == http.StatusOK || res.StatusCode == http.StatusConflict)
+	d.Chk.True(res.StatusCode == http.StatusOK || res.StatusCode == http.StatusConflict, fmt.Sprintf("Unexpected response: %s", http.StatusText(res.StatusCode)))
 	return res.StatusCode == http.StatusOK
 }
 
@@ -133,9 +133,9 @@ func (c *HttpStoreClient) requestRoot(method string, current, last ref.Ref) *htt
 }
 
 func (s *HttpStoreServer) HandleRequestRef(w http.ResponseWriter, req *http.Request, refStr string) {
-	r := ref.Parse(refStr)
-
 	err := d.Try(func() {
+		r := ref.Parse(refStr)
+
 		switch req.Method {
 		case "GET":
 			reader := s.cs.Get(r)
@@ -154,6 +154,7 @@ func (s *HttpStoreServer) HandleRequestRef(w http.ResponseWriter, req *http.Requ
 			}
 		case "PUT":
 			writer := s.cs.Put()
+			defer writer.Close()
 			io.Copy(writer, req.Body)
 			writer.Ref() // BUG 206
 			w.WriteHeader(http.StatusCreated)
@@ -176,13 +177,11 @@ func (s *HttpStoreServer) HandleRequestRoot(w http.ResponseWriter, req *http.Req
 
 		case "POST":
 			params := req.URL.Query()
-			tokens, ok := params["last"]
-			d.Exp.True(ok)
-			d.Exp.Equal(1, len(tokens))
+			tokens := params["last"]
+			d.Exp.Len(tokens, 1)
 			last := ref.Parse(tokens[0])
-			tokens, ok = params["current"]
-			d.Exp.True(ok)
-			d.Exp.Equal(1, len(tokens))
+			tokens = params["current"]
+			d.Exp.Len(tokens, 1)
 			current := ref.Parse(tokens[0])
 
 			if !s.cs.UpdateRoot(current, last) {
