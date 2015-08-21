@@ -46,6 +46,7 @@ func NewFlagsWithPrefix(prefix string) Flags {
 		fileFlags(prefix),
 		memoryFlags(prefix),
 		nopFlags(prefix),
+		httpFlags(prefix),
 	}
 }
 
@@ -56,6 +57,7 @@ type Flags struct {
 	file   fileStoreFlags
 	memory memoryStoreFlags
 	nop    nopStoreFlags
+	http   httpStoreFlags
 }
 
 // CreateStore creates a ChunkStore implementation based on the values of command-line flags.
@@ -65,6 +67,7 @@ func (f Flags) CreateStore() (cs ChunkStore) {
 	} else if cs = f.file.createStore(); cs != nil {
 	} else if cs = f.memory.createStore(); cs != nil {
 	} else if cs = f.nop.createStore(); cs != nil {
+	} else if cs = f.http.createStore(); cs != nil {
 	}
 	return cs
 }
