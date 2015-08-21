@@ -164,15 +164,20 @@ func main() {
 		inputDataset := dataset.NewDataset(dataStore, *inputID)
 		outputDataset := dataset.NewDataset(dataStore, *outputID)
 
-		input := types.ListFromVal(inputDataset.Heads().Any().Value())
-		output := getIndex(input)
+		input := types.ListFromVal(inputDataset.Head().Value())
+		output := getIndex(input).NomsValue()
 
-		outputDataset.Commit(datas.NewSetOfCommit().Insert(
-			datas.NewCommit().SetParents(outputDataset.Heads().NomsValue()).SetValue(output.NomsValue())))
+		for ok := false; !ok; outputDataset, ok = attemptCommit(output, outputDataset) {
+			continue
+		}
 
 		util.MaybeWriteMemProfile()
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func attemptCommit(newValue types.Value, ds dataset.Dataset) (dataset.Dataset, bool) {
+	return ds.Commit(datas.NewCommit().SetParents(ds.HeadAsSet()).SetValue(newValue))
 }

@@ -20,15 +20,19 @@ func main() {
 	}
 
 	lastVal := uint64(0)
-	commits := ds.Heads()
-	if commits.Len() > uint64(0) {
-		lastVal = uint64(commits.Any().Value().(types.UInt64))
+	commit := ds.Head()
+	if !commit.Equals(datas.EmptyCommit) {
+		lastVal = uint64(commit.Value().(types.UInt64))
 	}
 	newVal := lastVal + 1
-	ds.Commit(datas.NewSetOfCommit().Insert(
-		datas.NewCommit().SetParents(
-			commits.NomsValue()).SetValue(
-			types.UInt64(newVal))))
-
+	for ok := false; !ok; ds, ok = attemptCommit(types.UInt64(newVal), ds) {
+		continue
+	}
 	fmt.Println(newVal)
+}
+
+func attemptCommit(newValue types.Value, ds *dataset.Dataset) (*dataset.Dataset, bool) {
+	newDs, ok := ds.Commit(
+		datas.NewCommit().SetParents(ds.HeadAsSet()).SetValue(newValue))
+	return &newDs, ok
 }
