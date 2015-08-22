@@ -68,14 +68,9 @@ func (rt *datasetRootTracker) Root() ref.Ref {
 }
 
 func (rt *datasetRootTracker) UpdateRoot(current, last ref.Ref) bool {
-	if last != rt.Root() {
-		return false
-	}
 	datasetCommit := types.ReadValue(current, rt.parentStore)
 	newDatasets := mgmt.SetDatasetHead(mgmt.GetDatasets(rt.parentStore), rt.datasetID, datasetCommit)
-	// Since the Root of rt.parentStore can get moved out from under us, we need to loop here.
-	for ok := false; !ok; rt.parentStore, ok = mgmt.CommitDatasets(rt.parentStore, newDatasets) {
-		continue
-	}
-	return true
+	ok := false
+	rt.parentStore, ok = mgmt.CommitDatasets(rt.parentStore, newDatasets)
+	return ok
 }

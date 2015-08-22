@@ -39,10 +39,15 @@ func TestExplicitBranchUsingDatasets(t *testing.T) {
 	assert := assert.New(t)
 	id1 := "testdataset"
 	id2 := "othertestdataset"
-	store := datas.NewDataStore(&chunks.MemoryStore{})
-	ds1 := NewDataset(store, id1)
+	ms := &chunks.MemoryStore{}
+
+	getDS := func(id string) Dataset {
+		store := datas.NewDataStore(ms)
+		return NewDataset(store, id)
+	}
 
 	// ds1: |a|
+	ds1 := getDS(id1)
 	a := datas.NewCommit().SetParents(ds1.HeadAsSet()).SetValue(types.NewString("a"))
 	ds1, ok := ds1.Commit(a)
 	assert.True(ok)
@@ -50,12 +55,13 @@ func TestExplicitBranchUsingDatasets(t *testing.T) {
 
 	// ds1: |a|
 	//        \ds2
-	ds2 := NewDataset(store, id2)
+	ds2 := getDS(id2)
 	ds2, ok = ds2.Commit(ds1.Head())
 	assert.True(ok)
 	assert.True(ds2.Head().Equals(a))
 
 	// ds1: |a| <- |b|
+	ds1 = getDS(id1)
 	b := datas.NewCommit().SetParents(ds1.HeadAsSet()).SetValue(types.NewString("b"))
 	ds1, ok = ds1.Commit(b)
 	assert.True(ok)
@@ -63,6 +69,7 @@ func TestExplicitBranchUsingDatasets(t *testing.T) {
 
 	// ds1: |a|    <- |b|
 	//        \ds2 <- |c|
+	ds2 = getDS(id2)
 	c := datas.NewCommit().SetParents(ds2.HeadAsSet()).SetValue(types.NewString("c"))
 	ds2, ok = ds2.Commit(c)
 	assert.True(ok)
@@ -76,6 +83,7 @@ func TestExplicitBranchUsingDatasets(t *testing.T) {
 	assert.True(ok)
 	assert.True(ds2.Head().Equals(d))
 
+	ds1 = getDS(id1)
 	ds1, ok = ds1.Commit(d)
 	assert.True(ok)
 	assert.True(ds1.Head().Equals(d))
