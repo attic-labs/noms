@@ -68,9 +68,9 @@ func main() {
 		d.Exp.NoError(err)
 
 		if !*noIO {
-			ds.Commit(datas.NewSetOfCommit().Insert(
-				datas.NewCommit().SetParents(
-					ds.Heads().NomsValue()).SetValue(list)))
+			for ok := false; !ok; ds, ok = attemptCommit(list, ds) {
+				continue
+			}
 		}
 
 		util.MaybeWriteMemProfile()
@@ -79,4 +79,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func attemptCommit(newValue types.Value, ds *dataset.Dataset) (*dataset.Dataset, bool) {
+	newDs, ok := ds.Commit(
+		datas.NewCommit().SetParents(ds.HeadAsSet()).SetValue(newValue))
+	return &newDs, ok
 }

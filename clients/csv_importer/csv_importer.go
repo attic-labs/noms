@@ -59,9 +59,13 @@ func main() {
 		value = value.Append(m)
 	}
 
-	commits := ds.Heads()
-	ds.Commit(datas.NewSetOfCommit().Insert(
-		datas.NewCommit().SetParents(
-			commits.NomsValue()).SetValue(
-			value)))
+	for ok := false; !ok; ds, ok = attemptCommit(value, ds) {
+		continue
+	}
+}
+
+func attemptCommit(newValue types.Value, ds *dataset.Dataset) (*dataset.Dataset, bool) {
+	newDs, ok := ds.Commit(
+		datas.NewCommit().SetParents(ds.HeadAsSet()).SetValue(newValue))
+	return &newDs, ok
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/attic-labs/noms/clients/util"
 	"github.com/attic-labs/noms/datas"
 	"github.com/attic-labs/noms/dataset"
+	"github.com/attic-labs/noms/types"
 )
 
 func main() {
@@ -40,13 +41,14 @@ func main() {
 		log.Fatalln("Error decoding JSON: ", err)
 	}
 
-	commits := ds.Heads()
-
 	value := util.NomsValueFromDecodedJSON(jsonObject)
+	for ok := false; !ok; ds, ok = attemptCommit(value, ds) {
+		continue
+	}
+}
 
-	ds.Commit(datas.NewSetOfCommit().Insert(
-		datas.NewCommit().SetParents(
-			commits.NomsValue()).SetValue(
-			value)))
-
+func attemptCommit(newValue types.Value, ds *dataset.Dataset) (*dataset.Dataset, bool) {
+	newDs, ok := ds.Commit(
+		datas.NewCommit().SetParents(ds.HeadAsSet()).SetValue(newValue))
+	return &newDs, ok
 }

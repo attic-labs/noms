@@ -56,8 +56,13 @@ func main() {
 		}
 	})
 
-	ds = ds.Commit(datas.NewSetOfCommit().Insert(
-		datas.NewCommit().SetParents(ds.Heads().NomsValue()).SetValue(out.NomsValue())))
+	for ok := false; !ok; ds, ok = attemptCommit(out.NomsValue(), ds) {
+		continue
+	}
 
 	fmt.Println(ds.Root().String())
+}
+
+func attemptCommit(newValue types.Value, ds dataset.Dataset) (dataset.Dataset, bool) {
+	return ds.Commit(datas.NewCommit().SetParents(ds.HeadAsSet()).SetValue(newValue))
 }
