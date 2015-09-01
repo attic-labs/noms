@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 
@@ -63,6 +62,8 @@ func fromEncodeable(i interface{}, cs chunks.ChunkSource) Future {
 		return futureMapFromIterable(i, cs)
 	case enc.Set:
 		return futureSetFromIterable(i, cs)
+	case enc.Type:
+		return futureFromValue(makeType(NewString(i.Name), Kind(i.Kind), mapFromFutures(futuresFromIterable(i.Desc, cs), cs)))
 	case enc.CompoundBlob:
 		blobs := make([]Future, len(i.Blobs))
 		for idx, blobRef := range i.Blobs {
@@ -78,7 +79,7 @@ func fromEncodeable(i interface{}, cs chunks.ChunkSource) Future {
 		cl := compoundList{i.Offsets, lists, &ref.Ref{}, cs}
 		return futureFromValue(cl)
 	default:
-		d.Exp.Fail(fmt.Sprintf("Unknown encodeable", "%+v", i))
+		d.Exp.Fail("Unknown encodeable", "%+v", i)
 	}
 
 	return nil

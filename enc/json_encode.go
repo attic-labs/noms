@@ -41,6 +41,12 @@ type Map []interface{}
 
 type Set []interface{}
 
+type Type struct {
+	Name string
+	Kind uint8
+	Desc Map
+}
+
 func jsonEncode(dst io.Writer, v interface{}) {
 	var j interface{}
 	j = getJSON(v)
@@ -64,6 +70,8 @@ func getJSON(v interface{}) interface{} {
 		return getJSONMap(v)
 	case Set:
 		return getJSONSet(v)
+	case Type:
+		return getJSONType(v)
 	default:
 		return getJSONPrimitive(v)
 	}
@@ -163,6 +171,16 @@ func getJSONMap(m Map) interface{} {
 
 func getJSONSet(s Set) interface{} {
 	return getJSONIterable("set", s)
+}
+
+func getJSONType(t Type) interface{} {
+	return map[string]interface{}{
+		"type": map[string]interface{}{
+			"name": getJSONPrimitive(t.Name),
+			"kind": getJSONPrimitive(t.Kind),
+			"desc": getJSONMap(t.Desc),
+		},
+	}
 }
 
 func getJSONIterable(tag string, items []interface{}) interface{} {

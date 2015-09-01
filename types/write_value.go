@@ -40,6 +40,8 @@ func toEncodeable(v Value, cs chunks.ChunkSink) interface{} {
 		return makeSetEncodeable(v, cs)
 	case String:
 		return v.String()
+	case Type:
+		return makeTypeEncodeable(v, cs)
 	default:
 		return v
 	}
@@ -90,6 +92,15 @@ func makeSetEncodeable(s Set, cs chunks.ChunkSink) interface{} {
 	return enc.SetFromItems(items...)
 }
 
+func makeTypeEncodeable(t Type, cs chunks.ChunkSink) interface{} {
+	j := make([]interface{}, 0, 2*len(t.Desc.m))
+	for _, r := range t.Desc.m {
+		j = append(j, processChild(r.key, cs))
+		j = append(j, processChild(r.value, cs))
+	}
+	return enc.Type{Name: t.Name.String(), Kind: uint8(t.Kind), Desc: enc.MapFromItems(j...)}
+}
+
 func processChild(f Future, cs chunks.ChunkSink) interface{} {
 	if v, ok := f.(*unresolvedFuture); ok {
 		return v.Ref()
@@ -99,7 +110,7 @@ func processChild(f Future, cs chunks.ChunkSink) interface{} {
 	d.Exp.NotNil(v)
 	switch v := v.(type) {
 	// Blobs, lists, maps, and sets are always out-of-line
-	case Blob, List, Map, Set:
+	case Blob, List, Map, Set, Type:
 		return WriteValue(v, cs)
 	default:
 		// Other types are always inline.

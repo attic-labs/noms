@@ -93,6 +93,16 @@ func jsonDecodeTaggedValue(m map[string]interface{}) interface{} {
 			if v, ok := v.([]interface{}); ok {
 				return jsonDecodeSet(v)
 			}
+		case "type":
+			if v, ok := v.(map[string]interface{}); ok {
+				name, ok := v["name"].(string)
+				d.Exp.True(ok, "Name field of type must be string, not %+v", v["name"])
+				kindEnc, ok := v["kind"]
+				d.Exp.True(ok, "Kind field of type must be uint8, not %+v", v["kind"])
+				kind := jsonDecodeValue(kindEnc).(uint8)
+				desc := jsonDecodeValue(v["desc"]).(Map)
+				return Type{name, kind, desc}
+			}
 		}
 		break
 	}

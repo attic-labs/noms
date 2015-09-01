@@ -79,6 +79,14 @@ func TestJsonEncode(t *testing.T) {
 `, ref2, ref1)
 	testEncode(expected, SetFromItems("foo", true, uint16(42), ref2, ref1))
 
+	// Types
+	expected = `j {"type":{"desc":{"map":[]},"kind":{"uint8":0},"name":""}}
+`
+	testEncode(expected, Type{"", 0, Map{}})
+	expected = fmt.Sprintf(`j {"type":{"desc":{"map":["key",{"ref":"%s"},"value",{"ref":"%s"}]},"kind":{"uint8":13},"name":""}}
+`, ref1, ref2)
+	testEncode(expected, Type{"", 13, MapFromItems("key", ref1, "value", ref2)})
+
 	// Blob (compound)
 	testEncode(fmt.Sprintf(`j {"cb":["%s",2]}
 `, ref2), CompoundBlob{[]uint64{2}, []ref.Ref{ref2}})
