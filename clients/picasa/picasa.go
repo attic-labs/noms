@@ -316,6 +316,20 @@ func callPicasaApi(client *http.Client, path string, response interface{}) {
 	resp, err := client.Do(req)
 	d.Chk.NoError(err)
 
+	msg := func() string {
+		body := &bytes.Buffer{}
+		_, err := io.Copy(body, resp.Body)
+		d.Chk.NoError(err)
+		return fmt.Sprintf("could not load %s: %d: %s", u, resp.StatusCode, body)
+	}
+
+	switch resp.StatusCode / 100 {
+	case 4:
+		d.Exp.Fail(msg())
+	case 5:
+		d.Chk.Fail(msg())
+	}
+
 	err = json.NewDecoder(resp.Body).Decode(response)
 	d.Chk.NoError(err)
 }
