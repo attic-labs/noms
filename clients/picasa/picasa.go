@@ -144,7 +144,7 @@ func (a *Album) getPhotos(albumIndex int) types.List {
 	for startIndex, foundPhotos := 0, true ; a.NumPhotos > len(photos) && foundPhotos ; startIndex += 1000 {
 		foundPhotos = false
 		aj := AlbumJson{}
-		p := fmt.Sprintf("user/default/albumid/%s?alt=json&max-results=1000", a.Id)
+		p := fmt.Sprintf("user/default/albumid/%s?alt=json&max-results=1000&imgmax=d", a.Id)
 		if startIndex > 0 {
 			p = fmt.Sprintf("%s%s%d", p, "&start-index=", startIndex)
 		}
