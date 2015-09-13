@@ -75,7 +75,7 @@ type httpStoreClient struct {
 
 type httpStoreServer struct {
 	cs    ChunkStore
-	port  int
+	host  string
 	l     *net.Listener
 	conns map[net.Conn]http.ConnState
 }
@@ -105,9 +105,9 @@ func NewHttpStoreClient(host string) *httpStoreClient {
 	return client
 }
 
-func NewHttpStoreServer(cs ChunkStore, port int) *httpStoreServer {
+func NewHttpStoreServer(cs ChunkStore, host string) *httpStoreServer {
 	return &httpStoreServer{
-		cs, port, nil, map[net.Conn]http.ConnState{},
+		cs, host, nil, map[net.Conn]http.ConnState{},
 	}
 }
 
@@ -464,7 +464,7 @@ func (s *httpStoreServer) connState(c net.Conn, cs http.ConnState) {
 
 // Blocks while the server is listening. Running on a separate go routine is supported.
 func (s *httpStoreServer) Run() {
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
+	l, err := net.Listen("tcp", s.host)
 	d.Chk.NoError(err)
 	s.l = &l
 

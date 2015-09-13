@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	port = flag.Int("port", 8000, "")
+	host = flag.String("host", ":8000", "TCP address to listen on - e.g., foo.noms.io or 12.16.8.4:48")
 )
 
 func main() {
@@ -24,7 +24,7 @@ func main() {
 		return
 	}
 
-	server := chunks.NewHttpStoreServer(cs, *port)
+	server := chunks.NewHttpStoreServer(cs, *host)
 
 	// Shutdown server gracefully so that profile may be written
 	c := make(chan os.Signal, 1)
