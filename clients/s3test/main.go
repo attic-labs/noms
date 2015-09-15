@@ -2,14 +2,15 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+        "math/rand"
 	"runtime"
+        "time"
 
 	"github.com/attic-labs/noms/d"
 	"github.com/aws/aws-sdk-go/aws"
@@ -26,8 +27,23 @@ var (
 	mon    = make(chan struct{}, 100)
 )
 
+type randReader struct {
+	s    rand.Source
+}
+
+func (r *randReader) Read(p []byte) (n int, err error) {
+	for i := range p {
+		p[i] = byte(r.s.Int63() & 0xff)
+	}
+	return len(p), nil
+}
+
+func getRandomReader() io.Reader {
+	return &randReader{rand.NewSource(time.Now().UnixNano())}
+}
+
 func main() {
-	runtime.GOMAXPROCS(32)
+	runtime.GOMAXPROCS(runtime.NumCPU() * 2)
 	flag.Parse()
 
 	out := make(chan struct{}, *num)
@@ -84,19 +100,20 @@ func get(s3svc *s3.S3, in chan string, out chan struct{}) {
 		d.Chk.NoError(err)
 		fmt.Println(buf.Len())
 		out <- struct{}{}
+		buf = nil
 	}
 }
 
 func put(s3svc *s3.S3, in chan struct{}, out chan struct{}) {
 	for range in {
 		buf := &bytes.Buffer{}
-		_, err := io.CopyN(buf, rand.Reader, int64(*size*1024))
+		_, err := io.CopyN(buf, getRandomReader(), int64(*size*1024))
 		d.Chk.NoError(err)
 
 		hash := sha1.Sum(buf.Bytes())
 		name := hex.EncodeToString(hash[:])
 
-		fmt.Println("uploading ", name)
+		fmt.Println("uploading ", name, buf.Len())
 		_, err = s3svc.PutObject(&s3.PutObjectInput{
 			Body:   bytes.NewReader(buf.Bytes()),
 			Bucket: bucket,
