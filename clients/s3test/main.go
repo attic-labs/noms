@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha1"
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -25,6 +23,7 @@ var (
 	p      = flag.Int("p", 10, "amount of parallelism")
 	size   = flag.Int("size", 1024, "size of chunks to create (in kb)")
 	mon    = make(chan struct{}, 100)
+	obj    = &bytes.Buffer{}
 )
 
 type randReader struct {
@@ -49,6 +48,10 @@ func main() {
 	out := make(chan struct{}, *num)
 
 	s3svc := s3.New(&aws.Config{Region: aws.String("us-west-2")})
+
+	n, err := io.CopyN(obj, getRandomReader(), 16*1024)
+	d.Chk.NoError(err)
+	d.Chk.EqualValues(16*1024, n)
 
 	if *mode == "put" {
 		in := make(chan struct{}, *num)
@@ -106,16 +109,15 @@ func get(s3svc *s3.S3, in chan string, out chan struct{}) {
 
 func put(s3svc *s3.S3, in chan struct{}, out chan struct{}) {
 	for range in {
-		buf := &bytes.Buffer{}
-		_, err := io.CopyN(buf, getRandomReader(), int64(*size*1024))
-		d.Chk.NoError(err)
+		//buf := &bytes.Buffer{}
+		//_, err := io.CopyN(buf, getRandomReader(), int64(*size*1024))
+		//d.Chk.NoError(err)
 
-		hash := sha1.Sum(buf.Bytes())
-		name := hex.EncodeToString(hash[:])
+		name := fmt.Sprintf("%v", time.Now().UnixNano())
 
-		fmt.Println("uploading ", name, buf.Len())
-		_, err = s3svc.PutObject(&s3.PutObjectInput{
-			Body:   bytes.NewReader(buf.Bytes()),
+		//fmt.Println("uploading ", name, obj.Len())
+		_, err := s3svc.PutObject(&s3.PutObjectInput{
+			Body:   bytes.NewReader(obj.Bytes()),
 			Bucket: bucket,
 			Key:    &name,
 		})
