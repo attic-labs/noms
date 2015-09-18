@@ -17,20 +17,20 @@ import (
 
 	"github.com/attic-labs/noms/Godeps/_workspace/src/github.com/nfnt/resize"
 	"github.com/attic-labs/noms/d"
-	"github.com/attic-labs/noms/datas"
 	"github.com/attic-labs/noms/ref"
+	"github.com/attic-labs/noms/search"
 	"github.com/attic-labs/noms/types"
 )
 
 var (
 	port = flag.Int("port", 8001, "")
-	ds   datas.DataStore
+	s    search.Searcher
 )
 
 func main() {
-	flags := datas.NewFlags()
+	flags := search.NewFlags()
 	flag.Parse()
-	ds, ok := flags.CreateDataStore()
+	s, ok := flags.CreateSearcher()
 	if !ok {
 		flag.Usage()
 		return
@@ -48,7 +48,7 @@ func main() {
 	go func() {
 		<-c
 		l.Close()
-		ds.Close()
+		s.Close()
 	}()
 
 	srv.Serve(l)
@@ -57,7 +57,7 @@ func main() {
 func handleRequest(w http.ResponseWriter, req *http.Request) {
 	err := d.Try(func() {
 		r := ref.Parse(req.URL.Query().Get("ref"))
-		b := types.ReadValue(r, ds).(types.Blob)
+		b := types.ReadValue(r, s).(types.Blob)
 		if b == nil {
 			http.Error(w, "Not found", http.StatusNotFound)
 			return

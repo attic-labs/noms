@@ -3,27 +3,26 @@ package datas
 import (
 	"github.com/attic-labs/noms/chunks"
 	"github.com/attic-labs/noms/d"
-	"github.com/attic-labs/noms/http"
 	"github.com/attic-labs/noms/ref"
+	"github.com/attic-labs/noms/search"
 	"github.com/attic-labs/noms/types"
-	"github.com/attic-labs/noms/walk"
 )
 
 // DataStore provides versioned storage for noms values. Each DataStore instance represents one moment in history. Heads() returns the Commit from each active fork at that moment. The Commit() method returns a new DataStore, representing a new moment in history.
 type DataStore struct {
-	chunks.ChunkStore
+	search.Searcher
 	head *Commit
 }
 
-func NewDataStore(cs chunks.ChunkStore) DataStore {
-	return newDataStoreInternal(cs)
+func NewDataStore(s search.Searcher) DataStore {
+	return newDataStoreInternal(s)
 }
 
-func newDataStoreInternal(cs chunks.ChunkStore) DataStore {
-	if (cs.Root() == ref.Ref{}) {
-		return DataStore{cs, nil}
+func newDataStoreInternal(s search.Searcher) DataStore {
+	if (s.Root() == ref.Ref{}) {
+		return DataStore{s, nil}
 	}
-	return DataStore{cs, commitFromRef(cs.Root(), cs)}
+	return DataStore{s, commitFromRef(s.Root(), s)}
 }
 
 func commitFromRef(commitRef ref.Ref, cs chunks.ChunkSource) *Commit {
@@ -60,7 +59,7 @@ func (ds *DataStore) Commit(v types.Value) (DataStore, bool) {
 // If the update cannot be performed, e.g., because of a conflict, CommitWithParents returns 'false' and the current snapshot of the datastore so that the client can merge the changes and try again.
 func (ds *DataStore) CommitWithParents(v types.Value, p SetOfCommit) (DataStore, bool) {
 	ok := ds.doCommit(NewCommit().SetParents(p.NomsValue()).SetValue(v))
-	return newDataStoreInternal(ds.ChunkStore), ok
+	return newDataStoreInternal(ds.Searcher), ok
 }
 
 // doCommit manages concurrent access the single logical piece of mutable state: the current head. doCommit is optimistic in that it is attempting to update head making the assumption that currentRootRef is the ref of the current head. The call to UpdateRoot below will fail if that assumption fails (e.g. because of a race with another writer) and the entire algorithm must be tried again.
@@ -111,80 +110,4 @@ func getAncestors(commits SetOfCommit) SetOfCommit {
 		return
 	})
 	return ancestors
-}
-
-// Copys all chunks reachable from (and including) |r| but excluding all chunks reachable from (and including) |exclude| in |source| to |sink|.
-func (ds DataStore) CopyReachableChunksP(r, exclude ref.Ref, sink chunks.ChunkSink, concurrency int) {
-	excludeRefs := map[ref.Ref]bool{}
-	hasRef := func(r ref.Ref) bool {
-		return excludeRefs[r]
-	}
-
-	if exclude != (ref.Ref{}) {
-		refChan := make(chan ref.Ref, 1024)
-		addRef := func(r ref.Ref) {
-			refChan <- r
-		}
-
-		go func() {
-			walk.AllP(exclude, ds, addRef, concurrency)
-			close(refChan)
-		}()
-
-		for r := range refChan {
-			excludeRefs[r] = true
-		}
-	}
-
-	tcs := &teeChunkSource{ds, sink}
-	walk.SomeP(r, tcs, hasRef, concurrency)
-}
-
-// teeChunkSource just serves the purpose of writing to |sink| every chunk that is read from |source|.
-type teeChunkSource struct {
-	source chunks.ChunkSource
-	sink   chunks.ChunkSink
-}
-
-func (trs *teeChunkSource) Get(ref ref.Ref) chunks.Chunk {
-	c := trs.source.Get(ref)
-	if c == nil {
-		return nil
-	}
-
-	trs.sink.Put(c)
-	return c
-}
-
-func (trs *teeChunkSource) Has(ref ref.Ref) bool {
-	return trs.source.Has(ref)
-}
-
-type Flags struct {
-	cflags chunks.Flags
-	hflags http.Flags
-}
-
-func NewFlags() Flags {
-	return NewFlagsWithPrefix("")
-}
-
-func NewFlagsWithPrefix(prefix string) Flags {
-	return Flags{
-		chunks.NewFlagsWithPrefix(prefix),
-		http.NewFlagsWithPrefix(prefix),
-	}
-}
-
-func (f Flags) CreateDataStore() (DataStore, bool) {
-	cs := f.cflags.CreateStore()
-	if cs == nil {
-		cs = f.hflags.CreateClient()
-		if cs == nil {
-			return DataStore{}, false
-		}
-	}
-
-	ds := NewDataStore(cs)
-	return ds, true
 }

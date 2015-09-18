@@ -9,11 +9,12 @@ import (
 	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/datas"
 	"github.com/attic-labs/noms/dataset"
+	"github.com/attic-labs/noms/search"
 	"github.com/attic-labs/noms/types"
 )
 
 var (
-	flags    = datas.NewFlags()
+	flags    = search.NewFlags()
 	inputID  = flag.String("input-ds", "", "dataset to find photos within")
 	outputID = flag.String("output-ds", "", "dataset to store index in")
 )
@@ -21,11 +22,12 @@ var (
 func main() {
 	flag.Parse()
 
-	store, ok := flags.CreateDataStore()
+	s, ok := flags.CreateSearcher()
 	if !ok || *inputID == "" || *outputID == "" {
 		flag.Usage()
 		return
 	}
+	store := datas.NewDataStore(s)
 	defer store.Close()
 
 	inputDS := dataset.NewDataset(store, *inputID)

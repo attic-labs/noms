@@ -7,6 +7,7 @@ import (
 	"github.com/attic-labs/noms/datas"
 	"github.com/attic-labs/noms/dataset/mgmt"
 	"github.com/attic-labs/noms/ref"
+	"github.com/attic-labs/noms/search"
 	"github.com/attic-labs/noms/types"
 )
 
@@ -106,7 +107,7 @@ func (ds *Dataset) Close() {
 }
 
 type datasetFlags struct {
-	datas.Flags
+	search.Flags
 	datasetID *string
 }
 
@@ -116,7 +117,7 @@ func NewFlags() datasetFlags {
 
 func NewFlagsWithPrefix(prefix string) datasetFlags {
 	return datasetFlags{
-		datas.NewFlagsWithPrefix(prefix),
+		search.NewFlagsWithPrefix(prefix),
 		flag.String(prefix+"ds", "", "dataset id to store data for"),
 	}
 }
@@ -125,11 +126,11 @@ func (f datasetFlags) CreateDataset() *Dataset {
 	if *f.datasetID == "" {
 		return nil
 	}
-	rootDS, ok := f.Flags.CreateDataStore()
+	searcher, ok := f.Flags.CreateSearcher()
 	if !ok {
 		return nil
 	}
 
-	ds := NewDataset(rootDS, *f.datasetID)
+	ds := NewDataset(datas.NewDataStore(searcher), *f.datasetID)
 	return &ds
 }

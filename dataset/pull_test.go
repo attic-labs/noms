@@ -7,12 +7,13 @@ import (
 	"github.com/attic-labs/noms/chunks"
 	"github.com/attic-labs/noms/datas"
 	"github.com/attic-labs/noms/ref"
+	"github.com/attic-labs/noms/search"
 	"github.com/attic-labs/noms/types"
 )
 
 func createTestDataset(name string) Dataset {
 	t := chunks.NewTestStore()
-	return NewDataset(datas.NewDataStore(t), name)
+	return NewDataset(datas.NewDataStore(search.LocalSearcher{t}), name)
 }
 
 func TestValidateRef(t *testing.T) {

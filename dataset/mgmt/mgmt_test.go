@@ -6,13 +6,14 @@ import (
 	"github.com/attic-labs/noms/Godeps/_workspace/src/github.com/stretchr/testify/assert"
 	"github.com/attic-labs/noms/chunks"
 	"github.com/attic-labs/noms/datas"
+	"github.com/attic-labs/noms/search"
 	"github.com/attic-labs/noms/types"
 )
 
 func TestGetDataset(t *testing.T) {
 	assert := assert.New(t)
 	ms := chunks.NewMemoryStore()
-	ds := datas.NewDataStore(ms)
+	ds := datas.NewDataStore(search.LocalSearcher{ms})
 	datasets := GetDatasets(ds)
 	dataset := getDataset(datasets, "testdataset")
 	assert.Nil(dataset)

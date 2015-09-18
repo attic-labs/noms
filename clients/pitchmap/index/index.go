@@ -13,6 +13,7 @@ import (
 	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/datas"
 	"github.com/attic-labs/noms/dataset"
+	"github.com/attic-labs/noms/search"
 	"github.com/attic-labs/noms/types"
 )
 
@@ -153,21 +154,21 @@ func getIndex(input types.List) MapOfStringToListOfPitch {
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	flags := datas.NewFlags()
+	flags := search.NewFlags()
 	flag.Parse()
 
-	ds, ok := flags.CreateDataStore()
+	s, ok := flags.CreateSearcher()
 	if !ok || *inputID == "" || *outputID == "" {
 		flag.Usage()
 		return
 	}
-	defer ds.Close()
+	defer s.Close()
 
 	err := d.Try(func() {
 		if util.MaybeStartCPUProfile() {
 			defer util.StopCPUProfile()
 		}
-		dataStore := datas.NewDataStore(ds)
+		dataStore := datas.NewDataStore(s)
 		inputDataset := dataset.NewDataset(dataStore, *inputID)
 		outputDataset := dataset.NewDataset(dataStore, *outputID)
 

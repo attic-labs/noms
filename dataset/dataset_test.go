@@ -6,6 +6,7 @@ import (
 	"github.com/attic-labs/noms/Godeps/_workspace/src/github.com/stretchr/testify/assert"
 	"github.com/attic-labs/noms/chunks"
 	"github.com/attic-labs/noms/datas"
+	"github.com/attic-labs/noms/search"
 	"github.com/attic-labs/noms/types"
 )
 
@@ -15,12 +16,12 @@ func TestDatasetCommitTracker(t *testing.T) {
 	id2 := "othertestdataset"
 	ms := chunks.NewMemoryStore()
 
-	ds1 := NewDataset(datas.NewDataStore(ms), id1)
+	ds1 := NewDataset(datas.NewDataStore(search.LocalSearcher{ms}), id1)
 	ds1Commit := types.NewString("Commit value for " + id1)
 	ds1, ok := ds1.Commit(ds1Commit)
 	assert.True(ok)
 
-	ds2 := NewDataset(datas.NewDataStore(ms), id2)
+	ds2 := NewDataset(datas.NewDataStore(search.LocalSearcher{ms}), id2)
 	ds2Commit := types.NewString("Commit value for " + id2)
 	ds2, ok = ds2.Commit(ds2Commit)
 	assert.True(ok)
@@ -40,7 +41,7 @@ func TestExplicitBranchUsingDatasets(t *testing.T) {
 	ms := chunks.NewMemoryStore()
 
 	getDS := func(id string) Dataset {
-		store := datas.NewDataStore(ms)
+		store := datas.NewDataStore(search.LocalSearcher{ms})
 		return NewDataset(store, id)
 	}
 	ds1 := getDS(id1)

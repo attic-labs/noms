@@ -5,13 +5,14 @@ import (
 
 	"github.com/attic-labs/noms/Godeps/_workspace/src/github.com/stretchr/testify/assert"
 	"github.com/attic-labs/noms/chunks"
+	"github.com/attic-labs/noms/search"
 	"github.com/attic-labs/noms/types"
 )
 
 func TestDataStoreCommit(t *testing.T) {
 	assert := assert.New(t)
 	chunks := chunks.NewMemoryStore()
-	ds := NewDataStore(chunks)
+	ds := NewDataStore(search.LocalSearcher{chunks})
 
 	_, ok := ds.MaybeHead()
 	assert.False(ok)
@@ -61,7 +62,7 @@ func TestDataStoreConcurrency(t *testing.T) {
 	assert := assert.New(t)
 
 	chunks := chunks.NewMemoryStore()
-	ds := NewDataStore(chunks)
+	ds := NewDataStore(search.LocalSearcher{chunks})
 
 	// Setup:
 	// |a| <- |b|
@@ -73,7 +74,7 @@ func TestDataStoreConcurrency(t *testing.T) {
 	assert.True(ds.Head().Value().Equals(b))
 
 	// Important to create this here.
-	ds2 := NewDataStore(chunks)
+	ds2 := NewDataStore(search.LocalSearcher{chunks})
 
 	// Change 1:
 	// |a| <- |b| <- |c|
