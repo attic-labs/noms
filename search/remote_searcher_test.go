@@ -1,4 +1,4 @@
-package http
+package search
 
 import (
 	"net/http"
@@ -14,12 +14,12 @@ func TestHttpStoreTestSuite(t *testing.T) {
 
 type HttpStoreTestSuite struct {
 	chunks.ChunkStoreTestSuite
-	server *httpServer
+	server *searchServer
 }
 
 func (suite *HttpStoreTestSuite) SetupTest() {
-	suite.Store = NewHttpClient("http://localhost:8000")
-	suite.server = NewHttpServer(chunks.NewMemoryStore(), 8000)
+	suite.Store = NewRemoteSearcher("http://localhost:8000")
+	suite.server = NewSearchServer(LocalSearcher{chunks.NewMemoryStore()}, 8000)
 	go suite.server.Run()
 
 	// This call to a non-existing URL allows us to exit being sure that the server started. Otherwise, we sometimes get races with Stop() below.

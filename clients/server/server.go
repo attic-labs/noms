@@ -6,10 +6,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/attic-labs/noms/chunks"
 	"github.com/attic-labs/noms/clients/util"
 	"github.com/attic-labs/noms/d"
-	"github.com/attic-labs/noms/http"
+	"github.com/attic-labs/noms/search"
 )
 
 var (
@@ -17,15 +16,15 @@ var (
 )
 
 func main() {
-	flags := chunks.NewFlags()
+	flags := search.NewFlags()
 	flag.Parse()
-	cs := flags.CreateStore()
-	if cs == nil {
+	s, ok := flags.CreateSearcher()
+	if !ok {
 		flag.Usage()
 		return
 	}
 
-	server := http.NewHttpServer(cs, *port)
+	server := search.NewSearchServer(s, *port)
 
 	// Shutdown server gracefully so that profile may be written
 	c := make(chan os.Signal, 1)
@@ -34,7 +33,7 @@ func main() {
 	go func() {
 		<-c
 		server.Stop()
-		cs.Close()
+		s.Close()
 	}()
 
 	d.Try(func() {

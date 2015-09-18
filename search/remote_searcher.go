@@ -1,9 +1,8 @@
-package http
+package search
 
 import (
 	"bytes"
 	"compress/gzip"
-	"flag"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -51,7 +50,7 @@ func (rrq *readBatch) Close() error {
 	return nil
 }
 
-type HttpClient struct {
+type RemoteSearcher struct {
 	host       *url.URL
 	readQueue  chan readRequest
 	writeQueue chan chunks.Chunk
@@ -60,12 +59,12 @@ type HttpClient struct {
 	wmu        *sync.Mutex
 }
 
-func NewHttpClient(host string) *HttpClient {
+func NewRemoteSearcher(host string) *RemoteSearcher {
 	u, err := url.Parse(host)
 	d.Exp.NoError(err)
 	d.Exp.True(u.Scheme == "http" || u.Scheme == "https")
 	d.Exp.Equal(*u, url.URL{Scheme: u.Scheme, Host: u.Host})
-	client := &HttpClient{
+	client := &RemoteSearcher{
 		u,
 		make(chan readRequest, readBufferSize),
 		make(chan chunks.Chunk, writeBufferSize),
@@ -85,13 +84,13 @@ func NewHttpClient(host string) *HttpClient {
 	return client
 }
 
-func (c *HttpClient) Get(r ref.Ref) chunks.Chunk {
+func (c *RemoteSearcher) Get(r ref.Ref) chunks.Chunk {
 	ch := make(chan chunks.Chunk)
 	c.readQueue <- readRequest{r, ch}
 	return <-ch
 }
 
-func (c *HttpClient) sendReadRequests() {
+func (c *RemoteSearcher) sendReadRequests() {
 	for req := range c.readQueue {
 		reqs := readBatch{}
 		refs := map[ref.Ref]bool{}
@@ -117,7 +116,7 @@ func (c *HttpClient) sendReadRequests() {
 	}
 }
 
-func (c *HttpClient) Has(ref ref.Ref) bool {
+func (c *RemoteSearcher) Has(ref ref.Ref) bool {
 	// HEAD http://<host>/ref/<sha1-xxx>. Response will be 200 if present, 404 if absent.
 	res := c.requestRef(ref, "HEAD", nil)
 	defer closeResponse(res)
@@ -126,7 +125,7 @@ func (c *HttpClient) Has(ref ref.Ref) bool {
 	return res.StatusCode == http.StatusOK
 }
 
-func (c *HttpClient) Put(chunk chunks.Chunk) {
+func (c *RemoteSearcher) Put(chunk chunks.Chunk) {
 	// POST http://<host>/ref/. Body is a serialized chunkBuffer. Response will be 201.
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
@@ -139,7 +138,7 @@ func (c *HttpClient) Put(chunk chunks.Chunk) {
 	c.writeQueue <- chunk
 }
 
-func (c *HttpClient) sendWriteRequests() {
+func (c *RemoteSearcher) sendWriteRequests() {
 	for chunk := range c.writeQueue {
 		chs := make([]chunks.Chunk, 0)
 		chs = append(chs, chunk)
@@ -161,7 +160,7 @@ func (c *HttpClient) sendWriteRequests() {
 	}
 }
 
-func (c *HttpClient) postRefs(chs []chunks.Chunk) {
+func (c *RemoteSearcher) postRefs(chs []chunks.Chunk) {
 	body := &bytes.Buffer{}
 	gw := gzip.NewWriter(body)
 	sz := chunks.NewSerializer(gw)
@@ -186,7 +185,7 @@ func (c *HttpClient) postRefs(chs []chunks.Chunk) {
 	closeResponse(res)
 }
 
-func (c *HttpClient) requestRef(r ref.Ref, method string, body io.Reader) *http.Response {
+func (c *RemoteSearcher) requestRef(r ref.Ref, method string, body io.Reader) *http.Response {
 	url := *c.host
 	url.Path = refPath
 	if (r != ref.Ref{}) {
@@ -205,7 +204,7 @@ func (c *HttpClient) requestRef(r ref.Ref, method string, body io.Reader) *http.
 	return res
 }
 
-func (c *HttpClient) getRefs(refs map[ref.Ref]bool, cs chunks.ChunkSink) {
+func (c *RemoteSearcher) getRefs(refs map[ref.Ref]bool, cs chunks.ChunkSink) {
 	// POST http://<host>/getRefs/. Post body: ref=sha1---&ref=sha1---& Response will be chunk data if present, 404 if absent.
 	u := *c.host
 	u.Path = getRefsPath
@@ -235,7 +234,39 @@ func (c *HttpClient) getRefs(refs map[ref.Ref]bool, cs chunks.ChunkSink) {
 	chunks.Deserialize(reader, cs)
 }
 
-func (c *HttpClient) Root() ref.Ref {
+func (c *RemoteSearcher) CopyReachableChunksP(r, exclude ref.Ref, cs chunks.ChunkSink, concurrency int) {
+	// POST http://<host>/ref/sha1----?all=true&exclude=sha1----. Response will be chunk data if present, 404 if absent.
+	u := *c.host
+	u.Path = path.Join(refPath, r.String())
+
+	values := &url.Values{}
+	values.Add("all", "true")
+	if exclude != (ref.Ref{}) {
+		values.Add("exclude", exclude.String())
+	}
+	u.RawQuery = values.Encode()
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	req.Header.Add("Accept-Encoding", "gzip")
+	d.Chk.NoError(err)
+
+	res, err := http.DefaultClient.Do(req)
+	d.Chk.NoError(err)
+	defer closeResponse(res)
+	d.Chk.Equal(http.StatusOK, res.StatusCode, "Unexpected response: %s", http.StatusText(res.StatusCode))
+
+	reader := res.Body
+	if strings.Contains(res.Header.Get("Content-Encoding"), "gzip") {
+		gr, err := gzip.NewReader(reader)
+		d.Chk.NoError(err)
+		defer gr.Close()
+		reader = gr
+	}
+
+	chunks.Deserialize(reader, cs)
+}
+
+func (c *RemoteSearcher) Root() ref.Ref {
 	// GET http://<host>/root. Response will be ref of root.
 	res := c.requestRoot("GET", ref.Ref{}, ref.Ref{})
 	defer closeResponse(res)
@@ -246,7 +277,7 @@ func (c *HttpClient) Root() ref.Ref {
 	return ref.Parse(string(data))
 }
 
-func (c *HttpClient) UpdateRoot(current, last ref.Ref) bool {
+func (c *RemoteSearcher) UpdateRoot(current, last ref.Ref) bool {
 	// POST http://<host>root?current=<ref>&last=<ref>. Response will be 200 on success, 409 if current is outdated.
 	c.wg.Wait()
 
@@ -261,7 +292,7 @@ func (c *HttpClient) UpdateRoot(current, last ref.Ref) bool {
 	return res.StatusCode == http.StatusOK
 }
 
-func (c *HttpClient) requestRoot(method string, current, last ref.Ref) *http.Response {
+func (c *RemoteSearcher) requestRoot(method string, current, last ref.Ref) *http.Response {
 	u := *c.host
 	u.Path = rootPath
 	if method == "POST" {
@@ -281,7 +312,7 @@ func (c *HttpClient) requestRoot(method string, current, last ref.Ref) *http.Res
 	return res
 }
 
-func (c *HttpClient) Close() error {
+func (c *RemoteSearcher) Close() error {
 	c.wg.Wait()
 	close(c.readQueue)
 	close(c.writeQueue)
@@ -294,22 +325,4 @@ func closeResponse(res *http.Response) error {
 	d.Chk.NoError(err)
 	d.Chk.Equal(0, len(data))
 	return res.Body.Close()
-}
-
-type Flags struct {
-	host *string
-}
-
-func NewFlagsWithPrefix(prefix string) Flags {
-	return Flags{
-		flag.String(prefix+"h", "", "http host to connect to"),
-	}
-}
-
-func (h Flags) CreateClient() *HttpClient {
-	if *h.host == "" {
-		return nil
-	} else {
-		return NewHttpClient(*h.host)
-	}
 }

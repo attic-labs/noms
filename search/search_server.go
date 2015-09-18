@@ -1,4 +1,4 @@
-package http
+package search
 
 import (
 	"bytes"
@@ -15,28 +15,49 @@ import (
 )
 
 const (
+	maxConcurrentPuts = 64
 	rootPath          = "/root/"
 	refPath           = "/ref/"
 	getRefsPath       = "/getRefs/"
 	postRefsPath      = "/postRefs/"
-	maxConcurrentPuts = 64
 )
 
-type httpServer struct {
-	cs         chunks.ChunkStore
+type searchServer struct {
+	cs         Searcher
 	port       int
 	l          *net.Listener
 	conns      map[net.Conn]http.ConnState
 	writeLimit chan struct{}
 }
 
-func NewHttpServer(cs chunks.ChunkStore, port int) *httpServer {
-	return &httpServer{
+func NewSearchServer(cs Searcher, port int) *searchServer {
+	return &searchServer{
 		cs, port, nil, map[net.Conn]http.ConnState{}, make(chan struct{}, maxConcurrentPuts),
 	}
 }
 
-func (s *httpServer) handleRef(w http.ResponseWriter, req *http.Request) {
+func (s *searchServer) handleGetReachable(r ref.Ref, w http.ResponseWriter, req *http.Request) {
+	excludeRef := ref.Ref{}
+	exclude := req.URL.Query().Get("exclude")
+	if exclude != "" {
+		excludeRef = ref.Parse(exclude)
+	}
+
+	w.Header().Add("Content-Type", "application/octet-stream")
+	writer := w.(io.Writer)
+	if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+		w.Header().Add("Content-Encoding", "gzip")
+		gw := gzip.NewWriter(w)
+		defer gw.Close()
+		writer = gw
+	}
+
+	sz := chunks.NewSerializer(writer)
+	s.cs.CopyReachableChunksP(r, excludeRef, sz, 512)
+	sz.Close()
+}
+
+func (s *searchServer) handleRef(w http.ResponseWriter, req *http.Request) {
 	err := d.Try(func() {
 		refStr := ""
 		pathParts := strings.Split(req.URL.Path[1:], "/")
@@ -47,6 +68,11 @@ func (s *httpServer) handleRef(w http.ResponseWriter, req *http.Request) {
 
 		switch req.Method {
 		case "GET":
+			all := req.URL.Query().Get("all")
+			if all == "true" {
+				s.handleGetReachable(r, w, req)
+				return
+			}
 			chunk := s.cs.Get(r)
 			if chunk.IsEmpty() {
 				w.WriteHeader(http.StatusNotFound)
@@ -74,7 +100,7 @@ func (s *httpServer) handleRef(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *httpServer) handlePostRefs(w http.ResponseWriter, req *http.Request) {
+func (s *searchServer) handlePostRefs(w http.ResponseWriter, req *http.Request) {
 	err := d.Try(func() {
 		d.Exp.Equal("POST", req.Method)
 
@@ -96,7 +122,7 @@ func (s *httpServer) handlePostRefs(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *httpServer) handleGetRefs(w http.ResponseWriter, req *http.Request) {
+func (s *searchServer) handleGetRefs(w http.ResponseWriter, req *http.Request) {
 	err := d.Try(func() {
 		d.Exp.Equal("POST", req.Method)
 
@@ -134,7 +160,7 @@ func (s *httpServer) handleGetRefs(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *httpServer) handleRoot(w http.ResponseWriter, req *http.Request) {
+func (s *searchServer) handleRoot(w http.ResponseWriter, req *http.Request) {
 	err := d.Try(func() {
 		switch req.Method {
 		case "GET":
@@ -164,7 +190,7 @@ func (s *httpServer) handleRoot(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *httpServer) connState(c net.Conn, cs http.ConnState) {
+func (s *searchServer) connState(c net.Conn, cs http.ConnState) {
 	switch cs {
 	case http.StateNew, http.StateActive, http.StateIdle:
 		s.conns[c] = cs
@@ -173,8 +199,8 @@ func (s *httpServer) connState(c net.Conn, cs http.ConnState) {
 	}
 }
 
-// Blocks while the server is listening. Running on a separate go routine is supported.
-func (s *httpServer) Run() {
+// Blocks while the searchServer is listening. Running on a separate go routine is supported.
+func (s *searchServer) Run() {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 	d.Chk.NoError(err)
 	s.l = &l
@@ -196,8 +222,8 @@ func (s *httpServer) Run() {
 	srv.Serve(l)
 }
 
-// Will cause the server to stop listening and an existing call to Run() to continue.
-func (s *httpServer) Stop() {
+// Will cause the searchServer to stop listening and an existing call to Run() to continue.
+func (s *searchServer) Stop() {
 	(*s.l).Close()
 	for c, _ := range s.conns {
 		c.Close()

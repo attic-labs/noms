@@ -1,8 +1,9 @@
 package search
 
 import (
+	"flag"
+
 	"github.com/attic-labs/noms/chunks"
-	"github.com/attic-labs/noms/http"
 	"github.com/attic-labs/noms/ref"
 )
 
@@ -13,7 +14,7 @@ type Searcher interface {
 
 type Flags struct {
 	cflags chunks.Flags
-	hflags http.Flags
+	host   *string
 }
 
 func NewFlags() Flags {
@@ -23,7 +24,7 @@ func NewFlags() Flags {
 func NewFlagsWithPrefix(prefix string) Flags {
 	return Flags{
 		chunks.NewFlagsWithPrefix(prefix),
-		http.NewFlagsWithPrefix(prefix),
+		flag.String(prefix+"h", "", "http host to connect to"),
 	}
 }
 
@@ -33,10 +34,9 @@ func (f Flags) CreateSearcher() (Searcher, bool) {
 		return LocalSearcher{cs}, true
 	}
 
-	ht := f.hflags.CreateClient()
-	if ht == nil {
+	if *f.host == "" {
 		return LocalSearcher{}, false
 	}
 
-	return ht, true
+	return NewRemoteSearcher(*f.host), true
 }
