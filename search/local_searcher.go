@@ -45,8 +45,8 @@ type teeChunkSource struct {
 
 func (trs *teeChunkSource) Get(ref ref.Ref) chunks.Chunk {
 	c := trs.source.Get(ref)
-	if c == nil {
-		return nil
+	if c.IsEmpty() {
+		return c
 	}
 
 	trs.sink.Put(c)
