@@ -245,7 +245,7 @@ func (r RefOfPackage) GetValue(cs chunks.ChunkSource) Package {
 	return PackageFromVal(ReadValue(r.r, cs))
 }
 
-func (r RefOfPackage) SetValue(val Package, cs chunks.ChunkSink) RefOfPackage {
+func (r RefOfPackage) SetValue(val Package, cs chunks.ChunkStore) RefOfPackage {
 	ref := WriteValue(val.NomsValue(), cs)
 	return RefOfPackage{ref}
 }

@@ -11,12 +11,12 @@ type primitive interface {
 	ToPrimitive() interface{}
 }
 
-func WriteValue(v Value, cs chunks.ChunkSink) ref.Ref {
+func WriteValue(v Value, cs chunks.ChunkStore) ref.Ref {
 	d.Chk.NotNil(cs)
 	return writeValueInternal(v, cs)
 }
 
-func writeChildValueInternal(v Value, cs chunks.ChunkSink) ref.Ref {
+func writeChildValueInternal(v Value, cs chunks.ChunkStore) ref.Ref {
 	if cs == nil {
 		return v.Ref()
 	}
@@ -24,7 +24,11 @@ func writeChildValueInternal(v Value, cs chunks.ChunkSink) ref.Ref {
 	return writeValueInternal(v, cs)
 }
 
-func writeValueInternal(v Value, cs chunks.ChunkSink) ref.Ref {
+func writeValueInternal(v Value, cs chunks.ChunkStore) ref.Ref {
+	if cs != nil && cs.Has(v.Ref()) {
+		return v.Ref()
+	}
+
 	e := toEncodeable(v, cs)
 	w := chunks.NewChunkWriter()
 	enc.Encode(w, e)
@@ -35,7 +39,7 @@ func writeValueInternal(v Value, cs chunks.ChunkSink) ref.Ref {
 	return c.Ref()
 }
 
-func toEncodeable(v Value, cs chunks.ChunkSink) interface{} {
+func toEncodeable(v Value, cs chunks.ChunkStore) interface{} {
 	switch v := v.(type) {
 	case blobLeaf:
 		return v.Reader()
@@ -62,7 +66,7 @@ func toEncodeable(v Value, cs chunks.ChunkSink) interface{} {
 	}
 }
 
-func encCompoundBlobFromCompoundBlob(cb compoundBlob, cs chunks.ChunkSink) interface{} {
+func encCompoundBlobFromCompoundBlob(cb compoundBlob, cs chunks.ChunkStore) interface{} {
 	refs := make([]ref.Ref, len(cb.futures))
 	for idx, f := range cb.futures {
 		i := processChild(f, cs)
@@ -72,7 +76,7 @@ func encCompoundBlobFromCompoundBlob(cb compoundBlob, cs chunks.ChunkSink) inter
 	return enc.CompoundBlob{Offsets: cb.offsets, Blobs: refs}
 }
 
-func encCompoundListFromCompoundList(cl compoundList, cs chunks.ChunkSink) interface{} {
+func encCompoundListFromCompoundList(cl compoundList, cs chunks.ChunkStore) interface{} {
 	refs := make([]ref.Ref, len(cl.futures))
 	for idx, f := range cl.futures {
 		i := processChild(f, cs)
@@ -82,7 +86,7 @@ func encCompoundListFromCompoundList(cl compoundList, cs chunks.ChunkSink) inter
 	return enc.CompoundList{Offsets: cl.offsets, Lists: refs}
 }
 
-func makeListEncodeable(l listLeaf, cs chunks.ChunkSink) interface{} {
+func makeListEncodeable(l listLeaf, cs chunks.ChunkStore) interface{} {
 	items := make([]interface{}, l.Len())
 	for idx, f := range l.list {
 		items[idx] = processChild(f, cs)
@@ -90,7 +94,7 @@ func makeListEncodeable(l listLeaf, cs chunks.ChunkSink) interface{} {
 	return items
 }
 
-func makeMapEncodeable(m Map, cs chunks.ChunkSink) interface{} {
+func makeMapEncodeable(m Map, cs chunks.ChunkStore) interface{} {
 	j := make([]interface{}, 0, 2*len(m.m))
 	for _, r := range m.m {
 		j = append(j, processChild(r.key, cs))
@@ -99,7 +103,7 @@ func makeMapEncodeable(m Map, cs chunks.ChunkSink) interface{} {
 	return enc.MapFromItems(j...)
 }
 
-func makeSetEncodeable(s Set, cs chunks.ChunkSink) interface{} {
+func makeSetEncodeable(s Set, cs chunks.ChunkStore) interface{} {
 	items := make([]interface{}, s.Len())
 	for idx, f := range s.m {
 		items[idx] = processChild(f, cs)
@@ -107,7 +111,7 @@ func makeSetEncodeable(s Set, cs chunks.ChunkSink) interface{} {
 	return enc.SetFromItems(items...)
 }
 
-func makeTypeEncodeable(t TypeRef, cs chunks.ChunkSink) interface{} {
+func makeTypeEncodeable(t TypeRef, cs chunks.ChunkStore) interface{} {
 	pkgRef := t.PackageRef().Ref()
 	p := LookupPackage(pkgRef)
 	if p != nil {
@@ -116,7 +120,7 @@ func makeTypeEncodeable(t TypeRef, cs chunks.ChunkSink) interface{} {
 	return enc.TypeRef{PkgRef: pkgRef, Name: t.Name(), Kind: uint8(t.Kind()), Desc: toEncodeable(t.Desc.ToValue(), cs)}
 }
 
-func processChild(f Future, cs chunks.ChunkSink) interface{} {
+func processChild(f Future, cs chunks.ChunkStore) interface{} {
 	if v, ok := f.(*unresolvedFuture); ok {
 		return v.Ref()
 	}

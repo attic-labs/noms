@@ -54,11 +54,11 @@ func (f Flags) CreateDataStore() (DataStore, bool) {
 	}
 
 	if cs != nil {
-		return newLocalDataStore(cs), true
+		return newLocalDataStore(chunks.NewHasCacheStore(cs)), true
 	}
 
 	if cs = f.hflags.CreateStore(); cs != nil {
-		return newRemoteDataStore(cs), true
+		return newRemoteDataStore(chunks.NewHasCacheStore(cs)), true
 	}
 
 	return &LocalDataStore{}, false
