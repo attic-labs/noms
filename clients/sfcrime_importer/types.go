@@ -16,8 +16,29 @@ func __mainPackageInFile_types_Ref() ref.Ref {
 	p := types.PackageDef{
 		NamedTypes: types.MapOfStringToTypeRefDef{
 
-			"Geoposition": __typeRefForGeoposition,
-			"Incident":    __typeRefForIncident,
+			"Geoposition": types.MakeStructTypeRef("Geoposition",
+				[]types.Field{
+					types.Field{"Latitude", types.MakePrimitiveTypeRef(types.Float32Kind), false},
+					types.Field{"Longitude", types.MakePrimitiveTypeRef(types.Float32Kind), false},
+				},
+				types.Choices{},
+			),
+			"Incident": types.MakeStructTypeRef("Incident",
+				[]types.Field{
+					types.Field{"ID", types.MakePrimitiveTypeRef(types.Int64Kind), false},
+					types.Field{"Category", types.MakePrimitiveTypeRef(types.StringKind), false},
+					types.Field{"Description", types.MakePrimitiveTypeRef(types.StringKind), false},
+					types.Field{"DayOfWeek", types.MakePrimitiveTypeRef(types.StringKind), false},
+					types.Field{"Date", types.MakePrimitiveTypeRef(types.StringKind), false},
+					types.Field{"Time", types.MakePrimitiveTypeRef(types.StringKind), false},
+					types.Field{"PdDistrict", types.MakePrimitiveTypeRef(types.StringKind), false},
+					types.Field{"Resolution", types.MakePrimitiveTypeRef(types.StringKind), false},
+					types.Field{"Address", types.MakePrimitiveTypeRef(types.StringKind), false},
+					types.Field{"Geoposition", types.MakeTypeRef("Geoposition", ref.Ref{}), false},
+					types.Field{"PdID", types.MakePrimitiveTypeRef(types.StringKind), false},
+				},
+				types.Choices{},
+			),
 		},
 	}.New()
 	return types.RegisterPackage(&p)
@@ -219,26 +240,8 @@ func (s Incident) Def() (d IncidentDef) {
 	return
 }
 
-// A Noms Value that describes Incident.
-var __typeRefForIncident = types.MakeStructTypeRef("Incident",
-	[]types.Field{
-		types.Field{"ID", types.MakePrimitiveTypeRef(types.Int64Kind), false},
-		types.Field{"Category", types.MakePrimitiveTypeRef(types.StringKind), false},
-		types.Field{"Description", types.MakePrimitiveTypeRef(types.StringKind), false},
-		types.Field{"DayOfWeek", types.MakePrimitiveTypeRef(types.StringKind), false},
-		types.Field{"Date", types.MakePrimitiveTypeRef(types.StringKind), false},
-		types.Field{"Time", types.MakePrimitiveTypeRef(types.StringKind), false},
-		types.Field{"PdDistrict", types.MakePrimitiveTypeRef(types.StringKind), false},
-		types.Field{"Resolution", types.MakePrimitiveTypeRef(types.StringKind), false},
-		types.Field{"Address", types.MakePrimitiveTypeRef(types.StringKind), false},
-		types.Field{"Geoposition", types.MakeTypeRef("Geoposition", ref.Ref{}), false},
-		types.Field{"PdID", types.MakePrimitiveTypeRef(types.StringKind), false},
-	},
-	types.Choices{},
-)
-
 func (m Incident) TypeRef() types.TypeRef {
-	return __typeRefForIncident
+	return types.MakeTypeRef("Incident", __mainPackageInFile_types_CachedRef)
 }
 
 func IncidentFromVal(val types.Value) Incident {
@@ -256,10 +259,6 @@ func (s Incident) Equals(other Incident) bool {
 
 func (s Incident) Ref() ref.Ref {
 	return s.m.Ref()
-}
-
-func (s Incident) Type() types.TypeRef {
-	return s.m.Get(types.NewString("$type")).(types.TypeRef)
 }
 
 func (s Incident) ID() int64 {
@@ -386,17 +385,8 @@ func (s Geoposition) Def() (d GeopositionDef) {
 	return
 }
 
-// A Noms Value that describes Geoposition.
-var __typeRefForGeoposition = types.MakeStructTypeRef("Geoposition",
-	[]types.Field{
-		types.Field{"Latitude", types.MakePrimitiveTypeRef(types.Float32Kind), false},
-		types.Field{"Longitude", types.MakePrimitiveTypeRef(types.Float32Kind), false},
-	},
-	types.Choices{},
-)
-
 func (m Geoposition) TypeRef() types.TypeRef {
-	return __typeRefForGeoposition
+	return types.MakeTypeRef("Geoposition", __mainPackageInFile_types_CachedRef)
 }
 
 func GeopositionFromVal(val types.Value) Geoposition {
@@ -414,10 +404,6 @@ func (s Geoposition) Equals(other Geoposition) bool {
 
 func (s Geoposition) Ref() ref.Ref {
 	return s.m.Ref()
-}
-
-func (s Geoposition) Type() types.TypeRef {
-	return s.m.Get(types.NewString("$type")).(types.TypeRef)
 }
 
 func (s Geoposition) Latitude() float32 {

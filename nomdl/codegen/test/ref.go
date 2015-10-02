@@ -17,7 +17,12 @@ func __testPackageInFile_ref_Ref() ref.Ref {
 	p := types.PackageDef{
 		NamedTypes: types.MapOfStringToTypeRefDef{
 
-			"StructWithRef": __typeRefForStructWithRef,
+			"StructWithRef": types.MakeStructTypeRef("StructWithRef",
+				[]types.Field{
+					types.Field{"r", types.MakeCompoundTypeRef("", types.RefKind, types.MakeCompoundTypeRef("", types.SetKind, types.MakePrimitiveTypeRef(types.Float32Kind))), false},
+				},
+				types.Choices{},
+			),
 		},
 	}.New()
 	return types.RegisterPackage(&p)
@@ -387,16 +392,8 @@ func (s StructWithRef) Def() (d StructWithRefDef) {
 	return
 }
 
-// A Noms Value that describes StructWithRef.
-var __typeRefForStructWithRef = types.MakeStructTypeRef("StructWithRef",
-	[]types.Field{
-		types.Field{"r", types.MakeCompoundTypeRef("", types.RefKind, types.MakeCompoundTypeRef("", types.SetKind, types.MakePrimitiveTypeRef(types.Float32Kind))), false},
-	},
-	types.Choices{},
-)
-
 func (m StructWithRef) TypeRef() types.TypeRef {
-	return __typeRefForStructWithRef
+	return types.MakeTypeRef("StructWithRef", __testPackageInFile_ref_CachedRef)
 }
 
 func StructWithRefFromVal(val types.Value) StructWithRef {
@@ -414,10 +411,6 @@ func (s StructWithRef) Equals(other StructWithRef) bool {
 
 func (s StructWithRef) Ref() ref.Ref {
 	return s.m.Ref()
-}
-
-func (s StructWithRef) Type() types.TypeRef {
-	return s.m.Get(types.NewString("$type")).(types.TypeRef)
 }
 
 func (s StructWithRef) R() RefOfSetOfFloat32 {

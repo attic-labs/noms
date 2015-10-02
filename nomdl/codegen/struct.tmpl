@@ -61,7 +61,9 @@ func New{{.Name}}() {{.Name}} {
 	{{end}}
 {{end}}
 
-{{template "type_ref.tmpl" .}}
+func (m {{.Name}}) TypeRef() types.TypeRef {
+	return types.MakeTypeRef("{{.Name}}", __{{.PackageName}}PackageInFile_{{.FileID}}_CachedRef)
+}
 
 func {{.Name}}FromVal(val types.Value) {{.Name}} {
 	// TODO: Validate here
@@ -78,10 +80,6 @@ func (s {{.Name}}) Equals(other {{.Name}}) bool {
 
 func (s {{.Name}}) Ref() ref.Ref {
 	return s.m.Ref()
-}
-
-func (s {{.Name}}) Type() types.TypeRef {
-	return s.m.Get(types.NewString("$type")).(types.TypeRef)
 }
 
 {{$name := .Name}}
