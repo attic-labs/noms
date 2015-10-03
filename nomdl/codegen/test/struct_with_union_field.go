@@ -105,8 +105,10 @@ func (s StructWithUnionField) __unionValueToDef() interface{} {
 	panic("unreachable")
 }
 
+var __typeRefForStructWithUnionField = types.MakeTypeRef("StructWithUnionField", __testPackageInFile_struct_with_union_field_CachedRef)
+
 func (m StructWithUnionField) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("StructWithUnionField", __testPackageInFile_struct_with_union_field_CachedRef)
+	return __typeRefForStructWithUnionField
 }
 
 func StructWithUnionFieldFromVal(val types.Value) StructWithUnionField {

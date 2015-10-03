@@ -240,8 +240,10 @@ func (s Incident) Def() (d IncidentDef) {
 	return
 }
 
+var __typeRefForIncident = types.MakeTypeRef("Incident", __mainPackageInFile_types_CachedRef)
+
 func (m Incident) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("Incident", __mainPackageInFile_types_CachedRef)
+	return __typeRefForIncident
 }
 
 func IncidentFromVal(val types.Value) Incident {
@@ -385,8 +387,10 @@ func (s Geoposition) Def() (d GeopositionDef) {
 	return
 }
 
+var __typeRefForGeoposition = types.MakeTypeRef("Geoposition", __mainPackageInFile_types_CachedRef)
+
 func (m Geoposition) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("Geoposition", __mainPackageInFile_types_CachedRef)
+	return __typeRefForGeoposition
 }
 
 func GeopositionFromVal(val types.Value) Geoposition {

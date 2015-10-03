@@ -392,8 +392,10 @@ func (s StructWithRef) Def() (d StructWithRefDef) {
 	return
 }
 
+var __typeRefForStructWithRef = types.MakeTypeRef("StructWithRef", __testPackageInFile_ref_CachedRef)
+
 func (m StructWithRef) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("StructWithRef", __testPackageInFile_ref_CachedRef)
+	return __typeRefForStructWithRef
 }
 
 func StructWithRefFromVal(val types.Value) StructWithRef {

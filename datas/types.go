@@ -43,8 +43,10 @@ func NewCommit() Commit {
 	)}
 }
 
+var __typeRefForCommit = types.MakeTypeRef("Commit", __datasPackageInFile_types_CachedRef)
+
 func (m Commit) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("Commit", __datasPackageInFile_types_CachedRef)
+	return __typeRefForCommit
 }
 
 func CommitFromVal(val types.Value) Commit {

@@ -101,8 +101,10 @@ func (s Geoposition) Def() (d GeopositionDef) {
 	return
 }
 
+var __typeRefForGeoposition = types.MakeTypeRef("Geoposition", __mainPackageInFile_types_CachedRef)
+
 func (m Geoposition) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("Geoposition", __mainPackageInFile_types_CachedRef)
+	return __typeRefForGeoposition
 }
 
 func GeopositionFromVal(val types.Value) Geoposition {
@@ -174,8 +176,10 @@ func (s Georectangle) Def() (d GeorectangleDef) {
 	return
 }
 
+var __typeRefForGeorectangle = types.MakeTypeRef("Georectangle", __mainPackageInFile_types_CachedRef)
+
 func (m Georectangle) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("Georectangle", __mainPackageInFile_types_CachedRef)
+	return __typeRefForGeorectangle
 }
 
 func GeorectangleFromVal(val types.Value) Georectangle {
@@ -247,8 +251,10 @@ func (s Node) Def() (d NodeDef) {
 	return
 }
 
+var __typeRefForNode = types.MakeTypeRef("Node", __mainPackageInFile_types_CachedRef)
+
 func (m Node) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("Node", __mainPackageInFile_types_CachedRef)
+	return __typeRefForNode
 }
 
 func NodeFromVal(val types.Value) Node {
@@ -378,8 +384,10 @@ func (s QuadTree) Def() (d QuadTreeDef) {
 	return
 }
 
+var __typeRefForQuadTree = types.MakeTypeRef("QuadTree", __mainPackageInFile_types_CachedRef)
+
 func (m QuadTree) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("QuadTree", __mainPackageInFile_types_CachedRef)
+	return __typeRefForQuadTree
 }
 
 func QuadTreeFromVal(val types.Value) QuadTree {
@@ -730,8 +738,10 @@ func (s SQuadTree) Def() (d SQuadTreeDef) {
 	return
 }
 
+var __typeRefForSQuadTree = types.MakeTypeRef("SQuadTree", __mainPackageInFile_types_CachedRef)
+
 func (m SQuadTree) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("SQuadTree", __mainPackageInFile_types_CachedRef)
+	return __typeRefForSQuadTree
 }
 
 func SQuadTreeFromVal(val types.Value) SQuadTree {

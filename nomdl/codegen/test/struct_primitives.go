@@ -124,8 +124,10 @@ func (s StructPrimitives) Def() (d StructPrimitivesDef) {
 	return
 }
 
+var __typeRefForStructPrimitives = types.MakeTypeRef("StructPrimitives", __testPackageInFile_struct_primitives_CachedRef)
+
 func (m StructPrimitives) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("StructPrimitives", __testPackageInFile_struct_primitives_CachedRef)
+	return __typeRefForStructPrimitives
 }
 
 func StructPrimitivesFromVal(val types.Value) StructPrimitives {

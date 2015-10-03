@@ -61,8 +61,10 @@ func New{{.Name}}() {{.Name}} {
 	{{end}}
 {{end}}
 
+var __typeRefFor{{.Name}} = types.MakeTypeRef("{{.Name}}", __{{.PackageName}}PackageInFile_{{.FileID}}_CachedRef)
+
 func (m {{.Name}}) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("{{.Name}}", __{{.PackageName}}PackageInFile_{{.FileID}}_CachedRef)
+	return __typeRefFor{{.Name}}
 }
 
 func {{.Name}}FromVal(val types.Value) {{.Name}} {

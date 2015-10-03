@@ -194,8 +194,10 @@ func (s Dataset) Def() (d DatasetDef) {
 	return
 }
 
+var __typeRefForDataset = types.MakeTypeRef("Dataset", __mgmtPackageInFile_types_CachedRef)
+
 func (m Dataset) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("Dataset", __mgmtPackageInFile_types_CachedRef)
+	return __typeRefForDataset
 }
 
 func DatasetFromVal(val types.Value) Dataset {

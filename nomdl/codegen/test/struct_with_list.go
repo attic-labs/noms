@@ -74,8 +74,10 @@ func (s StructWithList) Def() (d StructWithListDef) {
 	return
 }
 
+var __typeRefForStructWithList = types.MakeTypeRef("StructWithList", __testPackageInFile_struct_with_list_CachedRef)
+
 func (m StructWithList) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("StructWithList", __testPackageInFile_struct_with_list_CachedRef)
+	return __typeRefForStructWithList
 }
 
 func StructWithListFromVal(val types.Value) StructWithList {

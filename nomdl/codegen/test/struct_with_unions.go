@@ -76,8 +76,10 @@ func (s StructWithUnions) Def() (d StructWithUnionsDef) {
 	return
 }
 
+var __typeRefForStructWithUnions = types.MakeTypeRef("StructWithUnions", __testPackageInFile_struct_with_unions_CachedRef)
+
 func (m StructWithUnions) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("StructWithUnions", __testPackageInFile_struct_with_unions_CachedRef)
+	return __typeRefForStructWithUnions
 }
 
 func StructWithUnionsFromVal(val types.Value) StructWithUnions {
@@ -169,8 +171,10 @@ func (s __unionOfBOfFloat64AndCOfString) __unionValueToDef() interface{} {
 	panic("unreachable")
 }
 
+var __typeRefFor__unionOfBOfFloat64AndCOfString = types.MakeTypeRef("__unionOfBOfFloat64AndCOfString", __testPackageInFile_struct_with_unions_CachedRef)
+
 func (m __unionOfBOfFloat64AndCOfString) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("__unionOfBOfFloat64AndCOfString", __testPackageInFile_struct_with_unions_CachedRef)
+	return __typeRefFor__unionOfBOfFloat64AndCOfString
 }
 
 func __unionOfBOfFloat64AndCOfStringFromVal(val types.Value) __unionOfBOfFloat64AndCOfString {
@@ -294,8 +298,10 @@ func (s __unionOfEOfFloat64AndFOfString) __unionValueToDef() interface{} {
 	panic("unreachable")
 }
 
+var __typeRefFor__unionOfEOfFloat64AndFOfString = types.MakeTypeRef("__unionOfEOfFloat64AndFOfString", __testPackageInFile_struct_with_unions_CachedRef)
+
 func (m __unionOfEOfFloat64AndFOfString) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("__unionOfEOfFloat64AndFOfString", __testPackageInFile_struct_with_unions_CachedRef)
+	return __typeRefFor__unionOfEOfFloat64AndFOfString
 }
 
 func __unionOfEOfFloat64AndFOfStringFromVal(val types.Value) __unionOfEOfFloat64AndFOfString {

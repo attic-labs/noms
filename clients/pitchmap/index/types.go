@@ -526,8 +526,10 @@ func (s Pitch) Def() (d PitchDef) {
 	return
 }
 
+var __typeRefForPitch = types.MakeTypeRef("Pitch", __mainPackageInFile_types_CachedRef)
+
 func (m Pitch) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("Pitch", __mainPackageInFile_types_CachedRef)
+	return __typeRefForPitch
 }
 
 func PitchFromVal(val types.Value) Pitch {

@@ -66,8 +66,10 @@ func (s OptionalStruct) Def() (d OptionalStructDef) {
 	return
 }
 
+var __typeRefForOptionalStruct = types.MakeTypeRef("OptionalStruct", __testPackageInFile_struct_optional_CachedRef)
+
 func (m OptionalStruct) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("OptionalStruct", __testPackageInFile_struct_optional_CachedRef)
+	return __typeRefForOptionalStruct
 }
 
 func OptionalStructFromVal(val types.Value) OptionalStruct {

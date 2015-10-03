@@ -60,8 +60,10 @@ func (s EnumStruct) Def() (d EnumStructDef) {
 	return
 }
 
+var __typeRefForEnumStruct = types.MakeTypeRef("EnumStruct", __testPackageInFile_enum_struct_CachedRef)
+
 func (m EnumStruct) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("EnumStruct", __testPackageInFile_enum_struct_CachedRef)
+	return __typeRefForEnumStruct
 }
 
 func EnumStructFromVal(val types.Value) EnumStruct {

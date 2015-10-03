@@ -59,8 +59,10 @@ func (s Tree) Def() (d TreeDef) {
 	return
 }
 
+var __typeRefForTree = types.MakeTypeRef("Tree", __testPackageInFile_struct_recursive_CachedRef)
+
 func (m Tree) TypeRef() types.TypeRef {
-	return types.MakeTypeRef("Tree", __testPackageInFile_struct_recursive_CachedRef)
+	return __typeRefForTree
 }
 
 func TreeFromVal(val types.Value) Tree {
