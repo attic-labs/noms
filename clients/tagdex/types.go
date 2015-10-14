@@ -469,4 +469,3 @@ func (s Size) Height() types.UInt32 {
 func (s Size) SetHeight(p types.UInt32) Size {
 	return SizeFromVal(s.m.Set(types.NewString("height"), p))
 }
-
