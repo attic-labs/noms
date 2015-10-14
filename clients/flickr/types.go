@@ -580,4 +580,3 @@ func (m MapOfStringToAlbum) Iter(cb MapOfStringToAlbumIterCallback) {
 		return cb(types.StringFromVal(k), AlbumFromVal(v))
 	})
 }
-
