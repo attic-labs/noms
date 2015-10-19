@@ -7,26 +7,6 @@ import (
 	"github.com/attic-labs/noms/ref"
 )
 
-var __typesPackageInFile_package_CachedRef ref.Ref
-
-// This function builds up a Noms value that describes the type
-// package implemented by this file and registers it with the global
-// type package definition cache.
-func init() {
-	p := PackageDef{
-		Types: ListOfTypeRefDef{
-			MakeStructTypeRef("Package",
-				[]Field{
-					Field{"Dependencies", MakeCompoundTypeRef("", SetKind, MakeCompoundTypeRef("", RefKind, MakeTypeRef(ref.Ref{}, 0))), false},
-					Field{"Types", MakeCompoundTypeRef("", ListKind, MakePrimitiveTypeRef(TypeRefKind)), false},
-				},
-				Choices{},
-			),
-		},
-	}.New()
-	__typesPackageInFile_package_CachedRef = RegisterPackage(&p)
-}
-
 // SetOfPackage
 
 type SetOfPackage struct {
@@ -70,7 +50,7 @@ func (m SetOfPackage) TypeRef() TypeRef {
 }
 
 func init() {
-	__typeRefForSetOfPackage = MakeCompoundTypeRef("", SetKind, MakeTypeRef(__typesPackageInFile_package_CachedRef, 0))
+	__typeRefForSetOfPackage = MakeCompoundTypeRef("", SetKind, MakePrimitiveTypeRef(PackageKind))
 	RegisterFromValFunction(__typeRefForSetOfPackage, func(v Value) NomsValue {
 		return SetOfPackageFromVal(v)
 	})
@@ -85,14 +65,14 @@ func (s SetOfPackage) Len() uint64 {
 }
 
 func (s SetOfPackage) Has(p Package) bool {
-	return s.s.Has(p.NomsValue())
+	return s.s.Has(p)
 }
 
 type SetOfPackageIterCallback func(p Package) (stop bool)
 
 func (s SetOfPackage) Iter(cb SetOfPackageIterCallback) {
 	s.s.Iter(func(v Value) bool {
-		return cb(PackageFromVal(v))
+		return cb(v.(Package))
 	})
 }
 
@@ -100,7 +80,7 @@ type SetOfPackageIterAllCallback func(p Package)
 
 func (s SetOfPackage) IterAll(cb SetOfPackageIterAllCallback) {
 	s.s.IterAll(func(v Value) {
-		cb(PackageFromVal(v))
+		cb(v.(Package))
 	})
 }
 
@@ -133,7 +113,7 @@ func (s SetOfPackage) Subtract(others ...SetOfPackage) SetOfPackage {
 }
 
 func (s SetOfPackage) Any() Package {
-	return PackageFromVal(s.s.Any())
+	return s.s.Any().(Package)
 }
 
 func (s SetOfPackage) fromStructSlice(p []SetOfPackage) []Set {
@@ -147,101 +127,9 @@ func (s SetOfPackage) fromStructSlice(p []SetOfPackage) []Set {
 func (s SetOfPackage) fromElemSlice(p []Package) []Value {
 	r := make([]Value, len(p))
 	for i, v := range p {
-		r[i] = v.NomsValue()
+		r[i] = v
 	}
 	return r
-}
-
-// Package
-
-type Package struct {
-	m Map
-}
-
-func NewPackage() Package {
-	return Package{NewMap(
-		NewString("$type"), MakeTypeRef(__typesPackageInFile_package_CachedRef, 0),
-		NewString("Dependencies"), NewSet(),
-		NewString("Types"), NewList(),
-	)}
-}
-
-// PackageDef defines a Package object, which represents a Noms type package.
-// Dependencies is a set of refs that point to other type packages required to resolve all the types in this pacakge.
-// NamedTypes is a lookup table for types defined in this package. These should all be EnumKind or StructKind. When traversing the definition of a given type, you may run into a TypeRef that IsUnresolved(). In that case, look it up by name in the NamedTypes of the appropriate package.
-type PackageDef struct {
-	Dependencies SetOfRefOfPackageDef
-	Types        ListOfTypeRefDef
-}
-
-func (def PackageDef) New() Package {
-	return Package{
-		NewMap(
-			NewString("$type"), MakeTypeRef(__typesPackageInFile_package_CachedRef, 0),
-			NewString("Dependencies"), def.Dependencies.New().NomsValue(),
-			NewString("Types"), def.Types.New().NomsValue(),
-		)}
-}
-
-func (s Package) Def() (d PackageDef) {
-	d.Dependencies = SetOfRefOfPackageFromVal(s.m.Get(NewString("Dependencies"))).Def()
-	d.Types = ListOfTypeRefFromVal(s.m.Get(NewString("Types"))).Def()
-	return
-}
-
-var __typeRefForPackage TypeRef
-
-func (m Package) TypeRef() TypeRef {
-	return __typeRefForPackage
-}
-
-func init() {
-	__typeRefForPackage = MakeTypeRef(__typesPackageInFile_package_CachedRef, 0)
-	RegisterFromValFunction(__typeRefForPackage, func(v Value) NomsValue {
-		return PackageFromVal(v)
-	})
-}
-
-func PackageFromVal(val Value) Package {
-	// TODO: Validate here
-	return Package{val.(Map)}
-}
-
-func (s Package) NomsValue() Value {
-	return s.m
-}
-
-func (s Package) Equals(other Value) bool {
-	if other, ok := other.(Package); ok {
-		return s.m.Equals(other.m)
-	}
-	return false
-}
-
-func (s Package) Ref() ref.Ref {
-	return s.m.Ref()
-}
-
-func (s Package) Chunks() (futures []Future) {
-	futures = append(futures, s.TypeRef().Chunks()...)
-	futures = append(futures, s.m.Chunks()...)
-	return
-}
-
-func (s Package) Dependencies() SetOfRefOfPackage {
-	return SetOfRefOfPackageFromVal(s.m.Get(NewString("Dependencies")))
-}
-
-func (s Package) SetDependencies(val SetOfRefOfPackage) Package {
-	return Package{s.m.Set(NewString("Dependencies"), val.NomsValue())}
-}
-
-func (s Package) Types() ListOfTypeRef {
-	return ListOfTypeRefFromVal(s.m.Get(NewString("Types")))
-}
-
-func (s Package) SetTypes(val ListOfTypeRef) Package {
-	return Package{s.m.Set(NewString("Types"), val.NomsValue())}
 }
 
 // SetOfRefOfPackage
@@ -308,7 +196,7 @@ func (m SetOfRefOfPackage) TypeRef() TypeRef {
 }
 
 func init() {
-	__typeRefForSetOfRefOfPackage = MakeCompoundTypeRef("", SetKind, MakeCompoundTypeRef("", RefKind, MakeTypeRef(__typesPackageInFile_package_CachedRef, 0)))
+	__typeRefForSetOfRefOfPackage = MakeCompoundTypeRef("", SetKind, MakeCompoundTypeRef("", RefKind, MakePrimitiveTypeRef(PackageKind)))
 	RegisterFromValFunction(__typeRefForSetOfRefOfPackage, func(v Value) NomsValue {
 		return SetOfRefOfPackageFromVal(v)
 	})
@@ -344,7 +232,7 @@ func (s SetOfRefOfPackage) IterAll(cb SetOfRefOfPackageIterAllCallback) {
 			cb(RefOfPackageFromVal(r))
 			return
 		}
-		cb(RefOfPackage{PackageFromVal(v).Ref()})
+		cb(RefOfPackage{v.(Package).Ref()})
 	})
 }
 
@@ -379,7 +267,7 @@ func (s SetOfRefOfPackage) Subtract(others ...SetOfRefOfPackage) SetOfRefOfPacka
 func (s SetOfRefOfPackage) Any() RefOfPackage {
 	// IT'S A HAAAAAACK!
 	// Currently, ReadValue() automatically derefs refs. So, in some cases the value returned by s.s.Any() is actually a Package instead of Ref(Package). This works around that until we've fixed it.
-	return RefOfPackage{PackageFromVal(s.s.Any()).Ref()}
+	return RefOfPackage{s.s.Any().(Package).Ref()}
 }
 
 func (s SetOfRefOfPackage) fromStructSlice(p []SetOfRefOfPackage) []Set {
@@ -439,157 +327,17 @@ func (m RefOfPackage) TypeRef() TypeRef {
 }
 
 func init() {
-	__typeRefForRefOfPackage = MakeCompoundTypeRef("", RefKind, MakeTypeRef(__typesPackageInFile_package_CachedRef, 0))
+	__typeRefForRefOfPackage = MakeCompoundTypeRef("", RefKind, MakePrimitiveTypeRef(PackageKind))
 	RegisterFromValFunction(__typeRefForRefOfPackage, func(v Value) NomsValue {
 		return RefOfPackageFromVal(v)
 	})
 }
 
 func (r RefOfPackage) GetValue(cs chunks.ChunkSource) Package {
-	return PackageFromVal(ReadValue(r.r, cs))
+	return ReadValue(r.r, cs).(Package)
 }
 
 func (r RefOfPackage) SetValue(val Package, cs chunks.ChunkSink) RefOfPackage {
-	ref := WriteValue(val.NomsValue(), cs)
+	ref := WriteValue(val, cs)
 	return RefOfPackage{ref}
-}
-
-// ListOfTypeRef
-
-type ListOfTypeRef struct {
-	l List
-}
-
-func NewListOfTypeRef() ListOfTypeRef {
-	return ListOfTypeRef{NewList()}
-}
-
-type ListOfTypeRefDef []TypeRef
-
-func (def ListOfTypeRefDef) New() ListOfTypeRef {
-	l := make([]Value, len(def))
-	for i, d := range def {
-		l[i] = d
-	}
-	return ListOfTypeRef{NewList(l...)}
-}
-
-func (l ListOfTypeRef) Def() ListOfTypeRefDef {
-	d := make([]TypeRef, l.Len())
-	for i := uint64(0); i < l.Len(); i++ {
-		d[i] = l.l.Get(i).(TypeRef)
-	}
-	return d
-}
-
-func ListOfTypeRefFromVal(val Value) ListOfTypeRef {
-	// TODO: Validate here
-	return ListOfTypeRef{val.(List)}
-}
-
-func (l ListOfTypeRef) NomsValue() Value {
-	return l.l
-}
-
-func (l ListOfTypeRef) Equals(other Value) bool {
-	if other, ok := other.(ListOfTypeRef); ok {
-		return l.l.Equals(other.l)
-	}
-	return false
-}
-
-func (l ListOfTypeRef) Ref() ref.Ref {
-	return l.l.Ref()
-}
-
-func (l ListOfTypeRef) Chunks() (futures []Future) {
-	futures = append(futures, l.TypeRef().Chunks()...)
-	futures = append(futures, l.l.Chunks()...)
-	return
-}
-
-// A Noms Value that describes ListOfTypeRef.
-var __typeRefForListOfTypeRef TypeRef
-
-func (m ListOfTypeRef) TypeRef() TypeRef {
-	return __typeRefForListOfTypeRef
-}
-
-func init() {
-	__typeRefForListOfTypeRef = MakeCompoundTypeRef("", ListKind, MakePrimitiveTypeRef(TypeRefKind))
-	RegisterFromValFunction(__typeRefForListOfTypeRef, func(v Value) NomsValue {
-		return ListOfTypeRefFromVal(v)
-	})
-}
-
-func (l ListOfTypeRef) Len() uint64 {
-	return l.l.Len()
-}
-
-func (l ListOfTypeRef) Empty() bool {
-	return l.Len() == uint64(0)
-}
-
-func (l ListOfTypeRef) Get(i uint64) TypeRef {
-	return l.l.Get(i).(TypeRef)
-}
-
-func (l ListOfTypeRef) Slice(idx uint64, end uint64) ListOfTypeRef {
-	return ListOfTypeRef{l.l.Slice(idx, end)}
-}
-
-func (l ListOfTypeRef) Set(i uint64, val TypeRef) ListOfTypeRef {
-	return ListOfTypeRef{l.l.Set(i, val)}
-}
-
-func (l ListOfTypeRef) Append(v ...TypeRef) ListOfTypeRef {
-	return ListOfTypeRef{l.l.Append(l.fromElemSlice(v)...)}
-}
-
-func (l ListOfTypeRef) Insert(idx uint64, v ...TypeRef) ListOfTypeRef {
-	return ListOfTypeRef{l.l.Insert(idx, l.fromElemSlice(v)...)}
-}
-
-func (l ListOfTypeRef) Remove(idx uint64, end uint64) ListOfTypeRef {
-	return ListOfTypeRef{l.l.Remove(idx, end)}
-}
-
-func (l ListOfTypeRef) RemoveAt(idx uint64) ListOfTypeRef {
-	return ListOfTypeRef{(l.l.RemoveAt(idx))}
-}
-
-func (l ListOfTypeRef) fromElemSlice(p []TypeRef) []Value {
-	r := make([]Value, len(p))
-	for i, v := range p {
-		r[i] = v
-	}
-	return r
-}
-
-type ListOfTypeRefIterCallback func(v TypeRef, i uint64) (stop bool)
-
-func (l ListOfTypeRef) Iter(cb ListOfTypeRefIterCallback) {
-	l.l.Iter(func(v Value, i uint64) bool {
-		return cb(v.(TypeRef), i)
-	})
-}
-
-type ListOfTypeRefIterAllCallback func(v TypeRef, i uint64)
-
-func (l ListOfTypeRef) IterAll(cb ListOfTypeRefIterAllCallback) {
-	l.l.IterAll(func(v Value, i uint64) {
-		cb(v.(TypeRef), i)
-	})
-}
-
-type ListOfTypeRefFilterCallback func(v TypeRef, i uint64) (keep bool)
-
-func (l ListOfTypeRef) Filter(cb ListOfTypeRefFilterCallback) ListOfTypeRef {
-	nl := NewListOfTypeRef()
-	l.IterAll(func(v TypeRef, i uint64) {
-		if cb(v, i) {
-			nl = nl.Append(v)
-		}
-	})
-	return nl
 }

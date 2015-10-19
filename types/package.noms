@@ -1,6 +1,2 @@
 using Set(Package)
-
-struct Package {
-	Dependencies: Set(Ref(Package))
-	Types: List(TypeRef)
-}
+using Set(Ref(Package))
