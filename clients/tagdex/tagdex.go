@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	photos "github.com/attic-labs/noms/clients/gen/sha1_ee6ba8b7a1135a4360459b053b68bf5f992bb23e"
 	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/datas"
 	"github.com/attic-labs/noms/dataset"
@@ -34,39 +35,37 @@ func main() {
 	}
 	outputDS := dataset.NewDataset(store, *outputID)
 
-	out := NewMapOfStringToSet()
+	out := NewMapOfStringToSetOfValue()
 
 	t0 := time.Now()
 	numRefs := 0
 	numPhotos := 0
 
+	photoTypeRef := photos.NewPhoto().TypeRef()
+	remotePhotoTypeRef := photos.NewRemotePhoto().TypeRef()
+
 	types.Some(inputDS.Head().Value().Ref(), store, func(f types.Future) (skip bool) {
 		numRefs++
 		v := f.Deref(store)
-		if v, ok := v.(types.Map); ok {
-			name := v.Get(types.NewString("$name"))
-			if name == nil {
-				return
-			}
-
-			if !name.Equals(types.NewString("Photo")) && !name.Equals(types.NewString("RemotePhoto")) {
-				return
-			}
-
+		tags := photos.NewSetOfString()
+		if v.TypeRef().Equals(photoTypeRef) {
+			tags = photos.PhotoFromVal(v).Tags()
 			skip = true
+		} else if v.TypeRef().Equals(remotePhotoTypeRef) {
+			tags = photos.RemotePhotoFromVal(v).Tags()
+			skip = true
+		}
+
+		if !tags.Empty() {
 			numPhotos++
 			fmt.Println("Indexing", v.Ref())
 
-			tags := SetOfStringFromVal(v.Get(types.NewString("tags")))
-			tags.Iter(func(item types.String) (stop bool) {
-				var s types.Set
+			tags.IterAll(func(item string) {
+				s := NewSetOfValue()
 				if out.Has(item) {
 					s = out.Get(item)
-				} else {
-					s = types.NewSet()
 				}
 				out = out.Set(item, s.Insert(v))
-				return
 			})
 		}
 		return
