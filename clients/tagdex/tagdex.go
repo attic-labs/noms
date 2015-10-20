@@ -35,24 +35,24 @@ func main() {
 	}
 	outputDS := dataset.NewDataset(store, *outputID)
 
-	out := NewMapOfStringToSetOfValue()
+	out := NewMapOfStringToSetOfPhotoUnion()
 
 	t0 := time.Now()
 	numRefs := 0
 	numPhotos := 0
 
-	photoTypeRef := photos.NewPhoto().TypeRef()
-	remotePhotoTypeRef := photos.NewRemotePhoto().TypeRef()
-
 	types.Some(inputDS.Head().Value().Ref(), store, func(f types.Future) (skip bool) {
 		numRefs++
 		v := f.Deref(store)
+		u := NewPhotoUnion()
 		tags := photos.NewSetOfString()
-		if v.TypeRef().Equals(photoTypeRef) {
+		if p, ok := v.(photos.Photo); ok {
 			tags = photos.PhotoFromVal(v).Tags()
+			u = u.SetPhoto(p)
 			skip = true
-		} else if v.TypeRef().Equals(remotePhotoTypeRef) {
+		} else if r, ok := v.(photos.RemotePhoto); ok {
 			tags = photos.RemotePhotoFromVal(v).Tags()
+			u = u.SetRemote(r)
 			skip = true
 		}
 
@@ -61,11 +61,11 @@ func main() {
 			fmt.Println("Indexing", v.Ref())
 
 			tags.IterAll(func(item string) {
-				s := NewSetOfValue()
+				s := NewSetOfPhotoUnion()
 				if out.Has(item) {
 					s = out.Get(item)
 				}
-				out = out.Set(item, s.Insert(v))
+				out = out.Set(item, s.Insert(u))
 			})
 		}
 		return
