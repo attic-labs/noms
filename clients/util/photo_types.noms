@@ -1,0 +1,30 @@
+alias Geo = import "../util/geotypes.noms"
+
+struct Size {
+	Width: UInt32
+	Height: UInt32
+}
+
+struct Photo {
+	Width: UInt32
+	Height: UInt32
+	Geoposition: Geo.Geoposition
+	ID: String
+	Image: Blob
+	Tags: Set(String)
+	Title: String
+	URL: String
+}
+
+struct RemotePhoto {
+	Sizes: Map(Size, String)
+	Geoposition: Geo.Geoposition
+	ID: String
+	Tags: Set(String)
+	Title: String
+	URL: String
+}
+
+using Set(String)
+using Set(Photo)
+using Set(RemotePhoto)
