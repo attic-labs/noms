@@ -4,7 +4,7 @@ using Map(String, Set(PhotoUnion))
 
 struct PhotoUnion {
 	union {
-		photo: Photos.Photo
-		remote: Photos.RemotePhoto
+		Photo: Photos.Photo
+		Remote: Photos.RemotePhoto
 	}
 }

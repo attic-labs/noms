@@ -20,8 +20,8 @@ func __mainPackageInFile_types_Ref() ref.Ref {
 			types.MakeStructTypeRef("PhotoUnion",
 				[]types.Field{},
 				types.Choices{
-					types.Field{"photo", types.MakeTypeRef(ref.Parse("sha1-ee6ba8b7a1135a4360459b053b68bf5f992bb23e"), 1), false},
-					types.Field{"remote", types.MakeTypeRef(ref.Parse("sha1-ee6ba8b7a1135a4360459b053b68bf5f992bb23e"), 2), false},
+					types.Field{"Photo", types.MakeTypeRef(ref.Parse("sha1-ee6ba8b7a1135a4360459b053b68bf5f992bb23e"), 1), false},
+					types.Field{"Remote", types.MakeTypeRef(ref.Parse("sha1-ee6ba8b7a1135a4360459b053b68bf5f992bb23e"), 2), false},
 				},
 			),
 		},
