@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/attic-labs/noms/Godeps/_workspace/src/github.com/garyburd/go-oauth/oauth"
-	img "github.com/attic-labs/noms/clients/gen/sha1_b525f9bca5e451c21dd9af564f0960045fbaa304"
+	img "github.com/attic-labs/noms/clients/gen/sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73"
 	geo "github.com/attic-labs/noms/clients/gen/sha1_fb09d21d144c518467325465327d46489cff7c47"
 	"github.com/attic-labs/noms/clients/util"
 	"github.com/attic-labs/noms/d"
@@ -189,7 +189,7 @@ func getAlbums() MapOfStringToAlbum {
 	return albums
 }
 
-func getAlbumPhotos(id string) SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto {
+func getAlbumPhotos(id string) SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto {
 	response := struct {
 		flickrCall
 		Photoset struct {
@@ -226,7 +226,7 @@ func getAlbumPhotos(id string) SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa30
 	})
 	d.Chk.NoError(err)
 
-	photos := NewSetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto()
+	photos := NewSetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto()
 
 	for _, p := range response.Photoset.Photo {
 		photo := img.RemotePhotoDef{

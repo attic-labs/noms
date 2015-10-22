@@ -1,5 +1,15 @@
 alias Geo = import "geo.noms"
 
+struct Photo {
+  Id: String
+  Title: String
+  Url: String
+  Geoposition: Geo.Geoposition
+  Size: Size
+  Tags: Set(String)
+  Image: Blob
+}
+
 struct RemotePhoto {
   Id: String
   Title: String

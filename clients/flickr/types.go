@@ -3,7 +3,7 @@
 package main
 
 import (
-	"github.com/attic-labs/noms/clients/gen/sha1_b525f9bca5e451c21dd9af564f0960045fbaa304"
+	"github.com/attic-labs/noms/clients/gen/sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73"
 
 	"github.com/attic-labs/noms/ref"
 	"github.com/attic-labs/noms/types"
@@ -30,12 +30,12 @@ func __mainPackageInFile_types_Ref() ref.Ref {
 			[]types.Field{
 				types.Field{"Id", types.MakePrimitiveTypeRef(types.StringKind), false},
 				types.Field{"Title", types.MakePrimitiveTypeRef(types.StringKind), false},
-				types.Field{"Photos", types.MakeCompoundTypeRef("", types.SetKind, types.MakeTypeRef(ref.Parse("sha1-b525f9bca5e451c21dd9af564f0960045fbaa304"), 0)), false},
+				types.Field{"Photos", types.MakeCompoundTypeRef("", types.SetKind, types.MakeTypeRef(ref.Parse("sha1-7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73"), 1)), false},
 			},
 			types.Choices{},
 		),
 	}, []ref.Ref{
-		ref.Parse("sha1-b525f9bca5e451c21dd9af564f0960045fbaa304"),
+		ref.Parse("sha1-7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73"),
 	})
 	return types.RegisterPackage(&p)
 }
@@ -150,7 +150,7 @@ func NewAlbum() Album {
 	return Album{types.NewMap(
 		types.NewString("Id"), types.NewString(""),
 		types.NewString("Title"), types.NewString(""),
-		types.NewString("Photos"), NewSetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto(),
+		types.NewString("Photos"), NewSetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto(),
 	), &ref.Ref{}}
 }
 
@@ -212,11 +212,11 @@ func (s Album) SetTitle(val string) Album {
 	return Album{s.m.Set(types.NewString("Title"), types.NewString(val)), &ref.Ref{}}
 }
 
-func (s Album) Photos() SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto {
-	return s.m.Get(types.NewString("Photos")).(SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto)
+func (s Album) Photos() SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto {
+	return s.m.Get(types.NewString("Photos")).(SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto)
 }
 
-func (s Album) SetPhotos(val SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Album {
+func (s Album) SetPhotos(val SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Album {
 	return Album{s.m.Set(types.NewString("Photos"), val), &ref.Ref{}}
 }
 
@@ -337,93 +337,93 @@ func (m MapOfStringToAlbum) Filter(cb MapOfStringToAlbumFilterCallback) MapOfStr
 	return nm
 }
 
-// SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto
+// SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto
 
-type SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto struct {
+type SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto struct {
 	s   types.Set
 	ref *ref.Ref
 }
 
-func NewSetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto() SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto {
-	return SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto{types.NewSet(), &ref.Ref{}}
+func NewSetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto() SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto {
+	return SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto{types.NewSet(), &ref.Ref{}}
 }
 
-func SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhotoFromVal(val types.Value) SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto {
+func SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhotoFromVal(val types.Value) SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto {
 	// TODO: Do we still need FromVal?
-	if val, ok := val.(SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto); ok {
+	if val, ok := val.(SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto); ok {
 		return val
 	}
-	return SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto{val.(types.Set), &ref.Ref{}}
+	return SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto{val.(types.Set), &ref.Ref{}}
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) InternalImplementation() types.Set {
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) InternalImplementation() types.Set {
 	return s.s
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Equals(other types.Value) bool {
-	if other, ok := other.(SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto); ok {
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Equals(other types.Value) bool {
+	if other, ok := other.(SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto); ok {
 		return s.Ref() == other.Ref()
 	}
 	return false
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Ref() ref.Ref {
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Ref() ref.Ref {
 	return types.EnsureRef(s.ref, s)
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Chunks() (futures []types.Future) {
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Chunks() (futures []types.Future) {
 	futures = append(futures, s.TypeRef().Chunks()...)
 	futures = append(futures, s.s.Chunks()...)
 	return
 }
 
-// A Noms Value that describes SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto.
-var __typeRefForSetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto types.TypeRef
+// A Noms Value that describes SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto.
+var __typeRefForSetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto types.TypeRef
 
-func (m SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) TypeRef() types.TypeRef {
-	return __typeRefForSetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto
+func (m SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) TypeRef() types.TypeRef {
+	return __typeRefForSetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto
 }
 
 func init() {
-	__typeRefForSetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto = types.MakeCompoundTypeRef("", types.SetKind, types.MakeTypeRef(ref.Parse("sha1-b525f9bca5e451c21dd9af564f0960045fbaa304"), 0))
-	types.RegisterFromValFunction(__typeRefForSetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto, func(v types.Value) types.Value {
-		return SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhotoFromVal(v)
+	__typeRefForSetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto = types.MakeCompoundTypeRef("", types.SetKind, types.MakeTypeRef(ref.Parse("sha1-7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73"), 1))
+	types.RegisterFromValFunction(__typeRefForSetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto, func(v types.Value) types.Value {
+		return SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhotoFromVal(v)
 	})
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Empty() bool {
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Empty() bool {
 	return s.s.Empty()
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Len() uint64 {
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Len() uint64 {
 	return s.s.Len()
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Has(p sha1_b525f9bca5e451c21dd9af564f0960045fbaa304.RemotePhoto) bool {
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Has(p sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73.RemotePhoto) bool {
 	return s.s.Has(p)
 }
 
-type SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhotoIterCallback func(p sha1_b525f9bca5e451c21dd9af564f0960045fbaa304.RemotePhoto) (stop bool)
+type SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhotoIterCallback func(p sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73.RemotePhoto) (stop bool)
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Iter(cb SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhotoIterCallback) {
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Iter(cb SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhotoIterCallback) {
 	s.s.Iter(func(v types.Value) bool {
-		return cb(v.(sha1_b525f9bca5e451c21dd9af564f0960045fbaa304.RemotePhoto))
+		return cb(v.(sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73.RemotePhoto))
 	})
 }
 
-type SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhotoIterAllCallback func(p sha1_b525f9bca5e451c21dd9af564f0960045fbaa304.RemotePhoto)
+type SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhotoIterAllCallback func(p sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73.RemotePhoto)
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) IterAll(cb SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhotoIterAllCallback) {
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) IterAll(cb SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhotoIterAllCallback) {
 	s.s.IterAll(func(v types.Value) {
-		cb(v.(sha1_b525f9bca5e451c21dd9af564f0960045fbaa304.RemotePhoto))
+		cb(v.(sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73.RemotePhoto))
 	})
 }
 
-type SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhotoFilterCallback func(p sha1_b525f9bca5e451c21dd9af564f0960045fbaa304.RemotePhoto) (keep bool)
+type SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhotoFilterCallback func(p sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73.RemotePhoto) (keep bool)
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Filter(cb SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhotoFilterCallback) SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto {
-	ns := NewSetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto()
-	s.IterAll(func(v sha1_b525f9bca5e451c21dd9af564f0960045fbaa304.RemotePhoto) {
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Filter(cb SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhotoFilterCallback) SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto {
+	ns := NewSetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto()
+	s.IterAll(func(v sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73.RemotePhoto) {
 		if cb(v) {
 			ns = ns.Insert(v)
 		}
@@ -431,27 +431,27 @@ func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Filter(c
 	return ns
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Insert(p ...sha1_b525f9bca5e451c21dd9af564f0960045fbaa304.RemotePhoto) SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto {
-	return SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto{s.s.Insert(s.fromElemSlice(p)...), &ref.Ref{}}
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Insert(p ...sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73.RemotePhoto) SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto {
+	return SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto{s.s.Insert(s.fromElemSlice(p)...), &ref.Ref{}}
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Remove(p ...sha1_b525f9bca5e451c21dd9af564f0960045fbaa304.RemotePhoto) SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto {
-	return SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto{s.s.Remove(s.fromElemSlice(p)...), &ref.Ref{}}
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Remove(p ...sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73.RemotePhoto) SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto {
+	return SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto{s.s.Remove(s.fromElemSlice(p)...), &ref.Ref{}}
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Union(others ...SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto {
-	return SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto{s.s.Union(s.fromStructSlice(others)...), &ref.Ref{}}
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Union(others ...SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto {
+	return SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto{s.s.Union(s.fromStructSlice(others)...), &ref.Ref{}}
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Subtract(others ...SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto {
-	return SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto{s.s.Subtract(s.fromStructSlice(others)...), &ref.Ref{}}
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Subtract(others ...SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto {
+	return SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto{s.s.Subtract(s.fromStructSlice(others)...), &ref.Ref{}}
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) Any() sha1_b525f9bca5e451c21dd9af564f0960045fbaa304.RemotePhoto {
-	return s.s.Any().(sha1_b525f9bca5e451c21dd9af564f0960045fbaa304.RemotePhoto)
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) Any() sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73.RemotePhoto {
+	return s.s.Any().(sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73.RemotePhoto)
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) fromStructSlice(p []SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) []types.Set {
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) fromStructSlice(p []SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) []types.Set {
 	r := make([]types.Set, len(p))
 	for i, v := range p {
 		r[i] = v.s
@@ -459,7 +459,7 @@ func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) fromStru
 	return r
 }
 
-func (s SetOfsha1_b525f9bca5e451c21dd9af564f0960045fbaa304_RemotePhoto) fromElemSlice(p []sha1_b525f9bca5e451c21dd9af564f0960045fbaa304.RemotePhoto) []types.Value {
+func (s SetOfsha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73_RemotePhoto) fromElemSlice(p []sha1_7f65b04b0f60c7c529f3c5b716ec87e5c09e4b73.RemotePhoto) []types.Value {
 	r := make([]types.Value, len(p))
 	for i, v := range p {
 		r[i] = v
