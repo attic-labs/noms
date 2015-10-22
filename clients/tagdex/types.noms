@@ -1,0 +1,10 @@
+alias Photo = import "../types/photo.noms"
+
+using Map(String, Set(PhotoUnion))
+
+struct PhotoUnion {
+  union {
+    Photo: Photo.Photo
+    Remote: Photo.RemotePhoto
+  }
+}
