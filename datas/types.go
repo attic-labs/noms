@@ -17,7 +17,7 @@ func __datasPackageInFile_types_Ref() ref.Ref {
 	p := types.NewPackage([]types.TypeRef{
 		types.MakeStructTypeRef("Commit",
 			[]types.Field{
-				types.Field{"value", types.MakePrimitiveTypeRef(types.ValueKind), false},
+				types.Field{"value", types.MakeCompoundTypeRef("", types.RefKind, types.MakePrimitiveTypeRef(types.ValueKind)), false},
 				types.Field{"parents", types.MakeCompoundTypeRef("", types.SetKind, types.MakeCompoundTypeRef("", types.RefKind, types.MakeTypeRef(ref.Ref{}, 0))), false},
 			},
 			types.Choices{},
@@ -35,26 +35,26 @@ type Commit struct {
 
 func NewCommit() Commit {
 	return Commit{types.NewMap(
-		types.NewString("value"), types.Bool(false),
+		types.NewString("value"), NewRefOfValue(ref.Ref{}),
 		types.NewString("parents"), NewSetOfRefOfCommit(),
 	), &ref.Ref{}}
 }
 
 type CommitDef struct {
-	Value   types.Value
+	Value   ref.Ref
 	Parents SetOfRefOfCommitDef
 }
 
 func (def CommitDef) New() Commit {
 	return Commit{
 		types.NewMap(
-			types.NewString("value"), def.Value,
+			types.NewString("value"), NewRefOfValue(def.Value),
 			types.NewString("parents"), def.Parents.New(),
 		), &ref.Ref{}}
 }
 
 func (s Commit) Def() (d CommitDef) {
-	d.Value = s.m.Get(types.NewString("value"))
+	d.Value = s.m.Get(types.NewString("value")).Ref()
 	d.Parents = s.m.Get(types.NewString("parents")).(SetOfRefOfCommit).Def()
 	return
 }
@@ -101,11 +101,11 @@ func (s Commit) Chunks() (futures []types.Future) {
 	return
 }
 
-func (s Commit) Value() types.Value {
-	return s.m.Get(types.NewString("value"))
+func (s Commit) Value() RefOfValue {
+	return s.m.Get(types.NewString("value")).(RefOfValue)
 }
 
-func (s Commit) SetValue(val types.Value) Commit {
+func (s Commit) SetValue(val RefOfValue) Commit {
 	return Commit{s.m.Set(types.NewString("value"), val), &ref.Ref{}}
 }
 
@@ -251,6 +251,66 @@ func (m MapOfStringToRefOfCommit) Filter(cb MapOfStringToRefOfCommitFilterCallba
 		}
 	})
 	return nm
+}
+
+// RefOfValue
+
+type RefOfValue struct {
+	r   ref.Ref
+	ref *ref.Ref
+}
+
+func NewRefOfValue(r ref.Ref) RefOfValue {
+	return RefOfValue{r, &ref.Ref{}}
+}
+
+func (r RefOfValue) Ref() ref.Ref {
+	return types.EnsureRef(r.ref, r)
+}
+
+func (r RefOfValue) Equals(other types.Value) bool {
+	if other, ok := other.(RefOfValue); ok {
+		return r.Ref() == other.Ref()
+	}
+	return false
+}
+
+func (r RefOfValue) Chunks() []types.Future {
+	return r.TypeRef().Chunks()
+}
+
+func (r RefOfValue) InternalImplementation() ref.Ref {
+	return r.r
+}
+
+func RefOfValueFromVal(val types.Value) RefOfValue {
+	// TODO: Do we still need FromVal?
+	if val, ok := val.(RefOfValue); ok {
+		return val
+	}
+	return RefOfValue{val.(types.Ref).Ref(), &ref.Ref{}}
+}
+
+// A Noms Value that describes RefOfValue.
+var __typeRefForRefOfValue types.TypeRef
+
+func (m RefOfValue) TypeRef() types.TypeRef {
+	return __typeRefForRefOfValue
+}
+
+func init() {
+	__typeRefForRefOfValue = types.MakeCompoundTypeRef("", types.RefKind, types.MakePrimitiveTypeRef(types.ValueKind))
+	types.RegisterFromValFunction(__typeRefForRefOfValue, func(v types.Value) types.Value {
+		return RefOfValueFromVal(v)
+	})
+}
+
+func (r RefOfValue) GetValue(cs chunks.ChunkSource) types.Value {
+	return types.ReadValue(r.r, cs)
+}
+
+func (r RefOfValue) SetValue(val types.Value, cs chunks.ChunkSink) RefOfValue {
+	return RefOfValue{types.WriteValue(val, cs), &ref.Ref{}}
 }
 
 // SetOfRefOfCommit

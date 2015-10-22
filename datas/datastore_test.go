@@ -19,7 +19,8 @@ func TestDataStoreCommit(t *testing.T) {
 
 	// |a|
 	a := types.NewString("a")
-	aCommit := NewCommit().SetValue(a)
+	ra := NewRefOfValue(types.WriteValue(a, chunks))
+	aCommit := NewCommit().SetValue(ra)
 	ds2, ok := ds.Commit(datasetID, aCommit)
 	assert.True(ok)
 
@@ -29,37 +30,40 @@ func TestDataStoreCommit(t *testing.T) {
 
 	// The new datastore has |a|.
 	aCommit1 := ds2.Head(datasetID)
-	assert.True(aCommit1.Value().Equals(a))
+	assert.True(aCommit1.Value().Equals(ra))
 	ds = ds2
 
 	// |a| <- |b|
 	b := types.NewString("b")
-	bCommit := NewCommit().SetValue(b).SetParents(NewSetOfRefOfCommit().Insert(NewRefOfCommit(aCommit.Ref())))
+	rb := NewRefOfValue(types.WriteValue(b, chunks))
+	bCommit := NewCommit().SetValue(rb).SetParents(NewSetOfRefOfCommit().Insert(NewRefOfCommit(aCommit.Ref())))
 	ds, ok = ds.Commit(datasetID, bCommit)
 	assert.True(ok)
-	assert.True(ds.Head(datasetID).Value().Equals(b))
+	assert.True(ds.Head(datasetID).Value().Equals(rb))
 
 	// |a| <- |b|
 	//   \----|c|
 	// Should be disallowed.
 	c := types.NewString("c")
-	cCommit := NewCommit().SetValue(c)
+	rc := NewRefOfValue(types.WriteValue(c, chunks))
+	cCommit := NewCommit().SetValue(rc)
 	ds, ok = ds.Commit(datasetID, cCommit)
 	assert.False(ok)
-	assert.True(ds.Head(datasetID).Value().Equals(b))
+	assert.True(ds.Head(datasetID).Value().Equals(rb))
 
 	// |a| <- |b| <- |d|
 	d := types.NewString("d")
-	dCommit := NewCommit().SetValue(d).SetParents(NewSetOfRefOfCommit().Insert(NewRefOfCommit(bCommit.Ref())))
+	rd := NewRefOfValue(types.WriteValue(d, chunks))
+	dCommit := NewCommit().SetValue(rd).SetParents(NewSetOfRefOfCommit().Insert(NewRefOfCommit(bCommit.Ref())))
 	ds, ok = ds.Commit(datasetID, dCommit)
 	assert.True(ok)
-	assert.True(ds.Head(datasetID).Value().Equals(d))
+	assert.True(ds.Head(datasetID).Value().Equals(rd))
 
 	// Attempt to recommit |b| with |a| as parent.
 	// Should be disallowed.
 	ds, ok = ds.Commit(datasetID, bCommit)
 	assert.False(ok)
-	assert.True(ds.Head(datasetID).Value().Equals(d))
+	assert.True(ds.Head(datasetID).Value().Equals(rd))
 
 	// Add a commit to a different datasetId
 	_, ok = ds.Commit("otherDs", aCommit)
@@ -81,13 +85,15 @@ func TestDataStoreConcurrency(t *testing.T) {
 	// Setup:
 	// |a| <- |b|
 	a := types.NewString("a")
-	aCommit := NewCommit().SetValue(a)
+	ra := NewRefOfValue(types.WriteValue(a, chunks))
+	aCommit := NewCommit().SetValue(ra)
 	ds, ok := ds.Commit(datasetID, aCommit)
 	b := types.NewString("b")
-	bCommit := NewCommit().SetValue(b).SetParents(NewSetOfRefOfCommit().Insert(NewRefOfCommit(aCommit.Ref())))
+	rb := NewRefOfValue(types.WriteValue(b, chunks))
+	bCommit := NewCommit().SetValue(rb).SetParents(NewSetOfRefOfCommit().Insert(NewRefOfCommit(aCommit.Ref())))
 	ds, ok = ds.Commit(datasetID, bCommit)
 	assert.True(ok)
-	assert.True(ds.Head(datasetID).Value().Equals(b))
+	assert.True(ds.Head(datasetID).Value().Equals(rb))
 
 	// Important to create this here.
 	ds2 := NewDataStore(chunks)
@@ -95,17 +101,19 @@ func TestDataStoreConcurrency(t *testing.T) {
 	// Change 1:
 	// |a| <- |b| <- |c|
 	c := types.NewString("c")
-	cCommit := NewCommit().SetValue(c).SetParents(NewSetOfRefOfCommit().Insert(NewRefOfCommit(bCommit.Ref())))
+	rc := NewRefOfValue(types.WriteValue(c, chunks))
+	cCommit := NewCommit().SetValue(rc).SetParents(NewSetOfRefOfCommit().Insert(NewRefOfCommit(bCommit.Ref())))
 	ds, ok = ds.Commit(datasetID, cCommit)
 	assert.True(ok)
-	assert.True(ds.Head(datasetID).Value().Equals(c))
+	assert.True(ds.Head(datasetID).Value().Equals(rc))
 
 	// Change 2:
 	// |a| <- |b| <- |e|
 	// Should be disallowed, DataStore returned by Commit() should have |c| as Head.
 	e := types.NewString("e")
-	eCommit := NewCommit().SetValue(e).SetParents(NewSetOfRefOfCommit().Insert(NewRefOfCommit(bCommit.Ref())))
+	re := NewRefOfValue(types.WriteValue(e, chunks))
+	eCommit := NewCommit().SetValue(re).SetParents(NewSetOfRefOfCommit().Insert(NewRefOfCommit(bCommit.Ref())))
 	ds2, ok = ds2.Commit(datasetID, eCommit)
 	assert.False(ok)
-	assert.True(ds.Head(datasetID).Value().Equals(c))
+	assert.True(ds.Head(datasetID).Value().Equals(rc))
 }
