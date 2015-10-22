@@ -25,12 +25,12 @@ func TestDatasetCommitTracker(t *testing.T) {
 	ds2, ok = ds2.Commit(ds2Commit)
 	assert.True(ok)
 
-	assert.EqualValues(ds1Commit, ds1.Head().Value())
-	assert.EqualValues(ds2Commit, ds2.Head().Value())
+	assert.EqualValues(ds1Commit, ds1.Head().Value().GetValue(ms))
+	assert.EqualValues(ds2Commit, ds2.Head().Value().GetValue(ms))
 	assert.False(ds2.Head().Value().Equals(ds1Commit))
 	assert.False(ds1.Head().Value().Equals(ds2Commit))
 
-	assert.Equal("sha1-079abb07bcf025f7b81f5f84feca5c74a5e008b6", ms.Root().String())
+	assert.Equal("sha1-d6e0164c200b12e1f849de26a587b02625ce56a0", ms.Root().String())
 }
 
 func newDS(id string, ms *chunks.MemoryStore) Dataset {
@@ -50,27 +50,27 @@ func TestExplicitBranchUsingDatasets(t *testing.T) {
 	a := types.NewString("a")
 	ds1, ok := ds1.Commit(a)
 	assert.True(ok)
-	assert.True(ds1.Head().Value().Equals(a))
+	assert.True(ds1.Head().Value().Equals(datas.NewRefOfValue(a.Ref())))
 
 	// ds1: |a|
 	//        \ds2
 	ds2 := newDS(id2, ms)
-	ds2, ok = ds2.Commit(ds1.Head().Value())
+	ds2, ok = ds2.Commit(ds1.Head().Value().GetValue(ms))
 	assert.True(ok)
-	assert.True(ds2.Head().Value().Equals(a))
+	assert.True(ds2.Head().Value().Equals(datas.NewRefOfValue(a.Ref())))
 
 	// ds1: |a| <- |b|
 	b := types.NewString("b")
 	ds1, ok = ds1.Commit(b)
 	assert.True(ok)
-	assert.True(ds1.Head().Value().Equals(b))
+	assert.True(ds1.Head().Value().Equals(datas.NewRefOfValue(b.Ref())))
 
 	// ds1: |a|    <- |b|
 	//        \ds2 <- |c|
 	c := types.NewString("c")
 	ds2, ok = ds2.Commit(c)
 	assert.True(ok)
-	assert.True(ds2.Head().Value().Equals(c))
+	assert.True(ds2.Head().Value().Equals(datas.NewRefOfValue(c.Ref())))
 
 	// ds1: |a|    <- |b| <--|d|
 	//        \ds2 <- |c| <--/
@@ -78,11 +78,11 @@ func TestExplicitBranchUsingDatasets(t *testing.T) {
 	d := types.NewString("d")
 	ds2, ok = ds2.CommitWithParents(d, mergeParents)
 	assert.True(ok)
-	assert.True(ds2.Head().Value().Equals(d))
+	assert.True(ds2.Head().Value().Equals(datas.NewRefOfValue(d.Ref())))
 
 	ds1, ok = ds1.CommitWithParents(d, mergeParents)
 	assert.True(ok)
-	assert.True(ds1.Head().Value().Equals(d))
+	assert.True(ds1.Head().Value().Equals(datas.NewRefOfValue(d.Ref())))
 }
 
 func TestTwoClientsWithEmptyDataset(t *testing.T) {
@@ -97,7 +97,7 @@ func TestTwoClientsWithEmptyDataset(t *testing.T) {
 	a := types.NewString("a")
 	dsx, ok := dsx.Commit(a)
 	assert.True(ok)
-	assert.True(dsx.Head().Value().Equals(a))
+	assert.True(dsx.Head().Value().Equals(datas.NewRefOfValue(a.Ref())))
 
 	// dsy: || -> |b|
 	_, ok = dsy.MaybeHead()
@@ -109,7 +109,7 @@ func TestTwoClientsWithEmptyDataset(t *testing.T) {
 	// dsy: |a| -> |b|
 	dsy, ok = dsy.Commit(b)
 	assert.True(ok)
-	assert.True(dsy.Head().Value().Equals(b))
+	assert.True(dsy.Head().Value().Equals(datas.NewRefOfValue(b.Ref())))
 }
 
 func TestTwoClientsWithNonEmptyDataset(t *testing.T) {
@@ -123,28 +123,28 @@ func TestTwoClientsWithNonEmptyDataset(t *testing.T) {
 		ds1 := newDS(id1, ms)
 		ds1, ok := ds1.Commit(a)
 		assert.True(ok)
-		assert.True(ds1.Head().Value().Equals(a))
+		assert.True(ds1.Head().Value().Equals(datas.NewRefOfValue(a.Ref())))
 	}
 
 	dsx := newDS(id1, ms)
 	dsy := newDS(id1, ms)
 
 	// dsx: |a| -> |b|
-	assert.True(dsx.Head().Value().Equals(a))
+	assert.True(dsx.Head().Value().Equals(datas.NewRefOfValue(a.Ref())))
 	b := types.NewString("b")
 	dsx, ok := dsx.Commit(b)
 	assert.True(ok)
-	assert.True(dsx.Head().Value().Equals(b))
+	assert.True(dsx.Head().Value().Equals(datas.NewRefOfValue(b.Ref())))
 
 	// dsy: |a| -> |c|
-	assert.True(dsy.Head().Value().Equals(a))
+	assert.True(dsy.Head().Value().Equals(datas.NewRefOfValue(a.Ref())))
 	c := types.NewString("c")
 	dsy, ok = dsy.Commit(c)
 	assert.False(ok)
-	assert.True(dsy.Head().Value().Equals(b))
+	assert.True(dsy.Head().Value().Equals(datas.NewRefOfValue(b.Ref())))
 	// Commit failed, but dsy now has latest head, so we should be able to just try again.
 	// dsy: |b| -> |c|
 	dsy, ok = dsy.Commit(c)
 	assert.True(ok)
-	assert.True(dsy.Head().Value().Equals(c))
+	assert.True(dsy.Head().Value().Equals(datas.NewRefOfValue(c.Ref())))
 }

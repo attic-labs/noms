@@ -22,7 +22,7 @@ func main() {
 
 	lastVal := uint64(0)
 	if commit, ok := ds.MaybeHead(); ok {
-		lastVal = uint64(commit.Value().(types.UInt64))
+		lastVal = uint64(commit.Value().GetValue(ds.Store()).(types.UInt64))
 	}
 	newVal := lastVal + 1
 	_, ok := ds.Commit(types.UInt64(newVal))

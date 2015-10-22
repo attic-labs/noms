@@ -1,5 +1,5 @@
 struct Commit {
-  value: Value
+  value: Ref(Value)
   parents: Set(Ref(Commit))
 }
 

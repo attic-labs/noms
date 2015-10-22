@@ -48,7 +48,8 @@ func (ds *Dataset) Commit(v types.Value) (Dataset, bool) {
 // CommitWithParents updates the commit that a dataset points at. The new Commit is constructed using v and p.
 // If the update cannot be performed, e.g., because of a conflict, CommitWithParents returns 'false' and the current snapshot of the dataset so that the client can merge the changes and try again.
 func (ds *Dataset) CommitWithParents(v types.Value, p datas.SetOfRefOfCommit) (Dataset, bool) {
-	newCommit := datas.NewCommit().SetParents(p).SetValue(v)
+	r := datas.NewRefOfValue(types.WriteValue(v, ds.Store()))
+	newCommit := datas.NewCommit().SetParents(p).SetValue(r)
 	store, ok := ds.Store().Commit(ds.id, newCommit)
 	return Dataset{store, ds.id}, ok
 }
