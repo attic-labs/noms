@@ -62,7 +62,7 @@ func newMetaChunkBuilder(chunker Chunker) chunkedSetBuilder {
 }
 
 func (mcb *chunkedSetBuilder) AddItem(s Set) {
-	mcb.current.children = append(mcb.current.children, entry{s.First(), s})
+	mcb.current.children = append(mcb.current.children, chunkedSetEntry{s.First(), s})
 	if mcb.chunker.Add(s.Ref()) {
 		mcb.sets = append(mcb.sets, mcb.current)
 		mcb.current = chunkedSet{}

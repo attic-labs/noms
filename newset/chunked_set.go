@@ -12,6 +12,25 @@ type chunkedSet struct {
 	children entrySlice // sorted
 }
 
+type chunkedSetEntry struct {
+	start ref.Ref
+	set   Set
+}
+
+type entrySlice []chunkedSetEntry
+
+func (es entrySlice) Len() int {
+	return len(es)
+}
+
+func (es entrySlice) Less(i, j int) bool {
+	return ref.Less(es[i].start, es[j].start)
+}
+
+func (es entrySlice) Swap(i, j int) {
+	es[i], es[j] = es[j], es[i]
+}
+
 func (set chunkedSet) Len() (length int) {
 	for _, entry := range set.children {
 		length += entry.set.Len()
