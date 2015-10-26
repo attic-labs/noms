@@ -31,7 +31,7 @@ func (es entrySlice) Swap(i, j int) {
 	es[i], es[j] = es[j], es[i]
 }
 
-func (set chunkedSet) Len() (length int) {
+func (set chunkedSet) Len() (length uint64) {
 	for _, entry := range set.children {
 		length += entry.set.Len()
 	}
@@ -54,6 +54,7 @@ func (set chunkedSet) Has(r ref.Ref) bool {
 }
 
 func (set chunkedSet) Ref() ref.Ref {
+	// Eventually when chunked sets use noms Values this will need to be derived from the serialization of a chunked set, not simply a hash of all items' refs.
 	h := ref.NewHash()
 	for _, entry := range set.children {
 		h.Write(entry.set.Ref().DigestSlice())

@@ -66,28 +66,28 @@ func TestChunkSize3Depth4(t *testing.T) {
 
 	// Top layer is the first chunked layer.
 	first := set.(chunkedSet)
-	assert.Equal(81, first.Len())
+	assert.Equal(uint64(81), first.Len())
 	assert.Equal(refs[0], first.First())
 	assert.Equal(chunkSize, len(first.children))
 
 	for i := 0; i < chunkSize; i++ {
 		// Second chunked layer:
 		second := first.children[i].set.(chunkedSet)
-		assert.Equal(27, second.Len())
+		assert.Equal(uint64(27), second.Len())
 		assert.Equal(chunkSize, len(second.children))
 		assert.Equal(refs[27*i], second.First())
 
 		for j := 0; j < chunkSize; j++ {
 			// Third chunked layer:
 			third := second.children[j].set.(chunkedSet)
-			assert.Equal(9, third.Len())
+			assert.Equal(uint64(9), third.Len())
 			assert.Equal(chunkSize, len(third.children))
 			assert.Equal(refs[27*i+9*j], third.First())
 
 			for k := 0; k < chunkSize; k++ {
 				// Fourth layer are the leaf nodes.
 				fourth := third.children[k].set.(flatSet)
-				assert.Equal(3, fourth.Len())
+				assert.Equal(uint64(3), fourth.Len())
 				assert.Equal(chunkSize, len(fourth.d))
 				assert.Equal(refs[27*i+9*j+3*k], fourth.First())
 				// Lastly, check the individual values of the leaf nodes.

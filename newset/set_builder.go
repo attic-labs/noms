@@ -34,7 +34,7 @@ func (builder *leafSetBuilder) AddItem(r ref.Ref) {
 }
 
 func (builder *leafSetBuilder) Build() Set {
-	if builder.current.Len() > 0 {
+	if builder.current.Len() > uint64(0) {
 		builder.chunks = append(builder.chunks, builder.current)
 	}
 

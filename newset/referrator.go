@@ -6,6 +6,7 @@ import (
 	"github.com/attic-labs/noms/ref"
 )
 
+// Generates fake ascending ref.Ref-s.
 type referrator struct {
 	count *big.Int
 }

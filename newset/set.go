@@ -6,7 +6,7 @@ import (
 
 type Set interface {
 	First() ref.Ref
-	Len() int
+	Len() uint64
 	Has(r ref.Ref) bool
 	Ref() ref.Ref
 	Fmt(indent int) string

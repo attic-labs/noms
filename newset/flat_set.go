@@ -13,8 +13,8 @@ type flatSet struct {
 	r *ref.Ref
 }
 
-func (s flatSet) Len() int {
-	return len(s.d)
+func (s flatSet) Len() uint64 {
+	return uint64(len(s.d))
 }
 
 func (s flatSet) Has(r ref.Ref) bool {
