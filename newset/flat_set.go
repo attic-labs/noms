@@ -22,7 +22,7 @@ func (s flatSet) Has(r ref.Ref) bool {
 	return idx != len(s.d) && s.d[idx] == r
 }
 
-func (s flatSet) First() ref.Ref {
+func (s flatSet) first() ref.Ref {
 	return s.d[0]
 }
 
@@ -38,7 +38,7 @@ func (s flatSet) Ref() ref.Ref {
 	return *s.r
 }
 
-func (s flatSet) Fmt(indent int) string {
+func (s flatSet) fmt(indent int) string {
 	indentStr := strings.Repeat(" ", indent)
 	if len(s.d) == 1 {
 		return fmt.Sprintf("%sflat %s", indentStr, fmtRef(s.d[0]))

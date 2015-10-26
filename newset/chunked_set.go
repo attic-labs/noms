@@ -38,7 +38,7 @@ func (set chunkedSet) Len() (length uint64) {
 	return
 }
 
-func (set chunkedSet) First() ref.Ref {
+func (set chunkedSet) first() ref.Ref {
 	return set.children[0].start
 }
 
@@ -62,14 +62,14 @@ func (set chunkedSet) Ref() ref.Ref {
 	return ref.FromHash(h)
 }
 
-func (set chunkedSet) Fmt(indent int) string {
+func (set chunkedSet) fmt(indent int) string {
 	indentStr := strings.Repeat(" ", indent)
 	if len(set.children) == 0 {
 		return fmt.Sprintf("%s(empty chunked set)", indentStr)
 	}
 	s := fmt.Sprintf("%s(chunked with %d chunks)\n", indentStr, len(set.children))
 	for i, entry := range set.children {
-		s += fmt.Sprintf("%schunk %d (start %s)\n%s\n", indentStr, i, fmtRef(entry.start), entry.set.Fmt(indent+4))
+		s += fmt.Sprintf("%schunk %d (start %s)\n%s\n", indentStr, i, fmtRef(entry.start), entry.set.fmt(indent+4))
 	}
 	return s
 }

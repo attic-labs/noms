@@ -5,9 +5,9 @@ import (
 )
 
 type Set interface {
-	First() ref.Ref
+	first() ref.Ref
 	Len() uint64
 	Has(r ref.Ref) bool
 	Ref() ref.Ref
-	Fmt(indent int) string
+	fmt(indent int) string
 }
