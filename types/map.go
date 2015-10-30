@@ -120,10 +120,10 @@ func (m Map) Equals(other Value) (res bool) {
 	return false
 }
 
-func (fm Map) Chunks() (futures []Future) {
+func (fm Map) Chunks() (chunks []ref.Ref) {
 	for _, entry := range fm.data {
-		futures = appendValueToChunks(futures, entry.key)
-		futures = appendValueToChunks(futures, entry.value)
+		chunks = appendValueToChunks(chunks, entry.key)
+		chunks = appendValueToChunks(chunks, entry.value)
 	}
 	return
 }
