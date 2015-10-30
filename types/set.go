@@ -118,9 +118,9 @@ func (fs Set) Equals(other Value) bool {
 	return false
 }
 
-func (fs Set) Chunks() (futures []Future) {
+func (fs Set) Chunks() (chunks []ref.Ref) {
 	for _, v := range fs.data {
-		futures = appendValueToChunks(futures, v)
+		chunks = appendValueToChunks(chunks, v)
 	}
 	return
 }
