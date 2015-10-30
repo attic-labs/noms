@@ -1,10 +1,7 @@
 type {{.NomsType}} {{.GoType}}
 
 func (p {{.NomsType}}) Equals(other Value) bool {
-	if other, ok := other.({{.NomsType}}); ok {
-		return p == other
-	}
-	return false
+	return other != nil && p.Ref() == other.Ref()
 }
 
 func (v {{.NomsType}}) Ref() ref.Ref {

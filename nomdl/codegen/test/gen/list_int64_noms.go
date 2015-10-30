@@ -50,10 +50,7 @@ func (l ListOfInt64) InternalImplementation() types.List {
 }
 
 func (l ListOfInt64) Equals(other types.Value) bool {
-	if other, ok := other.(ListOfInt64); ok {
-		return l.Ref() == other.Ref()
-	}
-	return false
+	return other != nil && l.Ref() == other.Ref()
 }
 
 func (l ListOfInt64) Ref() ref.Ref {
