@@ -132,10 +132,7 @@ func (s Incident) InternalImplementation() types.Map {
 }
 
 func (s Incident) Equals(other types.Value) bool {
-	if other, ok := other.(Incident); ok {
-		return s.Ref() == other.Ref()
-	}
-	return false
+	return other != nil && s.Ref() == other.Ref()
 }
 
 func (s Incident) Ref() ref.Ref {
@@ -279,10 +276,7 @@ func (l ListOfIncident) InternalImplementation() types.List {
 }
 
 func (l ListOfIncident) Equals(other types.Value) bool {
-	if other, ok := other.(ListOfIncident); ok {
-		return l.Ref() == other.Ref()
-	}
-	return false
+	return other != nil && l.Ref() == other.Ref()
 }
 
 func (l ListOfIncident) Ref() ref.Ref {

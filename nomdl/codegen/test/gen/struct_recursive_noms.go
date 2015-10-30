@@ -80,10 +80,7 @@ func (s Tree) InternalImplementation() types.Map {
 }
 
 func (s Tree) Equals(other types.Value) bool {
-	if other, ok := other.(Tree); ok {
-		return s.Ref() == other.Ref()
-	}
-	return false
+	return other != nil && s.Ref() == other.Ref()
 }
 
 func (s Tree) Ref() ref.Ref {
@@ -147,10 +144,7 @@ func (l ListOfTree) InternalImplementation() types.List {
 }
 
 func (l ListOfTree) Equals(other types.Value) bool {
-	if other, ok := other.(ListOfTree); ok {
-		return l.Ref() == other.Ref()
-	}
-	return false
+	return other != nil && l.Ref() == other.Ref()
 }
 
 func (l ListOfTree) Ref() ref.Ref {
