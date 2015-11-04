@@ -2,15 +2,12 @@ language: go
 go:
 - 1.5
 before_script:
-- pushd js2
 - npm version
 - nvm install stable
 - nvm use stable
 - npm version
-- npm install
-- npm build
-- npm test
-- popd
+- npm install -g flow-bin
+- ./testjs.sh
 script:
 - export GODEBUG=invalidptr=0
 - go test ./...
