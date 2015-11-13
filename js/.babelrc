@@ -1,11 +1,10 @@
 {
-  "optional": ["asyncToGenerator"],
-  "blacklist": [
-    "es6.blockScoping",
-    "es6.constants",
-    "es6.forOf",
-    "es6.properties.computed",
-    "es6.properties.shorthand",
-    "es6.templateLiterals"
+  "presets": ["react"],
+  "plugins": [
+    "syntax-async-functions",
+    "transform-async-to-generator",
+    "transform-es2015-destructuring",
+    "transform-es2015-modules-commonjs",
+    "transform-es2015-parameters"
   ]
 }
