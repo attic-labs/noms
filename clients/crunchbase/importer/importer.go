@@ -36,11 +36,15 @@ func main() {
 	}
 	defer ds.Close()
 
+	fmt.Printf("Opening Excel file (this takes a minute or so)...")
+	t0 := time.Now()
 	xlFile, err := xlsx.OpenFile(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(-1)
 	}
+	t1 := time.Now()
+	fmt.Println("\rOpened Excel file in: ", t1.Sub(t0))
 
 	date1904 = xlFile.Date1904
 
@@ -57,10 +61,15 @@ func main() {
 		}
 	}
 
+	t2 := time.Now()
+
 	// Read in Companies and map to permalink
 	companyRefs := NewMapOfStringToRefOfCompany()
 	companySheet := xlFile.Sheet["Companies"]
 	for i, row := range companySheet.Rows {
+		if i%1000 == 0 {
+			fmt.Printf("\rProcessed %d of %d companies...", i, len(companySheet.Rows))
+		}
 		if i != 0 {
 			company := NewCompanyFromRow(row)
 			permalink := company.Permalink()
@@ -78,6 +87,10 @@ func main() {
 		}
 	}
 
+	t3 := time.Now()
+	fmt.Printf("\rRead %d companies in %s\n", len(companySheet.Rows), t3.Sub(t2))
+	fmt.Println("Comitting...")
+
 	// Write the list of companyRefs
 	companiesRef := types.WriteValue(companyRefs, ds.Store())
 
@@ -85,7 +98,7 @@ func main() {
 	_, ok := ds.Commit(types.NewRef(companiesRef))
 	d.Exp.True(ok, "Could not commit due to conflicting edit")
 
-	fmt.Printf("### imported %d companies with %d rounds\n", companyRefs.Len(), numRounds)
+	fmt.Printf("Done. Imported %d companies with %d rounds\n", companyRefs.Len(), numRounds)
 }
 
 func NewCompanyFromRow(row *xlsx.Row) Company {
