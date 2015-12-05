@@ -103,7 +103,7 @@ func TestMapDuplicateSet(t *testing.T) {
 func TestMapIter(t *testing.T) {
 	assert := assert.New(t)
 	cs := chunks.NewMemoryStore()
-	m := NewMap(cs)
+	m := newMapLeaf(cs, mapType)
 
 	type entry struct {
 		key   Value
@@ -155,7 +155,7 @@ func TestMapIterAllP(t *testing.T) {
 			values[2*i+1] = Uint64(i)
 		}
 
-		m := NewMap(cs, values...)
+		m := newMapLeaf(cs, mapType, buildMapData(mapData{}, values, mapType)...)
 
 		cur := 0
 		mu := sync.Mutex{}
@@ -411,7 +411,7 @@ func TestMapType(t *testing.T) {
 	assert.True(m.Type().Equals(MakeCompoundType(MapKind, MakePrimitiveType(ValueKind), MakePrimitiveType(ValueKind))))
 
 	tr := MakeCompoundType(MapKind, MakePrimitiveType(StringKind), MakePrimitiveType(Uint64Kind))
-	m = newMapFromData(cs, mapData{}, tr)
+	m = newMapLeaf(cs, tr)
 	assert.Equal(tr, m.Type())
 
 	m2 := m.Remove(NewString("B"))

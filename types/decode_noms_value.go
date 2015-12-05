@@ -114,8 +114,7 @@ func (r *jsonArrayReader) readSet(t Type, pkg *Package) Value {
 	}
 
 	t = fixupType(t, pkg)
-	// TODO: Skip the Set wrapper.
-	return valueFromType(r.cs, newSetFromData(r.cs, data, t), t)
+	return valueFromType(r.cs, newSetLeaf(r.cs, t, data...), t)
 }
 
 func (r *jsonArrayReader) readMap(t Type, pkg *Package) Value {
@@ -132,7 +131,7 @@ func (r *jsonArrayReader) readMap(t Type, pkg *Package) Value {
 
 	t = fixupType(t, pkg)
 	// TODO: Skip the Map wrapper.
-	return valueFromType(r.cs, newMapFromData(r.cs, data, t), t)
+	return valueFromType(r.cs, newMapLeaf(r.cs, t, data...), t)
 }
 
 func indexTypeForMetaSequence(t Type) Type {

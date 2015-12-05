@@ -1,7 +1,9 @@
 package types
 
 import (
+	"bytes"
 	"crypto/sha1"
+	"encoding/binary"
 
 	"github.com/attic-labs/noms/chunks"
 	"github.com/attic-labs/noms/d"
@@ -175,4 +177,30 @@ func iterateMetaSequenceLeaf(ms metaSequence, cs chunks.ChunkStore, cb func(Valu
 	}
 
 	panic("not reachable")
+}
+
+type getRefFn func(item sequenceItem) ref.Ref
+
+func newRefBoundaryChecker(pattern uint32, getRef getRefFn) boundaryChecker {
+	return &refBoundryChecker{pattern, getRef}
+}
+
+type refBoundryChecker struct {
+	pattern uint32
+	getRef  getRefFn
+}
+
+func (rb *refBoundryChecker) Write(item sequenceItem) bool {
+	r := rb.getRef(item)
+	digest := r.Digest()
+	var lsi uint32
+	buff := bytes.NewReader(digest[:])
+	buff.Seek(-4, 2)
+	err := binary.Read(buff, binary.LittleEndian, &lsi)
+	d.Chk.NoError(err)
+	return lsi&rb.pattern == rb.pattern
+}
+
+func (rb *refBoundryChecker) WindowSize() int {
+	return 1
 }
