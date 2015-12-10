@@ -6,12 +6,15 @@ import Struct from './struct.js';
 import type {ChunkStore} from './chunk_store.js';
 import type {NomsKind} from './noms_kind.js';
 import {encode as encodeBase64} from './base64.js';
-import {indexTypeForMetaSequence} from './decode.js';
 import {invariant, notNull} from './assert.js';
 import {isPrimitiveKind, Kind} from './noms_kind.js';
+import {ListLeaf} from './list.js';
 import {lookupPackage, Package} from './package.js';
 import {makePrimitiveType, EnumDesc, StructDesc, Type} from './type.js';
-import {MetaSequence} from './meta_sequence.js';
+import {MapLeaf} from './map.js';
+import {MetaSequence, indexTypeForMetaSequence} from './meta_sequence.js';
+import {setEncodeNomsValue} from './get_ref.js';
+import {SetLeaf} from './set.js';
 
 const typedTag = 't ';
 
@@ -87,8 +90,8 @@ class JsonArrayWriter {
     this.write(true);
     let w2 = new JsonArrayWriter(this._cs);
     let indexType = indexTypeForMetaSequence(t);
-    for (let i = 0; i < v.tuples.length; i++) {
-      let tuple = v.tuples[i];
+    for (let i = 0; i < v.items.length; i++) {
+      let tuple = v.items[i];
       w2.writeRef(tuple.ref);
       w2.writeValue(tuple.value, indexType, pkg);
     }
@@ -124,10 +127,10 @@ class JsonArrayWriter {
           break;
         }
 
-        invariant(Array.isArray(v));
+        invariant(v instanceof ListLeaf, 'not list leaf: ' + JSON.stringify(v));
         let w2 = new JsonArrayWriter(this._cs);
         let elemType = t.elemTypes[0];
-        v.forEach(sv => w2.writeValue(sv, elemType));
+        v.items.forEach(sv => w2.writeValue(sv, elemType));
         this.write(w2.array);
         break;
       }
@@ -136,18 +139,13 @@ class JsonArrayWriter {
           break;
         }
 
-        invariant(v instanceof Map);
+        invariant(v instanceof MapLeaf);
         let w2 = new JsonArrayWriter(this._cs);
         let keyType = t.elemTypes[0];
         let valueType = t.elemTypes[1];
-        let elems = [];
-        v.forEach((v, k) => {
-          elems.push(k);
-        });
-        elems = orderValuesByRef(keyType, elems);
-        elems.forEach(elem => {
-          w2.writeValue(elem, keyType);
-          w2.writeValue(v.get(elem), valueType);
+        v.items.forEach(entry => {
+          w2.writeValue(entry.key, keyType);
+          w2.writeValue(entry.value, valueType);
         });
         this.write(w2.array);
         break;
@@ -175,14 +173,13 @@ class JsonArrayWriter {
           break;
         }
 
-        invariant(v instanceof Set);
+        invariant(v instanceof SetLeaf);
         let w2 = new JsonArrayWriter(this._cs);
         let elemType = t.elemTypes[0];
         let elems = [];
-        v.forEach(v => {
+        v.items.forEach(v => {
           elems.push(v);
         });
-        elems = orderValuesByRef(elemType, elems);
         elems.forEach(elem => w2.writeValue(elem, elemType));
         this.write(w2.array);
         break;
@@ -198,6 +195,13 @@ class JsonArrayWriter {
         }
         pkg = notNull(pkg);
         this.writeUnresolvedKindValue(v, t, pkg);
+        break;
+      }
+      case Kind.Value: {
+        let t = v.type;
+        invariant(t instanceof Type);
+        this.writeTypeAsTag(t);
+        this.writeValue(v, t, pkg);
         break;
       }
       default:
@@ -324,19 +328,6 @@ class JsonArrayWriter {
   }
 }
 
-function orderValuesByRef(t: Type, a: Array<any>): Array<any> {
-  return a.map(v => {
-    return {
-      v: v,
-      r: encodeEmbeddedNomsValue(v, t, null).ref
-    };
-  }).sort((a, b) => {
-    return a.r.compare(b.r);
-  }).map(o => {
-    return o.v;
-  });
-}
-
 function encodeEmbeddedNomsValue(v: any, t: Type, cs: ?ChunkStore): Chunk {
   if (v instanceof Package) {
     // if (v.dependencies.length > 0) {
@@ -378,3 +369,5 @@ function writeValue(v: any, t: Type, cs: ChunkStore): Ref {
 }
 
 export {encodeNomsValue, JsonArrayWriter, writeValue};
+
+setEncodeNomsValue(encodeNomsValue);

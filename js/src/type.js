@@ -21,6 +21,25 @@ class PrimitiveDesc {
   equals(other: TypeDesc): boolean {
     return other instanceof PrimitiveDesc && other.kind === this.kind;
   }
+
+  get ordered(): boolean {
+    switch (this.kind) {
+      case Kind.Float32:
+      case Kind.Float64:
+      case Kind.Int8:
+      case Kind.Int16:
+      case Kind.Int32:
+      case Kind.Int64:
+      case Kind.Uint8:
+      case Kind.Uint16:
+      case Kind.Uint32:
+      case Kind.Uint64:
+      case Kind.String:
+        return true;
+      default:
+        return false;
+    }
+  }
 }
 
 class UnresolvedDesc {
@@ -187,6 +206,15 @@ class Type {
 
   get kind(): NomsKind {
     return this._desc.kind;
+  }
+
+  get ordered(): boolean {
+    let desc = this._desc;
+    if (desc instanceof PrimitiveDesc) {
+      return desc.ordered;
+    }
+
+    return false;
   }
 
   get desc(): TypeDesc {
