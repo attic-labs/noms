@@ -4,9 +4,9 @@ import type {ChunkStore} from './chunk_store.js';
 import type {valueOrPrimitive} from './value.js'; //eslint-disable-line no-unused-vars
 import {invariant} from './assert.js';
 import {Kind} from './noms_kind.js';
-import {less, equals} from './value.js';
+import {less} from './value.js';
 import {MetaSequence, MetaSequenceCursor, MetaTuple, registerMetaValue} from './meta_sequence.js';
-import {search, Sequence} from './sequence.js';
+import {OrderedSequence} from './ordered_sequence.js';
 import {Type} from './type.js';
 
 export type NSSet<T: valueOrPrimitive> = {
@@ -16,34 +16,20 @@ export type NSSet<T: valueOrPrimitive> = {
   size: number;
 }
 
-export class SetLeaf<T:valueOrPrimitive> extends Sequence<T> {
+export class SetLeaf<T:valueOrPrimitive> extends OrderedSequence<T, T> {
 
   constructor(cs: ChunkStore, type: Type, items: Array<T>) {
     super(cs, type, items);
     invariant(type.kind === Kind.Set);
   }
 
-  indexOf(key: T): number {
-    return search(this.items.length, (i: number) => {
-      return !less(this.items[i], key);
-    });
+  getKey(idx: number): T {
+    return this.items[idx];
   }
 
   first(): Promise<T> {
     invariant(this.items.length > 0);
     return Promise.resolve(this.items[0]);
-  }
-
-  has(key: T): Promise<boolean> {
-    let idx = this.indexOf(key);
-    if (idx < this.items.length) {
-      let k = this.items[idx];
-      if (equals(k, key)) {
-        return Promise.resolve(true);
-      }
-    }
-
-    return Promise.resolve(false);
   }
 
   forEach(cb: (v: T) => void): Promise<void> {

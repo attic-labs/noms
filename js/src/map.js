@@ -4,9 +4,10 @@ import type {ChunkStore} from './chunk_store.js';
 import type {valueOrPrimitive} from './value.js'; //eslint-disable-line no-unused-vars
 import {invariant} from './assert.js';
 import {Kind} from './noms_kind.js';
-import {less, equals} from './value.js';
+import {less} from './value.js';
 import {MetaSequence, MetaSequenceCursor, MetaTuple, registerMetaValue} from './meta_sequence.js';
-import {search, Sequence} from './sequence.js';
+import {OrderedSequence} from './ordered_sequence.js';
+
 import {Type} from './type.js';
 
 type Entry<K: valueOrPrimitive, V: valueOrPrimitive> = {
@@ -22,29 +23,15 @@ export type NSMap<K: valueOrPrimitive, V: valueOrPrimitive> = {
   size: number;
 }
 
-export class MapLeaf<K:valueOrPrimitive, V:valueOrPrimitive> extends Sequence<Entry<K, V>> {
+export class MapLeaf<K:valueOrPrimitive, V:valueOrPrimitive> extends OrderedSequence<K, Entry<K, V>> {
 
   constructor(cs: ChunkStore, type: Type, items: Array<Entry<K, V>>) {
     super(cs, type, items);
     invariant(type.kind === Kind.Map);
   }
 
-  indexOf(key: K): number {
-    return search(this.items.length, (i: number) => {
-      return !less(this.items[i].key, key);
-    });
-  }
-
-  _findEntry(key: K): ?Entry<K, V> {
-    let idx = this.indexOf(key);
-    if (idx < this.items.length) {
-      let entry = this.items[idx];
-      if (equals(entry.key, key)) {
-        return entry;
-      }
-    }
-
-    return null;
+  getKey(idx: number): K {
+    return this.items[idx].key;
   }
 
   first(): Promise<[K, V]> {
@@ -54,21 +41,12 @@ export class MapLeaf<K:valueOrPrimitive, V:valueOrPrimitive> extends Sequence<En
   }
 
   get(key: K): Promise<?V> {
-    let entry = this._findEntry(key);
-    if (entry) {
-      return Promise.resolve(entry.value);
+    let [idx, found] = this.indexOf(key);
+    if (found) {
+      return Promise.resolve(this.items[idx].value);
     }
 
     return Promise.resolve(null);
-  }
-
-  has(key: K): Promise<boolean> {
-    let entry = this._findEntry(key);
-    if (entry) {
-      return Promise.resolve(true);
-    }
-
-    return Promise.resolve(false);
   }
 
   forEach(cb: (v: V, k: K) => void): Promise<void> {
