@@ -41,6 +41,15 @@ struct RoundRaise {
   Details:   Ref<cb.Round>
 }
 
+struct Index {
+  Input: IndexInputs
+  Ouput: Map<Ref<Key>, Ref<Set<RoundRaise>>>
+}
+
+struct IndexInputs {
+  CodeVersion: Uint32
+  Import: Ref<imp.Import>
+}
+
 using Map<String, Ref<cb.Company>>
 using Map<Ref<Key>, Set<RoundRaise>>
-using Map<Ref<Key>, Ref<Set<RoundRaise>>>

@@ -15,6 +15,10 @@ import (
 	"github.com/attic-labs/noms/types"
 )
 
+const (
+	codeVersion = uint32(1)
+)
+
 var (
 	inputID  = flag.String("in", "", "dataset to pull data from.")
 	outputID = flag.String("out", "", "dataset to store data in.")
@@ -45,8 +49,16 @@ func main() {
 		inputDataset := dataset.NewDataset(ds, *inputID)
 		outputDataset := dataset.NewDataset(ds, *outputID)
 
-		imp := inputDataset.Head().Value().(Import)
-		v := imp.Companies().TargetValue(ds)
+		input := IndexInputsDef{
+			codeVersion,
+			inputDataset.Head().Value().(RefOfImport).TargetRef(),
+		}.New(ds)
+		if !needsReindex(input, outputDataset) {
+			fmt.Println("No change in input, nothing to do")
+			return
+		}
+
+		v := input.Import().TargetValue(ds).Output().TargetValue(ds)
 
 		type entry struct {
 			key           Key
@@ -135,8 +147,7 @@ func main() {
 			mapOfRefs[keyRef] = setRef
 		}
 
-		output := mapOfRefs.New(ds)
-		_, err := outputDataset.Commit(output)
+		_, err := outputDataset.Commit(NewIndex(ds).SetInput(input).SetOuput(mapOfRefs.New(ds)))
 		d.Exp.NoError(err)
 
 		util.MaybeWriteMemProfile()
@@ -144,6 +155,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func needsReindex(input IndexInputs, outputDS dataset.Dataset) bool {
+	if h, ok := outputDS.MaybeHead(); ok {
+		if existing, ok := h.Value().(Index); ok {
+			return input.Ref() != existing.Input().Ref()
+		}
+	}
+	return true
 }
 
 func classifyRoundType(round Round) RoundTypeEnum {

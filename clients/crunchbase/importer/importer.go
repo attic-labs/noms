@@ -4,7 +4,6 @@ import (
 	"crypto/sha1"
 	"flag"
 	"fmt"
-	"hash"
 	"io"
 	"io/ioutil"
 	"os"
@@ -20,6 +19,40 @@ import (
 	"github.com/attic-labs/noms/dataset"
 	"github.com/attic-labs/noms/ref"
 	"github.com/attic-labs/noms/types"
+)
+
+const (
+	// Change this version when the output of this importer changes given the same input
+	codeVersion = uint32(1)
+
+	permalink       = "permalink"
+	name            = "name"
+	homepageUrl     = "homepage_url"
+	market          = "market"
+	fundingTotalUsd = "fundingTotalUsd"
+	status          = "status"
+	countryCode     = "country_code"
+	stateCode       = "state_code"
+	region          = "region"
+	city            = "city"
+	fundingRounds   = "funding_rounds"
+	foundedAt       = "founded_at"
+	firstFundingAt  = "first_funding_at"
+	lastFundingAt   = "last_funding_at"
+
+	companyPermalink      = "company_permalink"
+	companyName           = "company_name"
+	companyCategoryList   = "company_category_list"
+	companyMarket         = "company_market"
+	companyCountryCode    = "company_country_code"
+	companyState          = "company_state"
+	companyRegion         = "company_region"
+	companyCity           = "company_city"
+	fundingRoundPermalink = "funding_round_permalink"
+	fundingRoundType      = "funding_round_type"
+	fundingRoundCode      = "funding_round_code"
+	fundedAt              = "funded_at"
+	raisedAmountUsd       = "raised_amount_usd"
 )
 
 var (
@@ -39,6 +72,7 @@ func main() {
 
 	httpClient := util.CachingHttpClient()
 	ds = dsFlags.CreateDataset()
+	fmt.Println(ds.Store().Root())
 	url := flag.Arg(0)
 	if httpClient == nil || ds == nil || url == "" {
 		flag.Usage()
@@ -46,7 +80,7 @@ func main() {
 	}
 	defer ds.Close()
 
-	fmt.Print("Fetching excel file - this can take a minute or so...")
+	fmt.Println("Fetching excel file - this can take a minute or so...")
 	resp, err := httpClient.Get(url)
 	d.Exp.NoError(err)
 	defer resp.Body.Close()
@@ -59,26 +93,27 @@ func main() {
 	_, err = io.Copy(io.MultiWriter(h, tempFile), resp.Body)
 	d.Chk.NoError(err)
 
-	companiesRef := getExistingCompaniesRef(*ds, h)
-	if !companiesRef.IsEmpty() {
-		fmt.Println("\rExcel file hasn't changed since last run, nothing to do.")
-	} else {
-		companiesRef = importCompanies(*ds, tempFile.Name())
+	inputs := InputsDef{codeVersion, ref.FromHash(h).String()}
+	if !needsReimport(*ds, inputs.New(ds.Store())) {
+		fmt.Println("Excel file hasn't changed since last run, nothing to do.")
+		return
 	}
 
+	companiesRef := importCompanies(*ds, tempFile.Name())
 	imp := ImportDef{
-		ref.FromHash(h).String(),
+		inputs,
 		DateDef{time.Now().Format(time.RFC3339)},
 		companiesRef,
 	}.New(ds.Store())
+	impRef := NewRefOfImport(types.WriteValue(imp, ds.Store()))
 
 	// Commit ref of the companiesRef list
-	_, err = ds.Commit(imp)
+	_, err = ds.Commit(impRef)
 	d.Exp.NoError(err)
 }
 
 func importCompanies(ds dataset.Dataset, fileName string) ref.Ref {
-	fmt.Print("\rOpening excel file - this can take a minute or so...")
+	fmt.Println("Opening excel file - this can take a minute or so...")
 
 	xlFile, err := xlsx.OpenFile(fileName)
 	if err != nil {
@@ -86,17 +121,16 @@ func importCompanies(ds dataset.Dataset, fileName string) ref.Ref {
 		os.Exit(-1)
 	}
 
-	fmt.Print("\rImporting...")
-
 	date1904 = xlFile.Date1904
 
 	// Read in Rounds and group  according to CompanyPermalink
 	roundsByPermalink := map[string][]Round{}
 	roundsSheet := xlFile.Sheet["Rounds"]
+	roundsColIndexes := readIndexesFromHeaderRow(roundsSheet)
 	numRounds := 0
 	for i, row := range roundsSheet.Rows {
 		if i != 0 {
-			round := NewRoundFromRow(ds.Store(), row)
+			round := NewRoundFromRow(ds.Store(), roundsColIndexes, row, i)
 			pl := round.CompanyPermalink()
 			roundsByPermalink[pl] = append(roundsByPermalink[pl], round)
 			numRounds++
@@ -106,10 +140,11 @@ func importCompanies(ds dataset.Dataset, fileName string) ref.Ref {
 	// Read in Companies and map to permalink
 	companyRefsDef := MapOfStringToRefOfCompanyDef{}
 	companySheet := xlFile.Sheet["Companies"]
+	companyColIndexes := readIndexesFromHeaderRow(companySheet)
 	for i, row := range companySheet.Rows {
-		fmt.Printf("\rImporting %d of %d rounds... (%.2f%%)", i, len(companySheet.Rows), float64(i)/float64(len(companySheet.Rows))*float64(100))
+		fmt.Printf("\rImporting %d of %d companies... (%.2f%%)", i, len(companySheet.Rows), float64(i)/float64(len(companySheet.Rows))*float64(100))
 		if i != 0 {
-			company := NewCompanyFromRow(ds.Store(), row)
+			company := NewCompanyFromRow(ds.Store(), companyColIndexes, row, i)
 			permalink := company.Permalink()
 
 			rounds := roundsByPermalink[permalink]
@@ -123,124 +158,144 @@ func importCompanies(ds dataset.Dataset, fileName string) ref.Ref {
 			companyRefsDef[company.Permalink()] = ref
 		}
 	}
+	fmt.Println("")
 
 	companyRefs := companyRefsDef.New(ds.Store())
 
-	// fmt.Printf("\r### imported %d companies with %d rounds\n", companyRefs.Len(), numRounds)
+	// Uncomment this line of code once Len() is implemented on compoundLists
+	//	fmt.Printf("\rImported %d companies with %d rounds\n", companyRefs.Len(), numRounds)
 
 	// Write the list of companyRefs
 	return types.WriteValue(companyRefs, ds.Store())
 }
 
-func getExistingCompaniesRef(ds dataset.Dataset, h hash.Hash) ref.Ref {
+func needsReimport(ds dataset.Dataset, input Inputs) bool {
 	if head, ok := ds.MaybeHead(); ok {
-		if imp, ok := head.Value().(Import); ok {
-			if imp.FileSHA1() == ref.FromHash(h).String() {
-				return imp.Companies().TargetRef()
+		if existing, ok := head.Value().(RefOfImport); ok {
+			if existing.TargetValue(ds.Store()).Input().Ref() == input.Ref() {
+				return false
 			}
 		}
 	}
-	return ref.Ref{}
+	return true
 }
 
-func NewCompanyFromRow(cs chunks.ChunkStore, row *xlsx.Row) Company {
+func NewCompanyFromRow(cs chunks.ChunkStore, idxs columnIndexes, row *xlsx.Row, rowNum int) Company {
 	cells := row.Cells
 
 	company := CompanyDef{
-		Permalink:       cells[0].Value,
-		Name:            cells[1].Value,
-		HomepageUrl:     cells[2].Value,
-		CategoryList:    parseListOfCategory(cells[3].Value),
-		Market:          cells[4].Value,
-		FundingTotalUsd: parseFloatValue(cells[5], "Company.FundingTotalUsd"),
-		Status:          cells[6].Value,
-		CountryCode:     cells[7].Value,
-		StateCode:       cells[8].Value,
-		Region:          cells[9].Value,
-		City:            cells[10].Value,
-		FundingRounds:   uint16(parseIntValue(cells[11], "Company.FundingRounds")),
-		FoundedAt:       parseTimeStamp(cells[12], "Company.FoundedAt"),
-		// Skip FoundedMonth: 13
-		// Skip FoundedYear:  14
-		FirstFundingAt: parseTimeStamp(cells[15], "Company.FirstFundingAt"),
-		LastFundingAt:  parseTimeStamp(cells[16], "Company.LastFundingAt"),
+		Permalink:       idxs.getString(permalink, cells),
+		Name:            idxs.getString(name, cells),
+		HomepageUrl:     idxs.getString(homepageUrl, cells),
+		CategoryList:    idxs.getListOfCategory(companyCategoryList, cells),
+		Market:          idxs.getString(market, cells),
+		FundingTotalUsd: idxs.getFloat(fundingTotalUsd, cells, "Company.FundingTotalUsd", rowNum),
+		Status:          idxs.getString(status, cells),
+		CountryCode:     idxs.getString(countryCode, cells),
+		StateCode:       idxs.getString(stateCode, cells),
+		Region:          idxs.getString(region, cells),
+		City:            idxs.getString(city, cells),
+		FundingRounds:   uint16(idxs.getInt(fundingRounds, cells, "Company.FundingRounds", rowNum)),
+		FoundedAt:       idxs.getTimeStamp(foundedAt, cells, "Company.FoundedAt", rowNum),
+		FirstFundingAt:  idxs.getTimeStamp(firstFundingAt, cells, "Company.FirstFundingAt", rowNum),
+		LastFundingAt:   idxs.getTimeStamp(lastFundingAt, cells, "Company.LastFundingAt", rowNum),
 	}
 	return company.New(cs)
 }
 
-func NewRoundFromRow(cs chunks.ChunkStore, row *xlsx.Row) Round {
+func NewRoundFromRow(cs chunks.ChunkStore, idxs columnIndexes, row *xlsx.Row, rowNum int) Round {
 	cells := row.Cells
 
-	var raisedAmountUsd float64
-	if len(cells) < 16 {
-		fmt.Printf("warning: Found Round with only %d cells - expected 16!\n", len(cells))
-		raisedAmountUsd = 0
-	} else {
-		raisedAmountUsd = parseFloatValue(cells[15], "Round.raisedAmountUsd")
-	}
-
 	round := RoundDef{
-		CompanyPermalink:      cells[0].Value,
-		FundingRoundPermalink: cells[8].Value,
-		FundingRoundType:      cells[9].Value,
-		FundingRoundCode:      cells[10].Value,
-		FundedAt:              parseTimeStamp(cells[11], "Round.fundedAt"),
-		// Skip FundedMonth:   12
-		// Skip FundedQuarter: 13
-		// Skip FundedYear:    14
-		RaisedAmountUsd: raisedAmountUsd,
+		CompanyPermalink:      idxs.getString(companyPermalink, cells),
+		FundingRoundPermalink: idxs.getString(fundingRoundPermalink, cells),
+		FundingRoundType:      idxs.getString(fundingRoundType, cells),
+		FundingRoundCode:      idxs.getString(fundingRoundCode, cells),
+		FundedAt:              idxs.getTimeStamp(fundedAt, cells, "Round.fundedAt", rowNum),
+		RaisedAmountUsd:       idxs.getFloat(raisedAmountUsd, cells, "Round.raisedAmountUsd", rowNum),
 	}
 	return round.New(cs)
 }
 
-func parseListOfCategory(s string) SetOfStringDef {
-	elems := strings.Split(s, "|")
+type columnIndexes map[string]int
+
+func readIndexesFromHeaderRow(sheet *xlsx.Sheet) columnIndexes {
+	m := map[string]int{}
+	for i, cell := range sheet.Rows[0].Cells {
+		m[cell.Value] = i
+	}
+	return m
+}
+
+func (cn columnIndexes) getString(key string, cells []*xlsx.Cell) string {
+	if cellIndex, ok := cn[key]; ok {
+		return cells[cellIndex].Value
+	}
+	return ""
+}
+
+func (cn columnIndexes) getListOfCategory(key string, cells []*xlsx.Cell) SetOfStringDef {
 	realElems := SetOfStringDef{}
-	for _, elem := range elems {
-		s1 := strings.TrimSpace(elem)
-		if s1 != "" {
-			realElems[s1] = true
+	if cellIndex, ok := cn[key]; ok {
+		s := cells[cellIndex].Value
+		elems := strings.Split(s, "|")
+		for _, elem := range elems {
+			s1 := strings.TrimSpace(elem)
+			if s1 != "" {
+				realElems[s1] = true
+			}
 		}
 	}
 	return realElems
 }
 
-func parseFloatValue(cell *xlsx.Cell, field string) float64 {
-	v := strings.TrimSpace(cell.Value)
+func (cn columnIndexes) getFloat(key string, cells []*xlsx.Cell, field string, rowNum int) float64 {
 	parsedValue := float64(0)
-	if v != "" {
+	if cellIndex, ok := cn[key]; ok && cellIndex < len(cells) {
 		var err error
-		parsedValue, err = cell.Float()
+		parsedValue, err = cells[cellIndex].Float()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Parse failure on field: %s, err: %s\n", field, err)
+			v := cells[cellIndex].Value
+			if v != "" && v != "-" {
+				fmt.Fprintf(os.Stderr, "Unable to parse Float, row: %d, field: %s, err: %s\n", rowNum, field, err)
+			}
+			parsedValue = float64(0)
 		}
 	}
 	return float64(parsedValue)
 }
 
-func parseIntValue(cell *xlsx.Cell, field string) int {
-	v := strings.TrimSpace(cell.Value)
+func (cn columnIndexes) getInt(key string, cells []*xlsx.Cell, field string, rowNum int) int {
 	parsedValue := 0
-	if v != "" {
+	if cellIndex, ok := cn[key]; ok && cellIndex < len(cells) {
 		var err error
-		parsedValue, err = cell.Int()
+		parsedValue, err = cells[cellIndex].Int()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Parse failure on field: %s, err: %s\n", field, err)
+			v := cells[cellIndex].Value
+			if v != "" && v != "-" {
+				fmt.Fprintf(os.Stderr, "Unable to parse Int, row: %d, field: %s, err: %s\n", rowNum, field, err)
+			}
+			parsedValue = 0
 		}
 	}
 	return int(parsedValue)
 }
 
-func parseTimeStamp(cell *xlsx.Cell, field string) int64 {
-	if f, err := strconv.ParseFloat(cell.Value, 64); err == nil {
-		return xlsx.TimeFromExcelTime(f, date1904).Unix()
-	}
-	const shortForm = "2006-01-02"
-	if t, err := time.Parse(shortForm, cell.Value); err == nil {
-		return t.Unix()
-	}
-	if cell.Value != "" {
-		fmt.Fprintf(os.Stderr, "Could not parse field as date: %s, \"%s\"\n", field, cell.Value)
+func (cn columnIndexes) getTimeStamp(key string, cells []*xlsx.Cell, field string, rowNum int) int64 {
+	if cellIndex, ok := cn[key]; ok {
+		v := cells[cellIndex].Value
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return xlsx.TimeFromExcelTime(f, date1904).Unix()
+		}
+		const shortForm = "2006-01-02"
+		var err error
+		var t time.Time
+		if t, err = time.Parse(shortForm, v); err == nil {
+			return t.Unix()
+		}
+		if v != "" {
+			fmt.Fprintf(os.Stderr, "Unable to parse Date, row: %d, field: %s, value: %s, err: %s\n", rowNum, field, v, err)
+		}
 	}
 	return 0
 }
