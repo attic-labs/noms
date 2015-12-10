@@ -41,8 +41,22 @@ func init() {
 			},
 			types.Choices{},
 		),
+		types.MakeStructType("Index",
+			[]types.Field{
+				types.Field{"Input", types.MakeType(ref.Ref{}, 6), false},
+				types.Field{"Ouput", types.MakeCompoundType(types.MapKind, types.MakeCompoundType(types.RefKind, types.MakeType(ref.Ref{}, 2)), types.MakeCompoundType(types.RefKind, types.MakeCompoundType(types.SetKind, types.MakeType(ref.Ref{}, 4)))), false},
+			},
+			types.Choices{},
+		),
+		types.MakeStructType("IndexInputs",
+			[]types.Field{
+				types.Field{"CodeVersion", types.MakePrimitiveType(types.Uint32Kind), false},
+				types.Field{"Import", types.MakeCompoundType(types.RefKind, types.MakeType(ref.Parse("sha1-6f13c7b5cee1e3825bcb0845e3b07c049cc4c674"), 0)), false},
+			},
+			types.Choices{},
+		),
 	}, []ref.Ref{
-		ref.Parse("sha1-e28aa19ad63c4ddabeb258aafe9b2b97fadd3666"),
+		ref.Parse("sha1-6f13c7b5cee1e3825bcb0845e3b07c049cc4c674"),
 		ref.Parse("sha1-3e4f60c3fbd518f4a7e903ac1c7c1a97b677c4d9"),
 	})
 	__mainPackageInFile_index_CachedRef = types.RegisterPackage(&p)
@@ -594,6 +608,225 @@ func (s RoundRaise) SetDetails(val RefOfRound) RoundRaise {
 	return s
 }
 
+// Index
+
+type Index struct {
+	_Input IndexInputs
+	_Ouput MapOfRefOfKeyToRefOfSetOfRoundRaise
+
+	cs  chunks.ChunkStore
+	ref *ref.Ref
+}
+
+func NewIndex(cs chunks.ChunkStore) Index {
+	return Index{
+		_Input: NewIndexInputs(cs),
+		_Ouput: NewMapOfRefOfKeyToRefOfSetOfRoundRaise(cs),
+
+		cs:  cs,
+		ref: &ref.Ref{},
+	}
+}
+
+type IndexDef struct {
+	Input IndexInputsDef
+	Ouput MapOfRefOfKeyToRefOfSetOfRoundRaiseDef
+}
+
+func (def IndexDef) New(cs chunks.ChunkStore) Index {
+	return Index{
+		_Input: def.Input.New(cs),
+		_Ouput: def.Ouput.New(cs),
+		cs:     cs,
+		ref:    &ref.Ref{},
+	}
+}
+
+func (s Index) Def() (d IndexDef) {
+	d.Input = s._Input.Def()
+	d.Ouput = s._Ouput.Def()
+	return
+}
+
+var __typeForIndex types.Type
+
+func (m Index) Type() types.Type {
+	return __typeForIndex
+}
+
+func init() {
+	__typeForIndex = types.MakeType(__mainPackageInFile_index_CachedRef, 5)
+	types.RegisterStruct(__typeForIndex, builderForIndex, readerForIndex)
+}
+
+func builderForIndex(cs chunks.ChunkStore, values []types.Value) types.Value {
+	i := 0
+	s := Index{ref: &ref.Ref{}, cs: cs}
+	s._Input = values[i].(IndexInputs)
+	i++
+	s._Ouput = values[i].(MapOfRefOfKeyToRefOfSetOfRoundRaise)
+	i++
+	return s
+}
+
+func readerForIndex(v types.Value) []types.Value {
+	values := []types.Value{}
+	s := v.(Index)
+	values = append(values, s._Input)
+	values = append(values, s._Ouput)
+	return values
+}
+
+func (s Index) Equals(other types.Value) bool {
+	return other != nil && __typeForIndex.Equals(other.Type()) && s.Ref() == other.Ref()
+}
+
+func (s Index) Ref() ref.Ref {
+	return types.EnsureRef(s.ref, s)
+}
+
+func (s Index) Chunks() (chunks []ref.Ref) {
+	chunks = append(chunks, __typeForIndex.Chunks()...)
+	chunks = append(chunks, s._Input.Chunks()...)
+	chunks = append(chunks, s._Ouput.Chunks()...)
+	return
+}
+
+func (s Index) ChildValues() (ret []types.Value) {
+	ret = append(ret, s._Input)
+	ret = append(ret, s._Ouput)
+	return
+}
+
+func (s Index) Input() IndexInputs {
+	return s._Input
+}
+
+func (s Index) SetInput(val IndexInputs) Index {
+	s._Input = val
+	s.ref = &ref.Ref{}
+	return s
+}
+
+func (s Index) Ouput() MapOfRefOfKeyToRefOfSetOfRoundRaise {
+	return s._Ouput
+}
+
+func (s Index) SetOuput(val MapOfRefOfKeyToRefOfSetOfRoundRaise) Index {
+	s._Ouput = val
+	s.ref = &ref.Ref{}
+	return s
+}
+
+// IndexInputs
+
+type IndexInputs struct {
+	_CodeVersion uint32
+	_Import      RefOfImport
+
+	cs  chunks.ChunkStore
+	ref *ref.Ref
+}
+
+func NewIndexInputs(cs chunks.ChunkStore) IndexInputs {
+	return IndexInputs{
+		_CodeVersion: uint32(0),
+		_Import:      NewRefOfImport(ref.Ref{}),
+
+		cs:  cs,
+		ref: &ref.Ref{},
+	}
+}
+
+type IndexInputsDef struct {
+	CodeVersion uint32
+	Import      ref.Ref
+}
+
+func (def IndexInputsDef) New(cs chunks.ChunkStore) IndexInputs {
+	return IndexInputs{
+		_CodeVersion: def.CodeVersion,
+		_Import:      NewRefOfImport(def.Import),
+		cs:           cs,
+		ref:          &ref.Ref{},
+	}
+}
+
+func (s IndexInputs) Def() (d IndexInputsDef) {
+	d.CodeVersion = s._CodeVersion
+	d.Import = s._Import.TargetRef()
+	return
+}
+
+var __typeForIndexInputs types.Type
+
+func (m IndexInputs) Type() types.Type {
+	return __typeForIndexInputs
+}
+
+func init() {
+	__typeForIndexInputs = types.MakeType(__mainPackageInFile_index_CachedRef, 6)
+	types.RegisterStruct(__typeForIndexInputs, builderForIndexInputs, readerForIndexInputs)
+}
+
+func builderForIndexInputs(cs chunks.ChunkStore, values []types.Value) types.Value {
+	i := 0
+	s := IndexInputs{ref: &ref.Ref{}, cs: cs}
+	s._CodeVersion = uint32(values[i].(types.Uint32))
+	i++
+	s._Import = values[i].(RefOfImport)
+	i++
+	return s
+}
+
+func readerForIndexInputs(v types.Value) []types.Value {
+	values := []types.Value{}
+	s := v.(IndexInputs)
+	values = append(values, types.Uint32(s._CodeVersion))
+	values = append(values, s._Import)
+	return values
+}
+
+func (s IndexInputs) Equals(other types.Value) bool {
+	return other != nil && __typeForIndexInputs.Equals(other.Type()) && s.Ref() == other.Ref()
+}
+
+func (s IndexInputs) Ref() ref.Ref {
+	return types.EnsureRef(s.ref, s)
+}
+
+func (s IndexInputs) Chunks() (chunks []ref.Ref) {
+	chunks = append(chunks, __typeForIndexInputs.Chunks()...)
+	chunks = append(chunks, s._Import.Chunks()...)
+	return
+}
+
+func (s IndexInputs) ChildValues() (ret []types.Value) {
+	ret = append(ret, types.Uint32(s._CodeVersion))
+	ret = append(ret, s._Import)
+	return
+}
+
+func (s IndexInputs) CodeVersion() uint32 {
+	return s._CodeVersion
+}
+
+func (s IndexInputs) SetCodeVersion(val uint32) IndexInputs {
+	s._CodeVersion = val
+	s.ref = &ref.Ref{}
+	return s
+}
+
+func (s IndexInputs) Import() RefOfImport {
+	return s._Import
+}
+
+func (s IndexInputs) SetImport(val RefOfImport) IndexInputs {
+	s._Import = val
+	s.ref = &ref.Ref{}
+	return s
+}
+
 // MapOfRefOfKeyToSetOfRoundRaise
 
 type MapOfRefOfKeyToSetOfRoundRaise struct {
@@ -860,6 +1093,63 @@ func (m MapOfRefOfKeyToRefOfSetOfRoundRaise) Filter(cb MapOfRefOfKeyToRefOfSetOf
 		return cb(k.(RefOfKey), v.(RefOfSetOfRoundRaise))
 	})
 	return MapOfRefOfKeyToRefOfSetOfRoundRaise{out, m.cs, &ref.Ref{}}
+}
+
+// RefOfImport
+
+type RefOfImport struct {
+	target ref.Ref
+	ref    *ref.Ref
+}
+
+func NewRefOfImport(target ref.Ref) RefOfImport {
+	return RefOfImport{target, &ref.Ref{}}
+}
+
+func (r RefOfImport) TargetRef() ref.Ref {
+	return r.target
+}
+
+func (r RefOfImport) Ref() ref.Ref {
+	return types.EnsureRef(r.ref, r)
+}
+
+func (r RefOfImport) Equals(other types.Value) bool {
+	return other != nil && __typeForRefOfImport.Equals(other.Type()) && r.Ref() == other.Ref()
+}
+
+func (r RefOfImport) Chunks() (chunks []ref.Ref) {
+	chunks = append(chunks, r.Type().Chunks()...)
+	chunks = append(chunks, r.target)
+	return
+}
+
+func (r RefOfImport) ChildValues() []types.Value {
+	return nil
+}
+
+// A Noms Value that describes RefOfImport.
+var __typeForRefOfImport types.Type
+
+func (m RefOfImport) Type() types.Type {
+	return __typeForRefOfImport
+}
+
+func init() {
+	__typeForRefOfImport = types.MakeCompoundType(types.RefKind, types.MakeType(ref.Parse("sha1-6f13c7b5cee1e3825bcb0845e3b07c049cc4c674"), 0))
+	types.RegisterRef(__typeForRefOfImport, builderForRefOfImport)
+}
+
+func builderForRefOfImport(r ref.Ref) types.Value {
+	return NewRefOfImport(r)
+}
+
+func (r RefOfImport) TargetValue(cs chunks.ChunkStore) Import {
+	return types.ReadValue(r.target, cs).(Import)
+}
+
+func (r RefOfImport) SetTargetValue(val Import, cs chunks.ChunkSink) RefOfImport {
+	return NewRefOfImport(types.WriteValue(val, cs))
 }
 
 // RefOfKey

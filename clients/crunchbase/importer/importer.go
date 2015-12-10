@@ -4,7 +4,6 @@ import (
 	"crypto/sha1"
 	"flag"
 	"fmt"
-	"hash"
 	"io"
 	"io/ioutil"
 	"os"
@@ -23,6 +22,9 @@ import (
 )
 
 const (
+	// Change this version when the output of this importer changes given the same input
+	codeVersion = uint32(1)
+
 	permalink       = "permalink"
 	name            = "name"
 	homepageUrl     = "homepage_url"
@@ -70,6 +72,7 @@ func main() {
 
 	httpClient := util.CachingHttpClient()
 	ds = dsFlags.CreateDataset()
+	fmt.Println(ds.Store().Root())
 	url := flag.Arg(0)
 	if httpClient == nil || ds == nil || url == "" {
 		flag.Usage()
@@ -77,7 +80,7 @@ func main() {
 	}
 	defer ds.Close()
 
-	fmt.Print("Fetching excel file - this can take a minute or so...")
+	fmt.Println("Fetching excel file - this can take a minute or so...")
 	resp, err := httpClient.Get(url)
 	d.Exp.NoError(err)
 	defer resp.Body.Close()
@@ -90,34 +93,33 @@ func main() {
 	_, err = io.Copy(io.MultiWriter(h, tempFile), resp.Body)
 	d.Chk.NoError(err)
 
-	companiesRef := getExistingCompaniesRef(*ds, h)
-	if !companiesRef.IsEmpty() {
-		fmt.Println("\rExcel file hasn't changed since last run, nothing to do.")
-	} else {
-		companiesRef = importCompanies(*ds, tempFile.Name())
+	inputs := InputsDef{codeVersion, ref.FromHash(h).String()}
+	if !needsReimport(*ds, inputs.New(ds.Store())) {
+		fmt.Println("Excel file hasn't changed since last run, nothing to do.")
+		return
 	}
 
+	companiesRef := importCompanies(*ds, tempFile.Name())
 	imp := ImportDef{
-		ref.FromHash(h).String(),
+		inputs,
 		DateDef{time.Now().Format(time.RFC3339)},
 		companiesRef,
 	}.New(ds.Store())
+	impRef := NewRefOfImport(types.WriteValue(imp, ds.Store()))
 
 	// Commit ref of the companiesRef list
-	_, err = ds.Commit(imp)
+	_, err = ds.Commit(impRef)
 	d.Exp.NoError(err)
 }
 
 func importCompanies(ds dataset.Dataset, fileName string) ref.Ref {
-	fmt.Print("\rOpening excel file - this can take a minute or so...")
+	fmt.Println("Opening excel file - this can take a minute or so...")
 
 	xlFile, err := xlsx.OpenFile(fileName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(-1)
 	}
-
-	fmt.Print("\rImporting...")
 
 	date1904 = xlFile.Date1904
 
@@ -156,6 +158,7 @@ func importCompanies(ds dataset.Dataset, fileName string) ref.Ref {
 			companyRefsDef[company.Permalink()] = ref
 		}
 	}
+	fmt.Println("")
 
 	companyRefs := companyRefsDef.New(ds.Store())
 
@@ -166,15 +169,15 @@ func importCompanies(ds dataset.Dataset, fileName string) ref.Ref {
 	return types.WriteValue(companyRefs, ds.Store())
 }
 
-func getExistingCompaniesRef(ds dataset.Dataset, h hash.Hash) ref.Ref {
+func needsReimport(ds dataset.Dataset, input Inputs) bool {
 	if head, ok := ds.MaybeHead(); ok {
-		if imp, ok := head.Value().(Import); ok {
-			if imp.FileSHA1() == ref.FromHash(h).String() {
-				return imp.Companies().TargetRef()
+		if existing, ok := head.Value().(RefOfImport); ok {
+			if existing.TargetValue(ds.Store()).Input().Ref() == input.Ref() {
+				return false
 			}
 		}
 	}
-	return ref.Ref{}
+	return true
 }
 
 func NewCompanyFromRow(cs chunks.ChunkStore, idxs columnIndexes, row *xlsx.Row, rowNum int) Company {
