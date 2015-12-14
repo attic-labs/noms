@@ -2,6 +2,7 @@
 
 import Chunk from './chunk.js';
 import Ref from './ref.js';
+import RefValue from './ref_value.js';
 import Struct from './struct.js';
 import type {ChunkStore} from './chunk_store.js';
 import type {NomsKind} from './noms_kind.js';
@@ -203,31 +204,30 @@ class JsonArrayReader {
   async readValueWithoutTag(t: Type, pkg: ?Package = null): Promise<any> {
     // TODO: Verify read values match tagged kinds.
     switch (t.kind) {
-      case Kind.Blob:
+      case Kind.Blob: {
         let ms = await this.maybeReadMetaSequence(t, pkg);
         if (ms) {
           return ms;
         }
-
         return this.readBlob();
-
+      }
       case Kind.Bool:
-        return Promise.resolve(this.readBool());
+        return this.readBool();
       case Kind.Float32:
       case Kind.Float64:
-        return Promise.resolve(this.readFloat());
+        return this.readFloat();
       case Kind.Int8:
       case Kind.Int16:
       case Kind.Int32:
       case Kind.Int64:
-        return Promise.resolve(this.readInt());
+        return this.readInt();
       case Kind.Uint8:
       case Kind.Uint16:
       case Kind.Uint32:
       case Kind.Uint64:
-        return Promise.resolve(this.readUint());
+        return this.readUint();
       case Kind.String:
-        return Promise.resolve(this.readString());
+        return this.readString();
       case Kind.Value: {
         let t2 = this.readTypeAsTag();
         return this.readValueWithoutTag(t2, pkg);
@@ -251,11 +251,11 @@ class JsonArrayReader {
         return r2.readMapLeaf(t, pkg);
       }
       case Kind.Package:
-        return Promise.resolve(this.readPackage(t, pkg));
-      case Kind.Ref:
-        // TODO: This is not aligned with Go. In Go we have a dedicated Value
-        // for refs.
-        return Promise.resolve(this.readRef());
+        return this.readPackage(t, pkg);
+      case Kind.Ref: {
+        let target = this.readRef();
+        return new RefValue(target, t);
+      }
       case Kind.Set: {
         let ms = await this.maybeReadMetaSequence(t, pkg);
         if (ms) {
@@ -269,7 +269,7 @@ class JsonArrayReader {
       case Kind.Struct:
         throw new Error('Not allowed');
       case Kind.Type:
-        return Promise.resolve(this.readTypeAsValue(pkg));
+        return this.readTypeAsValue(pkg);
       case Kind.Unresolved:
         return this.readUnresolvedKindToValue(t, pkg);
     }
