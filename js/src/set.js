@@ -9,7 +9,7 @@ import {OrderedSequence} from './ordered_sequence.js';
 import {registerMetaValue, MetaTuple} from './meta_sequence.js';
 import {Type} from './type.js';
 
-export class NomsSet<K:valueOrPrimitive, T> extends OrderedSequence<K, T> {
+export class NomsSet<K: valueOrPrimitive, T> extends OrderedSequence<K, T> {
   async first(): Promise<?T> {
     let cursor = await this.newCursorAt(null);
     return cursor.valid ? cursor.getCurrent() : null;
@@ -65,13 +65,13 @@ export class NomsSet<K:valueOrPrimitive, T> extends OrderedSequence<K, T> {
   }
 }
 
-export class SetLeaf<K:valueOrPrimitive> extends NomsSet<K, K> {
+export class SetLeaf<K: valueOrPrimitive> extends NomsSet<K, K> {
   getKey(idx: number): K {
     return this.items[idx];
   }
 }
 
-export class CompoundSet<K:valueOrPrimitive> extends NomsSet<K, MetaTuple<K>> {
+export class CompoundSet<K: valueOrPrimitive> extends NomsSet<K, MetaTuple<K>> {
   constructor(cs: ChunkStore, type: Type, items: Array<MetaTuple>) {
     super(cs, type, items);
     this.isMeta = true;

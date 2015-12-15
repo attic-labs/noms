@@ -3,6 +3,7 @@
 import Chunk from './chunk.js';
 import MemoryStore from './memory_store.js';
 import Ref from './ref.js';
+import RefValue from './ref_value.js';
 import Struct from './struct.js';
 import test from './async_test.js';
 import type {TypeDesc} from './type.js';
@@ -428,7 +429,8 @@ suite('Decode', () => {
 
     let rootMap = await readValue(root, ms);
     let counterRef = await rootMap.get('counter');
-    let commit = await readValue(counterRef, ms);
+    assert.instanceOf(counterRef, RefValue);
+    let commit = await readValue(counterRef.targetRef(), ms);
     assert.strictEqual(1, await commit.get('value'));
   });
 
