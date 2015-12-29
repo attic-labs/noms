@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/attic-labs/noms",
-	"GoVersion": "go1.5",
+	"GoVersion": "go1.5.1",
 	"Packages": [
 		"./..."
 	],
@@ -8,6 +8,46 @@
 		{
 			"ImportPath": "github.com/attic-labs/buzhash",
 			"Rev": "ba25a3a15f617b6580523ccfb83d31764a50a97a"
+		},
+		{
+			"ImportPath": "github.com/aws/aws-sdk-go/aws",
+			"Comment": "v1.0.7-2-g727e1f5",
+			"Rev": "727e1f596b6b59700b4d286af9ca41747066685d"
+		},
+		{
+			"ImportPath": "github.com/aws/aws-sdk-go/private/endpoints",
+			"Comment": "v1.0.7-2-g727e1f5",
+			"Rev": "727e1f596b6b59700b4d286af9ca41747066685d"
+		},
+		{
+			"ImportPath": "github.com/aws/aws-sdk-go/private/protocol/json/jsonutil",
+			"Comment": "v1.0.7-2-g727e1f5",
+			"Rev": "727e1f596b6b59700b4d286af9ca41747066685d"
+		},
+		{
+			"ImportPath": "github.com/aws/aws-sdk-go/private/protocol/jsonrpc",
+			"Comment": "v1.0.7-2-g727e1f5",
+			"Rev": "727e1f596b6b59700b4d286af9ca41747066685d"
+		},
+		{
+			"ImportPath": "github.com/aws/aws-sdk-go/private/protocol/rest",
+			"Comment": "v1.0.7-2-g727e1f5",
+			"Rev": "727e1f596b6b59700b4d286af9ca41747066685d"
+		},
+		{
+			"ImportPath": "github.com/aws/aws-sdk-go/private/signer/v4",
+			"Comment": "v1.0.7-2-g727e1f5",
+			"Rev": "727e1f596b6b59700b4d286af9ca41747066685d"
+		},
+		{
+			"ImportPath": "github.com/aws/aws-sdk-go/private/waiter",
+			"Comment": "v1.0.7-2-g727e1f5",
+			"Rev": "727e1f596b6b59700b4d286af9ca41747066685d"
+		},
+		{
+			"ImportPath": "github.com/aws/aws-sdk-go/service/dynamodb",
+			"Comment": "v1.0.7-2-g727e1f5",
+			"Rev": "727e1f596b6b59700b4d286af9ca41747066685d"
 		},
 		{
 			"ImportPath": "github.com/clbanning/mxj",
@@ -26,6 +66,11 @@
 			"Rev": "3131beb69b81ff119923bdefbf029318f1f53794"
 		},
 		{
+			"ImportPath": "github.com/go-ini/ini",
+			"Comment": "v1.8.5-2-g6ec4abd",
+			"Rev": "6ec4abd8f8d587536da56f730858f0e27aeb4126"
+		},
+		{
 			"ImportPath": "github.com/golang/snappy",
 			"Rev": "723cc1e459b8eea2dea4583200fd60757d40097a"
 		},
@@ -34,8 +79,9 @@
 			"Rev": "a2645c9fb8bb4ad1cbad1bef941af9f8a32287de"
 		},
 		{
-			"ImportPath": "github.com/kch42/buzhash",
-			"Rev": "ba25a3a15f617b6580523ccfb83d31764a50a97a"
+			"ImportPath": "github.com/jmespath/go-jmespath",
+			"Comment": "0.2.2-2-gc01cf91",
+			"Rev": "c01cf91b011868172fdcd9f41838e80c9d716264"
 		},
 		{
 			"ImportPath": "github.com/mikkyang/id3-go",
