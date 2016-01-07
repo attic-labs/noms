@@ -16,7 +16,11 @@ export default class Chunk {
   }
 
   get ref(): Ref {
-    return this._ref || (this._ref = Ref.fromData(this.data));
+    // Work around Babel bug: https://phabricator.babeljs.io/T6926
+    if (!this._ref) {
+      this._ref = Ref.fromData(this.data);
+    }
+    return this._ref;
   }
 
   isEmpty(): boolean {

@@ -73,7 +73,13 @@ function handleChunkLoad(ref: Ref, val: any, fromRef: ?string) {
 
     // Populate links.
     if (fromId) {
-      (data.links[fromId] || (data.links[fromId] = [])).push(id);
+      // Work around Babel bug: https://phabricator.babeljs.io/T6926
+      let links = data.links[fromId];
+      if (!links) {
+        links = [];
+        data.links[fromId] = links;
+      }
+      links.push(id);
     }
 
     switch (typeof val) {
