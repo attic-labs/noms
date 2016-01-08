@@ -57,7 +57,8 @@ func main() {
 
 	walk.AllP(commit.Value(), store, func(v types.Value) {
 		numValues++
-		if p, ok := v.(RemotePhoto); ok {
+		if v, ok := v.(RefOfRemotePhoto); ok {
+			p := v.TargetValue(store)
 			tags := p.Tags()
 			if !tags.Empty() {
 				numPhotos++
