@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"unicode/utf8"
 
 	"github.com/attic-labs/noms/clients/csv"
 	"github.com/attic-labs/noms/d"
@@ -46,7 +45,7 @@ func main() {
 	}
 
 	path := flag.Arg(0)
-	if ds == nil || path == "" {
+	if path == "" {
 		flag.Usage()
 		return
 	}
@@ -55,7 +54,7 @@ func main() {
 	d.Exp.NoError(err)
 	defer res.Close()
 
-	comma, err := getDelimiter(*delimiter)
+	comma, err := csv.GetDelimiterFromString(*delimiter)
 	if err != nil {
 		fmt.Println(err.Error())
 		flag.Usage()
@@ -65,21 +64,4 @@ func main() {
 	value, _, _ := csv.Read(res, *name, *header, comma, *p, ds.Store())
 	_, err = ds.Commit(value)
 	d.Exp.NoError(err)
-}
-
-// Returns the rune contained in delimiter or an error.
-func getDelimiter(delimiter string) (rune, error) {
-	dlimLen := len(delimiter)
-	if dlimLen == 0 {
-		return 0, fmt.Errorf("delimiter flag must contain exactly one character (rune), not an empty string")
-	}
-
-	d, runeSize := utf8.DecodeRuneInString(delimiter)
-	if d == utf8.RuneError {
-		return 0, fmt.Errorf("Invalid utf8 string in delimiter flag: %s", delimiter)
-	}
-	if dlimLen != runeSize {
-		return 0, fmt.Errorf("delimiter flag is too long. It must contain exactly one character (rune), but instead it is: %s", delimiter)
-	}
-	return d, nil
 }
