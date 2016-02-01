@@ -135,3 +135,16 @@ func (f datasetFlags) CreateDataset() *Dataset {
 	ds := NewDataset(rootDS, *f.datasetID)
 	return &ds
 }
+
+func (f datasetFlags) GetDataset() *Dataset {
+	if *f.datasetID == "" {
+		return nil
+	}
+	rootDS, ok := f.Flags.CreateDataStore()
+	if !ok {
+		return nil
+	}
+
+  ds := Dataset{rootDS, *f.datasetID}
+	return &ds
+}

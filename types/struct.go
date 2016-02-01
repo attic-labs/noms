@@ -58,7 +58,7 @@ func (s Struct) Ref() ref.Ref {
 
 func (s Struct) Chunks() (chunks []ref.Ref) {
 	chunks = append(chunks, s.t.Chunks()...)
-	for _, f := range s.desc().Fields {
+	for _, f := range s.Desc().Fields {
 		if v, ok := s.data[f.Name]; ok {
 			chunks = append(chunks, v.Chunks()...)
 		} else {
@@ -75,7 +75,7 @@ func (s Struct) Chunks() (chunks []ref.Ref) {
 
 func (s Struct) ChildValues() (res []Value) {
 	res = append(res, s.t)
-	for _, f := range s.desc().Fields {
+	for _, f := range s.Desc().Fields {
 		if v, ok := s.data[f.Name]; ok {
 			res = append(res, v)
 		} else {
@@ -92,12 +92,12 @@ func (s Struct) Type() Type {
 	return s.t
 }
 
-func (s Struct) desc() StructDesc {
+func (s Struct) Desc() StructDesc {
 	return s.typeDef.Desc.(StructDesc)
 }
 
 func (s Struct) hasUnion() bool {
-	return len(s.desc().Union) > 0
+	return len(s.Desc().Union) > 0
 }
 
 func (s Struct) MaybeGet(n string) (Value, bool) {
@@ -157,12 +157,12 @@ func (s Struct) UnionValue() Value {
 }
 
 func (s Struct) findField(n string) (Field, int32, bool) {
-	for _, f := range s.desc().Fields {
+	for _, f := range s.Desc().Fields {
 		if f.Name == n {
 			return f, -1, true
 		}
 	}
-	for i, f := range s.desc().Union {
+	for i, f := range s.Desc().Union {
 		if f.Name == n {
 			return f, int32(i), true
 		}
