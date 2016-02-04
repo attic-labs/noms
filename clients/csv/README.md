@@ -12,5 +12,17 @@ $ ./importer --h=http://localhost:8000  --ds=foo <PATH>
 
 ## Some places for CSV files
 
- - https://data.cityofnewyork.us/api/views/kku6-nxdu/rows.csv?accessType=DOWNLOAD
- - http://www.opendatacache.com/
+- https://data.cityofnewyork.us/api/views/kku6-nxdu/rows.csv?accessType=DOWNLOAD
+- http://www.opendatacache.com/
+
+# CSV Exporter
+
+Export a dataset to a CSV file with column headers.
+
+## Usage
+
+```
+$ cd exporter
+$ go build
+$ ./exporter --h=http://localhost:8000  --ds=foo <PATH>
+```
