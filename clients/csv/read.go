@@ -2,13 +2,11 @@ package csv
 
 import (
 	"encoding/csv"
-	"fmt"
 	"io"
 	"log"
 	"sort"
 	"strings"
 	"sync"
-	"unicode/utf8"
 
 	"github.com/attic-labs/noms/chunks"
 	"github.com/attic-labs/noms/ref"
@@ -135,21 +133,4 @@ func Read(res io.Reader, structName, header string, comma rune, p uint, cs chunk
 	listType := types.MakeCompoundType(types.ListKind, refType)
 
 	return types.NewTypedList(cs, listType, refs...), typeRef, typeDef
-}
-
-// Returns the rune contained in delimiter or an error.
-func GetDelimiterFromString(delimiter string) (rune, error) {
-	dlimLen := len(delimiter)
-	if dlimLen == 0 {
-		return 0, fmt.Errorf("delimiter flag must contain exactly one character (rune), not an empty string")
-	}
-
-	d, runeSize := utf8.DecodeRuneInString(delimiter)
-	if d == utf8.RuneError {
-		return 0, fmt.Errorf("Invalid utf8 string in delimiter flag: %s", delimiter)
-	}
-	if dlimLen != runeSize {
-		return 0, fmt.Errorf("delimiter flag is too long. It must contain exactly one character (rune), but instead it is: %s", delimiter)
-	}
-	return d, nil
 }

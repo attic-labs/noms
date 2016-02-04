@@ -12,13 +12,11 @@ import (
 )
 
 var (
-	p       = flag.Uint("p", 512, "parallelism")
+	p       = flag.Int("p", 512, "parallelism")
 	dsFlags = dataset.NewFlags()
 	// Actually the delimiter uses runes, which can be multiple characters long.
 	// https://blog.golang.org/strings
 	delimiter = flag.String("delimiter", ",", "field delimiter for csv file, must be exactly one character long.")
-	header    = flag.String("header", "", "header row. If empty, we'll use the first row of the file")
-	name      = flag.String("name", "Row", "struct name. The user-visible name to give to the struct type that will hold each row of data.")
 )
 
 func main() {
@@ -26,12 +24,12 @@ func main() {
 	runtime.GOMAXPROCS(cpuCount)
 
 	flag.Usage = func() {
-		fmt.Println("Usage: csv_importer [options] file\n")
+		fmt.Println("Usage: csv_exporter [options] filename\n")
 		flag.PrintDefaults()
 	}
 
 	flag.Parse()
-	ds := dsFlags.CreateDataset()
+	ds := dsFlags.GetDataset()
 	if ds == nil {
 		flag.Usage()
 		return
@@ -49,10 +47,9 @@ func main() {
 		flag.Usage()
 		return
 	}
-
-	res, err := os.Open(path)
+	f, err := os.Create(path)
 	d.Exp.NoError(err)
-	defer res.Close()
+	defer f.Close()
 
 	comma, err := csv.StringToRune(*delimiter)
 	if err != nil {
@@ -61,7 +58,5 @@ func main() {
 		return
 	}
 
-	value, _, _ := csv.Read(res, *name, *header, comma, *p, ds.Store())
-	_, err = ds.Commit(value)
-	d.Exp.NoError(err)
+	csv.Write(ds, comma, *p, f)
 }
