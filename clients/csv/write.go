@@ -4,18 +4,16 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"log"
 
+	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/dataset"
 	"github.com/attic-labs/noms/types"
 )
 
 func getFieldNamesFromStruct(structDesc types.StructDesc) (fieldNames []string) {
 	for _, f := range structDesc.Fields {
-		if !types.IsPrimitiveKind(f.T.Desc.Kind()) {
-			log.Fatalln("Non-primitive CSV export not supported:",
-				f.T.Desc.Describe())
-		}
+		d.Chk.Equal(true, types.IsPrimitiveKind(f.T.Desc.Kind()),
+			"Non-primitive CSV export not supported:", f.T.Desc.Describe())
 		fieldNames = append(fieldNames, f.Name)
 	}
 	return
@@ -23,25 +21,25 @@ func getFieldNamesFromStruct(structDesc types.StructDesc) (fieldNames []string) 
 
 func Write(ds *dataset.Dataset, comma rune, concurrency int, output io.Writer) {
 	v := ds.Head().Value()
-	if v.Type().Desc.Kind() != types.ListKind {
-		log.Fatalln("Dataset must be List<>, found", v.Type().Desc.Describe())
-	}
+	d.Chk.Equal(types.ListKind, v.Type().Desc.Kind(),
+		"Dataset must be List<>, found:", v.Type().Desc.Describe())
+
 	t := v.Type().Desc.(types.CompoundDesc).ElemTypes[0]
-	if t.Desc.Kind() != types.RefKind {
-		log.Fatalln("List<> must be of Ref, found", t.Desc.Describe())
-	}
+	d.Chk.Equal(types.RefKind, t.Desc.Kind(),
+		"List<> must be of Ref, found:", t.Desc.Describe())
+
 	u := t.Desc.(types.CompoundDesc).ElemTypes[0]
-	if u.Desc.Kind() != types.UnresolvedKind {
-		log.Fatalln("Ref must be UnresolvedKind, found", u.Desc.Describe())
-	}
+	d.Chk.Equal(types.UnresolvedKind, u.Desc.Kind(),
+		"Ref must be UnresolvedKind, found:", u.Desc.Describe())
+
 	pkg := types.ReadPackage(u.PackageRef(), ds.Store())
-	if pkg.Type().Desc.Kind() != types.PackageKind {
-		log.Fatalln("Failed to read package:", pkg.Type().Desc.Describe())
-	}
+	d.Chk.Equal(types.PackageKind, pkg.Type().Desc.Kind(),
+		"Failed to read package:", pkg.Type().Desc.Describe())
+
 	structDesc := pkg.Types()[u.Ordinal()].Desc
-	if structDesc.Kind() != types.StructKind {
-		log.Fatalln("Did not find Struct:", structDesc.Describe())
-	}
+	d.Chk.Equal(types.StructKind, structDesc.Kind(),
+		"Did not find Struct:", structDesc.Describe())
+
 	fieldNames := getFieldNamesFromStruct(structDesc.(types.StructDesc))
 	nomsList := v.(types.List)
 
@@ -61,7 +59,6 @@ func Write(ds *dataset.Dataset, comma rune, concurrency int, output io.Writer) {
 	})
 
 	csvWriter.WriteAll(records)
-	if err := csvWriter.Error(); err != nil {
-		log.Fatalln("error flushing csv:", err)
-	}
+	err := csvWriter.Error()
+	d.Chk.Equal(nil, err, "error flushing csv:", err)
 }

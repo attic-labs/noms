@@ -3,8 +3,7 @@ package main
 import (
 	"encoding/csv"
 	"io"
-	"io/ioutil"
-	"os"
+	"strings"
 	"testing"
 
 	"github.com/attic-labs/noms/Godeps/_workspace/src/github.com/stretchr/testify/suite"
@@ -25,6 +24,7 @@ type testSuite struct {
 	util.ClientTestSuite
 }
 
+// FIXME: run with pipe
 func (s *testSuite) TestCSVExporter() {
 	storeName := "store"
 	setName := "csv"
@@ -69,22 +69,14 @@ func (s *testSuite) TestCSVExporter() {
 
 	refType := types.MakeCompoundType(types.RefKind, typeRef)
 	listType := types.MakeCompoundType(types.ListKind, refType)
-	ds.Commit(types.NewTypedList(cs, listType, refs...))
+	ds.Commit(types.NewTypedList(listType, refs...))
 	ds.Store().Close()
 
 	// Run exporter
-	tmpFile, err := ioutil.TempFile(s.TempDir, "")
-	d.Chk.NoError(err)
-	tmpFile.Close()
-	out := s.Run(main, []string{"-store", storeName, "-ds", setName, tmpFile.Name()})
-	s.Equal("", out)
+	out := s.Run(main, []string{"-store", storeName, "-ds", setName})
 
-	res, err := os.Open(tmpFile.Name())
-	d.Chk.NoError(err)
-	defer res.Close()
-
-	// Read back the file and verify
-	csvReader := csv.NewReader(res)
+	// Verify output
+	csvReader := csv.NewReader(strings.NewReader(out))
 
 	row, err := csvReader.Read()
 	d.Chk.NoError(err)

@@ -24,32 +24,17 @@ func main() {
 	runtime.GOMAXPROCS(cpuCount)
 
 	flag.Usage = func() {
-		fmt.Println("Usage: csv_exporter [options] filename\n")
+		fmt.Println("Usage: csv_exporter [options] filename")
 		flag.PrintDefaults()
 	}
 
 	flag.Parse()
-	ds := dsFlags.GetDataset()
+	ds := dsFlags.CreateDataset()
 	if ds == nil {
 		flag.Usage()
 		return
 	}
 	defer ds.Store().Close()
-
-	if flag.NArg() != 1 {
-		fmt.Printf("Expected exactly one parameter (path) after flags, but you have %d. Maybe you put a flag after the path?\n", flag.NArg())
-		flag.Usage()
-		return
-	}
-
-	path := flag.Arg(0)
-	if path == "" {
-		flag.Usage()
-		return
-	}
-	f, err := os.Create(path)
-	d.Exp.NoError(err)
-	defer f.Close()
 
 	comma, err := csv.StringToRune(*delimiter)
 	if err != nil {
@@ -58,5 +43,7 @@ func main() {
 		return
 	}
 
-	csv.Write(ds, comma, *p, f)
+	d.Try(func() {
+		csv.Write(ds, comma, *p, os.Stdout)
+	})
 }

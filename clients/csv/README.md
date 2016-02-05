@@ -17,12 +17,12 @@ $ ./importer --h=http://localhost:8000  --ds=foo <PATH>
 
 # CSV Exporter
 
-Export a dataset to a CSV file with column headers.
+Export a dataset in CSV format to stdout with column headers.
 
 ## Usage
 
 ```
 $ cd exporter
 $ go build
-$ ./exporter --h=http://localhost:8000  --ds=foo <PATH>
+$ ./exporter --h=http://localhost:8000  --ds=foo
 ```
