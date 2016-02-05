@@ -30,12 +30,6 @@ func main() {
 
 	flag.Parse()
 	ds := dsFlags.CreateDataset()
-	if ds == nil {
-		flag.Usage()
-		return
-	}
-	defer ds.Store().Close()
-
 	comma, err := csv.StringToRune(*delimiter)
 	if err != nil {
 		fmt.Println(err.Error())

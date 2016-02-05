@@ -24,7 +24,6 @@ type testSuite struct {
 	util.ClientTestSuite
 }
 
-// FIXME: run with pipe
 func (s *testSuite) TestCSVExporter() {
 	storeName := "store"
 	setName := "csv"
