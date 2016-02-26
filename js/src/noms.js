@@ -7,6 +7,7 @@ export {default as Chunk} from './chunk.js';
 export {default as HttpStore} from './http_store.js';
 export {default as MemoryStore} from './memory_store.js';
 export {default as Ref} from './ref.js';
+export {RemoteStore} from './remote_store.js';
 export {default as Struct} from './struct.js';
 export {encodeNomsValue, writeValue} from './encode.js';
 export {invariant, notNull} from './assert.js';
