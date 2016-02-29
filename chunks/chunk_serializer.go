@@ -67,6 +67,13 @@ func (sz *serializer) Put(c Chunk) {
 	sz.chs <- c
 }
 
+func (sz *serializer) PutMany(chunks ...Chunk) (e BackpressureError) {
+	for _, c := range chunks {
+		sz.chs <- c
+	}
+	return
+}
+
 func (sz *serializer) Close() error {
 	close(sz.chs)
 	<-sz.done

@@ -49,13 +49,20 @@ func (ms *MemoryStore) Put(c Chunk) {
 	ms.data[c.Ref()] = c
 }
 
+func (ms *MemoryStore) PutMany(chunks ...Chunk) (e BackpressureError) {
+	for _, c := range chunks {
+		ms.Put(c)
+	}
+	return
+}
+
 func (ms *MemoryStore) Len() int {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	return len(ms.data)
 }
 
-func (l *MemoryStore) Close() error {
+func (ms *MemoryStore) Close() error {
 	return nil
 }
 

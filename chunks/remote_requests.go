@@ -96,3 +96,12 @@ func (gb *getBatch) Put(c Chunk) {
 
 	delete(*gb, c.Ref())
 }
+
+// PutMany is implemented so that getBatch implements the ChunkSink interface.
+// FIXME? Should this have backpressure? I think no
+func (gb *getBatch) PutMany(chunks ...Chunk) (e BackpressureError) {
+	for _, c := range chunks {
+		gb.Put(c)
+	}
+	return
+}
