@@ -26,6 +26,13 @@ func (p *unwrittenPutCache) Add(c Chunk) bool {
 	return false
 }
 
+func (p *unwrittenPutCache) Has(c Chunk) (has bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	_, has = p.unwrittenPuts[c.Ref()]
+	return
+}
+
 func (p *unwrittenPutCache) Get(r ref.Ref) Chunk {
 	p.mu.Lock()
 	defer p.mu.Unlock()
