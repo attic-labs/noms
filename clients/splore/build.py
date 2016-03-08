@@ -9,7 +9,7 @@ import noms.symlink as symlink
 def check_node_version():
 	version_string = subprocess.check_output(['node', '--version'])
 	if (version_string.find("v5")) != 0:
-		print version_string + " is the wrong version of node. Must be v5 or greater"
+		print version_string + " is the wrong version of node. Must be v5"
 		exit()
 
 def main():
