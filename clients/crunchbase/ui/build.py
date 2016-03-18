@@ -18,6 +18,7 @@ def main():
 	if 'NOMS_DATASET_ID' not in env:
 		env['NOMS_DATASET_ID'] = 'crunchbase/index'
 	subprocess.check_call(['npm', 'run', 'build'], env=env, shell=False)
+	subprocess.check_call(['npm', 'test'], env=env, shell=False)
 
 
 if __name__ == "__main__":
