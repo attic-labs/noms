@@ -12,23 +12,19 @@ before_script:
 - npm whoami
 - pushd js
 - npm prune
-- npm install
-- npm test
+- ./build.py
 - popd
 - pushd clients/splore
 - npm prune
 - ./build.py
-- npm test
 - popd
 - pushd clients/pitchmap/ui
 - npm prune
 - ./build.py
-- npm test
 - popd
 - pushd clients/crunchbase/ui
 - npm prune
 - ./build.py
-- npm test
 - popd
 script:
 - export GODEBUG=invalidptr=0
