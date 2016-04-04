@@ -24,4 +24,3 @@ export interface StructWithDupList extends _noms.Struct {
   l: _noms.List<_noms.uint8>;  // readonly
   setL(value: _noms.List<_noms.uint8>): StructWithDupList;
 }
-

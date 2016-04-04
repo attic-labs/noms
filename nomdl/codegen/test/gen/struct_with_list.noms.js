@@ -33,3 +33,4 @@ export interface StructWithList extends _noms.Struct {
   i: _noms.int64;  // readonly
   setI(value: _noms.int64): StructWithList;
 }
+
