@@ -1,63 +1,85 @@
-package read_data
+package noms
 
 import (
 	"strings"
 	"regexp"
 
 	"github.com/attic-labs/noms/datas"
-	"github.com/attic-labs/noms/datasets"
+	"github.com/attic-labs/noms/dataset"
+	"github.com/attic-labs/noms/chunks"
+	"github.com/attic-labs/noms/ref"
 )
 
 //TODO: default
-func ReadDatastore(in string) datas.DataStore, bool {
+func ReadDatastore(in string) (data datas.DataStore, err bool) {
 	input := strings.Split(in, ":")
+	err = false
 
-	switch input[:0] {
+	var cs chunks.ChunkStore
+
+	switch input[0] {
 	case "http":
 		//get from server and path
-		http_cs := NewHTTPStore(input[:1], nil)
-		return newRemoteDataStore(http_cs), true
+		cs = chunks.NewHTTPStore(input[1], "")
+		err = true
 
-	case "ldb":
+	/*case "ldb":
 		//create/access from path
-		ldb_cs := 
-		return newLocalDataStore(ldb_cs), true
-
+		path := strings.Split(input[1], "/")
+		dir := strings.Join(path[0:len(path) - 2], "")
+		name := path[len(path) - 1]
+		cs = NewLevelDBStore(dir, name, 24, false)
+		err = true
+*/
 	case "mem":
 		//get from in memory
-		mem_cs := NewMemoryStore()
-		return newLocalDataStore(mem_cs), true
+		cs = chunks.NewMemoryStore()
+		err = true
 
 	default:
-		return nil, false
+		return
 	}
+
+	data = datas.NewDataStore(cs)
+	return
 
 
 }
 
-func ReadDataset(in string) dataset.Dataset, bool {
+func ReadDataset(in string) (data dataset.Dataset, err bool) {
 	input := strings.Split(in, ":")
 
-	ds := ReadDatastore(Join(input[0:1])
+	ds, validDatastore := ReadDatastore(strings.Join(input[0:1], ""))
 
-	validIn := regexp.MustCompile('^[a-zA-Z0-9]+([/\-_][a-zA-Z0-9]+)*$')
-
-	if (!validIn.MatchString(input[:2])) {
-		return nil, false
+	if (!validDatastore) {
+		err = false
+		return
 	}
 
+	validIn := regexp.MustCompile("^[a-zA-Z0-9]+([/\\-_][a-zA-Z0-9]+)*$")
+
+	if (!validIn.MatchString(input[2])) {
+		err = false
+		return
+	}
+
+	data = dataset.NewDataset(ds, input[2])
+
+	return
 }
 
-func ReadObject(in string) (dataset.Dataset ds, ref.Ref r, bool err) {
+func ReadObject(in string) (ds dataset.Dataset, r ref.Ref, err bool, isDs bool) {
 	err = false
 	r, isRef := ref.MaybeParse(in)
 
 	if (isRef) {
 		err = true
+		isDs = false
 		return
 	}
 
 	ds, isValid := ReadDataset(in)
+	isDs = true
 
 	err = isValid
 

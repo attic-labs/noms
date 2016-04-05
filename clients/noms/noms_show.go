@@ -1,14 +1,11 @@
-package main 
+package noms 
 
 import (
-	"flag"
 	"os"
 	"fmt"
-	"strings"
 
-	"github.com/attic-labs/noms/datas"
-	"github.com/attic-labs/noms/datasets"
-	"github.com/attic-labs/noms/clients/noms/read_data"
+	/*"github.com/attic-labs/noms/datas"
+	"github.com/attic-labs/noms/dataset"*/
 )
 
 
@@ -19,7 +16,7 @@ func main() {
 		return
 	}
 
-	ds, r, err := ReadObject(os.Args[:1])
+	ds, r, err, isDs := ReadObject(os.Args[1])
 
 	if (!err) {
 		fmt.Println("Usage:\n")
@@ -27,6 +24,10 @@ func main() {
 	}
 
 	//print representation... data set id for now
-	fmt.Println(ds.ID())
+	if (isDs) {
+		fmt.Println(ds.ID())
+	} else {
+		fmt.Println(r)
+	}
 }
 
