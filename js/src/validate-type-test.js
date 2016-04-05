@@ -103,10 +103,13 @@ suite('validate type', () => {
     assertInvalid(stringType, 42);
   });
 
-  test('value', () => {
+  test('value', async () => {
     validateType(valueType, true);
     validateType(valueType, 1);
     validateType(valueType, 'abc');
+    const listOfUint8Type = makeListType(uint8Type);
+    const l = await newList([0, 1, 2, 3], listOfUint8Type);
+    validateType(valueType, l);
 
     assertInvalid(valueType, null);
     assertInvalid(valueType, undefined);

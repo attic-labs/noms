@@ -78,7 +78,7 @@ function subtype(expected: Type, actual: Type): boolean {
     return expected.desc.elemTypes.every((t, i) => subtype(t, desc.elemTypes[i]));
   }
 
-  return false;
+  invariant(false);
 }
 
 function makeTypeError(v: any, t: Type) {
