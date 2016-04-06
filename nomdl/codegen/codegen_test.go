@@ -43,8 +43,8 @@ func assertOutput(inPath, lang, goldenPath string, t *testing.T) {
 	pkg := pkg.ParseNomDL("gen", inFile, filepath.Dir(inPath), emptyDS)
 	written := map[string]bool{}
 	_, file := filepath.Split(inPath)
-	if file == "struct_with_dup_list.noms" {
-		// List<Uint8> is provided twice in the noms files to ensure it is only written once. Therefore we emulate that it was already written for struct_with_dup_list.noms.
+	if file == "struct_with_list.noms" {
+		// List<Uint8> is provided twice in the noms files to ensure it is only written once. Therefore we emulate that it was already written for struct_with_list.noms.
 		written["ListOfUint8"] = true
 	}
 	gen := newCodeGen(&buf, getBareFileName(inPath), lang, written, depsMap{}, pkg)
