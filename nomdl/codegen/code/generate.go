@@ -30,6 +30,7 @@ type Generator struct {
 	TypesPackage    string
 	ImportedJS      map[string]bool
 	ImportedJSTypes map[string]bool
+	AliasNames      map[ref.Ref]string
 }
 
 // DefType returns a string containing the Go type that should be used as the 'Def' for the Noms type described by t.
@@ -347,7 +348,7 @@ func (gen *Generator) UserName(t types.Type) string {
 
 func (gen Generator) importedUserNameJS(t types.Type) string {
 	d.Chk.True(t.HasPackageRef())
-	return fmt.Sprintf("_%s.%s", RefToJSIdentfierName(t.PackageRef()), gen.UserName(t))
+	return fmt.Sprintf("%s.%s", gen.RefToAliasName(t.PackageRef()), gen.UserName(t))
 }
 
 func (gen *Generator) refToID(t types.Type) string {
@@ -358,8 +359,16 @@ func (gen *Generator) refToID(t types.Type) string {
 }
 
 // RefToJSIdentfierName generates an identifier name representing a Ref. ie. `sha1_abc1234`.
-func RefToJSIdentfierName(r ref.Ref) string {
-	return strings.Replace(r.String(), "-", "_", 1)[0:8]
+func (gen *Generator) RefToJSIdentfierName(r ref.Ref) string {
+	return strings.Replace(r.String(), "-", "_", 1)[0:12]
+}
+
+// RefToAliasName is used to map the ref of an import to the alias name used in the noms file
+func (gen *Generator) RefToAliasName(r ref.Ref) string {
+	if n, ok := gen.AliasNames[r]; ok {
+		return n
+	}
+	return "_" + gen.RefToJSIdentfierName(r)
 }
 
 // ToType returns a string containing Go code that instantiates a types.Type instance equivalent to t.
@@ -480,6 +489,7 @@ func kindToString(k types.NomsKind) (out string) {
 	return
 }
 
+// ImportJS returns the name of the imported binding as well as registers the binding as imported so that we can later generate the right import declaration.
 func (gen *Generator) ImportJS(name string) string {
 	if gen.ImportedJS == nil {
 		gen.ImportedJS = map[string]bool{}
@@ -488,6 +498,7 @@ func (gen *Generator) ImportJS(name string) string {
 	return fmt.Sprintf("_%s", name)
 }
 
+// ImportJSType returns the name of the imported type as well as registers the type as imported so that we can later generate the right import type declaration.
 func (gen *Generator) ImportJSType(name string) string {
 	if gen.ImportedJSTypes == nil {
 		gen.ImportedJSTypes = map[string]bool{}

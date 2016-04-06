@@ -10,10 +10,11 @@ import {
   makeStructType as _makeStructType,
   registerPackage as _registerPackage,
   stringType as _stringType,
-}
+} from "@attic/noms";
 import type {
   Struct as _Struct,
-}
+} from "@attic/noms";
+
 {
   const pkg = new _Package([
     _makeStructType('S',

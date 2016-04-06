@@ -4,7 +4,9 @@
 {{if (len .ImportedJS) ge 0}}
 import {{"{"}}{{range $name := .ImportedJS}}
   {{$name}} as _{{$name}},{{end}}
-}{{end}}{{if (len .ImportedJSTypes) ge 0}}
+} from "@attic/noms";{{end}}{{if (len .ImportedJSTypes) ge 0}}
 import type {{"{"}}{{range $name := .ImportedJSTypes}}
   {{$name}} as _{{$name}},{{end}}
-}{{end}}
+} from "@attic/noms";{{end}}{{if (len .Dependencies) ge 0}}{{$aliasNames := .AliasNames}}
+{{range $i, $r := .Dependencies}}import * as {{refToAliasName $r}} from './{{refToJSIdentfierName $r}}.js';
+{{end}}{{end}}

@@ -14,7 +14,7 @@ import {
 import type {
   Struct as _Struct,
 } from "@attic/noms";
-import * as _sha1_eda4273 from './sha1_eda4273.js';
+import * as dep from './sha1_eda4273.js';
 
 
 {
@@ -41,8 +41,8 @@ export type LocalE =
   1;  // Ignored
 
 export interface ImportUser extends _Struct {
-  importedStruct: _sha1_eda4273.D;  // readonly
-  setImportedStruct(value: _sha1_eda4273.D): ImportUser;
+  importedStruct: dep.D;  // readonly
+  setImportedStruct(value: dep.D): ImportUser;
   enum: LocalE;  // readonly
   setEnum(value: LocalE): ImportUser;
 }

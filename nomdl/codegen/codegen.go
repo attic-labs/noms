@@ -112,6 +112,9 @@ func main() {
 	// Sort to have deterministic output.
 	keys := make([]string, 0, len(packages))
 	sort.Strings(keys)
+	for inFile := range packages {
+		keys = append(keys, inFile)
+	}
 	for _, inFile := range keys {
 		p := packages[inFile]
 		pkgDS = generate(packageName, inFile, filepath.Join(outDir, getOutFileName(inFile)), outDir, written, p, localPkgs, pkgDS)
@@ -261,7 +264,7 @@ func newCodeGen(w io.Writer, fileID, lang string, written map[string]bool, deps 
 		pkg.Name,
 		typesPackage,
 	}}
-	gen.generator = &code.Generator{R: gen, TypesPackage: typesPackage}
+	gen.generator = &code.Generator{R: gen, TypesPackage: typesPackage, AliasNames: pkg.AliasNames}
 	gen.templates = gen.readTemplates()
 	return gen
 }
@@ -271,24 +274,26 @@ func (gen *codeGen) readTemplates() *template.Template {
 	glob := path.Join(path.Dir(thisfile), gen.lang, "*.tmpl")
 	return template.Must(template.New("").Funcs(
 		template.FuncMap{
-			"defToUser":     gen.generator.DefToUser,
-			"defToValue":    gen.generator.DefToValue,
-			"defType":       gen.generator.DefType,
-			"mayHaveChunks": gen.generator.MayHaveChunks,
-			"title":         strings.Title,
-			"toTypesType":   gen.generator.ToType,
-			"toTypesTypeJS": gen.generator.ToTypeJS,
-			"userToDef":     gen.generator.UserToDef,
-			"userToValue":   gen.generator.UserToValue,
-			"userType":      gen.generator.UserType,
-			"userTypeJS":    gen.generator.UserTypeJS,
-			"userZero":      gen.generator.UserZero,
-			"valueToDef":    gen.generator.ValueToDef,
-			"valueToUser":   gen.generator.ValueToUser,
-			"valueZero":     gen.generator.ValueZero,
-			"isLast":        gen.generator.IsLast,
-			"importJs":      gen.generator.ImportJS,
-			"importJsType":  gen.generator.ImportJSType,
+			"defToUser":            gen.generator.DefToUser,
+			"defToValue":           gen.generator.DefToValue,
+			"defType":              gen.generator.DefType,
+			"importJs":             gen.generator.ImportJS,
+			"importJsType":         gen.generator.ImportJSType,
+			"isLast":               gen.generator.IsLast,
+			"mayHaveChunks":        gen.generator.MayHaveChunks,
+			"refToAliasName":       gen.generator.RefToAliasName,
+			"refToJSIdentfierName": gen.generator.RefToJSIdentfierName,
+			"title":                strings.Title,
+			"toTypesType":          gen.generator.ToType,
+			"toTypesTypeJS":        gen.generator.ToTypeJS,
+			"userToDef":            gen.generator.UserToDef,
+			"userToValue":          gen.generator.UserToValue,
+			"userType":             gen.generator.UserType,
+			"userTypeJS":           gen.generator.UserTypeJS,
+			"userZero":             gen.generator.UserZero,
+			"valueToDef":           gen.generator.ValueToDef,
+			"valueToUser":          gen.generator.ValueToUser,
+			"valueZero":            gen.generator.ValueZero,
 		}).ParseGlob(glob))
 }
 
@@ -387,6 +392,7 @@ func (gen *codeGen) WriteHeader() {
 		Types           []types.Type
 		ImportedJS      []string
 		ImportedJSTypes []string
+		AliasNames      map[ref.Ref]string
 	}{
 		gen.sharedData,
 		len(pkgTypes) > 0,
@@ -395,6 +401,7 @@ func (gen *codeGen) WriteHeader() {
 		pkgTypes,
 		importedJS,
 		importedJSTypes,
+		gen.pkg.AliasNames,
 	}
 
 	err := gen.templates.ExecuteTemplate(gen.w, "header.tmpl", data)
