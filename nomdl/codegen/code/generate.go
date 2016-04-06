@@ -365,6 +365,7 @@ func (gen *Generator) RefToJSIdentfierName(r ref.Ref) string {
 
 // RefToAliasName is used to map the ref of an import to the alias name used in the noms file
 func (gen *Generator) RefToAliasName(r ref.Ref) string {
+	// When we generate code from a Package stored in a DataStore we do not have the alias names.
 	if n, ok := gen.AliasNames[r]; ok {
 		return n
 	}
