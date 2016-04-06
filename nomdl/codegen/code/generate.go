@@ -369,7 +369,7 @@ func (gen *Generator) RefToAliasName(r ref.Ref) string {
 	if n, ok := gen.AliasNames[r]; ok {
 		return n
 	}
-	return "_" + gen.RefToJSIdentfierName(r)
+	return fmt.Sprintf("_%s", gen.RefToJSIdentfierName(r)
 }
 
 // ToType returns a string containing Go code that instantiates a types.Type instance equivalent to t.
