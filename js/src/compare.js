@@ -22,7 +22,7 @@ export function less(v1: any, v2: any): boolean {
 
   if (typeof v1 === 'boolean') {
     invariant(typeof v2 === 'boolean');
-    return getRef(v1, boolType).less(getRef(v2, boolType));
+    return compareBools(v1, v2) === -1;
   }
 
   invariant(typeof v1 === 'number');
@@ -31,6 +31,10 @@ export function less(v1: any, v2: any): boolean {
 }
 
 export function equals(v1: valueOrPrimitive, v2: valueOrPrimitive): boolean {
+  if (v1 === v2) {
+    return true;
+  }
+
   invariant(v1 !== null && v1 !== undefined && v2 !== null && v2 !== undefined);
 
   if (typeof v1 === 'object') {
@@ -43,6 +47,10 @@ export function equals(v1: valueOrPrimitive, v2: valueOrPrimitive): boolean {
 }
 
 export function compare(v1: valueOrPrimitive, v2: valueOrPrimitive): number {
+  if (v1 === v2) {
+    return 0;
+  }
+
   if (less(v1, v2)) {
     return -1;
   }
@@ -55,15 +63,25 @@ function compareNumbers(v1: number, v2: number) {
 }
 
 function compareObjects(v1: Value, v2: Value) {
+  if (v1 === v2 || v1.equals(v2)) {
+    return 0;
+  }
+
   return v1.less(v2) ? -1 : 1;
 }
 
 function compareStrings(v1: string, v2: string): number {
+  if (v1 === v2) {
+    return 0;
+  }
   return v1 < v2 ? -1 : 1;
 }
 
 function compareBools(v1: boolean, v2: boolean): number {
-  return getRef(v1, boolType).less(getRef(v2, boolType)) ? -1 : 1;
+  if (v1 === v2) {
+    return 0;
+  }
+  return getRef(v1, boolType).less(getRef(v2 ,boolType)) ? -1 : 1;
 }
 
 /**
