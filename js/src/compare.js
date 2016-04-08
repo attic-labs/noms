@@ -7,19 +7,20 @@ import {getRef} from './get-ref.js';
 import {boolType} from './type.js';
 import type {Type} from './type.js';
 
-export function less(v1: any, v2: any): boolean {
-  invariant(v1 !== null && v1 !== undefined && v2 !== null && v2 !== undefined);
+export function less(v1: valueOrPrimitive, v2: valueOrPrimitive): boolean {
   invariant(typeof v1 === typeof v2);
 
   if (typeof v1 === 'object') {
-    return (v1:Value).less(v2);
+    return v1.less(v2);
   }
 
   if (typeof v1 === 'boolean') {
+    // $FlowIssue: Flow does not realize that v1 and v2 have the same type.
     return compareBools(v1, v2) === -1;
   }
 
   invariant(typeof v1 === 'number' || typeof v1 === 'string');
+  // $FlowIssue: Flow does not realize that v1 and v2 have the same type.
   return v1 < v2;
 }
 
@@ -28,7 +29,6 @@ export function equals(v1: valueOrPrimitive, v2: valueOrPrimitive): boolean {
     return true;
   }
 
-  invariant(v1 !== null && v1 !== undefined && v2 !== null && v2 !== undefined);
   invariant(typeof v1 === typeof v2);
 
   if (typeof v1 === 'object') {
@@ -44,11 +44,10 @@ export function compare(v1: valueOrPrimitive, v2: valueOrPrimitive): number {
     return 0;
   }
 
-  if (less(v1, v2)) {
-    return -1;
+  if (equals(v1, v2)) {
+    return 0;
   }
-
-  return equals(v1, v2) ? 0 : 1;
+  return less(v1, v2) ? -1 : 1;
 }
 
 function compareNumbers(v1: number, v2: number) {
