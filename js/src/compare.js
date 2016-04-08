@@ -3,6 +3,8 @@
 import type {valueOrPrimitive, Value} from './value.js';
 import {invariant} from './assert.js';
 import {Kind} from './noms-kind.js';
+import {getRef} from './get-ref.js';
+import {boolType} from './type.js';
 import type {Type} from './type.js';
 
 export function less(v1: any, v2: any): boolean {
@@ -18,6 +20,11 @@ export function less(v1: any, v2: any): boolean {
     return v1 < v2;
   }
 
+  if (typeof v1 === 'boolean') {
+    invariant(typeof v2 === 'boolean');
+    return getRef(v1, boolType).less(getRef(v2, boolType));
+  }
+
   invariant(typeof v1 === 'number');
   invariant(typeof v2 === 'number');
   return v1 < v2;
@@ -30,7 +37,7 @@ export function equals(v1: valueOrPrimitive, v2: valueOrPrimitive): boolean {
     invariant(typeof v2 === 'object');
     return (v1: Value).equals((v2: Value));
   }
-  invariant(typeof v1 === 'string' || typeof v2 === 'number');
+  invariant(typeof v1 === 'string' || typeof v1 === 'number' || typeof v1 === 'boolean');
   invariant(typeof v1 === typeof v2);
   return v1 === v2;
 }
@@ -53,6 +60,10 @@ function compareObjects(v1: Value, v2: Value) {
 
 function compareStrings(v1: string, v2: string): number {
   return v1 < v2 ? -1 : 1;
+}
+
+function compareBools(v1: boolean, v2: boolean): number {
+  return getRef(v1, boolType).less(getRef(v2, boolType)) ? -1 : 1;
 }
 
 /**
@@ -86,8 +97,10 @@ export function getCompareFunction(t: Type): (v1: any, v2: any) => number {
     case Kind.Package:
       return compareObjects;
 
-    case Kind.Value:
     case Kind.Bool:
+      return compareBools;
+
+    case Kind.Value:
       throw new Error('not implemented');
 
     default:
