@@ -1,33 +1,32 @@
 # Splore
 
-Splore is a general-purpose debug UI for exploring noms data.
-
-![splore and counter](screenshot.png)
+Splore is a general-purpose debug UI for exploring noms data. It's deployed at http://splore.noms.io.
 
 ## Example
 
+![splore and counter](screenshot.png)
+
+All commands relative to `$GOPATH/src/github.com/attic-labs/noms`.
+
+### Write some data
 ```
-cd $GOPATH/src/github.com/attic-labs/noms/clients/counter
+cd clients/counter
 go build
-./counter -ldb="/tmp/sploretest" -ds="counter"
-./counter -ldb="/tmp/sploretest" -ds="counter"
-
-# Splore requires server to be running
-cd ../server
-go build
-./server -ldb="/tmp/sploretest" &
-
-cd ../splore
-./build.py
-./node_modules/.bin/http-server
+./counter -ldb=/tmp/sploretest -ds=counter
+./counter -ldb=/tmp/sploretest -ds=counter
 ```
 
-Then, navigate to [http://localhost:8080](http://localhost:8080).
+### Start splore
+```
+cd clients/splore
+npm start &
+```
 
+### Run noms-view
+```
+cd cmd/noms-view
+go build
+./noms-view start ../../clients/splore server=ldb:/tmp/sploretest
+```
 
-## Develop
-
-* `./build.py`  # only necessary first time
-* `NOMS_SERVER=http://localhost:8000 npm run start`
-
-This will start watchify which is continually building a non-minified (and thus debuggable) build.
+Then, navigate to the URL printed by noms-view, like `http://127.0.0.1:12345`.
