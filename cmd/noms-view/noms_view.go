@@ -108,8 +108,10 @@ func constructQueryString(args []string) (url.Values, dataStoreRecords) {
 			record, ok := stores[path]
 			if !ok {
 				record.ds = datas.NewDataStore(chunks.NewLevelDBStore(path, "", 24, false))
+				// Identify the stores with a (abridged) hash of the file system path,
+				// so that the same URL always refers to the same database.
 				hash := sha1.Sum([]byte(path))
-				record.alias = hex.EncodeToString(hash[:])
+				record.alias = hex.EncodeToString(hash[:])[:8]
 				stores[path] = record
 			}
 			v = fmt.Sprintf("%s/%s", dsPathPrefix, record.alias)
