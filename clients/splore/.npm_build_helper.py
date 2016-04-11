@@ -9,16 +9,20 @@ SRC = ['babel-regenerator-runtime', 'src/main.js']
 OUT = 'out.js'
 
 def main():
-	env = copy.copy(os.environ)
-	env['NODE_ENV'] = sys.argv[1]
-	env['BABEL_ENV'] = sys.argv[1]
+    symlink.Force('../../js/.babelrc', os.path.abspath('.babelrc'))
+    symlink.Force('../../js/.eslintrc', os.path.abspath('.eslintrc'))
+    symlink.Force('../../js/.flowconfig', os.path.abspath('.flowconfig'))
 
-	symlink.Force('../../js/.babelrc', os.path.abspath('.babelrc'))
-	symlink.Force('../../js/.eslintrc', os.path.abspath('.eslintrc'))
-	symlink.Force('../../js/.flowconfig', os.path.abspath('.flowconfig'))
+    mode = sys.argv[1]
 
-	subprocess.check_call(['node_modules/.bin/webpack'] + SRC + [OUT], env=env, shell=False)
+    if mode == 'test':
+        return
+
+    env = copy.copy(os.environ)
+    env['NODE_ENV'] = mode
+    env['BABEL_ENV'] = mode
+    subprocess.check_call(['node_modules/.bin/webpack'] + SRC + [OUT], env=env, shell=False)
 
 
 if __name__ == "__main__":
-	main()
+    main()
