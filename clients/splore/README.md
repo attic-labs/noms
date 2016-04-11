@@ -6,7 +6,10 @@ Splore is a general-purpose debug UI for exploring noms data. It's deployed at h
 
 ![splore and counter](screenshot.png)
 
-All commands relative to `$GOPATH/src/github.com/attic-labs/noms`.
+All commands relative to the noms project:
+```
+cd $GOPATH/src/github.com/attic-labs/noms
+```
 
 ### Write some data
 ```
@@ -16,17 +19,24 @@ go build
 ./counter -ldb=/tmp/sploretest -ds=counter
 ```
 
-### Start splore
+### Compile
 ```
-cd clients/splore
-npm start &
+cd ../splore
+npm i  # only needs to be run once, or when package.json changes
 ```
 
-### Run noms-view
+
+#### One time (production) build
+`npm run build`
+
+#### Continuous (debug) build
+`npm start &`
+
+### Launch
 ```
-cd cmd/noms-view
+cd ../../cmd/noms-view
 go build
-./noms-view start ../../clients/splore server=ldb:/tmp/sploretest
+./noms-view serve ../../clients/splore store=ldb:/tmp/sploretest
 ```
 
 Then, navigate to the URL printed by noms-view, like `http://127.0.0.1:12345`.

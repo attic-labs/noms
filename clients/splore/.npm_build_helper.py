@@ -1,16 +1,22 @@
 #!/usr/bin/python
 
-import os, subprocess, sys
+import copy, os, os.path, subprocess, sys
+
+sys.path.append(os.path.abspath('../../tools'))
+import noms.symlink as symlink
 
 SRC = ['babel-regenerator-runtime', 'src/main.js']
 OUT = 'out.js'
 
 def main():
-	env = os.environ
+	env = copy.copy(os.environ)
 	env['NODE_ENV'] = sys.argv[1]
 	env['BABEL_ENV'] = sys.argv[1]
-	if 'NOMS_SERVER' not in env:
-		env['NOMS_SERVER'] = 'http://localhost:8000'
+
+	symlink.Force('../../js/.babelrc', os.path.abspath('.babelrc'))
+	symlink.Force('../../js/.eslintrc', os.path.abspath('.eslintrc'))
+	symlink.Force('../../js/.flowconfig', os.path.abspath('.flowconfig'))
+
 	subprocess.check_call(['node_modules/.bin/webpack'] + SRC + [OUT], env=env, shell=False)
 
 

@@ -21,6 +21,7 @@ import (
 
 const (
 	dsPathPrefix = "/-ds"
+	serveCmd     = "serve"
 )
 
 var (
@@ -37,18 +38,17 @@ type dataStoreRecords map[string]dataStoreRecord
 func main() {
 	usage := func() {
 		flag.PrintDefaults()
-		fmt.Printf("Usage of %s: start <view-dir> arg1=val1 arg2=val2...\n", os.Args[0])
+		fmt.Printf("Usage: %s %s <view-dir> arg1=val1 arg2=val2...\n", os.Args[0], serveCmd)
 	}
 
 	flag.Parse()
 	flag.Usage = usage
 
-	if len(flag.Args()) < 2 {
+	if len(flag.Args()) < 2 || flag.Arg(0) != serveCmd {
 		usage()
 		os.Exit(1)
 	}
 
-	d.Chk.Equal("start", flag.Arg(0)) // other methods like "add" will be supported in the future
 	viewDir := flag.Arg(1)
 	qsValues, stores := constructQueryString(flag.Args()[2:])
 
