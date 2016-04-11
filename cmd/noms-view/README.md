@@ -6,12 +6,12 @@ noms view <flags> <command> ...
 ```
 
 Supported commands:
-* `start`: starts a local server which displays a noms view.
+* `serve`: serves a noms from from a loacl server
 
 Examples:
 
-## start
+## serve
 
 ```
-./noms-view start ../../clients/splore store=/tmp/picasa
+./noms-view serve ../../clients/splore store=ldb:/tmp/picasa
 ```

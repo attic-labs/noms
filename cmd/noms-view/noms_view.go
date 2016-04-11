@@ -101,6 +101,8 @@ func constructQueryString(args []string) (url.Values, dataStoreRecords) {
 
 		// Magically assume that ldb: prefixed arguments are references to ldb stores. If so, construct
 		// httpstore proxies to them, and rewrite the path to the client.
+		// TODO: When clients can declare a nomdl interface, this can be much stricter. There should be
+		// need to search and attempt to string match every argument.
 		if strings.HasPrefix(v, "ldb:") {
 			_, path, _ := split2(v, ":")
 			record, ok := stores[path]

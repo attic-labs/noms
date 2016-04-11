@@ -30,6 +30,6 @@
   "scripts": {
     "start": "python .npm_build_helper.py development",
     "build": "python .npm_build_helper.py production",
-    "test": "python .npm_build_helper.py test && eslint src/ && flow src/"
+    "test": "eslint src/ && flow src/"
   }
 }
