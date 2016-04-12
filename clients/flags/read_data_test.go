@@ -12,7 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestReadDatastoreFromHTTP(t *testing.T) {
+func TestReadDataStoreFromHTTP(t *testing.T) {
+	if os.Getenv("RUN_HTTP_FLAGS_TESTS") == "" {
+		t.Skip("Skipping flaky TestReadDataStoreFromHTTP; to enable set RUN_HTTP_FLAGS_TESTS env var")
+	}
 	assert := assert.New(t)
 	cs := chunks.NewHTTPStore("http://localhost:8000", "")
 	server := datas.NewDataStoreServer(datas.NewTestFactory(chunks.NewTestStoreFactory()), 8000)
@@ -34,7 +37,7 @@ func TestReadDatastoreFromHTTP(t *testing.T) {
 	server.Stop()
 }
 
-func TestReadDatastoreFromLDB(t *testing.T) {
+func TestReadDataStoreFromLDB(t *testing.T) {
 	assert := assert.New(t)
 
 	dir, err := ioutil.TempDir(os.TempDir(), "")
@@ -57,7 +60,7 @@ func TestReadDatastoreFromLDB(t *testing.T) {
 	os.Remove(dir)
 }
 
-func TestReadDatastoreFromMem(t *testing.T) {
+func TestReadDataStoreFromMem(t *testing.T) {
 	assert := assert.New(t)
 
 	datastoreName := "mem:"
@@ -69,7 +72,7 @@ func TestReadDatastoreFromMem(t *testing.T) {
 	assert.Equal(types.Bool(true), dsTest.ReadValue(r))
 }
 
-func TestDatastoreBadInput(t *testing.T) {
+func TestDataStoreBadInput(t *testing.T) {
 	assert := assert.New(t)
 
 	badName1 := "mem"
@@ -80,6 +83,9 @@ func TestDatastoreBadInput(t *testing.T) {
 }
 
 func TestReadDatasetFromHTTP(t *testing.T) {
+	if os.Getenv("RUN_HTTP_FLAGS_TESTS") == "" {
+		t.Skip("Skipping flaky TestReadDatasetFromHTTP; to enable set RUN_HTTP_FLAGS_TESTS env var")
+	}
 	assert := assert.New(t)
 	cs := chunks.NewHTTPStore("http://localhost:8001", "")
 	server := datas.NewDataStoreServer(datas.NewTestFactory(chunks.NewTestStoreFactory()), 8001)

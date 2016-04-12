@@ -1,7 +1,6 @@
 package flags
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -13,93 +12,79 @@ import (
 	"github.com/attic-labs/noms/ref"
 )
 
+const (
+	maxFileHandles = 24
+)
+
+var (
+	validDatasetNameRegexp = regexp.MustCompile("^[a-zA-Z0-9]+([/\\-_][a-zA-Z0-9]+)*$")
+)
+
 func ReadDataStore(in string) (ds datas.DataStore, err error) {
 	input := strings.Split(in, ":")
 
 	if len(input) < 2 {
-		err = errors.New("Improper datastore name")
-		return
+		return ds, fmt.Errorf("Improper datastore name: %s", in)
 	}
-
-	var cs chunks.ChunkStore
 
 	switch input[0] {
 	case "http":
-		//get from server and path
-		cs = chunks.NewHTTPStore(in, "")
-		ds = datas.NewRemoteDataStore(cs)
+		//get from server and path, including http
+		ds = datas.NewRemoteDataStore(chunks.NewHTTPStore(in, ""))
 
 	case "ldb":
 		//create/access from path
-		cs = chunks.NewLevelDBStore(input[1], "", 24, false)
-		ds = datas.NewDataStore(cs)
+		ds = datas.NewDataStore(chunks.NewLevelDBStore(input[1], "", maxFileHandles, false))
 
 	case "mem":
-		cs = chunks.NewMemoryStore()
-		ds = datas.NewDataStore(cs)
+		ds = datas.NewDataStore(chunks.NewMemoryStore())
 
 	case "":
-		cs = chunks.NewLevelDBStore("$HOME/.noms", "", 24, false)
-		ds = datas.NewDataStore(cs)
+		ds = datas.NewDataStore(chunks.NewLevelDBStore("$HOME/.noms", "", maxFileHandles, false))
 
 	default:
 		err = fmt.Errorf("Improper datastore name: %s", in)
-		ds = datas.NewDataStore(cs)
-		return
 
 	}
 
 	return
 }
 
-func ReadDataset(in string) (data dataset.Dataset, err error) {
+func ReadDataset(in string) (dataset.Dataset, error) {
 	input := strings.Split(in, ":")
 
 	if len(input) < 3 {
-		err = fmt.Errorf("Improper dataset name: %s", in)
-		return
+		return dataset.Dataset{}, fmt.Errorf("Improper dataset name: %s", in)
 	}
 
-	ds, errStore := ReadDataStore(strings.Join(input[0:len(input)-1], ":"))
+	ds, errStore := ReadDataStore(strings.Join(input[:len(input)-1], ":"))
 	name := input[len(input)-1]
 
 	d.Chk.NoError(errStore)
 
-	validIn := regexp.MustCompile("^[a-zA-Z0-9]+([/\\-_][a-zA-Z0-9]+)*$")
-
-	if !validIn.MatchString(name) {
-		err = fmt.Errorf("Improper dataset name: %s", in)
-		return
+	if !validDatasetNameRegexp.MatchString(name) {
+		return dataset.Dataset{}, fmt.Errorf("Improper dataset name: %s", in)
 	}
 
-	data = dataset.NewDataset(ds, name)
-
-	return
+	return dataset.NewDataset(ds, name), nil
 }
 
-func ReadObject(in string) (ds dataset.Dataset, r ref.Ref, isDs bool, err error) {
+func ReadObject(in string) (dataset.Dataset, ref.Ref, bool, error) {
 	input := strings.Split(in, ":")
 
 	if len(input) < 3 {
-		err = fmt.Errorf("Improper object name: %s", in)
-		return
+		return dataset.Dataset{}, ref.Ref{}, false, fmt.Errorf("Improper object name: %s", in)
 	}
 
 	objectName := input[len(input)-1]
 
-	isDs = true
-
-	r, isRef := ref.MaybeParse(objectName)
-
-	if isRef {
-		isDs = false
-		return
+	if r, isRef := ref.MaybeParse(objectName); isRef {
+		return dataset.Dataset{}, r, false, nil
 	}
 
 	ds, isValid := ReadDataset(in)
-	isDs = true
 
 	d.Chk.NoError(isValid)
 
-	return
+	return ds, ref.Ref{}, true, nil
 }
