@@ -20,7 +20,7 @@ var (
 	validDatasetNameRegexp = regexp.MustCompile("^[a-zA-Z0-9]+([/\\-_][a-zA-Z0-9]+)*$")
 )
 
-func ReadDataStore(in string) (ds datas.DataStore, err error) {
+func ParseDataStore(in string) (ds datas.DataStore, err error) {
 	input := strings.Split(in, ":")
 
 	if len(input) < 2 {
@@ -34,7 +34,7 @@ func ReadDataStore(in string) (ds datas.DataStore, err error) {
 
 	case "ldb":
 		//create/access from path
-		ds = datas.NewDataStore(chunks.NewLevelDBStore(input[1], "", maxFileHandles, false))
+		ds = datas.NewDataStore(chunks.NewLevelDBStore(strings.Join(input[1:len(input)], ":"), "", maxFileHandles, false))
 
 	case "mem":
 		ds = datas.NewDataStore(chunks.NewMemoryStore())
@@ -50,14 +50,14 @@ func ReadDataStore(in string) (ds datas.DataStore, err error) {
 	return
 }
 
-func ReadDataset(in string) (dataset.Dataset, error) {
+func ParseDataset(in string) (dataset.Dataset, error) {
 	input := strings.Split(in, ":")
 
 	if len(input) < 3 {
 		return dataset.Dataset{}, fmt.Errorf("Improper dataset name: %s", in)
 	}
 
-	ds, errStore := ReadDataStore(strings.Join(input[:len(input)-1], ":"))
+	ds, errStore := ParseDataStore(strings.Join(input[:len(input)-1], ":"))
 	name := input[len(input)-1]
 
 	d.Chk.NoError(errStore)
@@ -69,7 +69,7 @@ func ReadDataset(in string) (dataset.Dataset, error) {
 	return dataset.NewDataset(ds, name), nil
 }
 
-func ReadObject(in string) (dataset.Dataset, ref.Ref, bool, error) {
+func ParseObject(in string) (dataset.Dataset, ref.Ref, bool, error) {
 	input := strings.Split(in, ":")
 
 	if len(input) < 3 {
@@ -82,7 +82,7 @@ func ReadObject(in string) (dataset.Dataset, ref.Ref, bool, error) {
 		return dataset.Dataset{}, r, false, nil
 	}
 
-	ds, isValid := ReadDataset(in)
+	ds, isValid := ParseDataset(in)
 
 	d.Chk.NoError(isValid)
 

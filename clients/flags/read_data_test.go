@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestReadDataStoreFromHTTP(t *testing.T) {
+func TestParseDataStoreFromHTTP(t *testing.T) {
 	if os.Getenv("RUN_HTTP_FLAGS_TESTS") == "" {
-		t.Skip("Skipping flaky TestReadDataStoreFromHTTP; to enable set RUN_HTTP_FLAGS_TESTS env var")
+		t.Skip("Skipping flaky TestParseDataStoreFromHTTP; to enable set RUN_HTTP_FLAGS_TESTS env var")
 	}
 	assert := assert.New(t)
 	cs := chunks.NewHTTPStore("http://localhost:8000", "")
@@ -28,7 +28,7 @@ func TestReadDataStoreFromHTTP(t *testing.T) {
 	ds.Close()
 
 	datastoreName := "http://localhost:8000"
-	dsTest, err := ReadDataStore(datastoreName)
+	dsTest, err := ParseDataStore(datastoreName)
 
 	assert.NoError(err)
 	assert.Equal(types.Bool(true), dsTest.ReadValue(r))
@@ -37,7 +37,7 @@ func TestReadDataStoreFromHTTP(t *testing.T) {
 	server.Stop()
 }
 
-func TestReadDataStoreFromLDB(t *testing.T) {
+func TestParseDataStoreFromLDB(t *testing.T) {
 	assert := assert.New(t)
 
 	dir, err := ioutil.TempDir(os.TempDir(), "")
@@ -51,7 +51,7 @@ func TestReadDataStoreFromLDB(t *testing.T) {
 	ds.Close()
 
 	datastoreName := "ldb:" + dir + "/name"
-	dsTest, errRead := ReadDataStore(datastoreName)
+	dsTest, errRead := ParseDataStore(datastoreName)
 
 	assert.NoError(errRead)
 	assert.Equal(types.Bool(true), dsTest.ReadValue(r))
@@ -60,11 +60,11 @@ func TestReadDataStoreFromLDB(t *testing.T) {
 	os.Remove(dir)
 }
 
-func TestReadDataStoreFromMem(t *testing.T) {
+func TestParseDataStoreFromMem(t *testing.T) {
 	assert := assert.New(t)
 
 	datastoreName := "mem:"
-	dsTest, err := ReadDataStore(datastoreName)
+	dsTest, err := ParseDataStore(datastoreName)
 
 	r := dsTest.WriteValue(types.Bool(true))
 
@@ -76,15 +76,15 @@ func TestDataStoreBadInput(t *testing.T) {
 	assert := assert.New(t)
 
 	badName1 := "mem"
-	ds, err := ReadDataStore(badName1)
+	ds, err := ParseDataStore(badName1)
 
 	assert.Error(err)
 	assert.Nil(ds)
 }
 
-func TestReadDatasetFromHTTP(t *testing.T) {
+func TestParseDatasetFromHTTP(t *testing.T) {
 	if os.Getenv("RUN_HTTP_FLAGS_TESTS") == "" {
-		t.Skip("Skipping flaky TestReadDatasetFromHTTP; to enable set RUN_HTTP_FLAGS_TESTS env var")
+		t.Skip("Skipping flaky TestParseDatasetFromHTTP; to enable set RUN_HTTP_FLAGS_TESTS env var")
 	}
 	assert := assert.New(t)
 	cs := chunks.NewHTTPStore("http://localhost:8001", "")
@@ -102,7 +102,7 @@ func TestReadDatasetFromHTTP(t *testing.T) {
 	ds.Close()
 
 	datasetName := "http://localhost:8001:datasetTest"
-	setTest, err := ReadDataset(datasetName)
+	setTest, err := ParseDataset(datasetName)
 
 	assert.NoError(err)
 	assert.EqualValues(commit, setTest.Head().Value())
@@ -110,11 +110,11 @@ func TestReadDatasetFromHTTP(t *testing.T) {
 	server.Stop()
 }
 
-func TestReadDatasetFromMem(t *testing.T) {
+func TestParseDatasetFromMem(t *testing.T) {
 	assert := assert.New(t)
 
 	datasetName := "mem::datasetTest"
-	dsTest, errTest := ReadDataset(datasetName)
+	dsTest, errTest := ParseDataset(datasetName)
 
 	assert.NoError(errTest)
 
@@ -125,7 +125,7 @@ func TestReadDatasetFromMem(t *testing.T) {
 	assert.EqualValues(commit, dsTest.Head().Value())
 }
 
-func TestReadDatasetFromLDB(t *testing.T) {
+func TestParseDatasetFromLDB(t *testing.T) {
 	assert := assert.New(t)
 
 	dir, err := ioutil.TempDir(os.TempDir(), "")
@@ -143,7 +143,7 @@ func TestReadDatasetFromLDB(t *testing.T) {
 	ds.Close()
 
 	datasetName := "ldb:" + dir + "/name:" + id
-	setTest, errRead := ReadDataset(datasetName)
+	setTest, errRead := ParseDataset(datasetName)
 
 	assert.NoError(errRead)
 	assert.EqualValues(commit, setTest.Head().Value())
@@ -158,19 +158,19 @@ func TestDatasetBadInput(t *testing.T) {
 	assert.NoError(err)
 
 	badName := "ldb:" + dir + "/name:--bad"
-	ds, err := ReadDataset(badName)
+	ds, err := ParseDataset(badName)
 
 	assert.Error(err)
 	assert.NotNil(ds)
 
 	badName2 := "ldb:" + dir
-	ds, err = ReadDataset(badName2)
+	ds, err = ParseDataset(badName2)
 
 	assert.Error(err)
 	assert.NotNil(ds)
 
 	badName3 := "mem"
-	ds, err = ReadDataset(badName3)
+	ds, err = ParseDataset(badName3)
 
 	assert.Error(err)
 	assert.NotNil(ds)
@@ -178,7 +178,7 @@ func TestDatasetBadInput(t *testing.T) {
 	os.Remove(dir)
 }
 
-func TestReadDatasetObjectFromLdb(t *testing.T) {
+func TestParseDatasetObjectFromLdb(t *testing.T) {
 	assert := assert.New(t)
 
 	dir, err := ioutil.TempDir(os.TempDir(), "")
@@ -196,7 +196,7 @@ func TestReadDatasetObjectFromLdb(t *testing.T) {
 	ds.Close()
 
 	datasetName := "ldb:" + dir + "/name:" + id
-	setTest, ref, isDs, errRead := ReadObject(datasetName)
+	setTest, ref, isDs, errRead := ParseObject(datasetName)
 
 	assert.Zero(ref)
 	assert.True(isDs)
@@ -227,7 +227,7 @@ func TestReadRef(t *testing.T) {
 
 	objectName := "ldb:" + dir + "/name:" + ref.String()
 
-	set, refTest, isDs, errRead := ReadObject(objectName)
+	set, refTest, isDs, errRead := ParseObject(objectName)
 
 	assert.EqualValues(ref.String(), refTest.String())
 	assert.False(isDs)
@@ -235,14 +235,14 @@ func TestReadRef(t *testing.T) {
 	assert.Zero(set)
 }
 
-func TestReadObjectBadInput(t *testing.T) {
+func TestParseObjectBadInput(t *testing.T) {
 	assert := assert.New(t)
 
 	dir, err := ioutil.TempDir(os.TempDir(), "")
 	assert.NoError(err)
 
 	badName := "ldb:" + dir + "/name:sha2-78888888888"
-	ds, ref, isDs, err := ReadObject(badName)
+	ds, ref, isDs, err := ParseObject(badName)
 
 	//it interprets it as a dataset id
 
