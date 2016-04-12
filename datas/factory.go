@@ -31,7 +31,7 @@ type remoteFactory struct {
 
 func (rf *remoteFactory) Create(ns string) (DataStore, bool) {
 	if cs := rf.cf.CreateStore(ns); cs != nil {
-		return newRemoteDataStore(cs), true
+		return NewRemoteDataStore(cs), true
 	}
 	return &LocalDataStore{}, false
 }
