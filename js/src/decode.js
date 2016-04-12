@@ -29,6 +29,7 @@ import {lookupPackage, Package, readPackage} from './package.js';
 import {NomsMap, MapLeafSequence} from './map.js';
 import {NomsSet, SetLeafSequence} from './set.js';
 import {IndexedMetaSequence} from './meta-sequence.js';
+import fixupType from './fixup-type.js';
 
 const typedTag = 't ';
 const blobTag = 'b ';
