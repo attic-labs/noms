@@ -246,7 +246,7 @@ class Prompt extends React.Component<void, {}, void> {
     return <div style={{display: 'flex', height: '100%', alignItems: 'center',
       justifyContent: 'center'}}>
       <div style={fontStyle}>
-        Can haz splore?
+        Can haz datastore?
         <form style={{margin:'0.5em 0'}} onSubmit={() => this._handleOnSubmit()}>
           <input type='text' ref='store' autoFocus={true} style={inputStyle}
             defaultValue={params.store || 'http://api.noms.io/-/ds/[user]'}

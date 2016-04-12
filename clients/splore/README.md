@@ -13,11 +13,11 @@ go build
 ./counter -ldb="/tmp/sploretest" -ds="counter"
 ./counter -ldb="/tmp/sploretest" -ds="counter"
 
-# Build splore
+# Build Splore
 cd ../splore
 ./build.py
 
-# Splore requires noms-view to be running
+# Launch Splore with noms-view
 cd ../../cmd/noms-view
 go build
 ./noms-view serve ../../clients/splore store="ldb:/tmp/sploretest" &

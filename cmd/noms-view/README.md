@@ -6,7 +6,7 @@ noms view <flags> <command> ...
 ```
 
 Supported commands:
-* `serve`: serves a noms from from a loacl server
+* `serve`: serves a noms from from a local server
 
 Examples:
 
