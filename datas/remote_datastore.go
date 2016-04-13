@@ -11,7 +11,7 @@ type RemoteDataStore struct {
 	dataStoreCommon
 }
 
-func newRemoteDataStore(cs chunks.ChunkStore) *RemoteDataStore {
+func NewRemoteDataStore(cs chunks.ChunkStore) *RemoteDataStore {
 	return &RemoteDataStore{newDataStoreCommon(cs)}
 }
 
@@ -21,10 +21,10 @@ func (rds *RemoteDataStore) host() *url.URL {
 
 func (rds *RemoteDataStore) Commit(datasetID string, commit Commit) (DataStore, error) {
 	err := rds.commit(datasetID, commit)
-	return newRemoteDataStore(rds.cs), err
+	return NewRemoteDataStore(rds.cs), err
 }
 
 func (rds *RemoteDataStore) Delete(datasetID string) (DataStore, error) {
 	err := rds.doDelete(datasetID)
-	return newRemoteDataStore(rds.cs), err
+	return NewRemoteDataStore(rds.cs), err
 }

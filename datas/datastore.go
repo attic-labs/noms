@@ -82,7 +82,7 @@ func (f Flags) CreateDataStore() (DataStore, bool) {
 	}
 
 	if cs = f.hflags.CreateStore(*f.datastoreID); cs != nil {
-		return newRemoteDataStore(cs), true
+		return NewRemoteDataStore(cs), true
 	}
 
 	return &LocalDataStore{}, false
