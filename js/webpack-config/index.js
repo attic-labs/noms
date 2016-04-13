@@ -68,5 +68,6 @@ module.exports = {
   watch: devMode,
   configure(newOptions) {
     options = newOptions;
+    return this;
   },
 };
