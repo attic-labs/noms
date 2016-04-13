@@ -46,18 +46,13 @@ function getPlugins(envVars) {
 // Anything that uses |options| in |module.exports| must be a function or getter.
 let options = {};
 
-function shouldInclude(p) {
-  // Files in the src directory of the project.
-  return /\/src\//.test(p) && !/node_modules/.test(p);
-}
-
 module.exports = {
   get module() {
     return {
       loaders: [{
         test: /\.js$/,
         loader: 'babel-loader',
-        include: shouldInclude,
+        exclude: /node_modules/,
       }],
     };
   },
