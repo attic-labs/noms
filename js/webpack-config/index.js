@@ -43,12 +43,13 @@ function getPlugins(envVars) {
 
 }
 
-function defaultExclude(p) {
-  return /node_modules/.test(p) && !/node_modules\/noms/.test(p);
-}
-
 // Anything that uses |options| in |module.exports| must be a function or getter.
 let options = {};
+
+function shouldInclude(p) {
+  // Files in the src directory of the project.
+  return /\/src\//.test(p) && !/node_modules/.test(p);
+}
 
 module.exports = {
   get module() {
@@ -56,7 +57,7 @@ module.exports = {
       loaders: [{
         test: /\.js$/,
         loader: 'babel-loader',
-        exclude: options.exclude || defaultExclude,
+        include: shouldInclude,
       }],
     };
   },
