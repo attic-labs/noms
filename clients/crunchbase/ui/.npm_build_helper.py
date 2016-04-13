@@ -2,7 +2,7 @@
 
 import os, subprocess, sys, shutil
 
-SRC = ['babel-regenerator-runtime', 'src/main.js']
+SRC = 'src/main.js'
 OUT = 'out.js'
 
 def main():
@@ -23,7 +23,7 @@ def main():
 		shutil.copyfile('node_modules/nvd3/build/nv.d3.js', 'nvd3.js')
 		shutil.copyfile('node_modules/d3/d3.js', 'd3.js')
 
-	subprocess.check_call(['node_modules/.bin/webpack'] + SRC + [OUT], env=env, shell=False)
+	subprocess.check_call(['node_modules/.bin/webpack', SRC, OUT], env=env, shell=False)
 
 
 if __name__ == "__main__":
