@@ -47,22 +47,25 @@ function defaultExclude(p) {
   return /node_modules/.test(p) && !/node_modules\/noms/.test(p);
 }
 
-module.exports = function(options) {
-  options = options || {};
-  return {
-    module: {
-      loaders: [
-        {
-          test: /\.js$/,
-          exclude: options.exclude || defaultExclude,
-          loader: 'babel-loader',
-        },
-      ],
-    },
+// Anything that uses |options| in |module.exports| must be a function or getter.
+let options = {};
 
-    plugins: getPlugins(options.requiredEnvVars || []),
-
-    devtool: devMode ? '#inline-source-map' : '',
-    watch: devMode,
-  };
+module.exports = {
+  get module() {
+    return {
+      loaders: [{
+        test: /\.js$/,
+        loader: 'babel-loader',
+        exclude: options.exclude || defaultExclude,
+      }],
+    };
+  },
+  get plugins() {
+    return getPlugins(options.requiredEnvVars || []);
+  },
+  devtool: devMode ? '#inline-source-map' : '',
+  watch: devMode,
+  configure(newOptions) {
+    options = newOptions;
+  },
 };
