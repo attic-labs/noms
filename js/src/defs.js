@@ -14,10 +14,9 @@ import {lookupPackage} from './package.js';
 import type {Package} from './package.js';
 import type Struct from './struct.js';
 import {newStruct} from './struct.js';
-import fixupType from './fixup-type.js';
 
 type StructDefType = {[name: string]: DefType};
-type DefType = number | string | boolean | Array<DefType> | StructDefType | Uint8Array;
+type DefType = number | string | boolean | Array<DefType> | StructDefType | Uint8Array | ValueBase;
 
 export async function defToNoms(v: DefType, t: Type, pkg: ?Package): Promise<valueOrPrimitive> {
   switch (typeof v) {
@@ -32,7 +31,6 @@ export async function defToNoms(v: DefType, t: Type, pkg: ?Package): Promise<val
   }
 
   if (v instanceof ValueBase) {
-    t = fixupType(t, pkg);
     if (t.equals(v.type)) {
       return v;
     }
