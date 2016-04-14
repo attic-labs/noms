@@ -5,8 +5,8 @@
   "main": "index.js",
   "dependencies": {
     "babel-eslint": "^5.0.4",
-    "eslint": "^1.10.3",
     "eslint-plugin-flow-vars": "^0.2.1",
-    "eslint-plugin-react": "^3.16.1"
+    "eslint-plugin-react": "^3.16.1",
+    "eslint": "^1.10.3"
   }
 }

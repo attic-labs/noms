@@ -1,1 +1,1 @@
-../../../js/.eslintrc.js
+module.exports = require('@attic/eslintrc');
