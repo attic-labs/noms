@@ -82,10 +82,10 @@ func enumFromType(v uint32, t Type) Value {
 	if s, ok := enumFuncMap[t.Ref()]; ok {
 		return s.builder(v)
 	}
-	return newEnum(v, t)
+	return NewEnum(v, t)
 }
 
-func enumPrimitiveValueFromType(v Value, t Type) uint32 {
+func EnumPrimitiveValueFromType(v Value, t Type) uint32 {
 	if s, ok := enumFuncMap[t.Ref()]; ok {
 		return s.reader(v)
 	}

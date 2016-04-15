@@ -7,7 +7,7 @@ type Enum struct {
 	t Type
 }
 
-func newEnum(v uint32, t Type) Enum {
+func NewEnum(v uint32, t Type) Enum {
 	return Enum{v, t}
 }
 
@@ -21,7 +21,7 @@ func (e Enum) Ref() ref.Ref {
 }
 
 func (e Enum) Chunks() []RefBase {
-	return nil
+	return e.t.Chunks()
 }
 
 func (e Enum) ChildValues() []Value {

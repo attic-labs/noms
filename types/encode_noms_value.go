@@ -331,6 +331,6 @@ func (w *jsonArrayWriter) writeStruct(v Value, typ, typeDef Type, pkg *Package) 
 }
 
 func (w *jsonArrayWriter) writeEnum(v Value, t Type, pkg *Package) {
-	i := enumPrimitiveValueFromType(v, t)
+	i := EnumPrimitiveValueFromType(v, t)
 	w.writeUint(uint64(i))
 }
