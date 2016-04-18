@@ -9,33 +9,34 @@ import (
 	"github.com/attic-labs/noms/d"
 )
 
-type valueWriter struct {
+// Human Readable Serialization
+type hrsWriter struct {
 	ind int
 	w   io.Writer
 }
 
-func (w *valueWriter) write(s string) {
+func (w *hrsWriter) write(s string) {
 	n, err := io.WriteString(w.w, s)
 	d.Chk.NoError(err)
 	d.Chk.Equal(len(s), n)
 }
 
-func (w *valueWriter) indent() {
+func (w *hrsWriter) indent() {
 	w.ind++
 }
 
-func (w *valueWriter) outdent() {
+func (w *hrsWriter) outdent() {
 	w.ind--
 }
 
-func (w *valueWriter) newLine() {
+func (w *hrsWriter) newLine() {
 	w.write("\n")
 	for i := 0; i < w.ind; i++ {
 		w.write("  ")
 	}
 }
 
-func (w *valueWriter) Write(v Value) {
+func (w *hrsWriter) Write(v Value) {
 	switch v.Type().Kind() {
 	case BoolKind:
 		w.write(strconv.FormatBool(bool(v.(Bool))))
@@ -123,7 +124,7 @@ func (w *valueWriter) Write(v Value) {
 	}
 }
 
-func (w *valueWriter) writeUnresolved(v Value, printStructName bool) {
+func (w *hrsWriter) writeUnresolved(v Value, printStructName bool) {
 	t := v.Type()
 	pkg := LookupPackage(t.PackageRef())
 	typeDef := pkg.Types()[t.Ordinal()]
@@ -171,7 +172,7 @@ func (w *valueWriter) writeUnresolved(v Value, printStructName bool) {
 	}
 }
 
-func (w *valueWriter) WriteTagged(v Value) {
+func (w *hrsWriter) WriteTagged(v Value) {
 	t := v.Type()
 	switch t.Kind() {
 	case BoolKind, StringKind:
@@ -196,7 +197,7 @@ func (w *valueWriter) WriteTagged(v Value) {
 	}
 }
 
-func (w *valueWriter) writeTypeAsValue(t Type) {
+func (w *hrsWriter) writeTypeAsValue(t Type) {
 	switch t.Kind() {
 	case BlobKind, BoolKind, Float32Kind, Float64Kind, Int16Kind, Int32Kind, Int64Kind, Int8Kind, StringKind, TypeKind, Uint16Kind, Uint32Kind, Uint64Kind, Uint8Kind, ValueKind:
 		w.write(KindToString[t.Kind()])
@@ -257,7 +258,7 @@ func (w *valueWriter) writeTypeAsValue(t Type) {
 	}
 }
 
-func (w *valueWriter) writeUnresolvedTypeRef(t Type, printStructName bool) {
+func (w *hrsWriter) writeUnresolvedTypeRef(t Type, printStructName bool) {
 	pkg := LookupPackage(t.PackageRef())
 	typeDef := pkg.Types()[t.Ordinal()]
 	switch typeDef.Kind() {
