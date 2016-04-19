@@ -11,24 +11,24 @@ import (
 
 // Human Readable Serialization
 type hrsWriter struct {
-	ind int
-	w   io.Writer
-	l   int
+	ind        int
+	w          io.Writer
+	lineLength int
 }
 
 func (w *hrsWriter) maybeWriteIndentation() {
-	if w.l == 0 {
+	if w.lineLength == 0 {
 		for i := 0; i < w.ind; i++ {
 			io.WriteString(w.w, "  ")
 		}
-		w.l = 2 * w.ind
+		w.lineLength = 2 * w.ind
 	}
 }
 
 func (w *hrsWriter) write(s string) {
 	w.maybeWriteIndentation()
 	n, err := io.WriteString(w.w, s)
-	w.l += len(s)
+	w.lineLength += len(s)
 	d.Chk.NoError(err)
 	d.Chk.Equal(len(s), n)
 }
@@ -43,7 +43,7 @@ func (w *hrsWriter) outdent() {
 
 func (w *hrsWriter) newLine() {
 	w.write("\n")
-	w.l = 0
+	w.lineLength = 0
 }
 
 func (w *hrsWriter) Write(v Value) {
