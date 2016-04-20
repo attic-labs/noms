@@ -6,7 +6,6 @@ import {
   DataStore,
   HttpStore,
 } from '@attic/noms';
-var _noms = require('@attic/noms');
 
 
 const args = argv
@@ -50,7 +49,7 @@ async function incrementAsNumberType(ds: Dataset): Promise<Dataset> {
   const newVal = lastVal + 1;
 
   process.stdout.write(`\nincrementing counter to ${ newVal }\n`);
-  return await ds.commit(newVal);
+  return ds.commit(newVal);
 }
 */
 
@@ -66,7 +65,7 @@ async function incrementAsStringType(ds: Dataset): Promise<Dataset> {
   const newVal = lastVal + 1;
 
   process.stdout.write(`\nincrementing counter to ${ newVal }\n`);
-  return await ds.commit(newVal.toString());
+  return ds.commit(newVal.toString());
 }
 
 

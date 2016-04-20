@@ -1,5 +1,5 @@
 {
-  "name": "@attic/noms-counterjs",
+  "name": "@attic/counter-js",
   "version": "1.0.0",
   "description": "noms example javascript client with a counter",
   "dependencies": {
