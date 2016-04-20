@@ -1,6 +1,0 @@
-struct StructWithList {
-  l: List<Uint8>
-  b: Bool
-  s: String
-  i: Int64
-}
