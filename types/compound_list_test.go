@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const testListSize = 5000
+
 type testSimpleList []Value
 
 func (tsl testSimpleList) Set(idx int, v Value) (res testSimpleList) {
@@ -662,9 +664,11 @@ func TestCompoundListFirstNNumbers(t *testing.T) {
 		return nums
 	}
 
-	nums := firstNNumbers(5000)
-	s := NewTypedList(listType, nums...)
-	assert.Equal("sha1-9220f195a4273c1c31643014a6c6c6a39b2c068b", s.Ref().String())
+	nums := firstNNumbers(testListSize)
+	l := NewTypedList(listType, nums...).(compoundList)
+	assert.Equal("sha1-77c24e36fd4d1b367e36b86f158e7fdd38373a6d", l.Ref().String())
+	height := deriveCompoundListHeight(l)
+	assert.Equal(height, l.tuples[0].childRef.Height())
 }
 
 func TestCompoundListRefOfStructFirstNNumbers(t *testing.T) {
@@ -691,9 +695,12 @@ func TestCompoundListRefOfStructFirstNNumbers(t *testing.T) {
 		return nums
 	}
 
-	nums := firstNNumbers(5000)
-	s := NewTypedList(listType, nums...)
-	assert.Equal("sha1-471aa3beb1f8d06a8a9a398c1b29fa34c0163ecd", s.Ref().String())
+	nums := firstNNumbers(testListSize)
+	l := NewTypedList(listType, nums...).(compoundList)
+	assert.Equal("sha1-87be8b38153a653f140dbb67064f6ea832726871", l.Ref().String())
+	height := deriveCompoundListHeight(l)
+	// height + 1 because the leaves are Ref values (with height 1).
+	assert.Equal(height+1, l.tuples[0].childRef.Height())
 }
 
 func TestCompoundListModifyAfterRead(t *testing.T) {
@@ -710,4 +717,13 @@ func TestCompoundListModifyAfterRead(t *testing.T) {
 	assert.Equal(llen-1, list.Len())
 	list = list.Append(z).(compoundList)
 	assert.Equal(llen, list.Len())
+}
+
+func deriveCompoundListHeight(l compoundList) uint64 {
+	// Note: not using mt.childRef.Height() because the purpose of this method is to be redundant.
+	height := uint64(1)
+	if l2, ok := l.tupleAt(0).child.(compoundList); ok {
+		height += deriveCompoundListHeight(l2)
+	}
+	return height
 }

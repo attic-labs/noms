@@ -380,7 +380,7 @@ func TestListChunks(t *testing.T) {
 	c1 := l1.Chunks()
 	assert.Len(c1, 0)
 
-	ool := NewRef(Number(0).Ref())
+	ool := NewTypedRefFromValue(Number(0))
 	l2 := NewList(ool)
 	c2 := l2.Chunks()
 	assert.Len(c2, 1)

@@ -1,7 +1,7 @@
 // @flow
 
 import BuzHashBoundaryChecker from './buzhash-boundary-checker.js';
-import RefValue from './ref-value.js';
+import {default as RefValue, refValueFromValue} from './ref-value.js';
 import type {ValueReader} from './value-store.js';
 import type {BoundaryChecker, makeChunkFn} from './sequence-chunker.js';
 import type {valueOrPrimitive, Value} from './value.js'; // eslint-disable-line no-unused-vars
@@ -11,10 +11,10 @@ import {Collection} from './collection.js';
 import {getCompareFunction, equals, less} from './compare.js';
 import {getRefOfValue} from './get-ref.js';
 import {invariant} from './assert.js';
-import {MetaTuple, newOrderedMetaSequenceBoundaryChecker,
-  newOrderedMetaSequenceChunkFn, newLeafRefValue} from './meta-sequence.js';
-import {OrderedSequence, OrderedSequenceCursor,
-  OrderedSequenceIterator} from './ordered-sequence.js';
+import {MetaTuple, newOrderedMetaSequenceBoundaryChecker, newOrderedMetaSequenceChunkFn,} from
+  './meta-sequence.js';
+import {OrderedSequence, OrderedSequenceCursor, OrderedSequenceIterator,} from
+  './ordered-sequence.js';
 import diff from './ordered-sequence-diff.js';
 import {setOfValueType, Type} from './type.js';
 import {sha1Size} from './ref.js';
@@ -30,15 +30,13 @@ function newSetLeafChunkFn<T:valueOrPrimitive>(t: Type, vr: ?ValueReader = null)
 
     let indexValue: ?(T | RefValue) = null;
     if (items.length > 0) {
-      const lastValue = items[items.length - 1];
-      if (t.elemTypes[0].ordered) {
-        indexValue = lastValue;
-      } else {
-        indexValue = new RefValue(getRefOfValue(lastValue));
+      indexValue = items[items.length - 1];
+      if (!t.elemTypes[0].ordered) {
+        indexValue = refValueFromValue(indexValue);
       }
     }
 
-    const mt = new MetaTuple(newLeafRefValue(setLeaf), indexValue, items.length, setLeaf);
+    const mt = new MetaTuple(refValueFromValue(setLeaf), indexValue, items.length, setLeaf);
     return [mt, setLeaf];
   };
 }

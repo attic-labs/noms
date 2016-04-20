@@ -185,7 +185,8 @@ export class JsonArrayReader {
 
   readRefValue(t: Type): RefValue {
     const ref = this.readRef();
-    return new RefValue(ref, t);
+    const height = this.readInt();
+    return new RefValue(ref, height, t);
   }
 
   readValue(): any {
