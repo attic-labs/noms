@@ -28,6 +28,8 @@ const args = argv
 
 let numFilesFound = 0;
 let numFilesComplete = 0;
+let sizeFilesFound = 0;
+let sizeFilesComplete = 0;
 
 main().catch(ex => {
   console.error(ex.stack);
@@ -35,6 +37,8 @@ main().catch(ex => {
 });
 
 async function main(): Promise<void> {
+  const startPerformance = process.hrtime();
+
   const [p, datastoreSpec, datasetName] = parseArgs();
   if (!p) {
     process.exit(1);
@@ -47,13 +51,17 @@ async function main(): Promise<void> {
   const r = await processPath(p, store);
   if (r) {
     await ds.commit(r);
-    process.stdout.write('\ndone\n');
   }
+
+  const diff = process.hrtime(startPerformance);
+  const nanoseconds = diff[0] * 1e9 + diff[1];
+  process.stdout.write(`\ncompleted in ${humanTimeFromNanoseconds(nanoseconds)}\n`);
 }
 
 async function processPath(p: string, store: DataStore): Promise<?RefValue<DirectoryEntry>> {
   numFilesFound++;
   const st = await fs.stat(p);
+  sizeFilesFound += st.size;
   let de = null;
   if (st.isDirectory()) {
     de = new DirectoryEntry({
@@ -96,9 +104,13 @@ async function processFile(p: string, store: DataStore): Promise<File> {
     content: await processBlob(p, store),
   });
   numFilesComplete++;
+
+  const st = await fs.stat(p);
+  sizeFilesComplete += st.size;
   updateProgress();
   return f;
 }
+
 
 function processBlob(p: string, store: DataStore): Promise<RefValue<NomsBlob>> {
   const w = new BlobWriter();
@@ -117,8 +129,65 @@ function processBlob(p: string, store: DataStore): Promise<RefValue<NomsBlob>> {
   });
 }
 
+
+function humanTimeFromNanoseconds(nanoseconds) {
+    const millisecondsInAYear = 31536000 * 1e3; 
+    const millisecondsInADay = 86400 * 1e3; 
+    const millisecondsInAnHour = 3600 * 1e3; 
+    const millisecondsInAMinute = 60 * 1e3;
+    const millisecondsInASecond = 1e3;
+
+    function numberEnding (number) {
+        return (number > 1) ? 's' : '';
+    }
+
+    var temp = Math.floor(nanoseconds / 1e6);
+    var years = Math.floor(temp / millisecondsInAYear);
+    if (years) {
+        return years + ' year' + numberEnding(years);
+    }
+    //TODO: Months! Maybe weeks?
+    var days = Math.floor((temp %= millisecondsInAYear) / millisecondsInADay);
+    if (days) {
+        return days + ' day' + numberEnding(days);
+    }
+    var hours = Math.floor((temp %= millisecondsInADay) / millisecondsInAnHour);
+    if (hours) {
+        return hours + ' hour' + numberEnding(hours);
+    }
+    var minutes = Math.floor((temp %= millisecondsInAnHour) / millisecondsInAMinute);
+    if (minutes) {
+        return minutes + ' minute' + numberEnding(minutes);
+    }
+    var seconds = Math.floor((temp % millisecondsInAMinute) / millisecondsInASecond);
+    if (seconds) {
+        return seconds + ' second' + numberEnding(seconds);
+    }
+    var milliseconds = temp % millisecondsInAMinute;
+    if (milliseconds) {
+        return milliseconds + ' millisecond' + numberEnding(milliseconds);
+    }
+    return 'less than a millisecond';
+}
+
+function humanFileSize(bytes, si) {
+    var thresh = si ? 1000 : 1024;
+    if(Math.abs(bytes) < thresh) {
+        return bytes + ' B';
+    }
+    var units = si
+        ? ['kB','MB','GB','TB','PB','EB','ZB','YB']
+        : ['KiB','MiB','GiB','TiB','PiB','EiB','ZiB','YiB'];
+    var u = -1;
+    do {
+        bytes /= thresh;
+        ++u;
+    } while(Math.abs(bytes) >= thresh && u < units.length - 1);
+    return bytes.toFixed(1)+' '+units[u];
+}
+
 function updateProgress() {
-  process.stdout.write(`\r${numFilesComplete} of ${numFilesFound} entries processed...`);
+  process.stdout.write(`\r${numFilesComplete} of ${numFilesFound} entries processed... ${humanFileSize(sizeFilesComplete,true)} of ${humanFileSize(sizeFilesFound,true)} contents processed`);
 }
 
 function parseArgs() {
