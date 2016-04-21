@@ -12,7 +12,7 @@ type RemoteDataStoreClient struct {
 	dataStoreCommon
 }
 
-func newRemoteDataStore(baseURL, auth string) *RemoteDataStoreClient {
+func NewRemoteDataStore(baseURL, auth string) *RemoteDataStoreClient {
 	httpBS := newHTTPBatchStore(baseURL, auth)
 	return &RemoteDataStoreClient{newDataStoreCommon(httpBS, httpBS)}
 }
@@ -52,7 +52,7 @@ func remoteFlags(prefix string) remoteDataStoreFlags {
 
 func (r remoteDataStoreFlags) CreateStore(ns string) DataStore {
 	if r.check() {
-		return newRemoteDataStore(*r.host+httprouter.CleanPath(ns), *r.auth)
+		return NewRemoteDataStore(*r.host+httprouter.CleanPath(ns), *r.auth)
 	}
 	return nil
 }
