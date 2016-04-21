@@ -166,7 +166,7 @@ func MakeEnumType(name string, ids ...string) Type {
 	return buildType(name, EnumDesc{ids})
 }
 
-func MakeStructType(name string, fields []Field, choices Choices) Type {
+func MakeStructType(name string, fields []Field, choices []Field) Type {
 	return buildType(name, StructDesc{fields, choices})
 }
 

@@ -136,14 +136,11 @@ func (e EnumDesc) Equals(other TypeDesc) bool {
 	return true
 }
 
-// Choices represents a union, with each choice as a Field..
-type Choices []Field
-
 // StructDesc describes a custom Noms Struct.
 // Structs can contain at most one anonymous union, so Union may be nil.
 type StructDesc struct {
 	Fields []Field
-	Union  Choices
+	Union  []Field
 }
 
 func (s StructDesc) Kind() NomsKind {

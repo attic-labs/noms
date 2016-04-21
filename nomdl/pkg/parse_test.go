@@ -201,7 +201,7 @@ type ParsedResultTestSuite struct {
 	union                   testChoices
 }
 
-type testChoices types.Choices
+type testChoices []types.Field
 
 func (c testChoices) Describe() string {
 	return describeUnion(c)
