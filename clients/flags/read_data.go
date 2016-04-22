@@ -1,17 +1,16 @@
 package flags
 
 import (
+	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/attic-labs/noms/chunks"
-	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/datas"
 	"github.com/attic-labs/noms/dataset"
 	"github.com/attic-labs/noms/ref"
+	"github.com/attic-labs/noms/types"
 )
 
 const (
@@ -22,87 +21,166 @@ var (
 	validDatasetNameRegexp = regexp.MustCompile("^[a-zA-Z0-9]+([/\\-_][a-zA-Z0-9]+)*$")
 )
 
-//ParseDataStore takes an optional colon-delineated string indicating what kind of DataStore to open and return. Supported syntax includes
-// - http:<server and path>
-// - ldb:<path>
-// - mem:
-func ParseDataStore(in string) (ds datas.DataStore, err error) {
-	input := strings.Split(in, ":")
+type ObjectSpec struct {
+	Protocol    string
+	Path        string
+	DatasetName string
+	Ref         string
+}
 
-	switch input[0] {
+func ParseObjectSpec(spec string) (ObjectSpec, error) {
+	comps := strings.Split(spec, ":")
+	err := errors.New("Incorrect syntax for data spec")
+	protocol, rest := comps[0], comps[1:]
+	path, end := "", ""
+	switch protocol {
 	case "http":
-		//get from server and path, including http
-		if len(input) < 2 {
-			return ds, fmt.Errorf("Improper datastore name: %s", in)
+		if len(rest) == 1 {
+			path, end = rest[0], ""
+		} else if len(rest) == 2 {
+			re := regexp.MustCompile("^\\d+([/].*)*")
+			if re.MatchString(rest[1]) {
+				path, end = rest[0]+":"+rest[1], ""
+			} else {
+				path, end = rest[0], rest[1]
+			}
+		} else if len(rest) == 3 {
+			path, end = rest[0]+":"+rest[1], rest[2]
+		} else {
+			return ObjectSpec{}, err
 		}
-
-		ds = datas.NewRemoteDataStore(in, "")
-
+		if path == "" {
+			return ObjectSpec{}, errors.New("Illegal empty path in 'http' dataspec")
+		}
 	case "ldb":
-		//create/access from path
-		if len(input) < 2 {
-			return ds, fmt.Errorf("Improper datastore name: %s", in)
+		if len(rest) == 1 {
+			path, end = rest[0], ""
+		} else if len(rest) == 2 {
+			path, end = rest[0], rest[1]
+		} else {
+			return ObjectSpec{}, err
 		}
-		ds = datas.NewDataStore(chunks.NewLevelDBStore(strings.Join(input[1:len(input)], ":"), "", maxFileHandles, false))
-
+		if path == "" {
+			return ObjectSpec{}, errors.New("Illegal empty path in 'ldb' dataspec")
+		}
 	case "mem":
-		if len(input) < 2 {
-			return ds, fmt.Errorf("Improper datastore name: %s", in)
+		if len(rest) == 0 {
+			path, end = "", ""
+		} else if len(rest) == 1 {
+			path, end = "", rest[0]
+		} else {
+			return ObjectSpec{}, err
 		}
+		if path != "" {
+		}
+	default: // ldb:$HOME/.noms
+		if len(rest) == 0 {
+			protocol = "ldb"
+			path, end = "ldb:$HOME/.noms", ""
+		} else if len(rest) == 1 {
+			path, end = "ldb:$HOME/.noms", rest[0]
+		} else if len(rest) == 2 {
+			path, end = rest[0], rest[1]
+		} else {
+			return ObjectSpec{}, fmt.Errorf("Unknown protocol in data spec: %s", protocol)
+		}
+	}
 
+	path = strings.TrimRight(path, "/")
+	re := regexp.MustCompile("^sha1-.*")
+	if re.MatchString(end) {
+		return ObjectSpec{Protocol: protocol, Path: path, DatasetName: "", Ref: end}, nil
+	}
+
+	if end != "" && !validDatasetNameRegexp.MatchString(end) {
+		return ObjectSpec{}, fmt.Errorf("Illegal dataset name: %s", end)
+	}
+	return ObjectSpec{Protocol: protocol, Path: path, DatasetName: end, Ref: ""}, nil
+}
+
+func (spec ObjectSpec) IsObjectSpec() bool {
+	return spec.Ref != ""
+}
+
+func (spec ObjectSpec) IsDatasetSpec() bool {
+	return spec.DatasetName != ""
+}
+
+func (spec ObjectSpec) IsDatastoreSpec() bool {
+	return spec.Ref == "" && spec.DatasetName == ""
+}
+
+func GetDataStore(spec ObjectSpec) (ds datas.DataStore, err error) {
+	switch spec.Protocol {
+	case "http":
+		ds = datas.NewRemoteDataStore(spec.Protocol+":"+spec.Path, "")
+	case "ldb":
+		ds = datas.NewDataStore(chunks.NewLevelDBStore(spec.Path, "", maxFileHandles, false))
+	case "mem":
 		ds = datas.NewDataStore(chunks.NewMemoryStore())
-
-	case "":
-		ds = datas.NewDataStore(chunks.NewLevelDBStore(filepath.Join(os.Getenv("HOME"), ".noms"), "", maxFileHandles, false))
-
-	default:
-		err = fmt.Errorf("Improper datastore name: %s", in)
-
 	}
 
 	return
 }
 
-//ParseDataset takes a colon-delineated string indicating a DataStore and the name of a dataset to open and return. Supported syntax includes
-//<datastore>:<dataset>
-func ParseDataset(in string) (dataset.Dataset, error) {
-	input := strings.Split(in, ":")
-
-	if len(input) < 3 {
-		return dataset.Dataset{}, fmt.Errorf("Improper dataset name: %s", in)
+func GetDataset(spec ObjectSpec) (dataset.Dataset, error) {
+	store, err := GetDataStore(spec)
+	if err != nil {
+		return dataset.Dataset{}, err
 	}
 
-	ds, errStore := ParseDataStore(strings.Join(input[:len(input)-1], ":"))
-	name := input[len(input)-1]
-
-	d.Chk.NoError(errStore)
-
-	if !validDatasetNameRegexp.MatchString(name) {
-		return dataset.Dataset{}, fmt.Errorf("Improper dataset name: %s", in)
-	}
-
-	return dataset.NewDataset(ds, name), nil
+	return dataset.NewDataset(store, spec.DatasetName), nil
 }
 
-//ParseObject takes a colon-delineated string indicating a DataStore and an object from the DataStore to return. It also indicates whether the retun value is a dataset or a ref using a boolean. Supported syntax includes
-//<datastore>:<dataset>
-//<datastore>:<ref>
-func ParseObject(in string) (dataset.Dataset, ref.Ref, bool, error) {
-	input := strings.Split(in, ":")
-
-	if len(input) < 3 {
-		return dataset.Dataset{}, ref.Ref{}, false, fmt.Errorf("Improper object name: %s", in)
+func GetObject(spec ObjectSpec) (datas.DataStore, types.Value, error) {
+	store, err := GetDataStore(spec)
+	if err != nil {
+		return store, nil, err
 	}
 
-	objectName := input[len(input)-1]
-
-	if r, isRef := ref.MaybeParse(objectName); isRef {
-		return dataset.Dataset{}, r, false, nil
+	if r, isRef := ref.MaybeParse(spec.Ref); isRef {
+		v := store.ReadValue(r)
+		return store, v, nil
 	}
 
-	ds, isValid := ParseDataset(in)
+	return store, nil, nil
+}
 
-	d.Chk.NoError(isValid)
+func DataStoreFromSpec(spec string) (datas.DataStore, error) {
+	objSpec, err := ParseObjectSpec(spec)
+	if err != nil {
+		return nil, err
+	}
 
-	return ds, ref.Ref{}, true, nil
+	if !objSpec.IsDatastoreSpec() {
+		return nil, errors.New("Illegal datastore spec")
+	}
+
+	return GetDataStore(objSpec)
+}
+
+func DatasetFromSpec(spec string) (dataset.Dataset, error) {
+	objSpec, err := ParseObjectSpec(spec)
+	if err != nil {
+		return dataset.Dataset{}, err
+	}
+
+	if !objSpec.IsDatasetSpec() {
+		return dataset.Dataset{}, errors.New("Illegal dataset spec")
+	}
+
+	return GetDataset(objSpec)
+}
+
+func ObjectFromSpec(spec string) (datas.DataStore, types.Value, error) {
+	objSpec, err := ParseObjectSpec(spec)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if !objSpec.IsObjectSpec() {
+		return nil, nil, errors.New("Illegal object spec")
+	}
+
+	return GetObject(objSpec)
 }
