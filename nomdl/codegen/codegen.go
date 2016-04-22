@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -146,7 +145,6 @@ func generateDepCode(packageName, outDir string, written map[string]bool, p type
 func generateAndEmit(tag, out string, written map[string]bool, deps depsMap, p pkg.Parsed) {
 	var buf bytes.Buffer
 	gen := newCodeGen(&buf, tag, written, deps, p)
-	fmt.Println(out)
 	gen.WritePackage()
 
 	d.Chk.NoError(os.MkdirAll(filepath.Dir(out), 0700))
@@ -263,8 +261,6 @@ func (gen *codeGen) WritePackage() {
 		gen.pkg.Name,
 		pkgTypes,
 	}
-
-	fmt.Printf("%s - %s\n", data.Name, data.PackageRef)
 
 	// In JS we want to write the imports at the top of the file but we do not know what we need to import until we have written everything. We therefore write to a buffer and when everything is done we can write the imports and write the buffer into the writer.
 	var buf bytes.Buffer

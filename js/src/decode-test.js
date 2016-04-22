@@ -465,6 +465,43 @@ suite('Decode', () => {
     assert.isTrue(v.equals(s));
   });
 
+  test('decodeNomsValue: counter with one commit', async () => {
+    const ms = new MemoryStore();
+    const ds = new DataStore(ms);
+
+    const makeChunk = a => Chunk.fromString(`t ${JSON.stringify(a)}`);
+
+    // Package containing Commit def
+    const packageArray = [Kind.Package, [Kind.Struct, 'Commit', [
+      'value', Kind.Value, false,
+      'parents', Kind.Set, [
+        Kind.Ref, [
+          Kind.Unresolved, 'sha1-0000000000000000000000000000000000000000','0',
+        ],
+      ], false,
+    ], []],[]];
+    const pkgChunk = makeChunk(packageArray);
+    const pkgRef = pkgChunk.ref;
+    ms.put(pkgChunk);
+
+    // Commit value
+    const commitChunk = makeChunk(
+      [Kind.Unresolved, pkgRef.toString(), '0', Kind.Uint64, '1', false, []]);
+    const commitRef = commitChunk.ref;
+    ms.put(commitChunk);
+
+    // Root
+    const rootChunk = makeChunk([Kind.Map, Kind.String, Kind.Ref, Kind.Unresolved,
+      pkgRef.toString(), '0', false, ['counter', commitRef.toString()]]);
+    const rootRef = rootChunk.ref;
+    ms.put(rootChunk);
+
+    const rootMap = await ds.readValue(rootRef);
+    const counterRef = await rootMap.get('counter');
+    const commit = await counterRef.targetValue(ds);
+    assert.strictEqual(1, await commit.value);
+  });
+
   test('out of line blob', async () => {
     const chunk = Chunk.fromString('b hi');
     const blob = await decodeNomsValue(chunk, new DataStore(new MemoryStore()));
