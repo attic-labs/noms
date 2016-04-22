@@ -224,4 +224,14 @@ suite('DataStore', () => {
     const v2 = await ds.readValue(r1);
     assert.equal(v2, null);
   });
+
+  test('writeValue overloaded type', async () => {
+    const ds = new DataStore(new MemoryStore());
+
+    const r = ds.writeValue('hello');
+    const v1 = await ds.readValue(r);
+    const v2 = await ds.readValue(r.targetRef);
+    assert.equal(v1, 'hello');
+    assert.equal(v1, v2);
+  });
 });

@@ -123,7 +123,10 @@ export default class DataStore {
     return true;
   }
 
-  async readValue(ref: Ref): Promise<any> {
+  async readValue(ref: Ref | RefValue<valueOrPrimitive>): Promise<any> {
+    if (ref instanceof RefValue) {
+      ref = ref.targetRef;
+    }
     const entry = this._valueCache.entry(ref);
     if (entry) {
       return entry.value;
