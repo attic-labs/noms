@@ -75,12 +75,12 @@ func TestSkipDuplicateTypes(t *testing.T) {
 		types.MakeStructType("S1", []types.Field{
 			types.Field{"f", types.MakeCompoundType(types.ListKind, types.MakePrimitiveType(types.Uint16Kind)), false},
 			types.Field{"e", types.MakeType(ref.Ref{}, 0), false},
-		}, types.Choices{}),
+		}, []types.Field{}),
 	}, []ref.Ref{})
 	leaf2 := types.NewPackage([]types.Type{
 		types.MakeStructType("S2", []types.Field{
 			types.Field{"f", types.MakeCompoundType(types.ListKind, types.MakePrimitiveType(types.Uint16Kind)), false},
-		}, types.Choices{}),
+		}, []types.Field{}),
 	}, []ref.Ref{})
 
 	written := map[string]bool{}
@@ -144,8 +144,8 @@ func TestCommitNewPackages(t *testing.T) {
 	p := parsePackageFile("name", inFile, pkgDS)
 	localPkgs := refSet{p.Ref(): true}
 	pkgDS = generate("name", inFile, filepath.Join(dir, "out.js"), dir, map[string]bool{}, p, localPkgs, pkgDS)
-	s := pkgDS.Head().Value().(types.SetOfRefOfPackage)
+	s := pkgDS.Head().Value().(types.Set)
 	assert.EqualValues(1, s.Len())
-	tr := s.First().TargetValue(ds).Types()[0]
+	tr := s.First().(types.Ref).TargetValue(ds).(types.Package).Types()[0]
 	assert.EqualValues(types.StructKind, tr.Kind())
 }

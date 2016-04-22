@@ -45,23 +45,9 @@ func (t Type) HasPackageRef() bool {
 	return t.IsUnresolved() && !t.PackageRef().IsEmpty()
 }
 
-// Describe() methods generate text that should parse into the struct being described.
-// TODO: Figure out a way that they can exist only in the test file.
+// Describe generate text that should parse into the struct being described.
 func (t Type) Describe() (out string) {
-	switch t.Kind() {
-	case EnumKind:
-		out += "enum "
-	case StructKind:
-		out += "struct "
-	}
-	if t.name != (name{}) {
-		out += t.name.compose() + " "
-		if t.IsUnresolved() {
-			return
-		}
-	}
-	out += t.Desc.Describe()
-	return
+	return WriteHRS(t)
 }
 
 func (t Type) Kind() NomsKind {
@@ -125,7 +111,7 @@ func (t Type) Chunks() (chunks []RefBase) {
 
 func (t Type) ChildValues() (res []Value) {
 	if t.HasPackageRef() {
-		res = append(res, NewRefOfPackage(t.PackageRef()))
+		res = append(res, NewTypedRef(MakeRefType(PackageType), t.PackageRef()))
 	}
 	if !t.IsUnresolved() {
 		switch desc := t.Desc.(type) {
@@ -180,7 +166,7 @@ func MakeEnumType(name string, ids ...string) Type {
 	return buildType(name, EnumDesc{ids})
 }
 
-func MakeStructType(name string, fields []Field, choices Choices) Type {
+func MakeStructType(name string, fields []Field, choices []Field) Type {
 	return buildType(name, StructDesc{fields, choices})
 }
 
@@ -235,3 +221,4 @@ var Float64Type = MakePrimitiveType(Float64Kind)
 var BoolType = MakePrimitiveType(BoolKind)
 var StringType = MakePrimitiveType(StringKind)
 var BlobType = MakePrimitiveType(BlobKind)
+var PackageType = MakePrimitiveType(PackageKind)
