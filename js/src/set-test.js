@@ -30,7 +30,7 @@ import Ref from './ref.js';
 import type {Type} from './type.js';
 
 const testSetSize = 5000;
-const setOfNRef = 'sha1-b8ce0af4afd144c64f58e393283407cc0321b0c3';
+const setOfNRef = 'sha1-5b4cd51d88b3d99e6dafdb1cafb8cec90d5aecdf';
 const smallRandomSetSize = 200;
 const randomSetSize = 2000;
 
@@ -89,7 +89,7 @@ suite('BuildSet', () => {
     });
 
     const s = await newSet(refs, tr);
-    assert.strictEqual(s.ref.toString(), 'sha1-f1126a3e01f462c6dd97e49dcaa79b9a448ee162');
+    assert.strictEqual(s.ref.toString(), 'sha1-4c2b0e159ae443ec99299b6ea266d9a408f7987d');
   });
 
 
@@ -102,7 +102,7 @@ suite('BuildSet', () => {
       assert.strictEqual(i + 1, s.size);
     }
 
-    assert.strictEqual(s.ref.toString(), setOfNRef);
+    assert.strictEqual(s.ref.toString(), 'sha1-ee27f104b663d852a3c6cb0fe23c9cf3f69e79c0');
   });
 
   test('remove', async () => {

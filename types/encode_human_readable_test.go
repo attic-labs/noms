@@ -58,8 +58,8 @@ func TestWriteHumanReadableRef(t *testing.T) {
 
 	x := Number(42)
 	rv := vs.WriteValue(x)
-	assertWriteHRSEqual(t, "sha1-c56efb6071a71743b826f2e10df26761549df9c2", rv)
-	assertWriteTaggedHRSEqual(t, "Ref<Number>(sha1-c56efb6071a71743b826f2e10df26761549df9c2)", rv)
+	assertWriteHRSEqual(t, "sha1-bd0b7d4cb11321762f4206f0d6c6fdf820f8556e", rv)
+	assertWriteTaggedHRSEqual(t, "Ref<Number>(sha1-bd0b7d4cb11321762f4206f0d6c6fdf820f8556e)", rv)
 }
 
 func TestWriteHumanReadableCollections(t *testing.T) {
@@ -139,14 +139,14 @@ func TestWriteHumanReadableStruct(t *testing.T) {
 		"x": Number(1),
 	})
 	assertWriteHRSEqual(t, "S1 {\n  x: 1,\n}", str)
-	assertWriteTaggedHRSEqual(t, "Struct<S1, sha1-060081d28078bb395a2a0df4df5a27672e912976, 0>({\n  x: 1,\n})", str)
+	assertWriteTaggedHRSEqual(t, "Struct<S1, sha1-3db6273e80cdd1dccc5ebc830651cf359fb4e704, 0>({\n  x: 1,\n})", str)
 
 	str2 := NewStruct(typ, typeDef, map[string]Value{
 		"x": Number(2),
 		"y": Number(3),
 	})
 	assertWriteHRSEqual(t, "S1 {\n  x: 2,\n  y: 3,\n}", str2)
-	assertWriteTaggedHRSEqual(t, "Struct<S1, sha1-060081d28078bb395a2a0df4df5a27672e912976, 0>({\n  x: 2,\n  y: 3,\n})", str2)
+	assertWriteTaggedHRSEqual(t, "Struct<S1, sha1-3db6273e80cdd1dccc5ebc830651cf359fb4e704, 0>({\n  x: 2,\n  y: 3,\n})", str2)
 }
 
 func TestWriteHumanReadableStructWithUnion(t *testing.T) {
@@ -164,13 +164,13 @@ func TestWriteHumanReadableStructWithUnion(t *testing.T) {
 		"x": Number(1),
 	})
 	assertWriteHRSEqual(t, "S2 {\n  x: 1,\n}", str)
-	assertWriteTaggedHRSEqual(t, "Struct<S2, sha1-5f45a0ccd251ef723835f2e80d5c12422dfdab04, 0>({\n  x: 1,\n})", str)
+	assertWriteTaggedHRSEqual(t, "Struct<S2, sha1-55b7ac37286f0bdda7ee328f4ba807f8bf8d561a, 0>({\n  x: 1,\n})", str)
 
 	str2 := NewStruct(typ, typeDef, map[string]Value{
 		"y": Number(2),
 	})
 	assertWriteHRSEqual(t, "S2 {\n  y: 2,\n}", str2)
-	assertWriteTaggedHRSEqual(t, "Struct<S2, sha1-5f45a0ccd251ef723835f2e80d5c12422dfdab04, 0>({\n  y: 2,\n})", str2)
+	assertWriteTaggedHRSEqual(t, "Struct<S2, sha1-55b7ac37286f0bdda7ee328f4ba807f8bf8d561a, 0>({\n  y: 2,\n})", str2)
 }
 
 func TestWriteHumanReadableListOfStruct(t *testing.T) {
@@ -205,7 +205,7 @@ func TestWriteHumanReadableListOfStruct(t *testing.T) {
     x: 3,
   },
 ]`, l)
-	assertWriteTaggedHRSEqual(t, `List<Struct<S3, sha1-9331a57465cd1747c79b15cdb8ada8c2d2beb8b5, 0>>([
+	assertWriteTaggedHRSEqual(t, `List<Struct<S3, sha1-363eb1cf9659329e783d0770cad81d25d468d8e0, 0>>([
   S3 {
     x: 1,
   },
@@ -276,23 +276,23 @@ func TestWriteHumanReadableType(t *testing.T) {
 	RegisterPackage(&pkg)
 	st := MakeType(pkg.Ref(), 0)
 
-	assertWriteHRSEqual(t, "Struct<Str, sha1-b7decaf1ff8a10d818cb097fc36d3eafaf5dcf7e, 0>", st)
-	assertWriteTaggedHRSEqual(t, "Type(Struct<Str, sha1-b7decaf1ff8a10d818cb097fc36d3eafaf5dcf7e, 0>)", st)
+	assertWriteHRSEqual(t, "Struct<Str, sha1-5b9619407f3a3b659586fa885fffb2dc0987358b, 0>", st)
+	assertWriteTaggedHRSEqual(t, "Type(Struct<Str, sha1-5b9619407f3a3b659586fa885fffb2dc0987358b, 0>)", st)
 
 	sTypeDef := pkg.Types()[0]
 	assertWriteHRSEqual(t, `struct Str {
-  c: Struct<Str, sha1-b7decaf1ff8a10d818cb097fc36d3eafaf5dcf7e, 0>
+  c: Struct<Str, sha1-5b9619407f3a3b659586fa885fffb2dc0987358b, 0>
   o: optional String
   union {
-    x: Struct<Str, sha1-b7decaf1ff8a10d818cb097fc36d3eafaf5dcf7e, 0>
+    x: Struct<Str, sha1-5b9619407f3a3b659586fa885fffb2dc0987358b, 0>
     y: Bool
   }
 }`, sTypeDef)
 	assertWriteTaggedHRSEqual(t, `Type(struct Str {
-  c: Struct<Str, sha1-b7decaf1ff8a10d818cb097fc36d3eafaf5dcf7e, 0>
+  c: Struct<Str, sha1-5b9619407f3a3b659586fa885fffb2dc0987358b, 0>
   o: optional String
   union {
-    x: Struct<Str, sha1-b7decaf1ff8a10d818cb097fc36d3eafaf5dcf7e, 0>
+    x: Struct<Str, sha1-5b9619407f3a3b659586fa885fffb2dc0987358b, 0>
     y: Bool
   }
 })`, sTypeDef)

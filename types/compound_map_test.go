@@ -360,7 +360,7 @@ func TestCompoundMapFirstNNumbers(t *testing.T) {
 	}
 
 	m := NewTypedMap(mapType, kvs...)
-	assert.Equal(m.Ref().String(), "sha1-7bfa9b9e7a82074ae67347349f8da549bf829cfa")
+	assert.Equal(m.Ref().String(), "sha1-60f2d39d24da082cb8e022f866c60202152b2562")
 }
 
 func TestCompoundMapRefOfStructFirstNNumbers(t *testing.T) {
@@ -388,7 +388,7 @@ func TestCompoundMapRefOfStructFirstNNumbers(t *testing.T) {
 	}
 
 	m := NewTypedMap(mapType, kvs...)
-	assert.Equal("sha1-2ce339505a342d68c020b2b0a3ec128ec9258ac4", m.Ref().String())
+	assert.Equal("sha1-3ab6131151c76cc3fdc9b639b37770d8d7dcdf5d", m.Ref().String())
 }
 
 func TestCompoundMapModifyAfterRead(t *testing.T) {

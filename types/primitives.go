@@ -1,6 +1,3 @@
-// DO NOT EDIT: This file was generated.
-// To regenerate, run `go generate` in this package.
-
 package types
 
 import (

@@ -26,7 +26,7 @@ import {Package, registerPackage} from './package.js';
 import type {Type} from './type.js';
 
 const testListSize = 5000;
-const listOfNRef = 'sha1-36cffb3ac5fb12d3b0970c3de40b85c14cd1590b';
+const listOfNRef = 'sha1-df0a58e5fb11b2bc0adbab07c2f39c6b3e02b42b';
 
 async function assertToJS(list: NomsList, nums: Array<any>, start: number = 0,
     end: number = nums.length): Promise<void> {
@@ -78,7 +78,7 @@ suite('BuildList', () => {
     });
 
     const s = await newList(refs, tr);
-    assert.strictEqual(s.ref.toString(), 'sha1-7e7dc681c6b101175362d47d22af1a4c05d59b25');
+    assert.strictEqual(s.ref.toString(), 'sha1-f2e6c3aae6e8ac4c3776830e2d8141fc527c55c5');
     assert.strictEqual(testListSize, s.length);
   });
 
