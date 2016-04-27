@@ -3,9 +3,9 @@
 /* eslint-disable */
 
 import {
-  numberType as _numberType,
   makeListType as _makeListType,
   newList as _newList,
+  numberType as _numberType,
 } from '@attic/noms';
 import type {
   NomsList as _NomsList,

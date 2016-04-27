@@ -57,7 +57,7 @@ func TestGeneratedFiles(t *testing.T) {
 			continue
 		}
 		if file == "struct_with_list.noms" || file == "struct_with_dup_list.noms" {
-			// These two files race to write ListOfUint8
+			// These two files race to write ListOfNumber
 			continue
 		}
 		assertOutput(n, filepath.Join("test", "gen", file+".js"), t)
