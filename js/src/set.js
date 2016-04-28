@@ -18,6 +18,8 @@ import {OrderedSequence, OrderedSequenceCursor,
 import diff from './ordered-sequence-diff.js';
 import {setOfValueType, Type} from './type.js';
 import {sha1Size} from './ref.js';
+import {removeDuplicateFromOrdered} from './map.js';
+import {getValueChunks} from './sequence.js';
 
 const setWindowSize = 1;
 const setPattern = ((1 << 6) | 0) - 1;
@@ -52,7 +54,7 @@ function buildSetData<T>(t: Type, values: Array<any>): Array<T> {
   // TODO: Assert values are of correct type
   const compare = getCompareFunction(t.elemTypes[0]);
   values.sort(compare);
-  return values;
+  return removeDuplicateFromOrdered(values, (v1, v2) => 0 === compare(v1, v2));
 }
 
 export function newSet<T:valueOrPrimitive>(values: Array<T>, type: Type = setOfValueType):
@@ -201,6 +203,10 @@ export class SetLeafSequence<K:valueOrPrimitive> extends OrderedSequence<K, K> {
 
   equalsAt(idx: number, other: any): boolean {
     return equals(this.items[idx], other);
+  }
+
+  get chunks(): Array<RefValue> {
+    return getValueChunks(this.items);
   }
 }
 

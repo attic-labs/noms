@@ -20,6 +20,33 @@ func TestNewMap(t *testing.T) {
 	assert.True(NewString("bar").Equals(m.Get(NewString("bar"))))
 }
 
+func TestMapUniqueKeysString(t *testing.T) {
+	assert := assert.New(t)
+	l := []Value{
+		NewString("hello"), NewString("world"),
+		NewString("foo"), NewString("bar"),
+		NewString("bar"), NewString("foo"),
+		NewString("hello"), NewString("foo"),
+	}
+	m := NewMap(l...)
+	assert.Equal(uint64(3), m.Len())
+	assert.True(NewString("foo").Equals(m.Get(NewString("hello"))))
+}
+
+func TestMapUniqueKeysNumber(t *testing.T) {
+	assert := assert.New(t)
+	l := []Value{
+		Number(4), Number(1),
+		Number(0), Number(2),
+		Number(1), Number(2),
+		Number(3), Number(4),
+		Number(1), Number(5),
+	}
+	m := NewMap(l...)
+	assert.Equal(uint64(4), m.Len())
+	assert.True(Number(5).Equals(m.Get(Number(1))))
+}
+
 func TestMapHasRemove(t *testing.T) {
 	assert := assert.New(t)
 	m1 := newMapLeaf(mapType)
@@ -354,12 +381,12 @@ func TestMapOrdering(t *testing.T) {
 		},
 		// Ordered by ref
 		[]Value{
-			NewString("x"),
-			NewString("c"),
-			NewString("y"),
 			NewString("z"),
+			NewString("c"),
 			NewString("a"),
+			NewString("x"),
 			NewString("b"),
+			NewString("y"),
 		},
 	)
 

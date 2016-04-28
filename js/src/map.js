@@ -12,13 +12,13 @@ import {getCompareFunction, equals} from './compare.js';
 import {sha1Size} from './ref.js';
 import {getRefOfValueOrPrimitive} from './get-ref.js';
 import {invariant} from './assert.js';
-import {isPrimitive} from './primitives.js';
 import {mapOfValueType, Type} from './type.js';
 import {MetaTuple, newOrderedMetaSequenceBoundaryChecker,
   newOrderedMetaSequenceChunkFn} from './meta-sequence.js';
 import {OrderedSequence, OrderedSequenceCursor,
   OrderedSequenceIterator} from './ordered-sequence.js';
 import diff from './ordered-sequence-diff.js';
+import {ValueBase} from './value.js';
 
 export type MapEntry<K: valueOrPrimitive, V: valueOrPrimitive> = {
   key: K,
@@ -52,6 +52,23 @@ function newMapLeafBoundaryChecker(t: Type): BoundaryChecker<MapEntry> {
     (entry: MapEntry) => getRefOfValueOrPrimitive(entry.key, t.elemTypes[0]).digest);
 }
 
+export function removeDuplicateFromOrdered<T>(elems: Array<T>,
+    dupFn: (v1: T, v2: T) => boolean) : Array<T> {
+  const unique = [];
+  let i = -1;
+  let last = null;
+  elems.forEach((elem: T) => {
+    if (null === elem || undefined === elem ||
+        null === last || undefined === last || !dupFn(last, elem)) {
+      i++;
+    }
+    unique[i] = elem;
+    last = elem;
+  });
+
+  return unique;
+}
+
 function buildMapData(t: Type, kvs: Array<any>): Array<MapEntry> {
   // TODO: Assert k & v are of correct type
   const entries = [];
@@ -63,7 +80,12 @@ function buildMapData(t: Type, kvs: Array<any>): Array<MapEntry> {
   }
   const compare = getCompareFunction(t.elemTypes[0]);
   entries.sort((v1, v2) => compare(v1.key, v2.key));
-  return entries;
+  return removeDuplicateFromOrdered(entries, (v1, v2) => {
+    if (v1.key !== null && v2.key !== null) {
+      return 0 === compare(v1.key, v2.key);
+    }
+    return false;
+  });
 }
 
 export function newMap<K: valueOrPrimitive, V: valueOrPrimitive>(kvs: Array<any>,
@@ -76,29 +98,10 @@ export function newMap<K: valueOrPrimitive, V: valueOrPrimitive>(kvs: Array<any>
 }
 
 export class NomsMap<K: valueOrPrimitive, V: valueOrPrimitive> extends Collection<OrderedSequence> {
-  get chunks(): Array<RefValue> {
-    if (this.sequence.isMeta) {
-      return super.chunks;
-    }
-
-    const chunks = [];
-    this.sequence.items.forEach(entry => {
-      if (!isPrimitive(entry.key)) {
-        chunks.push(...entry.key.chunks);
-      }
-      if (!isPrimitive(entry.value)) {
-        chunks.push(...entry.value.chunks);
-      }
-    });
-
-    return chunks;
-  }
-
   async has(key: K): Promise<boolean> {
     const cursor = await this.sequence.newCursorAt(key);
     return cursor.valid && equals(cursor.getCurrentKey(), key);
   }
-
 
   async _firstOrLast(last: boolean): Promise<?[K, V]> {
     const cursor = await this.sequence.newCursorAt(null, false, last);
@@ -201,5 +204,18 @@ export class MapLeafSequence<K: valueOrPrimitive, V: valueOrPrimitive> extends
   equalsAt(idx: number, other: {key: K, value: V}): boolean {
     const entry = this.items[idx];
     return equals(entry.key, other.key) && equals(entry.value, other.value);
+  }
+
+  get chunks(): Array<RefValue> {
+    const chunks = [];
+    for (const entry of this.items) {
+      if (entry.key instanceof ValueBase) {
+        chunks.push(...entry.key.chunks);
+      }
+      if (entry.value instanceof ValueBase) {
+        chunks.push(...entry.value.chunks);
+      }
+    }
+    return chunks;
   }
 }
