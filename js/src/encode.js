@@ -268,7 +268,6 @@ export class JsonArrayWriter {
     desc.fields.forEach(field => {
       fieldWriter.write(field.name);
       fieldWriter.writeTypeAsTag(field.t, backRefs);
-      fieldWriter.write(field.optional);
     });
     this.write(fieldWriter.array);
   }
@@ -287,17 +286,7 @@ export class JsonArrayWriter {
   writeStruct(s: Struct) {
     const mirror = new StructMirror(s);
     mirror.forEachField(field => {
-      if (field.optional) {
-        if (field.present) {
-          this.writeBoolean(true);
-          this.writeValue(notNull(field.value), field.type);
-        } else {
-          this.writeBoolean(false);
-        }
-      } else {
-        invariant(field.present);
-        this.writeValue(notNull(field.value), field.type);
-      }
+      this.writeValue(notNull(field.value), field.type);
     });
   }
 }
