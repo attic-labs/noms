@@ -362,7 +362,7 @@ function getTypeOfValue(v: any): Type {
     case 'boolean':
       return boolType;
     case 'number':
-      throw new Error('Encoding untagged numbers is not supported');
+      return numberType;
     default:
       throw new Error('Unknown type');
   }
