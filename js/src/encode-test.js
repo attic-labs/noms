@@ -230,8 +230,7 @@ suite('Encode', () => {
     v = newStruct(type, {l: new NomsList(ltr, new ListLeafSequence(ds, ltr, []))});
     w = new JsonArrayWriter(ds);
     w.writeTopLevel(type, v);
-    assert.deepEqual([Kind.Struct, 'S', ['l', Kind.List, Kind.String], false, []],
-                     w.array);
+    assert.deepEqual([Kind.Struct, 'S', ['l', Kind.List, Kind.String], false, []], w.array);
   });
 
   test('write struct with struct', async () => {

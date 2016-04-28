@@ -9,7 +9,7 @@ import type {NomsKind} from './noms-kind.js';
 import {encode as encodeBase64} from './base64.js';
 import {StructDesc, Type, getTypeOfValue} from './type.js';
 import {indexTypeForMetaSequence, MetaTuple} from './meta-sequence.js';
-import {invariant, notNull} from './assert.js';
+import {invariant} from './assert.js';
 import {isPrimitiveKind, Kind} from './noms-kind.js';
 import {ListLeafSequence, NomsList} from './list.js';
 import {MapLeafSequence, NomsMap} from './map.js';
@@ -286,7 +286,7 @@ export class JsonArrayWriter {
   writeStruct(s: Struct) {
     const mirror = new StructMirror(s);
     mirror.forEachField(field => {
-      this.writeValue(notNull(field.value), field.type);
+      this.writeValue(field.value, field.type);
     });
   }
 }

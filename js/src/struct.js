@@ -10,7 +10,7 @@ import {Kind} from './noms-kind.js';
 import {Value} from './value.js';
 import validateType from './validate-type.js';
 
-type StructData = {[key: string]: ?valueOrPrimitive};
+type StructData = {[key: string]: valueOrPrimitive};
 
 /**
  * Base class for all Noms structs. The decoder creates sub classes of this for Noms struct.
@@ -77,18 +77,15 @@ function validate(type: Type, data: StructData): void {
   const {desc} = type;
   invariant(desc instanceof StructDesc);
   const {fields} = desc;
-  let dataCount = Object.keys(data).length;
   for (let i = 0; i < fields.length; i++) {
     const field = fields[i];
     const value = data[field.name];
-    dataCount--;
     validateType(field.t, value);
   }
-  invariant(dataCount === 0);
 }
 
 export class StructFieldMirror {
-  value: ?valueOrPrimitive;
+  value: valueOrPrimitive;
   _f: Field;
 
   constructor(data: StructData, f: Field) {
