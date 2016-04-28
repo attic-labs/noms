@@ -32,12 +32,6 @@ export {
   boolType,
   CompoundDesc,
   Field,
-  float32Type,
-  float64Type,
-  int16Type,
-  int32Type,
-  int64Type,
-  int8Type,
   makeCompoundType,
   makeListType,
   makeMapType,
@@ -46,16 +40,13 @@ export {
   makeStructType,
   makeType,
   makeUnresolvedType,
+  numberType,
   packageType,
   PrimitiveDesc,
   stringType,
   StructDesc,
   Type,
   typeType,
-  uint16Type,
-  uint32Type,
-  uint64Type,
-  uint8Type,
   UnresolvedDesc,
   valueType,
 } from './type.js';
@@ -67,17 +58,5 @@ export type {MapEntry} from './map.js';
 export type {Splice} from './edit-distance.js';
 export type {valueOrPrimitive, Value} from './value.js';
 export type {NomsKind} from './noms-kind.js';
-export type {
-  float32,
-  float64,
-  int16,
-  int32,
-  int64,
-  int8,
-  primitive,
-  uint16,
-  uint32,
-  uint64,
-  uint8,
-} from './primitives.js';
+export type {primitive} from './primitives.js';
 export type {Commit} from './commit.js';

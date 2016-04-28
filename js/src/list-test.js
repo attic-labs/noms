@@ -10,11 +10,10 @@ import {newStruct} from './struct.js';
 import {calcSplices} from './edit-distance.js';
 import {
   Field,
-  int32Type,
-  int64Type,
   makeCompoundType,
   makeStructType,
   makeType,
+  numberType,
   stringType,
   valueType,
 } from './type.js';
@@ -27,7 +26,7 @@ import {Package, registerPackage} from './package.js';
 import type {Type} from './type.js';
 
 const testListSize = 5000;
-const listOfNRef = 'sha1-36cffb3ac5fb12d3b0970c3de40b85c14cd1590b';
+const listOfNRef = 'sha1-df0a58e5fb11b2bc0adbab07c2f39c6b3e02b42b';
 
 async function assertToJS(list: NomsList, nums: Array<any>, start: number = 0,
     end: number = nums.length): Promise<void> {
@@ -51,19 +50,19 @@ suite('BuildList', () => {
     return intSequence(0, n);
   }
 
-  test('set of n numbers, length', async () => {
+  test('LONG: set of n numbers, length', async () => {
     const nums = firstNNumbers(testListSize);
-    const tr = makeCompoundType(Kind.List, int64Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     const s = await newList(nums, tr);
     assert.strictEqual(s.ref.toString(), listOfNRef);
     assert.strictEqual(testListSize, s.length);
   });
 
-  test('list of ref, set of n numbers, length', async () => {
+  test('LONG: list of ref, set of n numbers, length', async () => {
     const nums = firstNNumbers(testListSize);
 
     const structTypeDef = makeStructType('num', [
-      new Field('n', int64Type, false),
+      new Field('n', numberType, false),
     ], []);
     const pkg = new Package([structTypeDef], []);
     registerPackage(pkg);
@@ -79,13 +78,13 @@ suite('BuildList', () => {
     });
 
     const s = await newList(refs, tr);
-    assert.strictEqual(s.ref.toString(), 'sha1-7e7dc681c6b101175362d47d22af1a4c05d59b25');
+    assert.strictEqual(s.ref.toString(), 'sha1-f2e6c3aae6e8ac4c3776830e2d8141fc527c55c5');
     assert.strictEqual(testListSize, s.length);
   });
 
-  test('toJS', async () => {
+  test('LONG: toJS', async () => {
     const nums = firstNNumbers(5000);
-    const tr = makeCompoundType(Kind.List, int64Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     const s = await newList(nums, tr);
     assert.strictEqual(s.ref.toString(), listOfNRef);
     assert.strictEqual(testListSize, s.length);
@@ -103,9 +102,9 @@ suite('BuildList', () => {
     await assertToJS(s, nums, -1);
   });
 
-  test('insert', async () => {
+  test('LONG: insert', async () => {
     const nums = firstNNumbers(testListSize - 10);
-    const tr = makeCompoundType(Kind.List, int64Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     let s = await newList(nums, tr);
 
     for (let i = testListSize - 10; i < testListSize; i++) {
@@ -115,9 +114,9 @@ suite('BuildList', () => {
     assert.strictEqual(s.ref.toString(), listOfNRef);
   });
 
-  test('append', async () => {
+  test('LONG: append', async () => {
     const nums = firstNNumbers(testListSize - 10);
-    const tr = makeCompoundType(Kind.List, int64Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     let s = await newList(nums, tr);
 
     for (let i = testListSize - 10; i < testListSize; i++) {
@@ -127,9 +126,9 @@ suite('BuildList', () => {
     assert.strictEqual(s.ref.toString(), listOfNRef);
   });
 
-  test('remove', async () => {
+  test('LONG: remove', async () => {
     const nums = firstNNumbers(testListSize + 10);
-    const tr = makeCompoundType(Kind.List, int64Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     let s = await newList(nums, tr);
 
     let count = 10;
@@ -140,9 +139,9 @@ suite('BuildList', () => {
     assert.strictEqual(s.ref.toString(), listOfNRef);
   });
 
-  test('splice', async () => {
+  test('LONG: splice', async () => {
     const nums = firstNNumbers(testListSize);
-    const tr = makeCompoundType(Kind.List, int64Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     let s = await newList(nums, tr);
 
     const splice500At = async (idx: number) => {
@@ -158,12 +157,12 @@ suite('BuildList', () => {
     assert.strictEqual(s.ref.toString(), listOfNRef);
   });
 
-  test('write, read, modify, read', async () => {
+  test('LONG: write, read, modify, read', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
 
     const nums = firstNNumbers(testListSize);
-    const tr = makeCompoundType(Kind.List, int64Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     const s = await newList(nums, tr);
     const r = ds.writeValue(s).targetRef;
     const s2 = await ds.readValue(r);
@@ -202,7 +201,7 @@ suite('ListLeafSequence', () => {
   test('forEach', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const tr = makeCompoundType(Kind.List, int32Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     const l = new NomsList(tr, new ListLeafSequence(ds, tr, [4, 2, 10, 16]));
 
     const values = [];
@@ -213,7 +212,7 @@ suite('ListLeafSequence', () => {
   test('iterator', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const tr = makeCompoundType(Kind.List, int32Type);
+    const tr = makeCompoundType(Kind.List, numberType);
 
     const test = async items => {
       const l = new NomsList(tr, new ListLeafSequence(ds, tr, items));
@@ -229,7 +228,7 @@ suite('ListLeafSequence', () => {
   test('iteratorAt', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const tr = makeCompoundType(Kind.List, int32Type);
+    const tr = makeCompoundType(Kind.List, numberType);
 
     const test = async items => {
       const l = new NomsList(tr, new ListLeafSequence(ds, tr, items));
@@ -370,6 +369,15 @@ suite('CompoundList', () => {
     const l = build();
     assert.equal(l.length, 8);
   });
+
+  test('chunks', () => {
+    const l = build();
+    const chunks = l.chunks;
+    const sequence = l.sequence;
+    assert.equal(2, chunks.length);
+    assert.isTrue(sequence.items[0].ref.equals(chunks[0].targetRef));
+    assert.isTrue(sequence.items[1].ref.equals(chunks[1].targetRef));
+  });
 });
 
 suite('Diff List', () => {
@@ -387,7 +395,7 @@ suite('Diff List', () => {
     return intSequence(0, n);
   }
 
-  test('Remove 5x100', async () => {
+  test('LONG: Remove 5x100', async () => {
     const nums1 = firstNNumbers(5000);
     const nums2 = nums1.slice(0);
 
@@ -398,7 +406,7 @@ suite('Diff List', () => {
 
     const directDiff = calcSplices(nums1.length, nums2.length, (i, j) => nums1[i] === nums2[j]);
 
-    const tr = makeCompoundType(Kind.List, int64Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     const l1 = await newList(nums1, tr);
     const l2 = await newList(nums2, tr);
 
@@ -406,7 +414,7 @@ suite('Diff List', () => {
     assert.deepEqual(directDiff, listDiff);
   });
 
-  test('Add 5x5', async () => {
+  test('LONG: Add 5x5', async () => {
     const nums1 = firstNNumbers(5000);
     const nums2 = nums1.slice(0);
 
@@ -417,7 +425,7 @@ suite('Diff List', () => {
 
     const directDiff = calcSplices(nums1.length, nums2.length, (i, j) => nums1[i] === nums2[j]);
 
-    const tr = makeCompoundType(Kind.List, int64Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     const l1 = await newList(nums1, tr);
     const l2 = await newList(nums2, tr);
 
@@ -425,7 +433,7 @@ suite('Diff List', () => {
     assert.deepEqual(directDiff, listDiff);
   });
 
-  test('Replace reverse 5x100', async () => {
+  test('LONG: Replace reverse 5x100', async () => {
     const nums1 = firstNNumbers(5000);
     const nums2 = nums1.slice(0);
 
@@ -436,7 +444,7 @@ suite('Diff List', () => {
     }
 
     const directDiff = calcSplices(nums1.length, nums2.length, (i, j) => nums1[i] === nums2[j]);
-    const tr = makeCompoundType(Kind.List, int64Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     const l1 = await newList(nums1, tr);
     const l2 = await newList(nums2, tr);
 
@@ -444,12 +452,12 @@ suite('Diff List', () => {
     assert.deepEqual(directDiff, listDiff);
   });
 
-  test('Load Limit', async () => {
+  test('LONG: Load Limit', async () => {
     const nums1 = firstNNumbers(5);
     const nums2 = firstNNumbers(5000);
 
     const directDiff = calcSplices(nums1.length, nums2.length, (i, j) => nums1[i] === nums2[j]);
-    const tr = makeCompoundType(Kind.List, int64Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     const l1 = await newList(nums1, tr);
     const l2 = await newList(nums2, tr);
 

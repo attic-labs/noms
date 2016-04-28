@@ -6,12 +6,13 @@ import type {BoundaryChecker, makeChunkFn} from './sequence-chunker.js';
 import type DataStore from './data-store.js';
 import type {valueOrPrimitive} from './value.js'; // eslint-disable-line no-unused-vars
 import type {Collection} from './collection.js';
-import {CompoundDesc, makeCompoundType, uint64Type, valueType} from './type.js';
+import {CompoundDesc, makeCompoundType, numberType, valueType} from './type.js';
 import type {Type} from './type.js';
 import {IndexedSequence} from './indexed-sequence.js';
 import {invariant} from './assert.js';
 import {Kind} from './noms-kind.js';
 import {OrderedSequence} from './ordered-sequence.js';
+import RefValue from './ref-value.js';
 import {Sequence} from './sequence.js';
 
 export type MetaSequence = Sequence<MetaTuple>;
@@ -72,6 +73,10 @@ export class IndexedMetaSequence extends IndexedSequence<MetaTuple<number>> {
 
   get numLeaves(): number {
     return this._offsets[this._offsets.length - 1];
+  }
+
+  get chunks(): Array<RefValue> {
+    return getMetaSequenceChunks(this);
   }
 
   range(start: number, end: number): Promise<Array<any>> {
@@ -147,6 +152,10 @@ export class OrderedMetaSequence<K: valueOrPrimitive> extends OrderedSequence<K,
     return this._numLeaves;
   }
 
+  get chunks(): Array<RefValue> {
+    return getMetaSequenceChunks(this);
+  }
+
   getChildSequence(idx: number): Promise<?Sequence> {
     if (!this.isMeta) {
       return Promise.resolve(null);
@@ -179,7 +188,7 @@ export function newMetaSequenceFromData(ds: DataStore, type: Type, tuples: Array
   }
 }
 
-const indexedSequenceIndexType = uint64Type;
+const indexedSequenceIndexType = numberType;
 
 export function indexTypeForMetaSequence(t: Type): Type {
   switch (t.kind) {
@@ -236,4 +245,8 @@ export function newIndexedMetaSequenceBoundaryChecker(): BoundaryChecker<MetaTup
   return new BuzHashBoundaryChecker(objectWindowSize, sha1Size, objectPattern,
     (mt: MetaTuple) => mt.ref.digest
   );
+}
+
+function getMetaSequenceChunks(ms: MetaSequence) {
+  return ms.items.map(mt => new RefValue(mt.ref, ms.type));
 }

@@ -6,7 +6,6 @@ import MemoryStore from './memory-store.js';
 import Ref from './ref.js';
 import RefValue from './ref-value.js';
 import {default as Struct, StructMirror} from './struct.js';
-import type {float64, int32, int64, uint8, uint16, uint32, uint64} from './primitives.js';
 import type {TypeDesc} from './type.js';
 import type {Value} from './value.js';
 import {assert} from 'chai';
@@ -14,22 +13,13 @@ import {decodeNomsValue, JsonArrayReader} from './decode.js';
 import {
   boolType,
   Field,
-  float32Type,
-  float64Type,
-  int16Type,
-  int32Type,
-  int64Type,
-  int8Type,
   makeCompoundType,
   makeStructType,
   makeType,
+  numberType,
   stringType,
   Type,
   typeType,
-  uint16Type,
-  uint32Type,
-  uint64Type,
-  uint8Type,
   valueType,
 } from './type.js';
 import {encode as encodeBase64} from './base64.js';
@@ -100,34 +90,24 @@ suite('Decode', () => {
 
     await doTest(true, [Kind.Bool, true]);
     await doTest(false, [Kind.Bool, false]);
-    await doTest(0, [Kind.Uint8, '0']);
-    await doTest(0, [Kind.Uint16, '0']);
-    await doTest(0, [Kind.Uint32, '0']);
-    await doTest(0, [Kind.Uint64, '0']);
-    await doTest(0, [Kind.Int8, '0']);
-    await doTest(0, [Kind.Int16, '0']);
-    await doTest(0, [Kind.Int32, '0']);
-    await doTest(0, [Kind.Int64, '0']);
-    await doTest(0, [Kind.Float32, '0']);
-    await doTest(0, [Kind.Float64, '0']);
+    await doTest(0, [Kind.Number, '0']);
 
-    await doTest(1e18, [Kind.Int64, '1000000000000000000']);
-    await doTest(1e19, [Kind.Uint64, '10000000000000000000']);
-    await doTest(1e19, [Kind.Float64, '10000000000000000000']);
-    await doTest(1e20, [Kind.Float64, '1e+20']);
+    await doTest(1e18, [Kind.Number, '1000000000000000000']);
+    await doTest(1e19, [Kind.Number, '10000000000000000000']);
+    await doTest(1e20, [Kind.Number, '1e+20']);
 
     await doTest('hi', [Kind.String, 'hi']);
   });
 
-  test('read list of int 32', async () => {
+  test('read list of number', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const a = [Kind.List, Kind.Int32, false, ['0', '1', '2', '3']];
+    const a = [Kind.List, Kind.Number, false, ['0', '1', '2', '3']];
     const r = new JsonArrayReader(a, ds);
-    const v:NomsList<int32> = await r.readTopLevelValue();
+    const v:NomsList<number> = await r.readTopLevelValue();
     invariant(v instanceof NomsList);
 
-    const tr = makeCompoundType(Kind.List, int32Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     const l = new NomsList(tr, new ListLeafSequence(ds, tr, [0, 1, 2, 3]));
     assert.isTrue(l.equals(v));
   });
@@ -136,7 +116,8 @@ suite('Decode', () => {
   test('read list of value', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const a = [Kind.List, Kind.Value, false, [Kind.Int32, '1', Kind.String, 'hi', Kind.Bool, true]];
+    const a = [Kind.List, Kind.Value, false,
+      [Kind.Number, '1', Kind.String, 'hi', Kind.Bool, true]];
     const r = new JsonArrayReader(a, ds);
     const v:NomsList<Value> = await r.readTopLevelValue();
     invariant(v instanceof NomsList);
@@ -148,15 +129,15 @@ suite('Decode', () => {
     assert.strictEqual(true, await v.get(2));
   });
 
-  test('read value list of int8', async () => {
+  test('read value list of number', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const a = [Kind.Value, Kind.List, Kind.Int8, false, ['0', '1', '2']];
+    const a = [Kind.Value, Kind.List, Kind.Number, false, ['0', '1', '2']];
     const r = new JsonArrayReader(a, ds);
     const v = await r.readTopLevelValue();
     invariant(v instanceof NomsList);
 
-    const tr = makeCompoundType(Kind.List, int8Type);
+    const tr = makeCompoundType(Kind.List, numberType);
     const l = new NomsList(tr, new ListLeafSequence(ds, tr, [0, 1, 2]));
     assert.isTrue(l.equals(v));
   });
@@ -164,7 +145,7 @@ suite('Decode', () => {
   test('read compound list', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const ltr = makeCompoundType(Kind.List, int32Type);
+    const ltr = makeCompoundType(Kind.List, numberType);
     const r1 = ds.writeValue(new NomsList(ltr, new ListLeafSequence(ds, ltr, [0]))).targetRef;
     const r2 = ds.writeValue(new NomsList(ltr, new ListLeafSequence(ds, ltr, [1, 2]))).targetRef;
     const r3 = ds.writeValue(new NomsList(ltr, new ListLeafSequence(ds, ltr, [3, 4, 5]))).targetRef;
@@ -173,9 +154,9 @@ suite('Decode', () => {
       new MetaTuple(r2, 2, 2),
       new MetaTuple(r3, 3, 3),
     ];
-    const l:NomsList<int32> = new NomsList(ltr, new IndexedMetaSequence(ds, ltr, tuples));
+    const l:NomsList<number> = new NomsList(ltr, new IndexedMetaSequence(ds, ltr, tuples));
 
-    const a = [Kind.List, Kind.Int32, true,
+    const a = [Kind.List, Kind.Number, true,
                [r1.toString(), '1', '1', r2.toString(), '2', '2', r3.toString(), '3', '3']];
     const r = new JsonArrayReader(a, ds);
     const v = await r.readTopLevelValue();
@@ -183,32 +164,32 @@ suite('Decode', () => {
     assert.isTrue(v.ref.equals(l.ref));
   });
 
-  test('read map of int64 to float64', async () => {
+  test('read map of number to number', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const a = [Kind.Map, Kind.Int64, Kind.Float64, false, ['0', '1', '2', '3']];
+    const a = [Kind.Map, Kind.Number, Kind.Number, false, ['0', '1', '2', '3']];
     const r = new JsonArrayReader(a, ds);
-    const v:NomsMap<int64, float64> = await r.readTopLevelValue();
+    const v:NomsMap<number, number> = await r.readTopLevelValue();
     invariant(v instanceof NomsMap);
 
-    const t = makeCompoundType(Kind.Map, int64Type,
-                               float64Type);
+    const t = makeCompoundType(Kind.Map, numberType,
+                               numberType);
     const m = new NomsMap(t, new MapLeafSequence(ds, t, [{key: 0, value: 1}, {key: 2, value: 3}]));
     assert.isTrue(v.equals(m));
   });
 
-  test('read map of ref to uint64', async () => {
+  test('read map of ref to number', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const a = [Kind.Map, Kind.Ref, Kind.Value, Kind.Uint64, false,
+    const a = [Kind.Map, Kind.Ref, Kind.Value, Kind.Number, false,
                ['sha1-0000000000000000000000000000000000000001', '2',
                 'sha1-0000000000000000000000000000000000000002', '4']];
     const r = new JsonArrayReader(a, ds);
-    const v:NomsMap<RefValue<Value>, uint64> = await r.readTopLevelValue();
+    const v:NomsMap<RefValue<Value>, number> = await r.readTopLevelValue();
     invariant(v instanceof NomsMap);
 
     const refOfValueType = makeCompoundType(Kind.Ref, valueType);
-    const mapType = makeCompoundType(Kind.Map, refOfValueType, uint64Type);
+    const mapType = makeCompoundType(Kind.Map, refOfValueType, numberType);
     const rv1 = new RefValue(new Ref('sha1-0000000000000000000000000000000000000001'),
         refOfValueType);
     const rv2 = new RefValue(new Ref('sha1-0000000000000000000000000000000000000002'),
@@ -218,29 +199,29 @@ suite('Decode', () => {
     assert.isTrue(v.equals(m));
   });
 
-  test('read value map of uint64 to uint32', async () => {
+  test('read value map of number to number', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const a = [Kind.Value, Kind.Map, Kind.Uint64, Kind.Uint32, false, ['0', '1', '2', '3']];
+    const a = [Kind.Value, Kind.Map, Kind.Number, Kind.Number, false, ['0', '1', '2', '3']];
     const r = new JsonArrayReader(a, ds);
-    const v:NomsMap<uint64, uint32> = await r.readTopLevelValue();
+    const v:NomsMap<number, number> = await r.readTopLevelValue();
     invariant(v instanceof NomsMap);
 
-    const t = makeCompoundType(Kind.Map, uint64Type,
-                               uint32Type);
+    const t = makeCompoundType(Kind.Map, numberType,
+                               numberType);
     const m = new NomsMap(t, new MapLeafSequence(ds, t, [{key: 0, value: 1}, {key: 2, value: 3}]));
     assert.isTrue(v.equals(m));
   });
 
-  test('read set of uint8', async () => {
+  test('read set of number', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const a = [Kind.Set, Kind.Uint8, false, ['0', '1', '2', '3']];
+    const a = [Kind.Set, Kind.Number, false, ['0', '1', '2', '3']];
     const r = new JsonArrayReader(a, ds);
-    const v:NomsSet<uint8> = await r.readTopLevelValue();
+    const v:NomsSet<number> = await r.readTopLevelValue();
     invariant(v instanceof NomsSet);
 
-    const t = makeCompoundType(Kind.Set, uint8Type);
+    const t = makeCompoundType(Kind.Set, numberType);
     const s = new NomsSet(t, new SetLeafSequence(ds, t, [0, 1, 2, 3]));
     assert.isTrue(v.equals(s));
   });
@@ -248,7 +229,7 @@ suite('Decode', () => {
   test('read compound set', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const ltr = makeCompoundType(Kind.Set, int32Type);
+    const ltr = makeCompoundType(Kind.Set, numberType);
     const r1 = ds.writeValue(new NomsSet(ltr, new SetLeafSequence(ds, ltr, [0]))).targetRef;
     const r2 = ds.writeValue(new NomsSet(ltr, new SetLeafSequence(ds, ltr, [1, 2]))).targetRef;
     const r3 = ds.writeValue(new NomsSet(ltr, new SetLeafSequence(ds, ltr, [3, 4, 5]))).targetRef;
@@ -257,9 +238,9 @@ suite('Decode', () => {
       new MetaTuple(r2, 2, 2),
       new MetaTuple(r3, 5, 3),
     ];
-    const l:NomsSet<int32> = new NomsSet(ltr, new OrderedMetaSequence(ds, ltr, tuples));
+    const l:NomsSet<number> = new NomsSet(ltr, new OrderedMetaSequence(ds, ltr, tuples));
 
-    const a = [Kind.Set, Kind.Int32, true,
+    const a = [Kind.Set, Kind.Number, true,
                [r1.toString(), '0', '1', r2.toString(), '2', '2', r3.toString(), '5', '3']];
     const r = new JsonArrayReader(a, ds);
     const v = await r.readTopLevelValue();
@@ -267,15 +248,15 @@ suite('Decode', () => {
     assert.isTrue(v.ref.equals(l.ref));
   });
 
-  test('read value set of uint16', async () => {
+  test('read value set of number', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const a = [Kind.Value, Kind.Set, Kind.Uint16, false, ['0', '1', '2', '3']];
+    const a = [Kind.Value, Kind.Set, Kind.Number, false, ['0', '1', '2', '3']];
     const r = new JsonArrayReader(a, ds);
-    const v:NomsSet<uint16> = await r.readTopLevelValue();
+    const v:NomsSet<number> = await r.readTopLevelValue();
     invariant(v instanceof NomsSet);
 
-    const t = makeCompoundType(Kind.Set, uint16Type);
+    const t = makeCompoundType(Kind.Set, numberType);
     const s = new NomsSet(t, new SetLeafSequence(ds, t, [0, 1, 2, 3]));
     assert.isTrue(v.equals(s));
   });
@@ -295,7 +276,7 @@ suite('Decode', () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
     const tr = makeStructType('A1', [
-      new Field('x', int16Type, false),
+      new Field('x', numberType, false),
       new Field('s', stringType, false),
       new Field('b', boolType, false),
     ], []);
@@ -318,7 +299,7 @@ suite('Decode', () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
     const tr = makeStructType('A2', [
-      new Field('x', float32Type, false),
+      new Field('x', numberType, false),
     ], [
       new Field('b', boolType, false),
       new Field('s', stringType, false),
@@ -341,7 +322,7 @@ suite('Decode', () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
     const tr = makeStructType('A3', [
-      new Field('x', float32Type, false),
+      new Field('x', numberType, false),
       new Field('s', stringType, true),
       new Field('b', boolType, true),
     ], []);
@@ -362,7 +343,7 @@ suite('Decode', () => {
   test('test read struct with list', async () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
-    const ltr = makeCompoundType(Kind.List, int32Type);
+    const ltr = makeCompoundType(Kind.List, numberType);
     const tr = makeStructType('A4', [
       new Field('b', boolType, false),
       new Field('l', ltr, false),
@@ -395,7 +376,7 @@ suite('Decode', () => {
     const pkg = new Package([tr], []);
     registerPackage(pkg);
 
-    const a = [Kind.Unresolved, pkg.ref.toString(), '0', true, Kind.Uint8, '42', 'hi'];
+    const a = [Kind.Unresolved, pkg.ref.toString(), '0', true, Kind.Number, '42', 'hi'];
     const r = new JsonArrayReader(a, ds);
     const v = await r.readTopLevelValue();
 
@@ -410,7 +391,7 @@ suite('Decode', () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
     const tr = makeStructType('A1', [
-      new Field('x', int16Type, false),
+      new Field('x', numberType, false),
       new Field('s', stringType, false),
       new Field('b', boolType, false),
     ], []);
@@ -434,7 +415,7 @@ suite('Decode', () => {
     const ds = new DataStore(ms);
     const tr = makeStructType('s', [
       new Field('b', boolType, false),
-      new Field('i', int32Type, false),
+      new Field('i', numberType, false),
     ], []);
 
     const pkg = new Package([tr], []);
@@ -457,11 +438,11 @@ suite('Decode', () => {
     const ms = new MemoryStore();
     const ds = new DataStore(ms);
     const chunk = Chunk.fromString(
-        `t [${Kind.Value}, ${Kind.Set}, ${Kind.Uint16}, false, ["0", "1", "2", "3"]]`);
-    const v:NomsSet<uint16> = await decodeNomsValue(chunk, new DataStore(new MemoryStore()));
+        `t [${Kind.Value}, ${Kind.Set}, ${Kind.Number}, false, ["0", "1", "2", "3"]]`);
+    const v:NomsSet<number> = await decodeNomsValue(chunk, new DataStore(new MemoryStore()));
 
-    const t = makeCompoundType(Kind.Set, uint16Type);
-    const s:NomsSet<uint16> = new NomsSet(t, new SetLeafSequence(ds, t, [0, 1, 2, 3]));
+    const t = makeCompoundType(Kind.Set, numberType);
+    const s:NomsSet<number> = new NomsSet(t, new SetLeafSequence(ds, t, [0, 1, 2, 3]));
     assert.isTrue(v.equals(s));
   });
 
@@ -486,7 +467,7 @@ suite('Decode', () => {
 
     // Commit value
     const commitChunk = makeChunk(
-      [Kind.Unresolved, pkgRef.toString(), '0', Kind.Uint64, '1', false, []]);
+      [Kind.Unresolved, pkgRef.toString(), '0', Kind.Number, '1', false, []]);
     const commitRef = commitChunk.ref;
     ms.put(commitChunk);
 
