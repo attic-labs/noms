@@ -69,7 +69,7 @@ suite('Specs', () => {
     ];
     invalid.forEach(s => assert.isNull(RefSpec.parse(s)));
 
-    const spec = RefSpec.parse(`mem:${testRef.toString()}`);
+    const spec = RefSpec.parse(`mem:${testRef}`);
     invariant(spec);
     assert.equal(spec.ref.toString(), testRef.toString());
     assert.equal(spec.store.scheme, 'mem');
@@ -86,7 +86,7 @@ suite('Specs', () => {
     assert.equal(spec.store.path, '//foo:8000/test');
 
     const testRef = new Ref('sha1-0000000000000000000000000000000000000000');
-    spec = parseObjectSpec(`http://foo:8000/test:${testRef.toString()}`);
+    spec = parseObjectSpec(`http://foo:8000/test:${testRef}`);
     invariant(spec);
     assert.isNotNull(spec.value());
     invariant(spec instanceof RefSpec);
