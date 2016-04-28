@@ -27,17 +27,17 @@ func (p PrimitiveDesc) Equals(other TypeDesc) bool {
 }
 
 var KindToString = map[NomsKind]string{
-	BlobKind:    "Blob",
-	BoolKind:    "Bool",
-	ListKind:    "List",
-	MapKind:     "Map",
-	NumberKind:  "Number",
-	RefKind:     "Ref",
-	SetKind:     "Set",
-	StringKind:  "String",
-	TypeKind:    "Type",
-	ValueKind:   "Value",
-	BackRefKind: "BackRef",
+	BlobKind:   "Blob",
+	BoolKind:   "Bool",
+	ListKind:   "List",
+	MapKind:    "Map",
+	NumberKind: "Number",
+	RefKind:    "Ref",
+	SetKind:    "Set",
+	StringKind: "String",
+	TypeKind:   "Type",
+	ValueKind:  "Value",
+	ParentKind: "Parent",
 }
 
 // CompoundDesc describes a List, Map, Set or Ref type.
@@ -101,7 +101,7 @@ func (f Field) Equals(other Field) bool {
 type BackRefDesc uint8
 
 func (b BackRefDesc) Kind() NomsKind {
-	return BackRefKind
+	return ParentKind
 }
 
 func (b BackRefDesc) Equals(other TypeDesc) bool {

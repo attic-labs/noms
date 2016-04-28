@@ -255,7 +255,7 @@ export class BackRefDesc {
   }
 
   get kind(): NomsKind {
-    return Kind.BackRef;
+    return Kind.Parent;
   }
 
   equals(other: TypeDesc): boolean {
@@ -263,6 +263,6 @@ export class BackRefDesc {
   }
 
   describe(): string {
-    return `BackRef<${this.value}>`;
+    return `Parent<${this.value}>`;
   }
 }
