@@ -6,7 +6,16 @@ import HttpStore from './http-store.js';
 import MemoryStore from './memory-store.js';
 import Ref from './ref.js';
 
+// A parsed specification for the location of a Noms datastore.
+// For example: 'mem:' or 'https://ds.noms.io/aa/music'
+//
+// See "spelling datastores" for details on supported syntaxes:
+// https://docs.google.com/document/d/1QgKcRS304llwU0ECahKtn8lGBFmT5zXzWr-5tah1S_4/edit
 export class DataStoreSpec {
+  scheme: string;
+  path: string;
+
+  // Returns parsed spec, or null if the spec was invalid.
   static parse(spec: string): ?DataStoreSpec {
     const match = spec.match(/^(.+?)(\:.+)?$/);
     if (!match) {
@@ -28,7 +37,7 @@ export class DataStoreSpec {
       default:
         return null;
     }
-    return new DataStoreSpec(scheme, (path || '').substr(1));
+    return new this(scheme, (path || '').substr(1));
   }
 
   constructor(scheme: string, path: string) {
@@ -36,9 +45,7 @@ export class DataStoreSpec {
     this.path = path;
   }
 
-  scheme: string;
-  path: string;
-
+  // Constructs a new DataStore based on the parsed spec.
   store(): DataStore {
     if (this.scheme === 'mem') {
       return new DataStore(new MemoryStore());
@@ -50,7 +57,16 @@ export class DataStoreSpec {
   }
 }
 
+// A parsed specification for the location of a Noms dataset.
+// For example: 'mem:photos' or 'https://ds.noms.io/aa/music:funk'
+//
+// See "spelling datasets" for details on supported syntaxes:
+// https://docs.google.com/document/d/1QgKcRS304llwU0ECahKtn8lGBFmT5zXzWr-5tah1S_4/edit
 export class DatasetSpec {
+  store: DataStoreSpec;
+  name: string;
+
+  // Returns a parsed spec, or null if the spec was invalid.
   static parse(spec: string): ?DatasetSpec {
     const match = spec.match(/^(.+)\:(.+)$/);
     if (!match) {
@@ -60,7 +76,7 @@ export class DatasetSpec {
     if (!store) {
       return null;
     }
-    return new DatasetSpec(store, match[2]);
+    return new this(store, match[2]);
   }
 
   constructor(store: DataStoreSpec, name: string) {
@@ -68,21 +84,30 @@ export class DatasetSpec {
     this.name = name;
   }
 
-  store: DataStoreSpec;
-  name: string;
-
+  // Returns a new DataSet based on the parsed spec.
   set(): Dataset {
     return new Dataset(this.store.store(), this.name);
   }
 
+  // Returns the value at the HEAD of this dataset, if any, or null otherwise.
   value(): Promise<any> {
     return this.set().head()
       .then(commit => commit && commit.value);
   }
 }
 
-// TODO(aa): I think this will eventually become PathSpec.
+
+// A parsed specification for the location of a Noms ref.
+// For example: 'mem:sha1-5ba4be791d336d3184be7ee7dc598037f410ef96' or
+// 'https://ds.noms.io/aa/music:sha1-3ff6ee6add3490621a8886608cc8423dba3cf7ca'
+//
+// See "spelling objects" for details on supported syntaxes:
+// https://docs.google.com/document/d/1QgKcRS304llwU0ECahKtn8lGBFmT5zXzWr-5tah1S_4/edit
 export class RefSpec {
+  store: DataStoreSpec;
+  ref: Ref;
+
+  // Returns a parsed spec, or null if the spec was invalid.
   static parse(spec: string): ?RefSpec {
     const match = spec.match(/^(.+)\:(.+)$/);
     if (!match) {
@@ -99,7 +124,7 @@ export class RefSpec {
       return null;
     }
 
-    return new RefSpec(store, ref);
+    return new this(store, ref);
   }
 
   constructor(store: DataStoreSpec, ref: Ref) {
@@ -107,14 +132,13 @@ export class RefSpec {
     this.ref = ref;
   }
 
-  store: DataStoreSpec;
-  ref: Ref;
-
+  // Returns the value for the spec'd reference, if any, or null otherwise.
   value(): Promise<any> {
     return this.store.store().readValue(this.ref);
   }
 }
 
+// Parses and returns the provided ref or dataset spec.
 export function parseObjectSpec(spec: string): ?(DatasetSpec|RefSpec) {
   return RefSpec.parse(spec) || DatasetSpec.parse(spec);
 }
