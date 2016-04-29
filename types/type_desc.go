@@ -97,17 +97,17 @@ func (f Field) Equals(other Field) bool {
 	return f.Name == other.Name && f.T.Equals(other.T)
 }
 
-// BackRefDesc is used to symbolize back references in recursive struct types
-type BackRefDesc uint8
+// ParentDesc is used to symbolize back references in recursive struct types
+type ParentDesc uint8
 
-func (b BackRefDesc) Kind() NomsKind {
+func (b ParentDesc) Kind() NomsKind {
 	return ParentKind
 }
 
-func (b BackRefDesc) Equals(other TypeDesc) bool {
-	return b.Kind() == other.Kind() && other.(BackRefDesc) == b
+func (b ParentDesc) Equals(other TypeDesc) bool {
+	return b.Kind() == other.Kind() && other.(ParentDesc) == b
 }
 
-func (b BackRefDesc) Describe() string {
+func (b ParentDesc) Describe() string {
 	return fmt.Sprintf("%s(%d)", KindToString[b.Kind()], b)
 }

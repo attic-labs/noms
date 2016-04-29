@@ -1,6 +1,6 @@
 // @flow
 
-import {getTypeOfValue, StructDesc, BackRefDesc, CompoundDesc} from './type.js';
+import {getTypeOfValue, StructDesc, ParentDesc, CompoundDesc} from './type.js';
 import type {Field, Type} from './type.js';
 import {Kind, kindToString} from './noms-kind.js';
 import type {NomsKind} from './noms-kind.js';
@@ -100,22 +100,22 @@ export class TypeWriter {
         this._writeStructType(t, parentStructTypes);
         break;
       case Kind.Parent:
-        invariant(t.desc instanceof BackRefDesc);
-        this._writeBackRef(t.desc.value);
+        invariant(t.desc instanceof ParentDesc);
+        this._writeParent(t.desc.value);
         break;
       default:
         throw new Error('unreachable');
     }
   }
 
-  _writeBackRef(i: number) {
+  _writeParent(i: number) {
     this._w.write(`Parent<${i}>`);
   }
 
   _writeStructType(t: Type, parentStructTypes: Type[]) {
     const idx = parentStructTypes.indexOf(t);
     if (idx !== -1) {
-      this._writeBackRef(parentStructTypes.length - idx - 1);
+      this._writeParent(parentStructTypes.length - idx - 1);
       return;
     }
     parentStructTypes.push(t);

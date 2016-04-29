@@ -254,7 +254,7 @@ export class JsonArrayWriter {
   writeStructType(t: Type, parentStructTypes: Type[]) {
     const i = parentStructTypes.indexOf(t);
     if (i !== -1) {
-      this.writeBackRef(parentStructTypes.length - i - 1);
+      this.writeParent(parentStructTypes.length - i - 1);
       return;
     }
 
@@ -272,7 +272,7 @@ export class JsonArrayWriter {
     this.write(fieldWriter.array);
   }
 
-  writeBackRef(i: number) {
+  writeParent(i: number) {
     this.write(Kind.Parent);
     this.writeUint8(i);
   }

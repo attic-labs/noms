@@ -152,10 +152,6 @@ func MakeRefType(elemType *Type) *Type {
 	return buildType(CompoundDesc{RefKind, []*Type{elemType}})
 }
 
-func MakeBackRef(n uint8) *Type {
-	return buildType(BackRefDesc(n))
-}
-
 func buildType(desc TypeDesc) *Type {
 	return &Type{Desc: desc, ref: &ref.Ref{}}
 }

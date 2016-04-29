@@ -247,7 +247,7 @@ export function getTypeOfValue(v: valueOrPrimitive): Type {
   }
 }
 
-export class BackRefDesc {
+export class ParentDesc {
   value: number;
 
   constructor(value: number) {
@@ -259,7 +259,7 @@ export class BackRefDesc {
   }
 
   equals(other: TypeDesc): boolean {
-    return other instanceof BackRefDesc && other.value === this.value;
+    return other instanceof ParentDesc && other.value === this.value;
   }
 
   describe(): string {

@@ -169,7 +169,7 @@ func (w *jsonArrayWriter) writeValue(v Value, tr *Type) {
 		w.writeTypeAsTag(vt, nil)
 		w.writeValue(v, v.Type())
 	case ParentKind:
-		w.writeUint8(uint8(v.(*Type).Desc.(BackRefDesc)))
+		w.writeUint8(uint8(v.(*Type).Desc.(ParentDesc)))
 	default:
 		d.Chk.Fail("Unknown NomsKind")
 	}
@@ -202,7 +202,7 @@ func indexOfType(t *Type, ts []*Type) int {
 	return -1
 }
 
-func (w *jsonArrayWriter) writeBackRef(i int) {
+func (w *jsonArrayWriter) writeParent(i int) {
 	w.write(ParentKind)
 	w.write(uint8(i))
 }
@@ -211,7 +211,7 @@ func (w *jsonArrayWriter) writeStructType(t *Type, parentStructTypes []*Type) {
 	// The runtime representaion of struct types can contain cycles. These cycles are broken when encoding and decoding using special "back ref" placeholders.
 	i := indexOfType(t, parentStructTypes)
 	if i != -1 {
-		w.writeBackRef(len(parentStructTypes) - i - 1)
+		w.writeParent(len(parentStructTypes) - i - 1)
 		return
 	}
 	parentStructTypes = append(parentStructTypes, t)

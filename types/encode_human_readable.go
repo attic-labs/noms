@@ -199,7 +199,7 @@ func (w *hrsWriter) writeType(t *Type, parentStructTypes []*Type) {
 	case StructKind:
 		w.writeStructType(t, parentStructTypes)
 	case ParentKind:
-		w.writeBackRef(uint8(t.Desc.(BackRefDesc)))
+		w.writeParent(uint8(t.Desc.(ParentDesc)))
 	default:
 		panic("unreachable")
 	}
@@ -208,7 +208,7 @@ func (w *hrsWriter) writeType(t *Type, parentStructTypes []*Type) {
 func (w *hrsWriter) writeStructType(t *Type, parentStructTypes []*Type) {
 	idx := indexOfType(t, parentStructTypes)
 	if idx != -1 {
-		w.writeBackRef(uint8(len(parentStructTypes) - 1 - idx))
+		w.writeParent(uint8(len(parentStructTypes) - 1 - idx))
 		return
 	}
 	parentStructTypes = append(parentStructTypes, t)
@@ -231,7 +231,7 @@ func (w *hrsWriter) writeStructType(t *Type, parentStructTypes []*Type) {
 	w.write("}")
 }
 
-func (w *hrsWriter) writeBackRef(i uint8) {
+func (w *hrsWriter) writeParent(i uint8) {
 	fmt.Fprintf(w.w, "Parent<%d>", i)
 }
 
