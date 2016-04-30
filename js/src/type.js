@@ -200,6 +200,7 @@ export const blobType = makePrimitiveType(Kind.Blob);
 export const typeType = makePrimitiveType(Kind.Type);
 export const valueType = makePrimitiveType(Kind.Value);
 
+export const refOfBlobType = makeRefType(blobType);
 export const refOfValueType = makeCompoundType(Kind.Ref, valueType);
 export const listOfValueType = makeCompoundType(Kind.List, valueType);
 export const setOfValueType = makeCompoundType(Kind.Set, valueType);
