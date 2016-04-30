@@ -10,6 +10,7 @@ import {
   MetaTuple,
   newIndexedMetaSequenceChunkFn,
   newIndexedMetaSequenceBoundaryChecker,
+  newLeafRefValue,
 } from './meta-sequence.js';
 import BuzHashBoundaryChecker from './buzhash-boundary-checker.js';
 import {SequenceChunker} from './sequence-chunker.js';
@@ -75,7 +76,7 @@ const blobPattern = ((1 << 13) | 0) - 1;
 function newBlobLeafChunkFn(cs: ?DataStore = null): makeChunkFn {
   return (items: Array<number>) => {
     const blobLeaf = new BlobLeafSequence(cs, new Uint8Array(items));
-    const mt = new MetaTuple(blobLeaf, items.length, items.length);
+    const mt = new MetaTuple(newLeafRefValue(blobLeaf), items.length, items.length, blobLeaf);
     return [mt, blobLeaf];
   };
 }

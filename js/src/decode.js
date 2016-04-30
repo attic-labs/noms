@@ -13,11 +13,11 @@ import {
   Field,
   getPrimitiveType,
   makeCompoundType,
+  makeRefType,
   makeStructType,
   StructDesc,
   Type,
   typeType,
-  numberType,
 } from './type.js';
 import {indexTypeForMetaSequence, MetaTuple, newMetaSequenceFromData} from './meta-sequence.js';
 import {invariant} from './assert.js';
@@ -182,9 +182,9 @@ export class JsonArrayReader {
     const data: Array<MetaTuple> = [];
     const indexType = indexTypeForMetaSequence(t);
     while (!this.atEnd()) {
-      const ref = this.readRef();
+      const ref = this.readRefValue(makeRefType(t));
       const v = this.readValueWithoutTag(indexType);
-      const numLeaves = this.readValueWithoutTag(numberType);
+      const numLeaves = this.readInt();
       data.push(new MetaTuple(ref, v, numLeaves));
     }
 

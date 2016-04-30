@@ -67,6 +67,10 @@ export class JsonArrayWriter {
     this.write(r.toString());
   }
 
+  writeRefValue(r: RefValue) {
+    this.writeRef(r.targetRef);
+  }
+
   writeTypeAsTag(t: Type, parentStructTypes: Type<StructDesc>[]) {
     const k = t.kind;
     switch (k) {
@@ -106,7 +110,7 @@ export class JsonArrayWriter {
         const child = tuple.sequence;
         this._ds.writeValue(child);
       }
-      w2.writeRef(tuple.ref);
+      w2.writeRefValue(tuple.ref);
       w2.writeValue(tuple.value, indexType);
       w2.writeInt(tuple.numLeaves);
     }
@@ -183,7 +187,7 @@ export class JsonArrayWriter {
       case Kind.Ref: {
         invariant(v instanceof RefValue,
                   () => `Failed to write Ref. Invalid type: ${describeTypeOfValue(v)}`);
-        this.writeRef(v.targetRef);
+        this.writeRefValue(v);
         break;
       }
       case Kind.Set: {
