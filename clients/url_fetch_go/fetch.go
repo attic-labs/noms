@@ -38,7 +38,7 @@ func main() {
 		flag.Usage()
 		return
 	}
-	defer ds.Store().Close()
+	defer ds.Database().Close()
 
 	url := flag.Arg(0)
 	start = time.Now()

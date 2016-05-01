@@ -19,7 +19,7 @@ func main() {
 		flag.Usage()
 		return
 	}
-	defer ds.Store().Close()
+	defer ds.Database().Close()
 
 	url := flag.Arg(0)
 	if ds == nil || url == "" {
