@@ -1,7 +1,6 @@
 // @flow
 
 import Chunk from './chunk.js';
-import type Ref from './ref.js';
 import RefValue from './ref-value.js';
 import {default as Struct, StructMirror} from './struct.js';
 import type DataStore from './data-store.js';
@@ -63,12 +62,8 @@ export class JsonArrayWriter {
     this.write(k);
   }
 
-  writeRef(r: Ref) {
-    this.write(r.toString());
-  }
-
   writeRefValue(r: RefValue) {
-    this.writeRef(r.targetRef);
+    this.write(r.targetRef.toString());
   }
 
   writeTypeAsTag(t: Type, parentStructTypes: Type<StructDesc>[]) {

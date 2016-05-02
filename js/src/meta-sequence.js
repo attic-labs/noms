@@ -213,12 +213,12 @@ export function indexTypeForMetaSequence(t: Type): Type {
 }
 
 export function newOrderedMetaSequenceChunkFn(t: Type, ds: ?DataStore = null): makeChunkFn {
+  const tRefType = makeRefType(t);
   return (tuples: Array<MetaTuple>) => {
     const numLeaves = tuples.reduce((l, mt) => l + mt.numLeaves, 0);
     const meta = new OrderedMetaSequence(ds, t, tuples);
     const lastValue = tuples[tuples.length - 1].value;
-    return [new MetaTuple(new RefValue(meta.ref, makeRefType(t)),
-                          lastValue, numLeaves, meta), meta];
+    return [new MetaTuple(new RefValue(meta.ref, tRefType), lastValue, numLeaves, meta), meta];
   };
 }
 
@@ -233,13 +233,14 @@ export function newOrderedMetaSequenceBoundaryChecker(): BoundaryChecker<MetaTup
 }
 
 export function newIndexedMetaSequenceChunkFn(t: Type, ds: ?DataStore = null): makeChunkFn {
+  const tRefType = makeRefType(t);
   return (tuples: Array<MetaTuple>) => {
     const sum = tuples.reduce((l, mt) => {
       invariant(mt.value === mt.numLeaves);
       return l + mt.value;
     }, 0);
     const meta = new IndexedMetaSequence(ds, t, tuples);
-    return [new MetaTuple(new RefValue(meta.ref, makeRefType(t)), sum, sum, meta), meta];
+    return [new MetaTuple(new RefValue(meta.ref, tRefType), sum, sum, meta), meta];
   };
 }
 
@@ -253,6 +254,6 @@ function getMetaSequenceChunks(ms: MetaSequence): Array<RefValue> {
   return ms.items.map(mt => mt.ref);
 }
 
-export function newLeafRefValue<S, T:valueOrPrimitive>(seq: Sequence<S>): RefValue<T> {
+export function newLeafRefValue<S, T: valueOrPrimitive>(seq: Sequence<S>): RefValue<T> {
   return new RefValue(seq.ref, makeRefType(seq.type));
 }
