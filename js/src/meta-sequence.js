@@ -253,6 +253,6 @@ function getMetaSequenceChunks(ms: MetaSequence): Array<RefValue> {
   return ms.items.map(mt => mt.ref);
 }
 
-export function newLeafRefValue<T:valueOrPrimitive>(seq: Sequence<T>): RefValue<T> {
+export function newLeafRefValue<S, T:valueOrPrimitive>(seq: Sequence<S>): RefValue<T> {
   return new RefValue(seq.ref, makeRefType(seq.type));
 }
