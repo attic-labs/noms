@@ -3,7 +3,7 @@
 import {assert} from 'chai';
 import {suite, test} from 'mocha';
 
-import MemoryStore from './memory-store.js';
+import {makeTestingBatchStore} from './batch-store-adaptor.js';
 import Ref from './ref.js';
 import RefValue from './ref-value.js';
 import {newStruct} from './struct.js';
@@ -35,8 +35,7 @@ import type {valueOrPrimitive} from './value.js';
 suite('Encode', () => {
   test('write primitives', () => {
     function f(k: NomsKind, t:Type, v: valueOrPrimitive, ex: valueOrPrimitive) {
-      const ms = new MemoryStore();
-      const ds = new DataStore(ms);
+      const ds = new DataStore(makeTestingBatchStore());
       const w = new JsonArrayWriter(ds);
       w.writeTopLevel(t, v);
       assert.deepEqual([k, ex], w.array);
@@ -55,8 +54,7 @@ suite('Encode', () => {
   });
 
   test('write simple blob', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
     const blob = await newBlob(new Uint8Array([0x00, 0x01]));
     w.writeTopLevel(blobType, blob);
@@ -64,8 +62,7 @@ suite('Encode', () => {
   });
 
   test('write list', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
 
     const tr = makeCompoundType(Kind.List, numberType);
@@ -75,8 +72,7 @@ suite('Encode', () => {
   });
 
   test('write list of value', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
 
     const tr = makeCompoundType(Kind.List, valueType);
@@ -91,8 +87,7 @@ suite('Encode', () => {
   });
 
   test('write list of list', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
 
     const it = makeCompoundType(Kind.List, numberType);
@@ -107,8 +102,7 @@ suite('Encode', () => {
   });
 
   test('write leaf set', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
 
     const tr = makeCompoundType(Kind.Set, numberType);
@@ -118,8 +112,7 @@ suite('Encode', () => {
   });
 
   test('write compound set', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
     const ltr = makeCompoundType(Kind.Set, numberType);
     const r1 = ds.writeValue(new NomsSet(ltr, new SetLeafSequence(ds, ltr, [0])));
@@ -140,8 +133,7 @@ suite('Encode', () => {
   });
 
   test('write set of set', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
 
     const st = makeCompoundType(Kind.Set, numberType);
@@ -157,8 +149,7 @@ suite('Encode', () => {
   });
 
   test('write map', async() => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
 
     const tr = makeCompoundType(Kind.Map, stringType, boolType);
@@ -169,8 +160,7 @@ suite('Encode', () => {
   });
 
   test('write map of map', async() => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
 
     const kt = makeCompoundType(Kind.Map, stringType, numberType);
@@ -186,8 +176,7 @@ suite('Encode', () => {
   });
 
   test('write empty struct', async() => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
 
     const type = makeStructType('S', []);
@@ -198,8 +187,7 @@ suite('Encode', () => {
   });
 
   test('write struct', async() => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
 
     const type = makeStructType('S', [
@@ -214,8 +202,7 @@ suite('Encode', () => {
   });
 
   test('write struct with list', async() => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     let w = new JsonArrayWriter(ds);
 
     const ltr = makeCompoundType(Kind.List, stringType);
@@ -234,8 +221,7 @@ suite('Encode', () => {
   });
 
   test('write struct with struct', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
 
     const s2Type = makeStructType('S2', [
@@ -252,8 +238,7 @@ suite('Encode', () => {
   });
 
   test('write compound list', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
     const ltr = makeListType(numberType);
     const r1 = ds.writeValue(new NomsList(ltr, new ListLeafSequence(ds, ltr, [0])));
@@ -274,8 +259,7 @@ suite('Encode', () => {
   });
 
   test('write type value', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
 
     const test = (expected: Array<any>, v: Type) => {
       const w = new JsonArrayWriter(ds);
@@ -318,8 +302,7 @@ suite('Encode', () => {
       return bytes;
     }
 
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const blob = await newBlob(stringToUint8Array('hi'));
 
     const chunk = encodeNomsValue(blob, blobType, ds);
@@ -342,8 +325,7 @@ suite('Encode', () => {
   });
 
   test('write ref', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
     const ref = Ref.parse('sha1-0123456789abcdef0123456789abcdef01234567');
     const t = makeCompoundType(Kind.Ref, blobType);
@@ -354,7 +336,7 @@ suite('Encode', () => {
   });
 
   test('type errors', async () => {
-    const ds = new DataStore(new MemoryStore());
+    const ds = new DataStore(makeTestingBatchStore());
     const w = new JsonArrayWriter(ds);
 
     const test = (et, at, t, v) => {

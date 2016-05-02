@@ -2,7 +2,7 @@
 
 import Chunk from './chunk.js';
 import DataStore from './data-store.js';
-import MemoryStore from './memory-store.js';
+import {makeTestingBatchStore} from './batch-store-adaptor.js';
 import Ref from './ref.js';
 import RefValue from './ref-value.js';
 import {default as Struct, StructMirror} from './struct.js';
@@ -44,8 +44,7 @@ suite('Decode', () => {
   }
 
   test('read', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const a = [1, 'hi', true];
     const r = new JsonArrayReader(a, ds);
 
@@ -60,8 +59,7 @@ suite('Decode', () => {
   });
 
   test('read type as tag', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     function doTest(expected: Type, a: Array<any>) {
       const r = new JsonArrayReader(a, ds);
       const tr = r.readTypeAsTag([]);
@@ -75,8 +73,7 @@ suite('Decode', () => {
   });
 
   test('read primitives', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
 
     async function doTest(expected: any, a: Array<any>): Promise<void> {
       const r = new JsonArrayReader(a, ds);
@@ -96,8 +93,7 @@ suite('Decode', () => {
   });
 
   test('read list of number', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const a = [Kind.List, Kind.Number, false, ['0', '1', '2', '3']];
     const r = new JsonArrayReader(a, ds);
     const v: NomsList<number> = await r.readTopLevelValue();
@@ -110,8 +106,7 @@ suite('Decode', () => {
 
   // TODO: Can't round-trip collections of value types. =-(
   test('read list of value', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const a = [Kind.List, Kind.Value, false,
       [Kind.Number, '1', Kind.String, 'hi', Kind.Bool, true]];
     const r = new JsonArrayReader(a, ds);
@@ -126,8 +121,7 @@ suite('Decode', () => {
   });
 
   test('read value list of number', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const a = [Kind.Value, Kind.List, Kind.Number, false, ['0', '1', '2']];
     const r = new JsonArrayReader(a, ds);
     const v = await r.readTopLevelValue();
@@ -139,8 +133,7 @@ suite('Decode', () => {
   });
 
   test('read compound list', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const ltr = makeListType(numberType);
     const r1 = ds.writeValue(new NomsList(ltr, new ListLeafSequence(ds, ltr, [0])));
     const r2 = ds.writeValue(new NomsList(ltr, new ListLeafSequence(ds, ltr, [1, 2])));
@@ -163,8 +156,7 @@ suite('Decode', () => {
   });
 
   test('read map of number to number', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const a = [Kind.Map, Kind.Number, Kind.Number, false, ['0', '1', '2', '3']];
     const r = new JsonArrayReader(a, ds);
     const v: NomsMap<number, number> = await r.readTopLevelValue();
@@ -176,8 +168,7 @@ suite('Decode', () => {
   });
 
   test('read map of ref to number', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const a = [Kind.Map, Kind.Ref, Kind.Value, Kind.Number, false,
                ['sha1-0000000000000000000000000000000000000001', '2',
                 'sha1-0000000000000000000000000000000000000002', '4']];
@@ -197,8 +188,7 @@ suite('Decode', () => {
   });
 
   test('read value map of number to number', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const a = [Kind.Value, Kind.Map, Kind.Number, Kind.Number, false, ['0', '1', '2', '3']];
     const r = new JsonArrayReader(a, ds);
     const v: NomsMap<number, number> = await r.readTopLevelValue();
@@ -210,8 +200,7 @@ suite('Decode', () => {
   });
 
   test('read set of number', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const a = [Kind.Set, Kind.Number, false, ['0', '1', '2', '3']];
     const r = new JsonArrayReader(a, ds);
     const v: NomsSet<number> = await r.readTopLevelValue();
@@ -223,8 +212,7 @@ suite('Decode', () => {
   });
 
   test('read compound set', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const ltr = makeSetType(numberType);
     const r1 = ds.writeValue(new NomsSet(ltr, new SetLeafSequence(ds, ltr, [0])));
     const r2 = ds.writeValue(new NomsSet(ltr, new SetLeafSequence(ds, ltr, [1, 2])));
@@ -247,8 +235,7 @@ suite('Decode', () => {
   });
 
   test('read value set of number', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const a = [Kind.Value, Kind.Set, Kind.Number, false, ['0', '1', '2', '3']];
     const r = new JsonArrayReader(a, ds);
     const v: NomsSet<number> = await r.readTopLevelValue();
@@ -271,8 +258,7 @@ suite('Decode', () => {
   }
 
   test('test read struct', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const tr = makeStructType('A1', [
       new Field('x', numberType),
       new Field('s', stringType),
@@ -295,8 +281,7 @@ suite('Decode', () => {
   });
 
   test('test read struct with list', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const ltr = makeListType(numberType);
     const tr = makeStructType('A4', [
       new Field('b', boolType),
@@ -320,8 +305,7 @@ suite('Decode', () => {
   });
 
   test('test read struct with value', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const tr = makeStructType('A5', [
       new Field('b', boolType),
       new Field('v', valueType),
@@ -341,8 +325,7 @@ suite('Decode', () => {
   });
 
   test('test read value struct', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const tr = makeStructType('A1', [
       new Field('x', numberType),
       new Field('s', stringType),
@@ -366,8 +349,7 @@ suite('Decode', () => {
   });
 
   test('test read map of string to struct', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const tr = makeStructType('s', [
       new Field('b', boolType),
       new Field('i', numberType),
@@ -388,11 +370,10 @@ suite('Decode', () => {
   });
 
   test('decodeNomsValue', () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const chunk = Chunk.fromString(
         `t [${Kind.Value}, ${Kind.Set}, ${Kind.Number}, false, ["0", "1", "2", "3"]]`);
-    const v = decodeNomsValue(chunk, new DataStore(new MemoryStore()));
+    const v = decodeNomsValue(chunk, new DataStore(makeTestingBatchStore()));
     invariant(v instanceof NomsSet);
 
     const t = makeSetType(numberType);
@@ -401,8 +382,8 @@ suite('Decode', () => {
   });
 
   test('decodeNomsValue: counter with one commit', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const bs = makeTestingBatchStore();
+    const ds = new DataStore(bs);
 
     const makeChunk = a => Chunk.fromString(`t ${JSON.stringify(a)}`);
 
@@ -417,15 +398,16 @@ suite('Decode', () => {
         ['value', Kind.Value, 'parents', Kind.Set, Kind.Ref, Kind.Parent, 0],
         Kind.Number, '1', false, []]);
     const commitRef = commitChunk.ref;
-    ms.put(commitChunk);
+    bs.schedulePut(commitChunk, new Set());
 
     // Root
     const rootChunk = makeChunk([Kind.Map, Kind.String, Kind.Ref, Kind.Struct, 'Commit',
       ['value', Kind.Value, 'parents', Kind.Set, Kind.Ref, Kind.Parent, 0],
       false, ['counter', commitRef.toString()]]);
     const rootRef = rootChunk.ref;
-    ms.put(rootChunk);
+    bs.schedulePut(rootChunk, new Set());
 
+    await bs.flush();
     const rootMap = await ds.readValue(rootRef);
     const counterRef = await rootMap.get('counter');
     const commit = await counterRef.targetValue(ds);
@@ -434,7 +416,7 @@ suite('Decode', () => {
 
   test('out of line blob', async () => {
     const chunk = Chunk.fromString('b hi');
-    const blob = decodeNomsValue(chunk, new DataStore(new MemoryStore()));
+    const blob = decodeNomsValue(chunk, new DataStore(makeTestingBatchStore()));
     invariant(blob instanceof NomsBlob);
     const r = await blob.getReader().read();
     assert.isFalse(r.done);
@@ -452,7 +434,7 @@ suite('Decode', () => {
     }
 
     const chunk2 = new Chunk(data);
-    const blob2 = decodeNomsValue(chunk2, new DataStore(new MemoryStore()));
+    const blob2 = decodeNomsValue(chunk2, new DataStore(makeTestingBatchStore()));
     invariant(blob2 instanceof NomsBlob);
     const r2 = await blob2.getReader().read();
     assert.isFalse(r2.done);
@@ -462,8 +444,7 @@ suite('Decode', () => {
   });
 
   test('inline blob', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
     const a = [
       Kind.List, Kind.Blob, false,
       [false, encodeBase64(stringToUint8Array('hello')),
@@ -482,8 +463,7 @@ suite('Decode', () => {
   });
 
   test('compound blob', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
 
     const r1 = ds.writeValue(await newBlob(stringToUint8Array('hi')));
     const r2 = ds.writeValue(await newBlob(stringToUint8Array('world')));
@@ -502,8 +482,7 @@ suite('Decode', () => {
   });
 
   test('recursive struct', async () => {
-    const ms = new MemoryStore();
-    const ds = new DataStore(ms);
+    const ds = new DataStore(makeTestingBatchStore());
 
     // struct A {
     //   b: struct B {

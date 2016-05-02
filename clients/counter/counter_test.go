@@ -1,9 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
-	"github.com/attic-labs/noms/clients/util"
+	"github.com/attic-labs/noms/clients/test_util"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -12,11 +13,12 @@ func TestCounter(t *testing.T) {
 }
 
 type counterTestSuite struct {
-	util.ClientTestSuite
+	test_util.ClientTestSuite
 }
 
 func (s *counterTestSuite) TestCounter() {
-	args := []string{"-ds", "counter"}
+	spec := fmt.Sprintf("ldb:%s:%s", s.LdbDir, "counter")
+	args := []string{spec}
 	s.Equal("1\n", s.Run(main, args))
 	s.Equal("2\n", s.Run(main, args))
 	s.Equal("3\n", s.Run(main, args))
