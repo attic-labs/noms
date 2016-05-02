@@ -5,7 +5,6 @@ import Ref from './ref.js';
 import {invariant} from './assert.js';
 
 const headerSize = 4; // uint32
-const littleEndian = true;
 const sha1Size = 20;
 const chunkLengthSize = 4; // uint32
 const chunkHeaderSize = sha1Size + chunkLengthSize;
@@ -44,7 +43,7 @@ export function serialize(hints: Set<Ref>, chunks: Array<Chunk>): ArrayBuffer {
 function serializeHints(hints: Set<Ref>, buffer: ArrayBuffer): number {
   let offset = 0;
   const view = new DataView(buffer, offset, headerSize);
-  view.setUint32(offset, hints.size | 0, littleEndian); // Coerce number to uint32
+  view.setUint32(offset, hints.size | 0); // Coerce number to uint32
   offset += headerSize;
 
   hints.forEach(ref => {
@@ -78,7 +77,7 @@ function deserializeHints(buffer: ArrayBuffer): {hints: Array<Ref>, offset: numb
 
   let offset = 0;
   const view = new DataView(buffer, 0, headerSize);
-  const numHints = view.getUint32(0, littleEndian);
+  const numHints = view.getUint32(0);
   offset += headerSize;
 
   const totalLength = headerSize + (numHints * sha1Size);
