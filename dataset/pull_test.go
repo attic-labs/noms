@@ -69,7 +69,7 @@ func pullTest(t *testing.T, topdown bool) {
 	source, err = source.Commit(updatedValue)
 	assert.NoError(err)
 
-	sink, err = sink.pull(source.Database(), types.NewTypedRefFromValue(source.Head()), 1, topdown)
+	sink, err = sink.pull(source.DB(), types.NewTypedRefFromValue(source.Head()), 1, topdown)
 	assert.NoError(err)
 	assert.True(source.Head().Equals(sink.Head()))
 }

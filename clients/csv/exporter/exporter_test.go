@@ -63,7 +63,7 @@ func (s *testSuite) TestCSVExporter() {
 
 	listType := types.MakeListType(typ)
 	ds.Commit(types.NewTypedList(listType, structs...))
-	ds.Database().Close()
+	ds.DB().Close()
 
 	// Run exporter
 	out := s.Run(main, []string{"-database", dbName, "-ds", setName})

@@ -33,7 +33,7 @@ func main() {
 		return
 	}
 	defer sourceDb.Close()
-	defer sink.Database().Close()
+	defer sink.DB().Close()
 
 	err := d.Try(func() {
 		if util.MaybeStartCPUProfile() {

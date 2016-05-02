@@ -29,7 +29,7 @@ func (s *testSuite) TestShove() {
 	source2, err := source1.Commit(types.Number(43))
 	s.NoError(err)
 	source1HeadRef := source1.Head().Ref()
-	source2.Database().Close() // Close Database backing both Datasets
+	source2.DB().Close() // Close Database backing both Datasets
 
 	ldb2dir := path.Join(s.TempDir, "ldb2")
 	out := s.Run(main, []string{"-source-database", dbName, "-source", source1HeadRef.String(), "-sink-ldb", ldb2dir, "-sink-database", dbName, "-sink-ds", "bar"})
@@ -37,12 +37,12 @@ func (s *testSuite) TestShove() {
 
 	dest := dataset.NewDataset(datas.NewDatabase(chunks.NewLevelDBStore(ldb2dir, dbName, 1, false)), "bar")
 	s.True(types.Number(42).Equals(dest.Head().Get(datas.ValueField)))
-	dest.Database().Close()
+	dest.DB().Close()
 
 	out = s.Run(main, []string{"-source-database", dbName, "-source", "foo", "-sink-ldb", ldb2dir, "-sink-ds", "bar"})
 	s.Equal("", out)
 
 	dest = dataset.NewDataset(datas.NewDatabase(chunks.NewLevelDBStore(ldb2dir, dbName, 1, false)), "bar")
 	s.True(types.Number(43).Equals(dest.Head().Get(datas.ValueField)))
-	dest.Database().Close()
+	dest.DB().Close()
 }

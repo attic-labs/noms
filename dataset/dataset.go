@@ -19,7 +19,7 @@ func NewDataset(db datas.Database, datasetID string) Dataset {
 	return Dataset{db, datasetID}
 }
 
-func (ds *Dataset) Database() datas.Database {
+func (ds *Dataset) DB() datas.Database {
 	return ds.db
 }
 
@@ -75,9 +75,9 @@ func (ds *Dataset) pull(source datas.Database, sourceRef types.Ref, concurrency 
 	}
 
 	if topDown {
-		datas.CopyMissingChunksP(source, sink.Database().(*datas.LocalDatabase), sourceRef, concurrency)
+		datas.CopyMissingChunksP(source, sink.DB().(*datas.LocalDatabase), sourceRef, concurrency)
 	} else {
-		datas.CopyReachableChunksP(source, sink.Database(), sourceRef, sinkHeadRef, concurrency)
+		datas.CopyReachableChunksP(source, sink.DB(), sourceRef, sinkHeadRef, concurrency)
 	}
 
 	err := datas.ErrOptimisticLockFailed
