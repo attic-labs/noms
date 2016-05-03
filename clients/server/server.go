@@ -28,8 +28,9 @@ func main() {
 	flag.Parse()
 
 	if len(flag.Args()) != 1 {
-		flag.Usage()
+		util.CheckError(errors.New("expected datastore argument"))
 	}
+
 	spec, err := flags.ParseDatastoreSpec(flag.Arg(0))
 	util.CheckError(err)
 	if spec.Protocol != "mem" && spec.Protocol != "ldb" {
