@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -26,6 +25,7 @@ const (
 
 var (
 	hostFlag = flag.String("host", "localhost:0", "Host to listen on")
+	dirFlag  = flag.String("dir", ".", "Directory of view source")
 )
 
 type chunkStoreRecord struct {
@@ -38,23 +38,22 @@ type chunkStoreRecords map[string]chunkStoreRecord
 func main() {
 	usage := func() {
 		flag.PrintDefaults()
-		fmt.Printf("Usage: %s %s <view-dir> arg1=val1 arg2=val2...\n", os.Args[0], serveCmd)
+		fmt.Printf("Usage: %s %s arg1=val1 arg2=val2...\n", os.Args[0], serveCmd)
 	}
 
 	flag.Parse()
 	flag.Usage = usage
 
-	if len(flag.Args()) < 2 || flag.Arg(0) != serveCmd {
+	if len(flag.Args()) == 0 || flag.Arg(0) != serveCmd {
 		usage()
 		os.Exit(1)
 	}
 
-	viewDir := flag.Arg(1)
-	qsValues, stores := constructQueryString(flag.Args()[2:])
+	qsValues, stores := constructQueryString(flag.Args()[1:])
 
 	router := &httprouter.Router{
 		HandleMethodNotAllowed: true,
-		NotFound:               http.FileServer(http.Dir(viewDir)),
+		NotFound:               http.FileServer(http.Dir(*dirFlag)),
 		RedirectFixedPath:      true,
 	}
 
@@ -76,13 +75,28 @@ func main() {
 		}),
 	}
 
-	qs := ""
+	addr := "http://" + l.Addr().String()
 	if len(qsValues) > 0 {
-		qs = "?" + qsValues.Encode()
+		addr += "?" + qsValues.Encode()
 	}
 
-	fmt.Printf("Starting view %s at http://%s%s\n", viewDir, l.Addr().String(), qs)
-	log.Fatal(srv.Serve(l))
+	done := make(chan error)
+
+	go func() {
+		npm := NewNpmHelper(*dirFlag)
+		err := npm.Install()
+		if err == nil {
+			fmt.Println("View started at", addr)
+			err = npm.Start()
+		}
+		done <- err
+	}()
+
+	go func() {
+		done <- srv.Serve(l)
+	}()
+
+	d.Chk.NoError(<-done)
 }
 
 func constructQueryString(args []string) (url.Values, chunkStoreRecords) {
