@@ -9,7 +9,7 @@ import type {Type} from './type.js';
 import type {valueOrPrimitive} from './value.js'; // eslint-disable-line no-unused-vars
 import {invariant} from './assert.js';
 import {getTypeOfValue, makeRefType} from './type.js';
-import {Value} from './value.js';
+import {Value, getChunksOfValue} from './value.js';
 
 export function constructRefValue(t: Type, targetRef: Ref, height: number): RefValue {
   invariant(t.kind === Kind.Ref, () => `Not a Ref type: ${describeType(t)}`);
@@ -19,7 +19,6 @@ export function constructRefValue(t: Type, targetRef: Ref, height: number): RefV
   rv._type = t;
   rv.targetRef = targetRef;
   rv.height = height;
-  invariant(rv instanceof RefValue);
   return rv;
 }
 
@@ -34,10 +33,7 @@ export default class RefValue<T: valueOrPrimitive> extends Value {
   constructor(val: T) {
     super();
     this._type = makeRefType(getTypeOfValue(val));
-    this.height = 1;
-    if (val instanceof Value) {
-      this.height += val.chunks.reduce((max, c) => Math.max(max, c.height), 0);
-    }
+    this.height = 1 + getChunksOfValue(val).reduce((max, c) => Math.max(max, c.height), 0);
     this.targetRef = getRefOfValue(val);
   }
 
