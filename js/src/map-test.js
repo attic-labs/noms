@@ -112,10 +112,7 @@ suite('BuildMap', () => {
     const refOfStructType = makeRefType(structType);
     const tr = makeMapType(refOfStructType, refOfStructType);
 
-    const kvRefs = kvs.map(n => {
-      return new RefValue(newStruct(structType, {n}));
-    });
-
+    const kvRefs = kvs.map(n => new RefValue(newStruct(structType, {n})));
     const m = await newMap(kvRefs, tr);
     assert.strictEqual(m.ref.toString(), 'sha1-c179c3dd34ec4430b11515cb5f859b8f4546b970');
     const height = deriveSequenceHeight(m.sequence);

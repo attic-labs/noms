@@ -140,10 +140,7 @@ suite('List', () => {
     const refOfStructType = makeRefType(structType);
     const tr = makeListType(refOfStructType);
 
-    const refs = nums.map(n => {
-      return new RefValue(newStruct(structType, {n}));
-    });
-
+    const refs = nums.map(n => new RefValue(newStruct(structType, {n})));
     const s = await newList(refs, tr);
     assert.strictEqual(s.ref.toString(), 'sha1-87be8b38153a653f140dbb67064f6ea832726871');
     assert.strictEqual(testListSize, s.length);

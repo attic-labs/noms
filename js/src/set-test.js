@@ -99,10 +99,7 @@ suite('BuildSet', () => {
     const refOfStructType = makeRefType(structType);
     const tr = makeSetType(refOfStructType);
 
-    const refs = nums.map(n => {
-      return new RefValue(newStruct(structType, {n}));
-    });
-
+    const refs = nums.map(n => new RefValue(newStruct(structType, {n})));
     const s = await newSet(refs, tr);
     assert.strictEqual(s.ref.toString(), 'sha1-3664c45fcbf64f1272956a7b93f27488ab0eb4f8');
     const height = deriveSequenceHeight(s.sequence);
