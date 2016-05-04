@@ -141,9 +141,7 @@ suite('List', () => {
     const tr = makeListType(refOfStructType);
 
     const refs = nums.map(n => {
-      const s = newStruct(structType, {n});
-      const r = s.ref;
-      return new RefValue(r, 1, refOfStructType);
+      return new RefValue(newStruct(structType, {n}));
     });
 
     const s = await newList(refs, tr);

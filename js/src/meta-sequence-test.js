@@ -13,7 +13,7 @@ import {
 } from './type.js';
 import {MetaTuple, newOrderedMetaSequenceChunkFn, newIndexedMetaSequenceChunkFn,} from
   './meta-sequence.js';
-import {refValueFromValue} from './ref-value.js';
+import RefValue from './ref-value.js';
 import {SetLeafSequence} from './set.js';
 
 suite('MetaSequence', () => {
@@ -25,8 +25,8 @@ suite('MetaSequence', () => {
 
     const seq1 = new SetLeafSequence(ds, setOfStringType, ['bar', 'baz']);
     const seq2 = new SetLeafSequence(ds, setOfStringType, ['foo', 'qux', 'zoo']);
-    const mt1 = new MetaTuple(refValueFromValue(seq1, setOfStringType), 'baz', 2, seq1);
-    const mt2 = new MetaTuple(refValueFromValue(seq2, setOfStringType), 'zoo', 3, seq2);
+    const mt1 = new MetaTuple(new RefValue(seq1, setOfStringType), 'baz', 2, seq1);
+    const mt2 = new MetaTuple(new RefValue(seq2, setOfStringType), 'zoo', 3, seq2);
 
     assert.strictEqual(1, mt1.ref.height);
     assert.strictEqual(1, mt2.ref.height);
@@ -45,8 +45,8 @@ suite('MetaSequence', () => {
 
     const seq1 = new ListLeafSequence(ds, listOfStringType, ['bar', 'baz']);
     const seq2 = new ListLeafSequence(ds, listOfStringType, ['foo', 'qux', 'zoo']);
-    const mt1 = new MetaTuple(refValueFromValue(seq1, listOfStringType), 2, 2, seq1);
-    const mt2 = new MetaTuple(refValueFromValue(seq2, listOfStringType), 3, 3, seq2);
+    const mt1 = new MetaTuple(new RefValue(seq1, listOfStringType), 2, 2, seq1);
+    const mt2 = new MetaTuple(new RefValue(seq2, listOfStringType), 3, 3, seq2);
 
     assert.strictEqual(1, mt1.ref.height);
     assert.strictEqual(1, mt2.ref.height);

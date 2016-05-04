@@ -6,7 +6,6 @@ import type {BoundaryChecker, makeChunkFn} from './sequence-chunker.js';
 import type {ValueReader} from './value-store.js';
 import type {valueOrPrimitive} from './value.js'; // eslint-disable-line no-unused-vars
 import type {Collection} from './collection.js';
-import {makeRefType} from './type.js';
 import type {Type} from './type.js';
 import {IndexedSequence} from './indexed-sequence.js';
 import {invariant, notNull} from './assert.js';
@@ -190,14 +189,11 @@ export function newMetaSequenceFromData(vr: ValueReader, type: Type, tuples: Arr
 }
 
 export function newOrderedMetaSequenceChunkFn(t: Type, vr: ?ValueReader = null): makeChunkFn {
-  const tRefType = makeRefType(t);
   return (tuples: Array<MetaTuple>) => {
     const numLeaves = tuples.reduce((l, mt) => l + mt.numLeaves, 0);
     const meta = new OrderedMetaSequence(vr, t, tuples);
     const last = tuples[tuples.length - 1];
-    const height = 1 + last.ref.height; // All nodes have the same height.
-    return [new MetaTuple(new RefValue(meta.ref, height, tRefType),
-                          last.value, numLeaves, meta), meta];
+    return [new MetaTuple(new RefValue(meta), last.value, numLeaves, meta), meta];
   };
 }
 
@@ -212,17 +208,13 @@ export function newOrderedMetaSequenceBoundaryChecker(): BoundaryChecker<MetaTup
 }
 
 export function newIndexedMetaSequenceChunkFn(t: Type, vr: ?ValueReader = null): makeChunkFn {
-  const tRefType = makeRefType(t);
   return (tuples: Array<MetaTuple>) => {
     const sum = tuples.reduce((l, mt) => {
       invariant(mt.value === mt.numLeaves);
       return l + mt.value;
     }, 0);
     const meta = new IndexedMetaSequence(vr, t, tuples);
-    // All nodes have the same height.
-    const height = 1 + tuples[0].ref.height;
-    return [new MetaTuple(new RefValue(meta.ref, height, tRefType),
-                          sum, sum, meta), meta];
+    return [new MetaTuple(new RefValue(meta), sum, sum, meta), meta];
   };
 }
 

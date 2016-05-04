@@ -1,7 +1,7 @@
 // @flow
 
 import BuzHashBoundaryChecker from './buzhash-boundary-checker.js';
-import {default as RefValue, refValueFromValue} from './ref-value.js';
+import RefValue from './ref-value.js';
 import type {ValueReader} from './value-store.js';
 import type {BoundaryChecker, makeChunkFn} from './sequence-chunker.js';
 import type {valueOrPrimitive} from './value.js'; // eslint-disable-line no-unused-vars
@@ -37,11 +37,11 @@ function newMapLeafChunkFn<K: valueOrPrimitive, V: valueOrPrimitive>(
     if (items.length > 0) {
       indexValue = items[items.length - 1].key;
       if (!t.elemTypes[0].ordered) {
-        indexValue = refValueFromValue(indexValue);
+        indexValue = new RefValue(indexValue);
       }
     }
 
-    const mt = new MetaTuple(refValueFromValue(mapLeaf), indexValue, items.length, mapLeaf);
+    const mt = new MetaTuple(new RefValue(mapLeaf), indexValue, items.length, mapLeaf);
     return [mt, mapLeaf];
   };
 }

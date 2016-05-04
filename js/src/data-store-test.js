@@ -212,5 +212,11 @@ suite('DataStore', () => {
     const s4 = await newSet([ds.writeValue(v3), ds.writeValue(v4)], setOfRefOfStringType);
     const l3 = await newList([ds.writeValue(s4)], makeListType(makeRefType(setOfRefOfStringType)));
     assert.strictEqual(3, ds.writeValue(l3).height);
+
+    // List<Set<String> | RefValue<Set<String>>>.
+    const l4 = await newList([s1, ds.writeValue(s3)]);
+    assert.strictEqual(2, ds.writeValue(l4).height);
+    const l5 = await newList([ds.writeValue(s1), s3]);
+    assert.strictEqual(2, ds.writeValue(l5).height);
   });
 });

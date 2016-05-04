@@ -113,8 +113,7 @@ suite('BuildMap', () => {
     const tr = makeMapType(refOfStructType, refOfStructType);
 
     const kvRefs = kvs.map(n => {
-      const s = newStruct(structType, {n});
-      return new RefValue(s.ref, 1, refOfStructType);
+      return new RefValue(newStruct(structType, {n}));
     });
 
     const m = await newMap(kvRefs, tr);

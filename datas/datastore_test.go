@@ -299,4 +299,10 @@ func (suite *DataStoreSuite) TestDataStoreHeightOfCollections() {
 	l3 := types.NewTypedList(types.MakeListType(types.MakeRefType(setOfRefOfStringType)),
 		suite.ds.WriteValue(s4))
 	suite.Equal(uint64(3), suite.ds.WriteValue(l3).Height())
+
+	// List<Set<String> | RefValue<Set<String>>>.
+	l4 := types.NewList(s1, suite.ds.WriteValue(s3))
+	suite.Equal(uint64(2), suite.ds.WriteValue(l4).Height())
+	l5 := types.NewList(suite.ds.WriteValue(s1), s3)
+	suite.Equal(uint64(2), suite.ds.WriteValue(l5).Height())
 }

@@ -11,28 +11,34 @@ import {invariant} from './assert.js';
 import {getTypeOfValue, makeRefType} from './type.js';
 import {Value} from './value.js';
 
-export function refValueFromValue(val: valueOrPrimitive): RefValue {
-  let height = 1;
-  if (val instanceof Value) {
-    height += val.chunks.reduce((max, c) => Math.max(max, c.height), 0);
-  }
-  return new RefValue(getRefOfValue(val), height, makeRefType(getTypeOfValue(val)));
+export function constructRefValue(t: Type, targetRef: Ref, height: number): RefValue {
+  invariant(t.kind === Kind.Ref, () => `Not a Ref type: ${describeType(t)}`);
+  invariant(!targetRef.isEmpty());
+  invariant(height > 0);
+  const rv = Object.create(RefValue.prototype);
+  rv._type = t;
+  rv.targetRef = targetRef;
+  rv.height = height;
+  invariant(rv instanceof RefValue);
+  return rv;
 }
 
 export default class RefValue<T: valueOrPrimitive> extends Value {
   _type: Type;
   // Ref of the value this points to.
   targetRef: Ref;
-  // Height, the length of the longest path of RefValues to find any leaf in the graph.
-  // If targetRef isn't a dangling pointer, this must by definition be >= 1.
+  // The length of the longest path of RefValues to find any leaf in the graph.
+  // By definition this must be > 0.
   height: number;
 
-  constructor(targetRef: Ref, height: number, t: Type) {
+  constructor(val: T) {
     super();
-    invariant(t.kind === Kind.Ref, () => `Not a Ref type: ${describeType(t)}`);
-    this._type = t;
-    this.targetRef = targetRef;
-    this.height = height;
+    this._type = makeRefType(getTypeOfValue(val));
+    this.height = 1;
+    if (val instanceof Value) {
+      this.height += val.chunks.reduce((max, c) => Math.max(max, c.height), 0);
+    }
+    this.targetRef = getRefOfValue(val);
   }
 
   get type(): Type {

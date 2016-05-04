@@ -100,8 +100,7 @@ suite('BuildSet', () => {
     const tr = makeSetType(refOfStructType);
 
     const refs = nums.map(n => {
-      const s = newStruct(structType, {n});
-      return new RefValue(s.ref, 1, refOfStructType);
+      return new RefValue(newStruct(structType, {n}));
     });
 
     const s = await newSet(refs, tr);

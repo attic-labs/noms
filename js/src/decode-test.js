@@ -458,7 +458,7 @@ suite('Decode', () => {
         Kind.Ref, Kind.Struct, 'Commit', [
           'parents', Kind.Set, Kind.Ref, Kind.Parent, 0,
           'value', Kind.Value,
-        ], commitRef.toString(), '0',
+        ], commitRef.toString(), '1',
       ],
     ]);
     const rootRef = rootChunk.ref;
