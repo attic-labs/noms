@@ -1,10 +1,10 @@
 # Spelling in Noms
 
-Many commands and APIs in Noms accept datastore, dataset, or value specifications as arguments. This document describes how to "spell" such specs.
+Many commands and APIs in Noms accept datastore, dataset, or value specifications as arguments. This document describes how to construct these specifications.
 
 ## Spelling Datastores
 
-Datastore names take the form:
+Datastore specifications take the form:
 
 ```
 <protocol>:<path>
@@ -18,25 +18,25 @@ The `path` part of the name is interpreted differently depending on the protocol
 
 ## Spelling Datasets
 
-Dataset names take the form:
+Dataset specifications take the form:
 
 ```
 <datastore>:<dataset>
 ```
 
-See [spelling datastores](#spelling-datastores) for how to build the `datastore` part of the name. The `dataset` part is just any string matching the regex `^[a-zA-Z0-9\-_/]+$`.
+See [spelling datastores](#spelling-datastores) for how to build the `datastore` part of the name. The `dataset` part is just any string matching the regex `^[a-zA-Z0-9\-_/]+$`. However, it is not advised to name datasets starting with `sha1-`.
 
-## Spelling Objects
+## Spelling Values
 
-Object names take the form:
+Value specifications take the form:
 
 ```
-<datastore>:<object-name>
+<datastore>:<value-name>
 ```
 
 See [spelling datastores](#spelling-datastores) for how to build the datastore part of the name.
 
-The `object-name` part can be either a ref or a dataset name. If  `object-name` starts with `sha1-`, it will be interpreted as a ref. Otherwise it will be interpreted as a dataset name.
+The `value-name` part can be either a ref or a dataset name. If  `value-name` matches the pattern `^sha1-[0-9a-fA-F]{40}$`, it will be interpreted as a ref. Otherwise it will be interpreted as a dataset name.
 
 ### Examples
 
