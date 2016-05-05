@@ -15,11 +15,10 @@ type compoundSet struct {
 	metaSequenceObject
 	numLeaves uint64
 	ref       *ref.Ref
-	vr        ValueReader
 }
 
-func buildCompoundSet(tuples metaSequenceData, t *Type, vr ValueReader) Value {
-	return compoundSet{metaSequenceObject{tuples, t}, tuples.numLeavesSum(), &ref.Ref{}, vr}
+func buildCompoundSet(tuples metaSequenceData, t *Type, vr ValueReader) metaSequence {
+	return compoundSet{metaSequenceObject{tuples, t, vr}, tuples.numLeavesSum(), &ref.Ref{}}
 }
 
 func init() {
@@ -94,12 +93,7 @@ func (cs compoundSet) sequenceCursorAtValue(v Value) (*sequenceCursor, bool) {
 }
 
 func newSetSequenceCursorAtPosition(metaCur *sequenceCursor, leaf setLeaf, idx int, cs ValueReader) *sequenceCursor {
-	return &sequenceCursor{metaCur, leaf, idx, len(leaf.data), func(otherLeaf sequenceItem, idx int) sequenceItem {
-		return otherLeaf.(setLeaf).data[idx]
-	}, func(mt sequenceItem) (sequenceItem, int) {
-		otherLeaf := readMetaTupleValue(mt, cs).(setLeaf)
-		return otherLeaf, len(otherLeaf.data)
-	}}
+	return newSequenceCursor(metaCur, leaf, idx)
 }
 
 func (cs compoundSet) sequenceChunkerAtValue(v Value) (*sequenceChunker, bool) {
