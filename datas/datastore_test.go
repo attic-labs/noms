@@ -260,12 +260,12 @@ func (suite *DataStoreSuite) TestDataStoreConcurrency() {
 }
 
 func (suite *DataStoreSuite) TestDataStoreHeightOfRefs() {
-	v1 := suite.ds.WriteValue(types.NewString("hello"))
-	suite.Equal(uint64(1), v1.Height())
+	r1 := suite.ds.WriteValue(types.NewString("hello"))
+	suite.Equal(uint64(1), r1.Height())
 
-	r1 := suite.ds.WriteValue(v1)
-	suite.Equal(uint64(2), r1.Height())
-	suite.Equal(uint64(3), suite.ds.WriteValue(r1).Height())
+	r2 := suite.ds.WriteValue(r1)
+	suite.Equal(uint64(2), r2.Height())
+	suite.Equal(uint64(3), suite.ds.WriteValue(r2).Height())
 }
 
 func (suite *DataStoreSuite) TestDataStoreHeightOfCollections() {

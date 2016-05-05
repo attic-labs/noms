@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const testListSize = 5000
+
 type testList []Value
 
 func (tl testList) Set(idx int, v Value) (res testList) {
