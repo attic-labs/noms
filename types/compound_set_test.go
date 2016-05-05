@@ -360,18 +360,9 @@ func TestCompoundSetFirstNNumbers(t *testing.T) {
 
 	setType := MakeSetType(NumberType)
 
-	firstNNumbers := func(n int) []Value {
-		nums := []Value{}
-		for i := 0; i < n; i++ {
-			nums = append(nums, Number(i))
-		}
-
-		return nums
-	}
-
-	nums := firstNNumbers(testSetSize)
+	nums := generateNumbersAsValues(testSetSize)
 	s := newTypedSet(setType, nums...).(compoundSet)
-	assert.Equal("sha1-5937b476bb1d594e3a905c44f00863bd9ba1fb19", s.Ref().String())
+	assert.Equal("sha1-189e35a1b7aa09e012c0a86f20921b4978d21629", s.Ref().String())
 	height := deriveCompoundSetHeight(s)
 	assert.Equal(height, s.tuples[0].childRef.Height())
 }
@@ -381,28 +372,12 @@ func TestCompoundSetRefOfStructFirstNNumbers(t *testing.T) {
 		t.Skip("Skipping test in short mode.")
 	}
 	assert := assert.New(t)
-	vs := NewTestValueStore()
 
-	structType := MakeStructType("num", TypeMap{
-		"n": NumberType,
-	})
+	structType, nums := generateNumbersAsStructs(testSetSize)
 	refOfTypeStructType := MakeRefType(structType)
-
 	setType := MakeSetType(refOfTypeStructType)
-
-	firstNNumbers := func(n int) []Value {
-		nums := []Value{}
-		for i := 0; i < n; i++ {
-			r := vs.WriteValue(NewStruct(structType, structData{"n": Number(i)}))
-			nums = append(nums, r)
-		}
-
-		return nums
-	}
-
-	nums := firstNNumbers(testSetSize)
 	s := NewTypedSet(setType, nums...).(compoundSet)
-	assert.Equal("sha1-3664c45fcbf64f1272956a7b93f27488ab0eb4f8", s.Ref().String())
+	assert.Equal("sha1-d8815974c1b0ac51f2ffe8147d80ce8be8f5c52d", s.Ref().String())
 	height := deriveCompoundSetHeight(s)
 	// height + 1 because the leaves are Ref values (with height 1).
 	assert.Equal(height+1, s.tuples[0].childRef.Height())
