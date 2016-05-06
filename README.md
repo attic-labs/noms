@@ -44,8 +44,8 @@ go build
 
 # What next?
 
-* Learn the core tools: [`server`](clients/go/server), [`splore`](clients/js/splore), [`shove`](clients/go/shove), [`csv import/export`](clients/go/csv), [`json-import`](clients/go/json-import), [`xml_importer`](clients/xml_importer)
-* Run sample apps: [`sfcrime`](clients/sfcrime)
+* Learn the core tools: [`server`](clients/go/server), [`splore`](clients/js/splore), [`shove`](clients/go/shove), [`csv import/export`](clients/go/csv), [`json-import`](clients/go/json-import), [`xml_importer`](clients/go/xml_importer)
+* Run sample apps: (TODO)
 * NomDL reference (TODO)
 * Go SDK reference (TODO)
 * JavaScript SDK reference (TODO)
