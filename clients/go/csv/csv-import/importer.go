@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/attic-labs/noms/clients/csv"
 	"github.com/attic-labs/noms/clients/flags"
+	"github.com/attic-labs/noms/clients/go/csv"
 	"github.com/attic-labs/noms/clients/util"
 	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/types"
@@ -31,7 +31,7 @@ func main() {
 	runtime.GOMAXPROCS(cpuCount)
 
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: csv_importer [options] <dataset> <csvfile>\n")
+		fmt.Fprintln(os.Stderr, "Usage: csv-import [options] <dataset> <csvfile>\n")
 		flag.PrintDefaults()
 	}
 

@@ -5,9 +5,9 @@ Imports a CSV file as `List<T>` where `T` is a struct with fields corresponding 
 ## Usage
 
 ```
-$ cd importer
+$ cd csv-import
 $ go build
-$ ./importer --h=http://localhost:8000  --ds=foo <PATH>
+$ ./csv-import http://localhost:8000:foo <PATH>
 ```
 
 ## Some places for CSV files
@@ -22,7 +22,7 @@ Export a dataset in CSV format to stdout with column headers.
 ## Usage
 
 ```
-$ cd exporter
+$ cd csv-export
 $ go build
-$ ./exporter --h=http://localhost:8000  --ds=foo
+$ ./csv-export http://localhost:8000:foo
 ```

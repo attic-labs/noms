@@ -7,8 +7,8 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/attic-labs/noms/clients/csv"
 	"github.com/attic-labs/noms/clients/flags"
+	"github.com/attic-labs/noms/clients/go/csv"
 	"github.com/attic-labs/noms/clients/util"
 	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/datas"
@@ -26,7 +26,7 @@ func main() {
 	runtime.GOMAXPROCS(cpuCount)
 
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: csv_exporter [options] dataset > filename")
+		fmt.Fprintln(os.Stderr, "Usage: csv-export [options] dataset > filename")
 		flag.PrintDefaults()
 	}
 
