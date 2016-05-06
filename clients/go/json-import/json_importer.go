@@ -16,7 +16,7 @@ import (
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s <dataset> <url>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "usage: %s <url> <dataset>\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 
@@ -24,15 +24,15 @@ func main() {
 	flag.Parse()
 
 	if len(flag.Args()) != 2 {
-		util.CheckError(errors.New("expected dataset and url flags"))
+		util.CheckError(errors.New("expected url and dataset flags"))
 	}
 
-	spec, err := flags.ParseDatasetSpec(flag.Arg(0))
+	spec, err := flags.ParseDatasetSpec(flag.Arg(1))
 	util.CheckError(err)
 	ds, err := spec.Dataset()
 	util.CheckError(err)
 
-	url := flag.Arg(1)
+	url := flag.Arg(0)
 	if url == "" {
 		flag.Usage()
 	}
