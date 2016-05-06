@@ -1,5 +1,6 @@
 {
-  "name": "directory-import",
+  "name": "noms-fs",
+  "main": "dist/main.js",
   "dependencies": {
     "@attic/noms": "^24.0.0",
     "babel-regenerator-runtime": "6.5.0",
