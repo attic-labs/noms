@@ -87,13 +87,9 @@ func (cs compoundSet) Remove(values ...Value) Set {
 
 func (cs compoundSet) sequenceCursorAtValue(v Value) (*sequenceCursor, bool) {
 	metaCur, leaf, idx := cs.findLeaf(v)
-	cur := newSetSequenceCursorAtPosition(metaCur, leaf, idx, cs.vr)
+	cur := newSequenceCursor(metaCur, leaf, idx)
 	found := idx < len(leaf.data) && leaf.data[idx].Equals(v)
 	return cur, found
-}
-
-func newSetSequenceCursorAtPosition(metaCur *sequenceCursor, leaf setLeaf, idx int, cs ValueReader) *sequenceCursor {
-	return newSequenceCursor(metaCur, leaf, idx)
 }
 
 func (cs compoundSet) sequenceChunkerAtValue(v Value) (*sequenceChunker, bool) {
@@ -159,7 +155,7 @@ func (cs compoundSet) elemType() *Type {
 
 func (cs compoundSet) sequenceCursorAtFirst() *sequenceCursor {
 	metaCur, leaf := newMetaSequenceCursor(cs, cs.vr)
-	return newSetSequenceCursorAtPosition(metaCur, leaf.(setLeaf), 0, cs.vr)
+	return newSequenceCursor(metaCur, leaf.(setLeaf), 0)
 }
 
 func (cs compoundSet) valueReader() ValueReader {

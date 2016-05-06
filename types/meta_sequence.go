@@ -9,7 +9,6 @@ const (
 )
 
 // metaSequence is a logical abstraction, but has no concrete "base" implementation. A Meta Sequence is a non-leaf (internal) node of a "probably" tree, which results from the chunking of an ordered or unordered sequence of values.
-// TODO: make metasequence embed sequence
 type metaSequence interface {
 	sequence
 	getChildSequence(idx int) sequence
