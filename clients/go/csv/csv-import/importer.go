@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/attic-labs/noms/clients/flags"
 	"github.com/attic-labs/noms/clients/go/csv"
+	"github.com/attic-labs/noms/clients/go/flags"
 	"github.com/attic-labs/noms/clients/util"
 	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/types"
