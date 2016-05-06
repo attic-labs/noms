@@ -23,7 +23,7 @@ func main() {
 	runtime.GOMAXPROCS(cpuCount)
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "%s [options] <source_objpath> <dest_dataset>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "%s [options] <source-object> <dest-dataset>\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 
@@ -31,7 +31,7 @@ func main() {
 	flag.Parse()
 
 	if flag.NArg() != 2 {
-		util.CheckError(errors.New("expected a sourceObject and destSpec"))
+		util.CheckError(errors.New("expected a source object and destination dataset"))
 	}
 
 	sourceSpec, err := flags.ParsePathSpec(flag.Arg(0))
