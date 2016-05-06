@@ -35,11 +35,11 @@ go test `go list ./... | grep -v /vendor/`
 # Run
 
 ```
-cd "$GOPATH/src/github.com/attic-labs/noms/clients/counter"
+cd "$GOPATH/src/github.com/attic-labs/noms/clients/go/counter"
 go build
-./counter -ldb=/tmp/foo -ds=foo
-./counter -ldb=/tmp/foo -ds=foo
-./counter -ldb=/tmp/foo -ds=foo
+./counter ldb:/tmp/foo:foo
+./counter ldb:/tmp/foo:foo
+./counter ldb:/tmp/foo:foo
 ```
 
 # What next?
