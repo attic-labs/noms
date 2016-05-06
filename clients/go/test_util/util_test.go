@@ -3,7 +3,7 @@ package test_util
 import (
 	"testing"
 
-	"github.com/attic-labs/noms/clients/util"
+	"github.com/attic-labs/noms/clients/go/util"
 	"github.com/attic-labs/noms/types"
 	"github.com/stretchr/testify/suite"
 )

@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/attic-labs/noms/clients/go/flags"
-	"github.com/attic-labs/noms/clients/util"
+	"github.com/attic-labs/noms/clients/go/util"
 	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/types"
 	"github.com/clbanning/mxj"

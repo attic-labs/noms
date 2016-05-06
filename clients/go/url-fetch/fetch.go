@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/attic-labs/noms/clients/go/flags"
-	"github.com/attic-labs/noms/clients/util"
+	"github.com/attic-labs/noms/clients/go/util"
 	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/datas"
 	"github.com/attic-labs/noms/types"
