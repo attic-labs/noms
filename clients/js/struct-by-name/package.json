@@ -2,7 +2,7 @@
   "name": "noms-struct-by-name",
   "main": "dist/main.js",
   "dependencies": {
-    "@attic/noms": "file:../../js",
+    "@attic/noms": "^24.0.0",
     "babel-regenerator-runtime": "6.5.0",
     "yargs": "4.4.0"
   },
