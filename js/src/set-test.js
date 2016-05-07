@@ -9,7 +9,7 @@ import MemoryStore from './memory-store.js';
 import RefValue from './ref-value.js';
 import BatchStore from './batch-store.js';
 import {BatchStoreAdaptorDelegate, makeTestingBatchStore} from './batch-store-adaptor.js';
-import {newStruct} from './struct.js';
+import {newStruct, createStructClass} from './struct.js';
 import {
   boolType,
   makeRefType,
@@ -56,6 +56,25 @@ function firstNNumbers(n: number): Array<number> {
 }
 
 suite('BuildSet', () => {
+  test('crashycrash', async() => {
+    const fooStructType = makeStructType('Foo', {
+      foo: numberType,
+    });
+    const fooClass = createStructClass(fooStructType);
+    const setType = makeSetType(fooStructType);
+    let s = await newSet([], setType);
+    for (let i = 0; i < 10000; i++) {
+      process.stdout.write(i + '\n');
+      // This crashes at 44, inside MetaSomethingOrOther.
+      // It is calling RefValue.less() with a struct rather than a RefValue.
+      // I think the code that does the binary search of the tuples inside MetaSequences is getting confused.
+      s = await s.insert(new fooClass({
+        foo: i,
+      }));
+    }
+    process.stdout.write(s.size + '\n');
+  });
+
   test('unique keys - strings', async () => {
     const strs = ['hello', 'world', 'hello'];
     const tr = makeSetType(stringType);
