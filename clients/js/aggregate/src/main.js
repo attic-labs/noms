@@ -14,8 +14,8 @@ import {
 } from '@attic/noms';
 
 const args = argv
-  .usage('Usage: $0 -struct <struct-name> -group-by <field-name> ' +
-         '<input-dataset> <output-dataset>')
+  .usage('Usage: aggregate -struct <struct-name> -group-by <field-name> ' +
+         '[-function sum] <input-dataset> <output-dataset>')
   .demand(2)
   .option('struct', {
     alias: 's',
@@ -28,6 +28,12 @@ const args = argv
     describe: 'field name to group on',
     type: 'string',
     demand: true,
+  })
+  .option('function', {
+    alias: 'f',
+    describe: 'function to aggregate by',
+    type: 'string',
+    default: 'sum',
   })
   .argv;
 
@@ -79,7 +85,6 @@ async function main(): Promise<void> {
     return out.then(() => {
       return false;
     });
-    return true;
   });
 
   // TODO(aa): Remove this when we have structural typing (commit empty map instead).
