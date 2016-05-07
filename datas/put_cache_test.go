@@ -1,7 +1,7 @@
 package datas
 
 import (
-	"compress/gzip"
+	"bytes"
 	"sync"
 	"testing"
 
@@ -120,15 +120,7 @@ func (suite *LevelDBPutCacheSuite) TestReaderSubset() {
 	}
 
 	// Only iterate over the first 2 elements in the DB
-	reader := suite.cache.GzipReader(orderedHashes[0], orderedHashes[1])
-	defer reader.Close()
-	gr, err := gzip.NewReader(reader)
-	suite.NoError(err)
-	defer gr.Close()
-
-	chunkChan := make(chan chunks.Chunk)
-	go chunks.DeserializeToChan(gr, chunkChan)
-
+	chunkChan := suite.extractChunks(orderedHashes[0], orderedHashes[1])
 	origLen := len(orderedHashes)
 	for c := range chunkChan {
 		suite.Equal(orderedHashes[0], c.Ref())
@@ -144,15 +136,7 @@ func (suite *LevelDBPutCacheSuite) TestReaderSnapshot() {
 		suite.cache.Add(c)
 	}
 
-	reader := suite.cache.GzipReader(hashes[0], hashes[len(hashes)-1])
-	defer reader.Close()
-	gr, err := gzip.NewReader(reader)
-	suite.NoError(err)
-	defer gr.Close()
-
-	chunkChan := make(chan chunks.Chunk)
-	go chunks.DeserializeToChan(gr, chunkChan)
-
+	chunkChan := suite.extractChunks(hashes[0], hashes[len(hashes)-1])
 	// Clear chunks from suite.cache. Should still be enumerated by reader
 	suite.cache.Clear(hashes)
 
@@ -162,25 +146,27 @@ func (suite *LevelDBPutCacheSuite) TestReaderSnapshot() {
 	suite.Len(suite.chnx, 0)
 }
 
-func (suite *LevelDBPutCacheSuite) TestReaderOrder() {
+func (suite *LevelDBPutCacheSuite) TestExtractChunksOrder() {
 	orderedHashes := ref.RefSlice{}
 	for hash, c := range suite.chnx {
 		orderedHashes = append(orderedHashes, hash)
 		suite.cache.Add(c)
 	}
 
-	reader := suite.cache.GzipReader(orderedHashes[0], orderedHashes[len(orderedHashes)-1])
-	defer reader.Close()
-	gr, err := gzip.NewReader(reader)
-	suite.NoError(err)
-	defer gr.Close()
-
-	chunkChan := make(chan chunks.Chunk)
-	go chunks.DeserializeToChan(gr, chunkChan)
-
+	chunkChan := suite.extractChunks(orderedHashes[0], orderedHashes[len(orderedHashes)-1])
 	for c := range chunkChan {
 		suite.Equal(orderedHashes[0], c.Ref())
 		orderedHashes = orderedHashes[1:]
 	}
 	suite.Len(orderedHashes, 0)
+}
+
+func (suite *LevelDBPutCacheSuite) extractChunks(start, end ref.Ref) <-chan chunks.Chunk {
+	buf := &bytes.Buffer{}
+	err := suite.cache.ExtractChunks(start, end, buf)
+	suite.NoError(err)
+
+	chunkChan := make(chan chunks.Chunk)
+	go chunks.DeserializeToChan(buf, chunkChan)
+	return chunkChan
 }

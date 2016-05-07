@@ -2,7 +2,6 @@ package datas
 
 import (
 	"bytes"
-	"compress/gzip"
 	"encoding/binary"
 	"io"
 	"io/ioutil"
@@ -14,7 +13,6 @@ import (
 	"github.com/attic-labs/noms/ref"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/filter"
-	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
@@ -47,24 +45,25 @@ type unwrittenPutCache struct {
 
 func (p *unwrittenPutCache) Add(c chunks.Chunk) bool {
 	hash := c.Ref()
-	p.mu.Lock()
-	// Don't use defer p.mu.Unlock() here, because I want writing to orderedChunks NOT to be guarded by the lock. LevelDB handles its own goroutine-safety.
-	if _, ok := p.chunkIndex[hash]; !ok {
-		key := toKey(p.next)
-		p.next++
-		p.chunkIndex[hash] = key
-		p.mu.Unlock()
+	dbKey, present := func() (dbKey []byte, present bool) {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if _, present = p.chunkIndex[hash]; !present {
+			dbKey = toDbKey(p.next)
+			p.next++
+			p.chunkIndex[hash] = dbKey
+		}
+		return
+	}()
 
+	if !present {
 		buf := &bytes.Buffer{}
-		gw := gzip.NewWriter(buf)
-		sz := chunks.NewSerializer(gw)
+		sz := chunks.NewSerializer(buf)
 		sz.Put(c)
 		sz.Close()
-		gw.Close()
-		d.Chk.NoError(p.orderedChunks.Put(key, buf.Bytes(), nil))
+		d.Chk.NoError(p.orderedChunks.Put(dbKey, buf.Bytes(), nil))
 		return true
 	}
-	p.mu.Unlock()
 	return false
 }
 
@@ -76,103 +75,67 @@ func (p *unwrittenPutCache) Has(hash ref.Ref) (has bool) {
 }
 
 func (p *unwrittenPutCache) Get(hash ref.Ref) chunks.Chunk {
-	p.mu.Lock()
 	// Don't use defer p.mu.Unlock() here, because I want reading from orderedChunks NOT to be guarded by the lock. LevelDB handles its own goroutine-safety.
-	if key, ok := p.chunkIndex[hash]; ok {
-		p.mu.Unlock()
-
-		data, err := p.orderedChunks.Get(key, nil)
-		d.Chk.NoError(err)
-		reader, err := gzip.NewReader(bytes.NewReader(data))
-		d.Chk.NoError(err)
-		defer reader.Close()
-		chunkChan := make(chan chunks.Chunk)
-		go chunks.DeserializeToChan(reader, chunkChan)
-		return <-chunkChan
-	}
+	p.mu.Lock()
+	dbKey, ok := p.chunkIndex[hash]
 	p.mu.Unlock()
-	return chunks.EmptyChunk
+
+	if !ok {
+		return chunks.EmptyChunk
+	}
+	data, err := p.orderedChunks.Get(dbKey, nil)
+	d.Chk.NoError(err)
+	reader := bytes.NewReader(data)
+	chunkChan := make(chan chunks.Chunk)
+	go chunks.DeserializeToChan(reader, chunkChan)
+	return <-chunkChan
 }
 
 func (p *unwrittenPutCache) Clear(hashes ref.RefSlice) {
-	toDelete := make([][]byte, len(hashes))
+	deleteBatch := &leveldb.Batch{}
 	p.mu.Lock()
-	for i, hash := range hashes {
-		toDelete[i] = p.chunkIndex[hash]
+	for _, hash := range hashes {
+		deleteBatch.Delete(p.chunkIndex[hash])
 		delete(p.chunkIndex, hash)
 	}
 	p.mu.Unlock()
-	for _, key := range toDelete {
-		d.Chk.NoError(p.orderedChunks.Delete(key, nil))
-	}
+	d.Chk.NoError(p.orderedChunks.Write(deleteBatch, nil))
 	return
 }
 
-func toKey(idx uint64) []byte {
+func toDbKey(idx uint64) []byte {
 	buf := &bytes.Buffer{}
 	err := binary.Write(buf, binary.BigEndian, idx)
 	d.Chk.NoError(err)
 	return buf.Bytes()
 }
 
-func fromKey(key []byte) (idx uint64) {
+func fromDbKey(key []byte) (idx uint64) {
 	err := binary.Read(bytes.NewReader(key), binary.BigEndian, &idx)
 	d.Chk.NoError(err)
 	return
 }
 
-type resettableReadCloser interface {
-	io.ReadCloser
-	Reset()
-}
-
-type putCacheReader struct {
-	iterator.Iterator
-	remaining []byte
-}
-
-func (p *unwrittenPutCache) GzipReader(start, end ref.Ref) resettableReadCloser {
+func (p *unwrittenPutCache) ExtractChunks(start, end ref.Ref, w io.Writer) error {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-	iterRange := &util.Range{Start: p.chunkIndex[start], Limit: toKey(fromKey(p.chunkIndex[end]) + 1)}
-	return &putCacheReader{Iterator: p.orderedChunks.NewIterator(iterRange, nil)}
+	iterRange := &util.Range{
+		Start: p.chunkIndex[start],
+		Limit: toDbKey(fromDbKey(p.chunkIndex[end]) + 1),
+	}
+	p.mu.Unlock()
+
+	iter := p.orderedChunks.NewIterator(iterRange, nil)
+	defer iter.Release()
+	for iter.Next() {
+		_, err := w.Write(iter.Value())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *unwrittenPutCache) Destroy() error {
 	d.Chk.NoError(p.orderedChunks.Close())
 	return os.RemoveAll(p.dbDir)
-}
-
-func (r *putCacheReader) Reset() {
-	r.First()
-	// First() sets r back to the first item in the iteration. In order to avoid having to detect this case in Read(), set r back to BEFORE the first item. This way, Read() can just always call Next() when it wants another item.
-	r.Prev()
-}
-
-func (r *putCacheReader) Read(p []byte) (n int, err error) {
-	if len(p) == 0 {
-		return
-	}
-
-	// if anything in r.remaining, Copy up to len(p) bytes into p, reslice r.remaining and return.
-	if len(r.remaining) > 0 {
-		n = copy(p, r.remaining)
-		r.remaining = r.remaining[n:]
-		return
-	}
-
-	// if not, get the next thing, return up to len(p), and put the rest in r.remaining
-	if r.Next() {
-		d := r.Value()
-		n = copy(p, d)
-		r.remaining = d[n:]
-		return
-	}
-
-	return 0, io.EOF
-}
-
-func (r *putCacheReader) Close() error {
-	r.Release()
-	return r.Error()
 }

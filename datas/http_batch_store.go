@@ -254,11 +254,9 @@ func (bhcs *httpBatchStore) sendWriteRequests(hashes ref.RefSlice, hints types.H
 		return
 	}
 	bhcs.rateLimit <- struct{}{}
-	serializedChunks := bhcs.unwrittenPuts.GzipReader(hashes[0], hashes[len(hashes)-1])
 	go func() {
 		defer func() {
 			<-bhcs.rateLimit
-			serializedChunks.Close()
 			bhcs.unwrittenPuts.Clear(hashes)
 			bhcs.requestWg.Add(-len(hashes))
 		}()
@@ -266,7 +264,16 @@ func (bhcs *httpBatchStore) sendWriteRequests(hashes ref.RefSlice, hints types.H
 		var res *http.Response
 		var err error
 		for tryAgain := true; tryAgain; {
-			serializedChunks.Reset()
+			serializedChunks, pw := io.Pipe()
+			errChan := make(chan error)
+			go func() {
+				gw := gzip.NewWriter(pw)
+				err := bhcs.unwrittenPuts.ExtractChunks(hashes[0], hashes[len(hashes)-1], gw)
+				// The ordering of these is important. Close the gzipper to flush data to pw, then close pw so that the HTTP stack which is reading from serializedChunks knows it has everything, and only THEN block on errChan.
+				gw.Close()
+				pw.Close()
+				errChan <- err
+			}()
 			body := buildWriteValueRequest(serializedChunks, hints)
 
 			url := *bhcs.host
@@ -279,6 +286,7 @@ func (bhcs *httpBatchStore) sendWriteRequests(hashes ref.RefSlice, hints types.H
 
 			res, err = bhcs.httpClient.Do(req)
 			d.Exp.NoError(err)
+			d.Exp.NoError(<-errChan)
 			defer closeResponse(res)
 
 			if tryAgain = res.StatusCode == httpStatusTooManyRequests; tryAgain {
