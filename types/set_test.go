@@ -117,11 +117,11 @@ func newSetTestSuite(size uint, expectRefStr string, expectChunkCount int, expec
 }
 
 func TestSetSuite1K(t *testing.T) {
-	suite.Run(t, newSetTestSuite(10, "sha1-53488a3b57c3db914bfc8d7863b91170602777d1", 16, 2, 2))
+	suite.Run(t, newSetTestSuite(10, "sha1-8836444230d08c68f55d936268350b6d148c4f88", 16, 2, 2))
 }
 
 func TestSetSuite4K(t *testing.T) {
-	suite.Run(t, newSetTestSuite(12, "sha1-c1434d5fa03f233700b619ef39d679d3c38d811a", 3, 2, 2))
+	suite.Run(t, newSetTestSuite(12, "sha1-9831a1058d5ddddb269900704566e5e3697e7ac9", 3, 2, 2))
 }
 
 func getTestNativeOrderSet(scale int) testSet {
@@ -404,68 +404,6 @@ func TestSetRemoveNonexistentValue(t *testing.T) {
 
 	assert.Equal(original.Len(), actual.Len())
 	assert.True(original.Equals(actual))
-}
-
-func TestSetUnion(t *testing.T) {
-	assert := assert.New(t)
-	assert.True(NewSet(Number(1), Number(2)).Union(
-		NewSet(Number(2), Number(3)),
-		NewSet(Number(-1)),
-		NewSet()).Equals(
-		NewSet(Number(1), Number(2), Number(3), Number(-1))))
-	assert.True(NewSet(Number(1)).Union().Equals(NewSet(Number(1))))
-}
-
-func TestSetUnion2(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping test in short mode.")
-	}
-	assert := assert.New(t)
-
-	doTest := func(ts testSet) {
-		cs := ts.toSet()
-		cs2 := cs.Union()
-		assert.True(cs.Equals(cs2))
-		cs3 := cs.Union(cs2)
-		assert.True(cs.Equals(cs3))
-		cs4 := cs.Union(cs2, cs3)
-		assert.True(cs.Equals(cs4))
-		emptySet := NewTypedSet(ts.tr)
-		cs5 := cs.Union(emptySet)
-		assert.True(cs.Equals(cs5))
-		cs6 := emptySet.Union(cs)
-		assert.True(cs.Equals(cs6))
-
-		r := rand.New(rand.NewSource(123))
-		subsetValues1 := make([]Value, 0, len(ts.values))
-		subsetValues2 := make([]Value, 0, len(ts.values))
-		subsetValues3 := make([]Value, 0, len(ts.values))
-		subsetValuesAll := make([]Value, 0, len(ts.values))
-		for _, v := range ts.values {
-			if r.Intn(3) == 0 {
-				subsetValues1 = append(subsetValues1, v)
-				subsetValuesAll = append(subsetValuesAll, v)
-			} else if r.Intn(3) == 0 {
-				subsetValues2 = append(subsetValues2, v)
-				subsetValuesAll = append(subsetValuesAll, v)
-			} else if r.Intn(3) == 0 {
-				subsetValues3 = append(subsetValues3, v)
-				subsetValuesAll = append(subsetValuesAll, v)
-			}
-		}
-
-		s1 := NewTypedSet(ts.tr, subsetValues1...)
-		s2 := NewTypedSet(ts.tr, subsetValues2...)
-		s3 := NewTypedSet(ts.tr, subsetValues3...)
-		sAll := NewTypedSet(ts.tr, subsetValuesAll...)
-
-		assert.True(s1.Union(s2, s3).Equals(sAll))
-	}
-
-	doTest(getTestNativeOrderSet(16))
-	doTest(getTestRefValueOrderSet(2))
-	doTest(getTestRefToNativeOrderSet(2, NewTestValueStore()))
-	doTest(getTestRefToValueOrderSet(2, NewTestValueStore()))
 }
 
 func TestSetFirst(t *testing.T) {
@@ -816,7 +754,7 @@ func TestSetFirstNNumbers(t *testing.T) {
 
 	nums := generateNumbersAsValues(testSetSize)
 	s := NewTypedSet(setType, nums...)
-	assert.Equal("sha1-5937b476bb1d594e3a905c44f00863bd9ba1fb19", s.Ref().String())
+	assert.Equal("sha1-8186877fb71711b8e6a516ed5c8ad1ccac8c6c00", s.Ref().String())
 	height := deriveSetHeight(s)
 	cs := s.(compoundSet)
 	assert.Equal(height, cs.tuples[0].childRef.Height())
@@ -828,11 +766,11 @@ func TestSetRefOfStructFirstNNumbers(t *testing.T) {
 	}
 	assert := assert.New(t)
 
-	structType, nums := generateNumbersAsStructs(testSetSize)
+	structType, nums := generateNumbersAsRefOfStructs(testSetSize)
 	refOfTypeStructType := MakeRefType(structType)
 	setType := MakeSetType(refOfTypeStructType)
 	s := NewTypedSet(setType, nums...)
-	assert.Equal("sha1-3664c45fcbf64f1272956a7b93f27488ab0eb4f8", s.Ref().String())
+	assert.Equal("sha1-882b953455794580e6156eb21b316720aa9e45b2", s.Ref().String())
 	height := deriveSetHeight(s)
 	cs := s.(compoundSet)
 	// height + 1 because the leaves are Ref values (with height 1).

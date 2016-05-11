@@ -164,11 +164,11 @@ func newMapTestSuite(size uint, expectRefStr string, expectChunkCount int, expec
 }
 
 func TestMapSuite1K(t *testing.T) {
-	suite.Run(t, newMapTestSuite(10, "sha1-db0aa902943bcbe03520bb58f58a1d808285f350", 16, 2, 2))
+	suite.Run(t, newMapTestSuite(10, "sha1-e3f51f615e77c327b17bdb6cc0683b6b566158ca", 16, 2, 2))
 }
 
 func TestMapSuite4K(t *testing.T) {
-	suite.Run(t, newMapTestSuite(12, "sha1-c601acb4295a8260a8a8d479c6a26e6cef9281ef", 56, 2, 2))
+	suite.Run(t, newMapTestSuite(12, "sha1-af5c67cd9716fad095ed7b1446c098d80a87d87f", 56, 2, 2))
 }
 
 func getTestNativeOrderMap(scale int) testMap {
@@ -858,7 +858,7 @@ func TestMapFirstNNumbers(t *testing.T) {
 	}
 
 	m := NewTypedMap(mapType, kvs...)
-	assert.Equal("sha1-4d2fb53d2020630376f2b188addf58e546dc33e8", m.Ref().String())
+	assert.Equal("sha1-2bc451349d04c5f90cfe73d1e6eb3ee626db99a1", m.Ref().String())
 	height := deriveMapHeight(m)
 	cm := m.(compoundMap)
 	assert.Equal(height, cm.tuples[0].childRef.Height())
@@ -888,7 +888,7 @@ func TestMapRefOfStructFirstNNumbers(t *testing.T) {
 	}
 
 	m := NewTypedMap(mapType, kvs...)
-	assert.Equal("sha1-c179c3dd34ec4430b11515cb5f859b8f4546b970", m.Ref().String())
+	assert.Equal("sha1-3d8eea119bc685942107f7b9513b33d2f763d693", m.Ref().String())
 	height := deriveMapHeight(m)
 	cm := m.(compoundMap)
 	// height + 1 because the leaves are Ref values (with height 1).
