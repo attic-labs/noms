@@ -17,8 +17,8 @@ import (
 )
 
 var (
+	color       = flag.Int("color", -1, "suppress color output")
 	lines       = flag.Int("lines", 10, "max number of lines to show per commit (-1 for all lines)")
-	noColor     = flag.Bool("no-color", false, "suppress color output")
 	showHelp    = flag.Bool("help", false, "show help text")
 	showGraph   = flag.Bool("graph", false, "show ascii-based commit hierarcy on left side of output")
 	stdoutIsTty = flag.Int("stdout-is-tty", -1, "assume stdout is tty")
@@ -168,17 +168,17 @@ func truncateLines(s1 string, maxLines int) []string {
 }
 
 func isStdoutTty() bool {
-	if *stdoutIsTty == -1 {
+	if *stdoutIsTty != 1 && *stdoutIsTty != 0 {
 		return goisatty.IsTerminal(os.Stdout.Fd())
 	}
 	return *stdoutIsTty == 1
 }
 
 func shouldUseColor() bool {
-	if *noColor == true {
-		return false
+	if *color != 1 && *color != 0 {
+		return isStdoutTty()
 	}
-	return isStdoutTty()
+	return *color == 1
 }
 
 func max(i, j int) int {

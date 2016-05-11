@@ -144,6 +144,46 @@ func (s *nomsShowTestSuite) TestNomsGraph2() {
 	s.Equal(graphRes2, s.Run(main, []string{"-graph", spec + ":ba"}))
 }
 
+func (s *nomsShowTestSuite) TestNomsGraph3() {
+	spec := fmt.Sprintf("ldb:%s", s.LdbDir)
+	dbSpec, err := flags.ParseDatabaseSpec(spec)
+	d.Chk.NoError(err)
+	db, err := dbSpec.Database()
+	d.Chk.NoError(err)
+
+	w := dataset.NewDataset(db, "w")
+
+	w, err = addCommit(w, "1")
+	d.Chk.NoError(err)
+
+	w, err = addCommit(w, "2")
+	d.Chk.NoError(err)
+
+	x := dataset.NewDataset(db, "x")
+	x, err = addBranchedDataset(x, w, "20-x")
+	d.Chk.NoError(err)
+
+	y := dataset.NewDataset(db, "y")
+	y, err = addBranchedDataset(y, w, "200-y")
+	d.Chk.NoError(err)
+
+	z := dataset.NewDataset(db, "z")
+	z, err = addBranchedDataset(z, w, "2000-z")
+	d.Chk.NoError(err)
+
+	w, err = mergeDatasets(w, x, "22-wx")
+	d.Chk.NoError(err)
+
+	w, err = mergeDatasets(w, y, "222-wy")
+	d.Chk.NoError(err)
+
+	w, err = mergeDatasets(w, z, "2222-wz")
+	d.Chk.NoError(err)
+
+	db.Close()
+	s.Equal(graphRes3, s.Run(main, []string{"-graph", spec + ":w"}))
+}
+
 func TestTruncateLines(t *testing.T) {
 	assert := assert.New(t)
 	t1 := "one"
@@ -159,6 +199,29 @@ func TestTruncateLines(t *testing.T) {
 
 	s1 = truncateLines(t2, 0)
 	assert.Empty(s1)
+}
+
+func TestBranchlistSplice(t *testing.T) {
+	assert := assert.New(t)
+	bl := branchList{}
+	for i := 0; i < 4; i++ {
+		bl = bl.Splice(0, 0, branch{})
+	}
+	assert.Equal(4, len(bl))
+	bl = bl.Splice(3, 1)
+	bl = bl.Splice(0, 1)
+	bl = bl.Splice(1, 1)
+	bl = bl.Splice(0, 1)
+	assert.Zero(len(bl))
+
+	for i := 0; i < 4; i++ {
+		bl = bl.Splice(0, 0, branch{})
+	}
+	assert.Equal(4, len(bl))
+
+	branchesToDelete := []int{1, 2, 3}
+	bl = bl.RemoveBranches(branchesToDelete)
+	assert.Equal(1, len(bl))
 }
 
 const (
@@ -183,6 +246,7 @@ const (
 		"6\n| \"3\"\n| \n* sha1-c2961e584d41e98a7c735e399eef6c618e0431b6\n| Parent: sha1-4a1a4e051327f02c1be" +
 		"502ac7ce9e7bf04fbf729\n| \"2\"\n| \n* sha1-4a1a4e051327f02c1be502ac7ce9e7bf04fbf729\n| Parent: None" +
 		"\n| \"1\"\n"
+
 	graphRes2 = "*   sha1-a7f6c6b7f0db1f9d2448bf23c4aa70d983dfecb2\n|\\  Merge: sha1-10473a7892604ff88d9" +
 		"149e3cbb9dd9dc123d194 sha1-d37384e9e9cf2f9a0abd5968151c246fdd8cf9dd\n| | \"101\"\n| | \n| *   sha1-" +
 		"d37384e9e9cf2f9a0abd5968151c246fdd8cf9dd\n| |\\  Merge: sha1-07cec20929f80a1fd923991683f4bf3adad099" +
@@ -190,4 +254,17 @@ const (
 		"9149e3cbb9dd9dc123d194\n| | Parent: None\n| | \"100\"\n| | \n* sha1-07cec20929f80a1fd923991683f4bf3" +
 		"adad09903\n| Parent: None\n| \"10\"\n| \n* sha1-4a1a4e051327f02c1be502ac7ce9e7bf04fbf729\n| Parent:" +
 		" None\n| \"1\"\n"
+
+	graphRes3 = "*   sha1-fefb034c30d9bb724e3a9bfbb07025ecb749fec7\n|\\  Merge: sha1-1182ee3c6481e1c582c2f7b" +
+		"a2d6f81754c44e263 sha1-bf0ec6b03cc7465bd05b81288f868274f81e1ee5\n| | \"2222-wz\"\n| | \n| *   sha1-bf0e" +
+		"c6b03cc7465bd05b81288f868274f81e1ee5\n| |\\  Merge: sha1-126475cc41d8ad7f38250d563a29d683eca21a80 sha1-" +
+		"96a67ea3f5407c593dca7d71f98a8375dc1237dd\n| | | \"222-wy\"\n| | | \n| | *   sha1-96a67ea3f5407c593dca7d" +
+		"71f98a8375dc1237dd\n| | |\\  Merge: sha1-c2961e584d41e98a7c735e399eef6c618e0431b6 sha1-e8245c30e79dbb2c" +
+		"882112b796b51d718f4e5984\n| | | | \"22-wx\"\n| | | | \n* | | | sha1-1182ee3c6481e1c582c2f7ba2d6f81754c4" +
+		"4e263\n| | | | Parent: sha1-c2961e584d41e98a7c735e399eef6c618e0431b6\n| | | | \"2000-z\"\n| | | | \n| *" +
+		" | | sha1-126475cc41d8ad7f38250d563a29d683eca21a80\n| | | | Parent: sha1-c2961e584d41e98a7c735e399eef6c" +
+		"618e0431b6\n| | | | \"200-y\"\n| | | | \n| | | * sha1-e8245c30e79dbb2c882112b796b51d718f4e5984\n|/ / / " +
+		" Parent: sha1-c2961e584d41e98a7c735e399eef6c618e0431b6\n|       \"20-x\"\n|       \n* sha1-c2961e584d41" +
+		"e98a7c735e399eef6c618e0431b6\n| Parent: sha1-4a1a4e051327f02c1be502ac7ce9e7bf04fbf729\n| \"2\"\n| \n* s" +
+		"ha1-4a1a4e051327f02c1be502ac7ce9e7bf04fbf729\n| Parent: None\n| \"1\"\n"
 )

@@ -40,10 +40,7 @@ func (iter *CommitIterator) Next() (LogNode, bool) {
 
 	// Any additional indexes, represent other branches with the same ancestor. So they are merging
 	// into a common ancestor and are no longer graphed.
-	branchesToDelete := branchIndexes[1:]
-	for _, colToDelete := range branchesToDelete {
-		iter.branches = iter.branches.Splice(colToDelete, 1)
-	}
+	iter.branches = iter.branches.RemoveBranches(branchIndexes[1:])
 
 	// If this commit has parents, then a branch is splitting. Create a branch for each of the parents
 	// and splice that into the iterators list of branches.
@@ -148,6 +145,13 @@ func (bl branchList) HighestBranchIndexes() []int {
 func (bl branchList) Splice(start int, deleteCount int, branches ...branch) branchList {
 	l := append(bl[:start], branches...)
 	return append(l, bl[start+deleteCount:]...)
+}
+
+func (bl branchList) RemoveBranches(indexes []int) branchList {
+	for i := len(indexes) - 1; i >= 0; i-- {
+		bl = bl.Splice(indexes[i], 1)
+	}
+	return bl
 }
 
 func commitRefsFromSet(set types.Set) []types.Ref {
