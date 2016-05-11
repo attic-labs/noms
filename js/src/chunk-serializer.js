@@ -10,32 +10,73 @@ const sha1Size = 20;
 const chunkLengthSize = 4; // uint32
 const chunkHeaderSize = sha1Size + chunkLengthSize;
 
+export interface ChunkStreamer {
+   register(cb: (chunk: Chunk) => void): void;
+   done(): Promise<void>;
+}
+
+export class ChunkSerializer {
+  _buf: ArrayBuffer;
+  _offset: number;
+  _streamer: ChunkStreamer;
+
+  constructor(streamer: ChunkStreamer) {
+    this._buf = new ArrayBuffer(1024);
+    this._offset = 0;
+    this._streamer = streamer;
+  }
+
+  run(hints: Set<Ref>): Promise<ArrayBuffer> {
+    const hintsLen = serializedHintsLength(hints);
+    if (this._buf.byteLength < hintsLen) {
+      this._buf = new ArrayBuffer(hintsLen * 2); // Leave space for some chunks.
+    }
+    this._offset = serializeHints(hints, this._buf);
+    this._streamer.register(chunk => {
+      const chunkLength = serializedChunkLength(chunk);
+      if (this._buf.byteLength < chunkLength) {
+        let newLen = this._buf.byteLength;
+        for (; newLen < chunkLength; newLen *= 2)
+          ;
+        const newBuf = new ArrayBuffer(newLen);
+        new Uint8Array(newBuf).set(new Uint8Array(this._buf));
+        this._buf = newBuf;
+      }
+      this._offset = serializeChunk(chunk, this._buf, this._offset);
+    });
+
+    return this._streamer.done().then(() => this._buf.slice(0, this._offset));
+  }
+}
+
 export function serialize(hints: Set<Ref>, chunks: Array<Chunk>): ArrayBuffer {
-  const buffer = new ArrayBuffer(serializedHintLength(hints) + serializedChunkLength(chunks));
+  const buffer = new ArrayBuffer(serializedHintsLength(hints) + serializedChunksLength(chunks));
 
   let offset = serializeHints(hints, buffer);
-
   for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    invariant(buffer.byteLength - offset >= chunkHeaderSize + chunk.data.length,
-      'Invalid chunk buffer');
-
-    const refArray = new Uint8Array(buffer, offset, sha1Size);
-    refArray.set(chunk.ref.digest);
-    offset += sha1Size;
-
-
-    const chunkLength = chunk.data.length;
-    const view = new DataView(buffer, offset, chunkLengthSize);
-    view.setUint32(0, chunkLength | 0, bigEndian); // Coerce number to uint32
-    offset += chunkLengthSize;
-
-    const dataArray = new Uint8Array(buffer, offset, chunkLength);
-    dataArray.set(chunk.data);
-    offset += chunkLength;
+    offset = serializeChunk(chunks[i], buffer, offset);
   }
 
   return buffer;
+}
+
+function serializeChunk(chunk: Chunk, buffer: ArrayBuffer, offset: number): number {
+  invariant(buffer.byteLength - offset >= serializedChunkLength(chunk),
+    'Invalid chunk buffer');
+
+  const refArray = new Uint8Array(buffer, offset, sha1Size);
+  refArray.set(chunk.ref.digest);
+  offset += sha1Size;
+
+  const chunkLength = chunk.data.length;
+  const view = new DataView(buffer, offset, chunkLengthSize);
+  view.setUint32(0, chunkLength | 0, bigEndian); // Coerce number to uint32
+  offset += chunkLengthSize;
+
+  const dataArray = new Uint8Array(buffer, offset, chunkLength);
+  dataArray.set(chunk.data);
+  offset += chunkLength;
+  return offset;
 }
 
 function serializeHints(hints: Set<Ref>, buffer: ArrayBuffer): number {
@@ -53,16 +94,20 @@ function serializeHints(hints: Set<Ref>, buffer: ArrayBuffer): number {
   return offset;
 }
 
-function serializedHintLength(hints: Set<Ref>): number {
+export function serializedHintsLength(hints: Set<Ref>): number {
   return headerSize + sha1Size * hints.size;
 }
 
-function serializedChunkLength(chunks: Array<Chunk>): number {
+function serializedChunksLength(chunks: Array<Chunk>): number {
   let totalSize = 0;
   for (let i = 0; i < chunks.length; i++) {
-    totalSize += chunkHeaderSize + chunks[i].data.length;
+    totalSize += serializedChunkLength(chunks[i]);
   }
   return totalSize;
+}
+
+function serializedChunkLength(chunk: Chunk): number {
+  return chunkHeaderSize + chunk.data.length;
 }
 
 export function deserialize(buffer: ArrayBuffer): {hints: Array<Ref>, chunks: Array<Chunk>} {

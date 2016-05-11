@@ -2,9 +2,10 @@
 
 import {suite, test} from 'mocha';
 import {assert} from 'chai';
+import {notNull} from './assert.js';
 import Chunk from './chunk.js';
 import Ref from './ref.js';
-import {deserialize, serialize} from './chunk-serializer.js';
+import {deserialize, serialize, ChunkSerializer} from './chunk-serializer.js';
 
 suite('ChunkSerializer', () => {
 
@@ -67,4 +68,52 @@ suite('ChunkSerializer', () => {
     assertHints(expHints, hints);
     assertChunks(expChunks, chunks);
   });
+
+  test('stream with hints', async () => {
+    const expHints = [
+      Chunk.fromString('123').ref,
+      Chunk.fromString('456').ref,
+      Chunk.fromString('789').ref,
+      Chunk.fromString('wacka wack wack').ref,
+    ];
+    const expChunks = [Chunk.fromString('abc'), Chunk.fromString('def'), Chunk.fromString('ghi')];
+
+    const streamer = new ChunkStream();
+    const serializer = new ChunkSerializer(streamer);
+    const pSerialized = serializer.run(new Set(expHints));
+    for (const chunk of expChunks) {
+      streamer.put(chunk);
+    }
+    streamer.finish();
+
+    const {hints, chunks} = deserialize(await pSerialized);
+
+    assertHints(expHints, hints);
+    assertChunks(expChunks, chunks);
+  });
 });
+
+class ChunkStream {
+  finish: () => void;
+  _cb: ?(chunk:Chunk) => void;
+  _finished: Promise<void>;
+
+  constructor() {
+    this._cb = null;
+    this._finished = new Promise(fulfill => {
+      this.finish = fulfill;
+    });
+  }
+
+  register(cb: (chunk: Chunk) => void): void {
+    this._cb = cb;
+  }
+
+  done(): Promise<void> {
+    return this._finished;
+  }
+
+  put(chunk: Chunk): void {
+    notNull(this._cb)(chunk);
+  }
+}

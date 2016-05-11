@@ -9,7 +9,8 @@
     "babel-regenerator-runtime": "6.5.0",
     "babel-runtime": "5.8.38",
     "rusha": "0.8.3",
-    "text-encoding-utf-8": "1.0.1"
+    "text-encoding-utf-8": "1.0.1",
+    "tingodb": "^0.4.2"
   },
   "devDependencies": {
     "@attic/eslintrc": "^1.0.0",

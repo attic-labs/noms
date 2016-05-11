@@ -2,9 +2,10 @@
 
 import Ref from './ref.js';
 import BatchStore from './batch-store.js';
-import type {UnsentReadMap, WriteRequest} from './batch-store.js';
+import type {UnsentReadMap} from './batch-store.js';
 import type {FetchOptions} from './fetch.js';
-import {deserializeChunks, serialize} from './chunk-serializer.js';
+import type {ChunkStreamer} from './chunk-serializer.js';
+import {ChunkSerializer, deserializeChunks} from './chunk-serializer.js';
 import {emptyChunk} from './chunk.js';
 import {fetchArrayBuffer, fetchText} from './fetch.js';
 
@@ -47,11 +48,13 @@ export class Delegate {
   _rpc: RpcStrings;
   _readBatchOptions: FetchOptions;
   _rootOptions: FetchOptions;
+  _body: ArrayBuffer;
 
   constructor(rpc: RpcStrings, fetchOptions: FetchOptions) {
     this._rpc = rpc;
     this._rootOptions = fetchOptions;
     this._readBatchOptions = mergeOptions(readBatchOptions, fetchOptions);
+    this._body = new ArrayBuffer(0);
   }
 
   async readBatch(reqs: UnsentReadMap): Promise<void> {
@@ -73,18 +76,10 @@ export class Delegate {
     Object.keys(reqs).forEach(refStr => reqs[refStr](emptyChunk));
   }
 
-  async writeBatch(reqs: Array<WriteRequest>): Promise<void> {
-    const body = this._buildWriteRequest(reqs);
-    await fetchText(this._rpc.writeValue, {method: 'POST', body});
-  }
-
-  _buildWriteRequest(reqs: Array<WriteRequest>): ArrayBuffer {
-    let hints = new Set();
-    const chunks = reqs.map(writeReq => {
-      writeReq.hints.forEach(hint => { hints = hints.add(hint); });
-      return writeReq.c;
-    });
-    return serialize(hints, chunks);
+  async writeBatch(hints: Set<Ref>, chunkStreamer: ChunkStreamer): Promise<void> {
+    const serializer = new ChunkSerializer(chunkStreamer);
+    await serializer.run(hints)
+      .then(body => fetchText(this._rpc.writeValue, {method: 'POST', body}));
   }
 
   async getRoot(): Promise<Ref> {
