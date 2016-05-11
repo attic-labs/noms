@@ -13,26 +13,40 @@ type CommitIterator struct {
 	branches branchList
 }
 
+// Initialize a new CommitIterator with the first commit to be printed.
 func NewCommitIterator(db datas.Database, commit types.Struct) *CommitIterator {
 	cr := types.NewTypedRefFromValue(commit)
 	return &CommitIterator{db: db, branches: branchList{branch{cr: cr, commit: commit}}}
 }
 
+// Returns information about the next commit to be printed. LogNode contains enough contextual
+// info that the commit and associated graph can be correctly printed.
+// This works by traversing the "commit" di-graph in a breadth-first manner. Each time it is called,
+// the commit in the branchlist with the greatest height is returned. If that commit has multiple
+// parents, new branches are added to the branchlist so that they can be traversed in order. When
+// more than one branch contains the same node, that indicates that the branches are converging and so
+// the branchlist will have branches removed to reflect that.
 func (iter *CommitIterator) Next() (LogNode, bool) {
 	if iter.branches.IsEmpty() {
 		return LogNode{}, false
 	}
 
-	cols := iter.branches.ColumnsWithMaxHeight()
-	col := cols[0]
-	colsToDelete := cols[1:]
-	br := iter.branches[col]
+	// Number of branches present when printing this commit
 	startingColCount := len(iter.branches)
 
-	for _, colToDelete := range colsToDelete {
+	branchIndexes := iter.branches.HighestBranchIndexes()
+	col := branchIndexes[0]
+	br := iter.branches[col]
+
+	// Any additional indexes, represent other branches with the same ancestor. So they are merging
+	// into a common ancestor and are no longer graphed.
+	branchesToDelete := branchIndexes[1:]
+	for _, colToDelete := range branchesToDelete {
 		iter.branches = iter.branches.Splice(colToDelete, 1)
 	}
 
+	// If this commit has parents, then a branch is splitting. Create a branch for each of the parents
+	// and splice that into the iterators list of branches.
 	branches := branchList{}
 	parents := commitRefsFromSet(br.commit.Get(datas.ParentsField).(types.Set))
 	for _, p := range parents {
@@ -41,12 +55,15 @@ func (iter *CommitIterator) Next() (LogNode, bool) {
 	}
 	iter.branches = iter.branches.Splice(col, 1, branches...)
 
+	// Collect the indexes for any newly created branches.
 	newCols := []int{}
 	for cnt := 1; cnt < len(parents); cnt++ {
 		newCols = append(newCols, col+cnt)
 	}
 
-	cols = iter.branches.ColumnsWithMaxHeight()
+	// Now that the branchlist has been adusted, check to see if there are branches with common
+	// ancestors that will be folded together on this commit's graph.
+	foldedCols := iter.branches.HighestBranchIndexes()
 	return LogNode{
 		cr:               br.cr,
 		commit:           br.commit,
@@ -54,24 +71,39 @@ func (iter *CommitIterator) Next() (LogNode, bool) {
 		endingColCount:   len(iter.branches),
 		col:              col,
 		newCols:          newCols,
-		foldedCols:       cols,
+		foldedCols:       foldedCols,
 		lastCommit:       iter.branches.IsEmpty(),
 	}, true
 }
 
 type LogNode struct {
-	cr               types.Ref
-	commit           types.Struct
-	startingColCount int
-	endingColCount   int
-	col              int
-	newCols          []int
-	foldedCols       []int
-	lastCommit       bool
+	cr               types.Ref    // typed ref of commit to be printed
+	commit           types.Struct // commit that needs to be printed
+	startingColCount int          // how many branches are being tracked when this commit is printed
+	endingColCount   int          // home many branches will be tracked when next commit is printed
+	col              int          // col to put the '*' character in graph
+	newCols          []int        // col to start using '\' in graph
+	foldedCols       []int        // cols with common ancestors, that will get folded together
+	lastCommit       bool         // this is the last commit that will be returned by iterator
 }
 
 func (n LogNode) String() string {
-	return fmt.Sprintf("cr: %s, startingColCount: %d, endingColCount: %d, col: %d, newCols: %v, foldedCols: %v", n.cr.TargetRef(), n.startingColCount, n.endingColCount, n.col, n.newCols, n.foldedCols)
+	return fmt.Sprintf("cr: %s, startingColCount: %d, endingColCount: %d, col: %d, newCols: %v, foldedCols: %v, expanding: %t, shrunk: %t, shrinking: %t", n.cr.TargetRef(), n.startingColCount, n.endingColCount, n.col, n.newCols, n.foldedCols, n.Expanding(), n.Shrunk(), n.Shrinking())
+}
+
+// True if this commit's graph will expand to show an additional branch
+func (n LogNode) Expanding() bool {
+	return n.startingColCount < n.endingColCount
+}
+
+// True if this commit's graph will show a branch being folded into another branch
+func (n LogNode) Shrinking() bool {
+	return len(n.foldedCols) > 1
+}
+
+// True if the previous commit showed a branch being folded into another branch.
+func (n LogNode) Shrunk() bool {
+	return n.startingColCount > n.endingColCount
 }
 
 type branch struct {
@@ -93,7 +125,11 @@ func (bl branchList) String() string {
 	return strings.Join(res, " ")
 }
 
-func (bl branchList) ColumnsWithMaxHeight() []int {
+// look through this list of branches and return the one(s) with the max height.
+// If there are multiple nodes with max height, the result will contain a list of all nodes with
+// maxHeight that are duplicates of the first one found.
+// This indicates that two or more branches or converging.
+func (bl branchList) HighestBranchIndexes() []int {
 	maxHeight := uint64(0)
 	var cr types.Ref
 	cols := []int{}

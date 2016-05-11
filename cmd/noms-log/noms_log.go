@@ -17,11 +17,12 @@ import (
 )
 
 var (
-	forceColor = flag.Bool("force-color", false, "respect no-color arg regardless of whether printing to terminal")
-	lines      = flag.Int("lines", 10, "max number of lines to show per commit (-1 for all lines)")
-	noColor    = flag.Bool("no-color", false, "don't use color in output")
-	showHelp   = flag.Bool("help", false, "show help text")
-	showGraph  = flag.Bool("graph", false, "show ascii-based commit hierarcy on left side of output")
+	lines       = flag.Int("lines", 10, "max number of lines to show per commit (-1 for all lines)")
+	noColor     = flag.Bool("no-color", false, "suppress color output")
+	showHelp    = flag.Bool("help", false, "show help text")
+	showGraph   = flag.Bool("graph", false, "show ascii-based commit hierarcy on left side of output")
+	stdoutIsTty = flag.Int("stdout-is-tty", -1, "assume stdout is tty")
+	useColor    = false
 )
 
 func main() {
@@ -41,6 +42,8 @@ func main() {
 		util.CheckError(errors.New("expected exactly one argument"))
 	}
 
+	useColor = shouldUseColor()
+
 	spec, err := flags.ParseDatasetSpec(flag.Arg(0))
 	util.CheckError(err)
 	dataset, err := spec.Dataset()
@@ -58,92 +61,92 @@ func main() {
 	dataset.Store().Close()
 }
 
-func useColor() bool {
-	if *noColor {
-		return false
-	}
-	if *forceColor {
-		return !*noColor
-	}
-	return goisatty.IsTerminal(1)
-}
-
-func printCommit(ln LogNode) {
+// Prints the information for one commit in the log, including ascii graph on left side of commits if
+// -graph arg is true.
+func printCommit(node LogNode) {
 	lineno := 0
 	doColor := func(s string) string { return s }
-	if useColor() {
+	if useColor {
 		doColor = ansi.ColorFunc("red+h")
 	}
 
-	fmt.Printf("%s%s\n", genPrefix(ln, lineno), doColor(ln.commit.Ref().String()))
-	parents := commitRefsFromSet(ln.commit.Get(datas.ParentsField).(types.Set))
+	fmt.Printf("%s%s\n", genGraph(node, lineno), doColor(node.commit.Ref().String()))
+	parents := commitRefsFromSet(node.commit.Get(datas.ParentsField).(types.Set))
 	lineno++
 	if len(parents) > 1 {
 		pstrings := []string{}
 		for _, cr := range parents {
 			pstrings = append(pstrings, cr.TargetRef().String())
 		}
-		fmt.Printf("%sMerge: %s\n", genPrefix(ln, lineno), strings.Join(pstrings, " "))
+		fmt.Printf("%sMerge: %s\n", genGraph(node, lineno), strings.Join(pstrings, " "))
 	} else if len(parents) == 1 {
-		fmt.Printf("%sParent: %s\n", genPrefix(ln, lineno), parents[0].TargetRef().String())
+		fmt.Printf("%sParent: %s\n", genGraph(node, lineno), parents[0].TargetRef().String())
 	} else {
-		fmt.Printf("%sParent: None\n", genPrefix(ln, lineno))
+		fmt.Printf("%sParent: None\n", genGraph(node, lineno))
 	}
-	lines := truncateLines(types.EncodedValueWithTags(ln.commit.Get(datas.ValueField)), *lines)
+	//	lineno++
+	//	fmt.Printf("%sln: %s\n", genGraph(node, lineno), node)
+	lines := truncateLines(types.EncodedValueWithTags(node.commit.Get(datas.ValueField)), *lines)
 	for _, line := range lines {
 		lineno++
-		fmt.Printf("%s%s\n", genPrefix(ln, lineno), line)
+		fmt.Printf("%s%s\n", genGraph(node, lineno), line)
 	}
 	lineno++
-	if !ln.lastCommit {
-		fmt.Printf("%s\n", genPrefix(ln, lineno))
+	if !node.lastCommit {
+		fmt.Printf("%s\n", genGraph(node, lineno))
 	}
 }
 
-func genPrefix(ln LogNode, lineno int) string {
+// Generates ascii graph chars to display on the left side of the commit info if -graph arg is true.
+func genGraph(node LogNode, lineno int) string {
 	if !*showGraph {
 		return ""
 	}
-	expanding := ln.startingColCount < ln.endingColCount
-	shrunk := ln.startingColCount > ln.endingColCount
-	shrinking := len(ln.foldedCols) > 1
 
-	maxColCount := max(ln.startingColCount, ln.endingColCount)
-	minColCount := min(ln.startingColCount, ln.endingColCount)
-	colCount := maxColCount
-	if shrunk {
-		colCount = minColCount
+	// branchCount is the number of branches that we need to graph for this commit and determines the
+	// length of prefix string. The string will change from line to line to indicate whether the new
+	// branches are getting created or currently displayed branches need to be merged with other branches.
+	// Normally we want the maximum number of branches so we have enough room to display them all, however
+	// if node.Shrunk() is true, we only need to display the minimum number of branches.
+	branchCount := max(node.startingColCount, node.endingColCount)
+	if node.Shrunk() {
+		branchCount = min(node.startingColCount, node.endingColCount)
 	}
 
-	p := strings.Repeat("| ", max(colCount, 1))
+	// Create the basic prefix string indicating the number of branches that are being tracked.
+	p := strings.Repeat("| ", max(branchCount, 1))
 	buf := []rune(p)
 
+	// The first line of a commit has a '*' in the graph to indicate what branch it resides in.
 	if lineno == 0 {
-		if expanding {
-			buf[(colCount-1)*2] = ' '
+		if node.Expanding() {
+			buf[(branchCount-1)*2] = ' '
 		}
-		buf[ln.col*2] = '*'
+		buf[node.col*2] = '*'
 		return string(buf)
 	}
 
-	if expanding && lineno == 1 {
-		for i := ln.newCols[0]; i < colCount; i++ {
+	// If expanding, change all the '|' chars to '\' chars after the inserted branch
+	if node.Expanding() && lineno == 1 {
+		for i := node.newCols[0]; i < branchCount; i++ {
 			buf[(i*2)-1] = '\\'
 			buf[i*2] = ' '
 		}
 	}
 
-	if shrinking {
-		foldingDistance := ln.foldedCols[1] - ln.foldedCols[0]
+	// if one branch is getting folded into another, show '/' where necessary to indicate that.
+	if node.Shrinking() {
+		foldingDistance := node.foldedCols[1] - node.foldedCols[0]
 		ch := ' '
 		if lineno < foldingDistance+1 {
 			ch = '/'
 		}
-		for _, col := range ln.foldedCols[1:] {
+		for _, col := range node.foldedCols[1:] {
 			buf[(col*2)-1] = ch
 			buf[(col * 2)] = ' '
 		}
 	}
+
 	return string(buf)
 }
 
@@ -162,6 +165,20 @@ func truncateLines(s1 string, maxLines int) []string {
 		res = x[:maxLines]
 	}
 	return res
+}
+
+func isStdoutTty() bool {
+	if *stdoutIsTty == -1 {
+		return goisatty.IsTerminal(os.Stdout.Fd())
+	}
+	return *stdoutIsTty == 1
+}
+
+func shouldUseColor() bool {
+	if *noColor == true {
+		return false
+	}
+	return isStdoutTty()
 }
 
 func max(i, j int) int {
