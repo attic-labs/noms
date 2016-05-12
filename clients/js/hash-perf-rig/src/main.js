@@ -33,8 +33,8 @@ const args = argv
   })
   .argv;
 
-let fileSize = 0;
-let startTime = 0;
+var fileSize = 0;
+var startTime = 0;
 
 main().catch(ex => {
   console.error('\nError:', ex);
@@ -62,29 +62,17 @@ function processFile(p: string): Promise<?string> {
         h.update(chunk);
       }
       if (args['read-bytes'] || args['use-buzhash']) {
-        for (let i = 0; i < chunk.length; i += 4) {
-          const q = chunk.readUInt32LE(i, true);
-          const a = q & 0xFF;
-          const b = (q >>> 8) & 0xFF;
-          const c = (q >>> 16) & 0xFF;
-          const d = (q >>> 24) & 0xFF;
-          if (a > 0xFF) {
-            console.log('this is only here to make sure this loop doesn\'t' +
-                        'get optimized out');
-          }
+        for (var i = 0; i < chunk.length; i ++) {
           if (args['use-buzhash']) {
-            bh.hashByte(a);
-            bh.hashByte(b);
-            bh.hashByte(c);
-            bh.hashByte(d);
+            bh.hashByte(chunk[i]);
           }
         }
       }
       fileSize += chunk.length;
-      updateProgress();
     });
     s.on('end', async () => {
       res(args['use-sha1'] ? h.digest('hex') : '<use-sha1 not-enabled>');
+      updateProgress();
     });
     s.on('error', rej);
   });
