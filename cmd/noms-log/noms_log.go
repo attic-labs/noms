@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -18,7 +19,7 @@ import (
 
 var (
 	color       = flag.Int("color", -1, "suppress color output")
-	lines       = flag.Int("lines", 10, "max number of lines to show per commit (-1 for all lines)")
+	numLines    = flag.Int("lines", 10, "max number of lines to show per commit (-1 for all lines)")
 	showHelp    = flag.Bool("help", false, "show help text")
 	showGraph   = flag.Bool("graph", false, "show ascii-based commit hierarcy on left side of output")
 	stdoutIsTty = flag.Int("stdout-is-tty", -1, "assume stdout is tty")
@@ -84,14 +85,8 @@ func printCommit(node LogNode) {
 	} else {
 		fmt.Printf("%sParent: None\n", genGraph(node, lineno))
 	}
-	//	lineno++
-	//	fmt.Printf("%sln: %s\n", genGraph(node, lineno), node)
-	lines := truncateLines(types.EncodedValueWithTags(node.commit.Get(datas.ValueField)), *lines)
-	for _, line := range lines {
-		lineno++
-		fmt.Printf("%s%s\n", genGraph(node, lineno), line)
-	}
-	lineno++
+
+	lineno += writeCommitLines(node.commit.Get(datas.ValueField), *numLines, os.Stdout)
 	if !node.lastCommit {
 		fmt.Printf("%s\n", genGraph(node, lineno))
 	}
@@ -150,21 +145,54 @@ func genGraph(node LogNode, lineno int) string {
 	return string(buf)
 }
 
-func truncateLines(s1 string, maxLines int) []string {
-	s1 = strings.TrimSpace(s1)
-	var res = []string{}
-	switch {
-	case maxLines == 0:
-	case maxLines < 0:
-		res = strings.Split(s1, "\n")
-	default:
-		x := strings.SplitN(s1, "\n", maxLines+1)
-		if len(x) < maxLines {
-			maxLines = len(x)
+type maxLineWriter struct {
+	numLines int
+	maxLines int
+	dest     io.Writer
+}
+
+func (w *maxLineWriter) Write(data []byte) (n int, err error) {
+	for _, b := range data {
+		n++
+		if w.numLines == w.maxLines {
+			err = io.EOF
+			return
 		}
-		res = x[:maxLines]
+		// TODO: This is not technically correct due to utf-8, but ... meh.
+		if b == byte('\n') {
+			w.numLines++
+		}
+		_, err = w.dest.Write(data[n-1 : n])
+		if err != nil {
+			return
+		}
 	}
-	return res
+	return
+}
+
+func writeCommitLines(v types.Value, maxLines int, w io.Writer) int {
+	// TODO(aa): Teach WriteEncodedValueWithTags how to deal with EOF
+	ch := make(chan int)
+	go func() {
+		out := &maxLineWriter{
+			maxLines: maxLines,
+			dest:     w,
+		}
+		defer func() {
+			if r := recover(); r != nil {
+				// This is hacky but for some reason e is not io.EOF here, but some weird long string.
+				if e, ok := r.(string); !ok || !strings.Contains(e, "EOF") {
+					panic(r)
+				} else {
+					out.dest.Write([]byte("...\n"))
+					out.numLines++
+				}
+			}
+			ch <- out.numLines
+		}()
+		types.WriteEncodedValueWithTags(out, v)
+	}()
+	return <-ch
 }
 
 func isStdoutTty() bool {
