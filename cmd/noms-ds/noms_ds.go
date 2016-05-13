@@ -7,6 +7,7 @@ import (
 
 	"github.com/attic-labs/noms/clients/go/flags"
 	"github.com/attic-labs/noms/clients/go/util"
+	"github.com/attic-labs/noms/dataset"
 	"github.com/attic-labs/noms/types"
 )
 
@@ -17,7 +18,7 @@ var (
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [<Datastore> | -d <dataset>]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [<Datastore> [<dataset-name>]| -d <dataset>]\n", os.Args[0])
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nFor detailed information on spelling datastores and datasets, see: at https://github.com/attic-labs/noms/blob/master/doc/spelling.md.\n\n")
 	}
@@ -42,7 +43,7 @@ func main() {
 
 		fmt.Printf("Deleted dataset %v (was %v)\n\n", set.ID(), oldCommitRef.TargetRef().String())
 	} else {
-		if flag.NArg() != 1 {
+		if flag.NArg() > 2 {
 			flag.Usage()
 			return
 		}
@@ -54,9 +55,15 @@ func main() {
 		util.CheckError(err)
 		defer store.Close()
 
-		store.Datasets().IterAll(func(k, v types.Value) {
-			fmt.Println(k)
-		})
+		if flag.NArg() == 1 {
+			store.Datasets().IterAll(func(k, v types.Value) {
+				fmt.Println(k)
+			})
+		} else {
+			dataset := dataset.NewDataset(store, flag.Arg(1))
+
+			fmt.Println(dataset.HeadRef().TargetRef().String())
+		}
 	}
 
 }
