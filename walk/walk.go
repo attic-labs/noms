@@ -91,9 +91,10 @@ func doTreeWalkP(v types.Value, vr types.ValueReader, cb SomeCallback, concurren
 	f.checkNotFailed()
 }
 
-// SomeChunksCallback takes a types.Ref and returns a bool indicating whether
-// the current walk should skip the tree descending from value.
-type SomeChunksCallback func(r types.Ref) bool
+// SomeChunksCallback takes a types.Ref and returns:
+// 1. a bool indicating whether the current walk should skip the tree descending from value.
+// 2. an optional Value if the callback ended up reading |r| - saves SomeChunksP from reading it again.
+type SomeChunksCallback func(r types.Ref) (bool, types.Value)
 
 // SomeChunksP Invokes callback on all chunks reachable from |r| in top-down order. |callback| is invoked only once for each chunk regardless of how many times the chunk appears
 func SomeChunksP(r types.Ref, vr types.ValueReader, callback SomeChunksCallback, concurrency int) {
@@ -109,16 +110,33 @@ func doChunkWalkP(r types.Ref, vr types.ValueReader, callback SomeChunksCallback
 	walkChunk := func(r types.Ref) {
 		defer wg.Done()
 
+		tr := r.TargetRef()
+
 		mu.Lock()
-		visited := visitedRefs[r.TargetRef()]
-		visitedRefs[r.TargetRef()] = true
+		visited := visitedRefs[tr]
+		visitedRefs[tr] = true
 		mu.Unlock()
 
-		if visited || callback(r) {
+		if visited {
 			return
 		}
 
-		v := vr.ReadValue(r.TargetRef())
+		stop, v := callback(r)
+		if stop {
+			return
+		}
+
+		// Don't descend into leaf nodes, by definition they won't have any chunks.
+		if r.Height() == 1 {
+			return
+		}
+
+		if v != nil {
+			d.Chk.True(v.Ref() == tr)
+		} else {
+			v = vr.ReadValue(r.TargetRef())
+		}
+
 		for _, r1 := range v.Chunks() {
 			wg.Add(1)
 			rq.tail() <- r1
