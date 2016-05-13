@@ -33,8 +33,8 @@ const args = argv
   })
   .argv;
 
-var fileSize = 0;
-var startTime = 0;
+let fileSize = 0;
+let startTime = 0;
 
 main().catch(ex => {
   console.error('\nError:', ex);
@@ -55,6 +55,10 @@ function processFile(p: string): Promise<?string> {
   const h = crypto.createHash('sha1');
   const bh = new BuzHash(64 * 8);
 
+  if (console.profile) {
+    console.profile('hash');
+  }
+
   const s = fs.createReadStream(p);
   return new Promise((res, rej) => {
     s.on('data', chunk => {
@@ -62,7 +66,7 @@ function processFile(p: string): Promise<?string> {
         h.update(chunk);
       }
       if (args['read-bytes'] || args['use-buzhash']) {
-        for (var i = 0; i < chunk.length; i ++) {
+        for (let i = 0; i < chunk.length; i ++) {
           if (args['use-buzhash']) {
             bh.hashByte(chunk[i]);
           }
@@ -73,6 +77,9 @@ function processFile(p: string): Promise<?string> {
     s.on('end', async () => {
       res(args['use-sha1'] ? h.digest('hex') : '<use-sha1 not-enabled>');
       updateProgress();
+      if (console.profileEnd) {
+        console.profileEnd('hash');
+      }
     });
     s.on('error', rej);
   });
