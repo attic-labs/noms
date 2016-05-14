@@ -4,15 +4,23 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/attic-labs/noms/clients/go/csv"
 	"github.com/attic-labs/noms/clients/go/flags"
 	"github.com/attic-labs/noms/clients/go/util"
 	"github.com/attic-labs/noms/d"
 	"github.com/attic-labs/noms/types"
+
+	humanize "github.com/dustin/go-humanize"
+)
+
+const (
+	clearLine = "\x1b[2K\r"
 )
 
 var (
@@ -54,7 +62,16 @@ func main() {
 		flag.Usage()
 	}
 
-	r := csv.NewCSVReader(res, comma)
+	fi, err := res.Stat()
+	d.Chk.NoError(err)
+
+	pr := &progressReader{
+		r:           res,
+		expectedLen: uint64(fi.Size()),
+		startTime:   time.Now(),
+	}
+
+	r := csv.NewCSVReader(pr, comma)
 
 	var headers []string
 	if *header == "" {
@@ -88,4 +105,28 @@ func main() {
 	value, _ := csv.Read(r, *name, headers, kinds, ds.Store())
 	_, err = ds.Commit(value)
 	d.Exp.NoError(err)
+}
+
+type progressReader struct {
+	r           io.Reader
+	seenLen     uint64
+	expectedLen uint64
+	startTime   time.Time
+}
+
+func (pr *progressReader) Read(p []byte) (n int, err error) {
+	n, err = pr.r.Read(p)
+	pr.seenLen += uint64(n)
+
+	percent := float64(pr.seenLen) / float64(pr.expectedLen) * 100
+	elapsed := time.Now().Sub(pr.startTime)
+	rate := float64(pr.seenLen) / elapsed.Seconds()
+
+	fmt.Printf("%s%.2f%% of %s, %s/s)...",
+		clearLine,
+		percent,
+		humanize.Bytes(pr.expectedLen),
+		humanize.Bytes(uint64(rate)))
+
+	return
 }
