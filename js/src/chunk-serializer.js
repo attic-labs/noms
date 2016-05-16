@@ -15,9 +15,9 @@ export type ChunkStream = (cb: (chunk: Chunk) => void) => Promise<void>
 export function serialize(hints: Set<Ref>, stream: ChunkStream): Promise<ArrayBuffer> {
   let buf = new ArrayBuffer(1024);
 
-  const hintsLen = serializedHintsLength(hints);
-  if (buf.byteLength < hintsLen) {
-    buf = new ArrayBuffer(hintsLen * 2); // Leave space for some chunks.
+  const hintsLength = serializedHintsLength(hints);
+  if (buf.byteLength < hintsLength) {
+    buf = new ArrayBuffer(hintsLength * 2); // Leave space for some chunks.
   }
   let offset = serializeHints(hints, buf);
   return stream(chunk => {

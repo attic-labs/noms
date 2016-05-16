@@ -73,6 +73,21 @@ suite('ChunkSerializer', () => {
     assertHints(expHints, hints);
     assertChunks(expChunks, chunks);
   });
+
+  test('large chunk', async () => {
+    const expHints = [];
+    const expChunks = [
+      new Chunk(new Uint8Array(1024)),
+      Chunk.fromString('abc'),
+      Chunk.fromString('def'),
+      new Chunk(new Uint8Array(2048))];
+
+    const pSerialized = serialize(new Set(expHints), createChunkStream(expChunks));
+    const {hints, chunks} = deserialize(await pSerialized);
+
+    assertHints(expHints, hints);
+    assertChunks(expChunks, chunks);
+  });
 });
 
 function createChunkStream(chunks: Array<Chunk>): ChunkStream {
