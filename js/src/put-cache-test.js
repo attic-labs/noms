@@ -73,10 +73,7 @@ suite('OrderedPutCache', () => {
     const chunkStream = await cache.extractChunks(canned[0].ref.toString(),
       canned[2].ref.toString());
     const chunks = [];
-    chunkStream.register(chunk => {
-      chunks.push(chunk);
-    });
-    await chunkStream.done();
+    await chunkStream(chunk => { chunks.push(chunk); });
 
     for (let i = 0; i < canned.length; i++) {
       assert.isTrue(canned[i].ref.equals(chunks[i].ref));
@@ -84,19 +81,4 @@ suite('OrderedPutCache', () => {
 
     await cache.destroy();
   });
-
-/*  test('extractChunks', async () => {
-    const canned = [Chunk.fromString('abc'), Chunk.fromString('def'), Chunk.fromString('ghi')];
-    const cache = new OrderedPutCache();
-    for (const chunk of canned) {
-      assert.isTrue(cache.append(chunk));
-    }
-
-    const chunks = await cache.extractChunks(canned[0].ref.toString(), canned[2].ref.toString());
-    for (let i = 0; i < canned.length; i++) {
-      assert.isTrue(canned[i].ref.equals(chunks[i].ref));
-    }
-
-    await cache.destroy();
-  });*/
 });

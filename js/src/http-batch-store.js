@@ -4,8 +4,8 @@ import Ref from './ref.js';
 import BatchStore from './batch-store.js';
 import type {UnsentReadMap} from './batch-store.js';
 import type {FetchOptions} from './fetch.js';
-import type {ChunkStreamer} from './chunk-serializer.js';
-import {ChunkSerializer, deserializeChunks} from './chunk-serializer.js';
+import type {ChunkStream} from './chunk-serializer.js';
+import {serialize, deserializeChunks} from './chunk-serializer.js';
 import {emptyChunk} from './chunk.js';
 import {fetchArrayBuffer, fetchText} from './fetch.js';
 
@@ -76,9 +76,8 @@ export class Delegate {
     Object.keys(reqs).forEach(refStr => reqs[refStr](emptyChunk));
   }
 
-  async writeBatch(hints: Set<Ref>, chunkStreamer: ChunkStreamer): Promise<void> {
-    const serializer = new ChunkSerializer(chunkStreamer);
-    await serializer.run(hints)
+  async writeBatch(hints: Set<Ref>, chunkStream: ChunkStream): Promise<void> {
+    await serialize(hints, chunkStream)
       .then(body => fetchText(this._rpc.writeValue, {method: 'POST', body}));
   }
 

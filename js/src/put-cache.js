@@ -10,7 +10,17 @@ const __tingodb = tingodb();
 
 const Db = __tingodb.Db;
 const Binary = __tingodb.Binary;
-const CursorStream = __tingodb.CursorStream;
+
+type ChunkStream = (cb: (chunk: Chunk) => void) => Promise<void>
+type ChunkItem = {hash: string, data: Uint8Array};
+type DbRecord = {hash: string, data: Binary};
+
+declare class CursorStream {
+  pause(): void;
+  resume(): void;
+  on(event: 'data', cb: (record: DbRecord) => void): void;
+  on(event: 'end', cb: () => void): void;
+}
 
 type ChunkIndex = Map<string, number>;
 
@@ -104,30 +114,19 @@ export default class OrderedPutCache {
   }
 }
 
-class ChunkStream {
-  _stream: CursorStream;
+function createChunkStream(stream: CursorStream): ChunkStream {
+  return function(cb: (chunk: Chunk) => void): Promise<void> {
+    return new Promise(fulfill => {
+      stream.on('data', (record: DbRecord) => {
+        const item = recordToItem(record);
+        cb(new Chunk(item.data));
+      });
 
-  constructor(stream: CursorStream) {
-    this._stream = stream;
-  }
-
-  register(cb: (chunk: Chunk) => void) {
-    this._stream.on('data', record => {
-      const item = recordToItem(record);
-      cb(new Chunk(item.data));
+      stream.resume();
+      stream.on('end', fulfill);
     });
-  }
-
-  done(): Promise<void> {
-    return new Promise((fulfill) => {
-      this._stream.resume();
-      this._stream.on('end', fulfill);
-    });
-  }
+  };
 }
-
-type ChunkItem = {hash: string, data: Uint8Array};
-type DbRecord = {hash: string, data: Binary};
 
 class DbCollection {
   _coll: Collection;
@@ -138,20 +137,20 @@ class DbCollection {
   }
 
   ensureIndex(obj: Object, options: Object = {}): Promise<void> {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       options.w = 1;
       this._coll.ensureIndex(obj, options, (err) => {
         if (err) {
           reject(err);
         } else {
-          fulfill();
+          resolve();
         }
       });
     });
   }
 
   insert(item: ChunkItem, options: Object = {}): Promise<number> {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       options.w = 1;
       //$FlowIssue
       const data = new Binary(new Buffer(item.data.buffer));
@@ -159,20 +158,20 @@ class DbCollection {
         if (err) {
           reject(err);
         } else {
-          fulfill(result[0]._id);
+          resolve(result[0]._id);
         }
       });
     });
   }
 
   findOne(hash: string, options: Object = {}): Promise<ChunkItem> {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       options.w = 1;
       this._coll.findOne({hash: hash}, options, (err, record) => {
         if (err) {
           reject(err);
         } else {
-          fulfill(recordToItem(record));
+          resolve(recordToItem(record));
         }
       });
     });
@@ -183,17 +182,17 @@ class DbCollection {
     options.hint = {_id: 1};
     const stream = this._coll.find({_id: {$gte: first, $lte: last}}, options).stream();
     stream.pause();
-    return new ChunkStream(stream);
+    return createChunkStream(stream);
   }
 
   dropUntil(limit: number, options: Object = {}): Promise<number> {
-    return new Promise((fulfill, reject) => {
+    return new Promise((resolve, reject) => {
       options.w = 1;
       this._coll.remove({_id: {$lte: limit}}, options, (err, numRemovedDocs) => {
         if (err) {
           reject(err);
         } else {
-          fulfill(numRemovedDocs);
+          resolve(numRemovedDocs);
         }
       });
     });
@@ -205,13 +204,13 @@ function recordToItem(record: DbRecord): ChunkItem {
 }
 
 function makeTempDir(): Promise<string> {
-  return new Promise((fulfill, reject) => {
+  return new Promise((resolve, reject) => {
     //$FlowIssue
     fs.mkdtemp('/tmp/put-cache-', (err, folder) => {
       if (err) {
         reject(err);
       } else {
-        fulfill(folder);
+        resolve(folder);
       }
     });
   });
@@ -227,48 +226,48 @@ async function removeDir(dir: string): Promise<void> {
 }
 
 function access(path: string, mode = fs.F_OK): Promise<void> {
-  return new Promise((fulfill, reject) => {
+  return new Promise((resolve, reject) => {
     fs.access(path, mode, (err) => {
       if (err) {
         reject(err);
       } else {
-        fulfill();
+        resolve();
       }
     });
   });
 }
 
 function readdir(path: string): Promise<Array<string>> {
-  return new Promise((fulfill, reject) => {
+  return new Promise((resolve, reject) => {
     fs.readdir(path, (err, files) => {
       if (err) {
         reject(err);
       } else {
-        fulfill(files);
+        resolve(files);
       }
     });
   });
 }
 
 function rmdir(path: string): Promise<void> {
-  return new Promise((fulfill, reject) => {
+  return new Promise((resolve, reject) => {
     fs.rmdir(path, (err) => {
       if (err) {
         reject(err);
       } else {
-        fulfill();
+        resolve();
       }
     });
   });
 }
 
 function unlink(path: string): Promise<void> {
-  return new Promise((fulfill, reject) => {
+  return new Promise((resolve, reject) => {
     fs.unlink(path, (err) => {
       if (err) {
         reject(err);
       } else {
-        fulfill();
+        resolve();
       }
     });
   });

@@ -10,54 +10,28 @@ const sha1Size = 20;
 const chunkLengthSize = 4; // uint32
 const chunkHeaderSize = sha1Size + chunkLengthSize;
 
-export interface ChunkStreamer {
-   register(cb: (chunk: Chunk) => void): void;
-   done(): Promise<void>;
-}
+export type ChunkStream = (cb: (chunk: Chunk) => void) => Promise<void>
 
-export class ChunkSerializer {
-  _buf: ArrayBuffer;
-  _offset: number;
-  _streamer: ChunkStreamer;
+export function serialize(hints: Set<Ref>, stream: ChunkStream): Promise<ArrayBuffer> {
+  let buf = new ArrayBuffer(1024);
 
-  constructor(streamer: ChunkStreamer) {
-    this._buf = new ArrayBuffer(1024);
-    this._offset = 0;
-    this._streamer = streamer;
+  const hintsLen = serializedHintsLength(hints);
+  if (buf.byteLength < hintsLen) {
+    buf = new ArrayBuffer(hintsLen * 2); // Leave space for some chunks.
   }
-
-  run(hints: Set<Ref>): Promise<ArrayBuffer> {
-    const hintsLen = serializedHintsLength(hints);
-    if (this._buf.byteLength < hintsLen) {
-      this._buf = new ArrayBuffer(hintsLen * 2); // Leave space for some chunks.
+  let offset = serializeHints(hints, buf);
+  return stream(chunk => {
+    const chunkLength = serializedChunkLength(chunk);
+    if (buf.byteLength - offset < chunkLength) {
+      let newLen = buf.byteLength;
+      for (; newLen < chunkLength; newLen *= 2)
+        ;
+      const newBuf = new ArrayBuffer(newLen);
+      new Uint8Array(newBuf).set(new Uint8Array(buf));
+      buf = newBuf;
     }
-    this._offset = serializeHints(hints, this._buf);
-    this._streamer.register(chunk => {
-      const chunkLength = serializedChunkLength(chunk);
-      if (this._buf.byteLength < chunkLength) {
-        let newLen = this._buf.byteLength;
-        for (; newLen < chunkLength; newLen *= 2)
-          ;
-        const newBuf = new ArrayBuffer(newLen);
-        new Uint8Array(newBuf).set(new Uint8Array(this._buf));
-        this._buf = newBuf;
-      }
-      this._offset = serializeChunk(chunk, this._buf, this._offset);
-    });
-
-    return this._streamer.done().then(() => this._buf.slice(0, this._offset));
-  }
-}
-
-export function serialize(hints: Set<Ref>, chunks: Array<Chunk>): ArrayBuffer {
-  const buffer = new ArrayBuffer(serializedHintsLength(hints) + serializedChunksLength(chunks));
-
-  let offset = serializeHints(hints, buffer);
-  for (let i = 0; i < chunks.length; i++) {
-    offset = serializeChunk(chunks[i], buffer, offset);
-  }
-
-  return buffer;
+    offset = serializeChunk(chunk, buf, offset);
+  }).then(() => buf.slice(0, offset));
 }
 
 function serializeChunk(chunk: Chunk, buffer: ArrayBuffer, offset: number): number {
@@ -94,16 +68,8 @@ function serializeHints(hints: Set<Ref>, buffer: ArrayBuffer): number {
   return offset;
 }
 
-export function serializedHintsLength(hints: Set<Ref>): number {
+function serializedHintsLength(hints: Set<Ref>): number {
   return headerSize + sha1Size * hints.size;
-}
-
-function serializedChunksLength(chunks: Array<Chunk>): number {
-  let totalSize = 0;
-  for (let i = 0; i < chunks.length; i++) {
-    totalSize += serializedChunkLength(chunks[i]);
-  }
-  return totalSize;
 }
 
 function serializedChunkLength(chunk: Chunk): number {

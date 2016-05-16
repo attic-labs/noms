@@ -3,7 +3,7 @@
 import Chunk from './chunk.js';
 import Ref from './ref.js';
 import OrderedPutCache from './put-cache.js';
-import type {ChunkStreamer} from './chunk-serializer.js';
+import type {ChunkStream} from './chunk-serializer.js';
 import {notNull} from './assert.js';
 
 type PendingReadMap = { [key: string]: Promise<Chunk> };
@@ -16,7 +16,7 @@ export type WriteRequest = {
 
 interface Delegate {
   readBatch(reqs: UnsentReadMap): Promise<void>;
-  writeBatch(hints: Set<Ref>, chunkStreamer: ChunkStreamer): Promise<void>;
+  writeBatch(hints: Set<Ref>, chunkStream: ChunkStream): Promise<void>;
   getRoot(): Promise<Ref>;
   updateRoot(current: Ref, last: Ref): Promise<boolean>;
 }
@@ -119,8 +119,8 @@ export default class BatchStore {
       last = req.hash;
     }
     // TODO: Deal with backpressure
-    const chunks = await this._pendingWrites.extractChunks(first.toString(), last.toString());
-    await this._delegate.writeBatch(hints, chunks);
+    const chunkStream = await this._pendingWrites.extractChunks(first.toString(), last.toString());
+    await this._delegate.writeBatch(hints, chunkStream);
 
     return this._pendingWrites.dropUntil(last.toString());
   }
