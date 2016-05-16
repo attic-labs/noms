@@ -14,7 +14,7 @@ type BatchStore interface {
 
 	// SchedulePut enqueues a write for the Chunk c, using the provided hints to assist in validation. It may or may not block until c is persisted. Validation requires checking that all refs embedded in c are themselves valid, which could naively be done by resolving each one. Instead, hints provides a (smaller) set of refs that point to Chunks that themselves contain many of c's refs. Thus, by checking only the hinted Chunks, c can be validated with fewer read operations.
 	// c may or may not be persisted when Put() returns, but is guaranteed to be persistent after a call to Flush() or Close().
-	SchedulePut(c chunks.Chunk, hints Hints)
+	SchedulePut(c chunks.Chunk, refHeight uint64, hints Hints)
 
 	// Flush causes enqueued Puts to be persisted.
 	Flush()
@@ -40,7 +40,7 @@ func (lbs *BatchStoreAdaptor) Get(ref ref.Ref) chunks.Chunk {
 }
 
 // SchedulePut simply calls Put on the underlying ChunkStore, and ignores hints.
-func (lbs *BatchStoreAdaptor) SchedulePut(c chunks.Chunk, hints Hints) {
+func (lbs *BatchStoreAdaptor) SchedulePut(c chunks.Chunk, refHeight uint64, hints Hints) {
 	lbs.cs.Put(c)
 }
 

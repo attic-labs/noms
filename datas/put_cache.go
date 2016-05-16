@@ -14,10 +14,9 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
-	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
-func newUnwrittenPutCache() *unwrittenPutCache {
+func newOrderedChunkCache() *orderedChunkCache {
 	dir, err := ioutil.TempDir("", "")
 	d.Exp.NoError(err)
 	db, err := leveldb.OpenFile(dir, &opt.Options{
@@ -27,30 +26,35 @@ func newUnwrittenPutCache() *unwrittenPutCache {
 		WriteBuffer:            1 << 24, // 16MiB,
 	})
 	d.Chk.NoError(err, "opening put cache in %s", dir)
-	return &unwrittenPutCache{
+	return &orderedChunkCache{
 		orderedChunks: db,
 		chunkIndex:    map[ref.Ref][]byte{},
 		dbDir:         dir,
-		mu:            &sync.Mutex{},
+		mu:            &sync.RWMutex{},
 	}
 }
 
-type unwrittenPutCache struct {
+type orderedChunkCache struct {
 	orderedChunks *leveldb.DB
 	chunkIndex    map[ref.Ref][]byte
 	dbDir         string
-	mu            *sync.Mutex
-	next          uint64
+	mu            *sync.RWMutex
 }
 
-func (p *unwrittenPutCache) Add(c chunks.Chunk) bool {
+type hashSet map[ref.Ref]struct{}
+
+func (hs hashSet) Insert(hash ref.Ref) {
+	hs[hash] = struct{}{}
+}
+
+// Insert can be called from any goroutine to store c in the cache. If c is successfully added to the cache, Insert returns true. If c was already in the cache, Insert returns false.
+func (p *orderedChunkCache) Insert(c chunks.Chunk, refHeight uint64) bool {
 	hash := c.Ref()
 	dbKey, present := func() (dbKey []byte, present bool) {
 		p.mu.Lock()
 		defer p.mu.Unlock()
 		if _, present = p.chunkIndex[hash]; !present {
-			dbKey = toDbKey(p.next)
-			p.next++
+			dbKey = toDbKey(refHeight, c.Ref())
 			p.chunkIndex[hash] = dbKey
 		}
 		return
@@ -67,18 +71,19 @@ func (p *unwrittenPutCache) Add(c chunks.Chunk) bool {
 	return false
 }
 
-func (p *unwrittenPutCache) Has(hash ref.Ref) (has bool) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (p *orderedChunkCache) has(hash ref.Ref) (has bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	_, has = p.chunkIndex[hash]
 	return
 }
 
-func (p *unwrittenPutCache) Get(hash ref.Ref) chunks.Chunk {
-	// Don't use defer p.mu.Unlock() here, because I want reading from orderedChunks NOT to be guarded by the lock. LevelDB handles its own goroutine-safety.
-	p.mu.Lock()
+// Get can be called from any goroutine to retrieve the chunk referenced by hash. If the chunk is not present, Get returns the empty Chunk.
+func (p *orderedChunkCache) Get(hash ref.Ref) chunks.Chunk {
+	// Don't use defer p.mu.RUnlock() here, because I want reading from orderedChunks NOT to be guarded by the lock. LevelDB handles its own goroutine-safety.
+	p.mu.RLock()
 	dbKey, ok := p.chunkIndex[hash]
-	p.mu.Unlock()
+	p.mu.RUnlock()
 
 	if !ok {
 		return chunks.EmptyChunk
@@ -91,10 +96,11 @@ func (p *unwrittenPutCache) Get(hash ref.Ref) chunks.Chunk {
 	return <-chunkChan
 }
 
-func (p *unwrittenPutCache) Clear(hashes ref.RefSlice) {
+// Clear can be called from any goroutine to remove chunks referenced by the given hashes from the cache.
+func (p *orderedChunkCache) Clear(hashes hashSet) {
 	deleteBatch := &leveldb.Batch{}
 	p.mu.Lock()
-	for _, hash := range hashes {
+	for hash := range hashes {
 		deleteBatch.Delete(p.chunkIndex[hash])
 		delete(p.chunkIndex, hash)
 	}
@@ -103,30 +109,36 @@ func (p *unwrittenPutCache) Clear(hashes ref.RefSlice) {
 	return
 }
 
-func toDbKey(idx uint64) []byte {
-	buf := &bytes.Buffer{}
-	err := binary.Write(buf, binary.BigEndian, idx)
+func toDbKey(refHeight uint64, hash ref.Ref) []byte {
+	digest := hash.DigestSlice()
+	buf := bytes.NewBuffer(make([]byte, 0, 8+len(digest)))
+	err := binary.Write(buf, binary.LittleEndian, refHeight)
+	d.Chk.NoError(err)
+	err = binary.Write(buf, binary.LittleEndian, digest)
 	d.Chk.NoError(err)
 	return buf.Bytes()
 }
 
-func fromDbKey(key []byte) (idx uint64) {
-	err := binary.Read(bytes.NewReader(key), binary.BigEndian, &idx)
+func fromDbKey(key []byte) (uint64, ref.Ref) {
+	refHeight := uint64(0)
+	r := bytes.NewReader(key)
+	err := binary.Read(r, binary.LittleEndian, &refHeight)
 	d.Chk.NoError(err)
-	return
+	digest := ref.Sha1Digest{}
+	err = binary.Read(r, binary.LittleEndian, &digest)
+	d.Chk.NoError(err)
+	return refHeight, ref.New(digest)
 }
 
-func (p *unwrittenPutCache) ExtractChunks(start, end ref.Ref, w io.Writer) error {
-	p.mu.Lock()
-	iterRange := &util.Range{
-		Start: p.chunkIndex[start],
-		Limit: toDbKey(fromDbKey(p.chunkIndex[end]) + 1),
-	}
-	p.mu.Unlock()
-
-	iter := p.orderedChunks.NewIterator(iterRange, nil)
+// ExtractChunks can be called from any goroutine to write Chunks referenced by the given hashes to w. The chunks are ordered by ref-height. Chunks of the same height are written in an unspecified order, relative to one another.
+func (p *orderedChunkCache) ExtractChunks(hashes hashSet, w io.Writer) error {
+	iter := p.orderedChunks.NewIterator(nil, nil)
 	defer iter.Release()
 	for iter.Next() {
+		_, hash := fromDbKey(iter.Key())
+		if _, present := hashes[hash]; !present { // need to get hash from key
+			continue
+		}
 		_, err := w.Write(iter.Value())
 		if err != nil {
 			return err
@@ -135,7 +147,7 @@ func (p *unwrittenPutCache) ExtractChunks(start, end ref.Ref, w io.Writer) error
 	return nil
 }
 
-func (p *unwrittenPutCache) Destroy() error {
+func (p *orderedChunkCache) Destroy() error {
 	d.Chk.NoError(p.orderedChunks.Close())
 	return os.RemoveAll(p.dbDir)
 }
