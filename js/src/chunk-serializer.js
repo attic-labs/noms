@@ -14,6 +14,14 @@ export type ChunkStream = (cb: (chunk: Chunk) => void) => Promise<void>
 
 export function serialize(hints: Set<Ref>, stream: ChunkStream): Promise<ArrayBuffer> {
   let buf = new ArrayBuffer(1024);
+  const ensureCapacity = (needed: number) => {
+    let newLen = buf.byteLength;
+    for (; newLen < needed; newLen *= 2)
+      ;
+    const newBuf = new ArrayBuffer(newLen);
+    new Uint8Array(newBuf).set(new Uint8Array(buf));
+    buf = newBuf;
+  };
 
   const hintsLength = serializedHintsLength(hints);
   if (buf.byteLength < hintsLength) {
@@ -22,14 +30,7 @@ export function serialize(hints: Set<Ref>, stream: ChunkStream): Promise<ArrayBu
   let offset = serializeHints(hints, buf);
   return stream(chunk => {
     const chunkLength = serializedChunkLength(chunk);
-    if (buf.byteLength - offset < chunkLength) {
-      let newLen = buf.byteLength;
-      for (; newLen < chunkLength; newLen *= 2)
-        ;
-      const newBuf = new ArrayBuffer(newLen);
-      new Uint8Array(newBuf).set(new Uint8Array(buf));
-      buf = newBuf;
-    }
+    ensureCapacity(offset + chunkLength);
     offset = serializeChunk(chunk, buf, offset);
   }).then(() => buf.slice(0, offset));
 }
@@ -44,7 +45,7 @@ function serializeChunk(chunk: Chunk, buffer: ArrayBuffer, offset: number): numb
 
   const chunkLength = chunk.data.length;
   const view = new DataView(buffer, offset, chunkLengthSize);
-  view.setUint32(0, chunkLength | 0, bigEndian); // Coerce number to uint32
+  view.setUint32(0, chunkLength, bigEndian); // Coerce number to uint32
   offset += chunkLengthSize;
 
   const dataArray = new Uint8Array(buffer, offset, chunkLength);

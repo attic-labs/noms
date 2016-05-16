@@ -113,9 +113,9 @@ export default class BatchStore {
 
     const first = reqs[0].hash;
     let last = first;
-    let hints = new Set();
+    const hints = new Set();
     for (const req of reqs) {
-      req.hints.forEach(hint => { hints = hints.add(hint); });
+      req.hints.forEach(hint => hints.add(hint));
       last = req.hash;
     }
     // TODO: Deal with backpressure

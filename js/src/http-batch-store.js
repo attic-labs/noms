@@ -76,9 +76,10 @@ export class Delegate {
     Object.keys(reqs).forEach(refStr => reqs[refStr](emptyChunk));
   }
 
-  async writeBatch(hints: Set<Ref>, chunkStream: ChunkStream): Promise<void> {
-    await serialize(hints, chunkStream)
-      .then(body => fetchText(this._rpc.writeValue, {method: 'POST', body}));
+  writeBatch(hints: Set<Ref>, chunkStream: ChunkStream): Promise<void> {
+    return serialize(hints, chunkStream)
+      .then(body => fetchText(this._rpc.writeValue, {method: 'POST', body}))
+      .then(() => undefined);
   }
 
   async getRoot(): Promise<Ref> {
