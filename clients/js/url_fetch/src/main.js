@@ -38,8 +38,6 @@ function main(): Promise<void> {
     return Promise.resolve();
   }
 
-  console.log(spec);
-
   const set = spec.set();
   return getBlob(url)
     .then(b => set.commit(b))
