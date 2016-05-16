@@ -3,7 +3,7 @@ package datas
 import (
 	"sync"
 
-	"github.com/attic-labs/noms/d"
+	"github.com/attic-labs/noms/chunks"
 	"github.com/attic-labs/noms/ref"
 	"github.com/attic-labs/noms/types"
 	"github.com/attic-labs/noms/walk"
@@ -11,8 +11,8 @@ import (
 
 // CopyMissingChunksP copies to |sink| all chunks in source that are reachable from (and including) |r|, skipping chunks that |sink| already has
 func CopyMissingChunksP(source Database, sink *LocalDatabase, sourceRef types.Ref, concurrency int) {
-	copyCallback := func(r types.Ref) (bool, types.Value) {
-		return sink.has(r.TargetRef()), nil
+	copyCallback := func(r types.Ref) bool {
+		return sink.has(r.TargetRef())
 	}
 	copyWorker(source, sink, sourceRef, copyCallback, concurrency)
 }
@@ -23,34 +23,27 @@ func CopyReachableChunksP(source, sink Database, sourceRef, exclude types.Ref, c
 
 	if !exclude.TargetRef().IsEmpty() {
 		mu := sync.Mutex{}
-		excludeCallback := func(r types.Ref) (bool, types.Value) {
+		excludeCallback := func(r types.Ref) bool {
 			mu.Lock()
 			excludeRefs[r.TargetRef()] = true
 			mu.Unlock()
-			return false, nil
+			return false
 		}
 
-		walk.SomeChunksP(exclude, source, excludeCallback, concurrency)
+		walk.SomeChunksP(exclude, source.batchStore(), excludeCallback, nil, concurrency)
 	}
 
-	copyCallback := func(r types.Ref) (bool, types.Value) {
-		return excludeRefs[r.TargetRef()], nil
+	copyCallback := func(r types.Ref) bool {
+		return excludeRefs[r.TargetRef()]
 	}
 	copyWorker(source, sink, sourceRef, copyCallback, concurrency)
 }
 
-func copyWorker(source Database, sink Database, sourceRef types.Ref, stopFn walk.SomeChunksCallback, concurrency int) {
+func copyWorker(source, sink Database, sourceRef types.Ref, stopCb walk.SomeChunksStopCallback, concurrency int) {
 	bs := sink.batchSink()
 
-	walk.SomeChunksP(sourceRef, source, func(r types.Ref) (bool, types.Value) {
-		if stop, _ := stopFn(r); stop {
-			return true, nil
-		}
-
-		c := source.batchStore().Get(r.TargetRef())
-		d.Chk.False(c.IsEmpty())
+	walk.SomeChunksP(sourceRef, source.batchStore(), stopCb, func(c chunks.Chunk) {
 		bs.SchedulePut(c, types.Hints{})
-		return false, types.DecodeChunk(c, source)
 	}, concurrency)
 
 	bs.Flush()
