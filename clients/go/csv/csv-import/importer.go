@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"strings"
@@ -28,6 +29,7 @@ var (
 	name        = flag.String("name", "Row", "struct name. The user-visible name to give to the struct type that will hold each row of data.")
 	reportTypes = flag.Bool("report-types", false, "read the entire file and report which types all values in each column would occupy safely.")
 	columnTypes = flag.String("column-types", "", "a comma-separated list of types representing the desired type of each column. if absent all types default to be String")
+	noProgress  = flag.Bool("no-progress", false, "prevents progress from being output if true")
 )
 
 func main() {
@@ -62,19 +64,22 @@ func main() {
 	fi, err := res.Stat()
 	d.Chk.NoError(err)
 
-	sr := progressreader.New(res, getStatusPrinter(uint64(fi.Size())))
-	r := csv.NewCSVReader(sr, comma)
+	var r io.Reader = res
+	if !*noProgress {
+		r = progressreader.New(r, getStatusPrinter(uint64(fi.Size())))
+	}
+	cr := csv.NewCSVReader(r, comma)
 
 	var headers []string
 	if *header == "" {
-		headers, err = r.Read()
+		headers, err = cr.Read()
 		d.Exp.NoError(err)
 	} else {
 		headers = strings.Split(*header, string(comma))
 	}
 
 	if *reportTypes {
-		kinds := csv.ReportValidFieldTypes(r, headers)
+		kinds := csv.ReportValidFieldTypes(cr, headers)
 		d.Chk.Equal(len(headers), len(kinds))
 		fmt.Println("Possible types for each column:")
 		for i, key := range headers {
@@ -94,9 +99,11 @@ func main() {
 		kinds = csv.StringsToKinds(strings.Split(*columnTypes, ","))
 	}
 
-	value, _ := csv.Read(r, *name, headers, kinds, ds.Store())
+	value, _ := csv.Read(cr, *name, headers, kinds, ds.Store())
 	_, err = ds.Commit(value)
-	status.Clear()
+	if !*noProgress {
+		status.Clear()
+	}
 	d.Exp.NoError(err)
 }
 
