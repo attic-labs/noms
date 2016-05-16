@@ -74,6 +74,10 @@ func (s *testSuite) TestNomsDs() {
 	rtnVal = s.Run(main, []string{dataStoreName})
 	s.Equal(id2+"\n", rtnVal)
 
+	// print head ref of the dataset
+	rtnVal = s.Run(main, []string{dataStoreName, id2})
+	s.Equal("sha1-40ddfc9469a16653e4199e942d22c8ed81252fa3\n", rtnVal)
+
 	// delete the second dataset
 	rtnVal = s.Run(main, []string{"-d", dataset2Name})
 	s.Equal("Deleted dataset "+id2+" (was sha1-40ddfc9469a16653e4199e942d22c8ed81252fa3)\n\n", rtnVal)
