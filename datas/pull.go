@@ -11,10 +11,10 @@ import (
 
 // CopyMissingChunksP copies to |sink| all chunks in source that are reachable from (and including) |r|, skipping chunks that |sink| already has
 func CopyMissingChunksP(source Database, sink *LocalDatabase, sourceRef types.Ref, concurrency int) {
-	copyCallback := func(r types.Ref) bool {
+	stopCallback := func(r types.Ref) bool {
 		return sink.has(r.TargetRef())
 	}
-	copyWorker(source, sink, sourceRef, copyCallback, concurrency)
+	copyWorker(source, sink, sourceRef, stopCallback, concurrency)
 }
 
 // CopyReachableChunksP copies to |sink| all chunks reachable from (and including) |r|, but that are not in the subtree rooted at |exclude|
@@ -33,10 +33,10 @@ func CopyReachableChunksP(source, sink Database, sourceRef, exclude types.Ref, c
 		walk.SomeChunksP(exclude, source.batchStore(), excludeCallback, nil, concurrency)
 	}
 
-	copyCallback := func(r types.Ref) bool {
+	stopCallback := func(r types.Ref) bool {
 		return excludeRefs[r.TargetRef()]
 	}
-	copyWorker(source, sink, sourceRef, copyCallback, concurrency)
+	copyWorker(source, sink, sourceRef, stopCallback, concurrency)
 }
 
 func copyWorker(source, sink Database, sourceRef types.Ref, stopCb walk.SomeChunksStopCallback, concurrency int) {

@@ -101,7 +101,7 @@ type SomeChunksChunkCallback func(c chunks.Chunk)
 // SomeChunksP invokes callbacks on every unique chunk reachable from |r| in top-down order. Callbacks are invoked only once for each chunk regardless of how many times the chunk appears.
 //
 // |stopCb| is invoked for the types.Ref of every chunk. It can return true to stop SomeChunksP from descending any further.
-// |chunkCb| is subsequently invoked for that chunks.Chunk, if |stopCb| didn't return true.
+// |chunkCb| is optional, invoked with the chunks.Chunk referenced by |stopCb| if it didn't return true.
 func SomeChunksP(r types.Ref, bs types.BatchStore, stopCb SomeChunksStopCallback, chunkCb SomeChunksChunkCallback, concurrency int) {
 	rq := newRefQueue()
 	wg := sync.WaitGroup{}
