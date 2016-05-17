@@ -14,7 +14,7 @@ import {SequenceChunker} from './sequence-chunker.js';
 import type {BoundaryChecker, makeChunkFn} from './sequence-chunker.js';
 import {Kind} from './noms-kind.js';
 
-export class NomsBlob extends Collection<IndexedSequence> {
+export default class NomsBlob extends Collection<IndexedSequence> {
   getReader(): BlobReader {
     return new BlobReader(this.sequence.newCursorAt(0));
   }

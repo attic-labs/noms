@@ -1,6 +1,6 @@
 // @flow
 
-import {NomsBlob, BlobLeafSequence} from './blob.js';
+import {default as NomsBlob, BlobLeafSequence} from './blob.js';
 import Chunk from './chunk.js';
 import Ref from './ref.js';
 import {default as RefValue, constructRefValue} from './ref-value.js';
@@ -23,9 +23,9 @@ import {
 import {MetaTuple} from './meta-sequence.js';
 import {invariant} from './assert.js';
 import {isPrimitiveKind, Kind} from './noms-kind.js';
-import {ListLeafSequence, NomsList} from './list.js';
-import {NomsMap, MapLeafSequence} from './map.js';
-import {NomsSet, SetLeafSequence} from './set.js';
+import {ListLeafSequence, default as NomsList} from './list.js';
+import {default as NomsMap, MapLeafSequence} from './map.js';
+import {default as NomsSet, SetLeafSequence} from './set.js';
 import {IndexedMetaSequence, OrderedMetaSequence} from './meta-sequence.js';
 import type {valueOrPrimitive} from './value.js';
 import type {ValueReader} from './value-store.js';

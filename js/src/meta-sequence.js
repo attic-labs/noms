@@ -15,10 +15,10 @@ import RefValue from './ref-value.js';
 import {Sequence} from './sequence.js';
 import {Kind} from './noms-kind.js';
 import type {NomsKind} from './noms-kind.js';
-import {NomsList} from './list.js';
-import {NomsMap} from './map.js';
-import {NomsSet} from './set.js';
-import {NomsBlob} from './blob.js';
+import NomsList from './list.js';
+import NomsMap from './map.js';
+import NomsSet from './set.js';
+import NomsBlob from './blob.js';
 import {equals} from './compare.js';
 
 export type MetaSequence = Sequence<MetaTuple>;

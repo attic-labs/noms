@@ -24,9 +24,9 @@ import {
 } from './type.js';
 import {newListMetaSequence, MetaTuple, newSetMetaSequence} from './meta-sequence.js';
 import {Kind} from './noms-kind.js';
-import {newListLeafSequence, NomsList} from './list.js';
-import {newMapLeafSequence, NomsMap} from './map.js';
-import {NomsSet, newSetLeafSequence} from './set.js';
+import {newListLeafSequence, default as NomsList} from './list.js';
+import {newMapLeafSequence, default as NomsMap} from './map.js';
+import {default as NomsSet, newSetLeafSequence} from './set.js';
 import {newBlob} from './blob.js';
 import Database from './database.js';
 import type {valueOrPrimitive} from './value.js';

@@ -12,7 +12,7 @@ import {newStruct, default as Struct} from './struct.js';
 import {flatten, flattenParallel, deriveCollectionHeight} from './test-util.js';
 import {invariant} from './assert.js';
 import Chunk from './chunk.js';
-import {newMapLeafSequence, newMap, NomsMap} from './map.js';
+import {newMapLeafSequence, newMap, default as NomsMap} from './map.js';
 import {MetaTuple, newMapMetaSequence} from './meta-sequence.js';
 import Ref from './ref.js';
 import type {ValueReadWriter} from './value-store.js';

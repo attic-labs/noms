@@ -1,9 +1,9 @@
 // @flow
 
-import {NomsBlob} from './blob.js';
-import {NomsList} from './list.js';
-import {NomsSet} from './set.js';
-import {NomsMap} from './map.js';
+import NomsBlob from './blob.js';
+import NomsList from './list.js';
+import NomsSet from './set.js';
+import NomsMap from './map.js';
 import RefValue from './ref-value.js';
 import Struct, {StructMirror} from './struct.js';
 

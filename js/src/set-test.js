@@ -13,7 +13,7 @@ import {newStruct} from './struct.js';
 import {flatten, flattenParallel, deriveCollectionHeight} from './test-util.js';
 import {invariant, notNull} from './assert.js';
 import {MetaTuple, newSetMetaSequence} from './meta-sequence.js';
-import {newSet, NomsSet, newSetLeafSequence} from './set.js';
+import {newSet, default as NomsSet, newSetLeafSequence} from './set.js';
 import {OrderedSequence} from './ordered-sequence.js';
 import Ref from './ref.js';
 import type {ValueReadWriter} from './value-store.js';

@@ -5,11 +5,11 @@ import {suite, test} from 'mocha';
 
 import {makeTestingBatchStore} from './batch-store-adaptor.js';
 import Database from './database.js';
-import {newListLeafSequence, NomsList} from './list.js';
+import {newListLeafSequence, default as NomsList} from './list.js';
 import {MetaTuple, newOrderedMetaSequenceChunkFn, newIndexedMetaSequenceChunkFn,} from
   './meta-sequence.js';
 import RefValue from './ref-value.js';
-import {newSetLeafSequence, NomsSet} from './set.js';
+import {newSetLeafSequence, default as NomsSet} from './set.js';
 import {Kind} from './noms-kind.js';
 
 suite('MetaSequence', () => {

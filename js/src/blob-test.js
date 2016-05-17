@@ -2,7 +2,7 @@
 
 import {blobType, refOfBlobType} from './type.js';
 import {assert} from 'chai';
-import {newBlob, BlobWriter, NomsBlob} from './blob.js';
+import {newBlob, BlobWriter, default as NomsBlob} from './blob.js';
 import {suite, test} from 'mocha';
 import {
   assertChunkCountAndType,

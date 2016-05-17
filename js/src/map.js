@@ -93,7 +93,8 @@ export function newMap<K: valueOrPrimitive, V: valueOrPrimitive>(kvs: Array<K | 
                        newOrderedMetaSequenceBoundaryChecker);
 }
 
-export class NomsMap<K: valueOrPrimitive, V: valueOrPrimitive> extends Collection<OrderedSequence> {
+export default class NomsMap<K: valueOrPrimitive, V: valueOrPrimitive> extends
+    Collection<OrderedSequence> {
   async has(key: K): Promise<boolean> {
     const cursor = await this.sequence.newCursorAt(key);
     return cursor.valid && equals(cursor.getCurrentKey(), key);

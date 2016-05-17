@@ -3,8 +3,8 @@
 import Ref from './ref.js';
 import {default as RefValue} from './ref-value.js';
 import {newStructWithType} from './struct.js';
-import type {NomsMap} from './map.js';
-import type {NomsSet} from './set.js';
+import type NomsMap from './map.js';
+import type NomsSet from './set.js';
 import type {valueOrPrimitive} from './value.js';
 import type {RootTracker} from './chunk-store.js';
 import ValueStore from './value-store.js';

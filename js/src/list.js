@@ -45,7 +45,7 @@ export function newList<T: valueOrPrimitive>(values: Array<T>): Promise<NomsList
                        newIndexedMetaSequenceBoundaryChecker);
 }
 
-export class NomsList<T: valueOrPrimitive> extends Collection<IndexedSequence> {
+export default class NomsList<T: valueOrPrimitive> extends Collection<IndexedSequence> {
   async get(idx: number): Promise<T> {
     // TODO (when |length| works) invariant(idx < this.length, idx + ' >= ' + this.length);
     const cursor = await this.sequence.newCursorAt(idx);

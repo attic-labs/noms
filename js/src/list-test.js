@@ -26,7 +26,7 @@ import {
 } from './test-util.js';
 import {newListMetaSequence, MetaTuple} from './meta-sequence.js';
 import {invariant} from './assert.js';
-import {newListLeafSequence, newList, NomsList} from './list.js';
+import {newListLeafSequence, newList, default as NomsList} from './list.js';
 
 const testListSize = 5000;
 const listOfNRef = 'sha1-aa1605484d993e89dbc0431acb9f2478282f9d94';
