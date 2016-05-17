@@ -109,9 +109,11 @@ func (p *orderedChunkCache) Clear(hashes hashSet) {
 	return
 }
 
+var uint64Size = binary.Size(uint64(0))
+
 func toDbKey(refHeight uint64, hash ref.Ref) []byte {
 	digest := hash.DigestSlice()
-	buf := bytes.NewBuffer(make([]byte, 0, 8+len(digest)))
+	buf := bytes.NewBuffer(make([]byte, 0, uint64Size+binary.Size(digest)))
 	err := binary.Write(buf, binary.LittleEndian, refHeight)
 	d.Chk.NoError(err)
 	err = binary.Write(buf, binary.LittleEndian, digest)
