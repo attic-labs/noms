@@ -34,6 +34,7 @@ func newOrderedChunkCache() *orderedChunkCache {
 	}
 }
 
+// orderedChunkCache holds Chunks, allowing them to be retrieved by hash or enumerated in ref-height order.
 type orderedChunkCache struct {
 	orderedChunks *leveldb.DB
 	chunkIndex    map[ref.Ref][]byte
@@ -45,6 +46,11 @@ type hashSet map[ref.Ref]struct{}
 
 func (hs hashSet) Insert(hash ref.Ref) {
 	hs[hash] = struct{}{}
+}
+
+func (hs hashSet) Has(hash ref.Ref) (has bool) {
+	_, has = hs[hash]
+	return
 }
 
 // Insert can be called from any goroutine to store c in the cache. If c is successfully added to the cache, Insert returns true. If c was already in the cache, Insert returns false.
@@ -111,12 +117,13 @@ func (p *orderedChunkCache) Clear(hashes hashSet) {
 
 var uint64Size = binary.Size(uint64(0))
 
+// toDbKey takes a refHeight and a hash and returns a binary key suitable for use with LevelDB. The default sort order used by LevelDB ensures that these keys (and their associated values) will be iterated in ref-height order.
 func toDbKey(refHeight uint64, hash ref.Ref) []byte {
 	digest := hash.DigestSlice()
 	buf := bytes.NewBuffer(make([]byte, 0, uint64Size+binary.Size(digest)))
-	err := binary.Write(buf, binary.LittleEndian, refHeight)
+	err := binary.Write(buf, binary.BigEndian, refHeight)
 	d.Chk.NoError(err)
-	err = binary.Write(buf, binary.LittleEndian, digest)
+	err = binary.Write(buf, binary.BigEndian, digest)
 	d.Chk.NoError(err)
 	return buf.Bytes()
 }
@@ -124,10 +131,10 @@ func toDbKey(refHeight uint64, hash ref.Ref) []byte {
 func fromDbKey(key []byte) (uint64, ref.Ref) {
 	refHeight := uint64(0)
 	r := bytes.NewReader(key)
-	err := binary.Read(r, binary.LittleEndian, &refHeight)
+	err := binary.Read(r, binary.BigEndian, &refHeight)
 	d.Chk.NoError(err)
 	digest := ref.Sha1Digest{}
-	err = binary.Read(r, binary.LittleEndian, &digest)
+	err = binary.Read(r, binary.BigEndian, &digest)
 	d.Chk.NoError(err)
 	return refHeight, ref.New(digest)
 }
@@ -138,7 +145,7 @@ func (p *orderedChunkCache) ExtractChunks(hashes hashSet, w io.Writer) error {
 	defer iter.Release()
 	for iter.Next() {
 		_, hash := fromDbKey(iter.Key())
-		if _, present := hashes[hash]; !present { // need to get hash from key
+		if !hashes.Has(hash) {
 			continue
 		}
 		_, err := w.Write(iter.Value())

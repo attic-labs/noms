@@ -2,6 +2,7 @@ package datas
 
 import (
 	"bytes"
+	"math/rand"
 	"sync"
 	"testing"
 
@@ -155,14 +156,15 @@ func (suite *LevelDBPutCacheSuite) TestReaderSnapshot() {
 }
 
 func (suite *LevelDBPutCacheSuite) TestExtractChunksOrder() {
-	orderedHashes := ref.RefSlice{}
+	maxHeight := len(suite.chnx)
+	orderedHashes := make(ref.RefSlice, maxHeight)
 	toExtract := hashSet{}
-	height := uint64(len(suite.chnx))
+	heights := rand.Perm(maxHeight)
 	for hash, c := range suite.chnx {
-		orderedHashes = append(ref.RefSlice{hash}, orderedHashes...)
 		toExtract.Insert(hash)
-		suite.cache.Insert(c, height)
-		height--
+		orderedHashes[heights[0]] = hash
+		suite.cache.Insert(c, uint64(heights[0]))
+		heights = heights[1:]
 	}
 
 	chunkChan := suite.extractChunks(toExtract)
