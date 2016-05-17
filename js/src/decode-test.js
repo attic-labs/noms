@@ -545,7 +545,7 @@ suite('Decode', () => {
   });
 
   test('recursive struct', () => {
-    const ds = new Database(makeTestingBatchStore());
+    const db = new Database(makeTestingBatchStore());
 
     // struct A {
     //   b: struct B {
@@ -554,16 +554,15 @@ suite('Decode', () => {
     //   }
     // }
 
-    const ta = makeStructType('A', {
+    const at = makeStructType('A', {
       'b': valueType,  // placeholder
     });
-    const tb = makeStructType('B', {
-      'a': valueType,  // placeholder
+    const bt = makeStructType('B', {
+      'a': makeListType(at),
       'b': valueType,  // placeholder
     });
-    ta.desc.fields['b'] = tb;
-    tb.desc.fields['a'] = makeListType(ta);
-    tb.desc.fields['b'] = makeListType(tb);
+    at.desc.fields['b'] = bt;
+    bt.desc.fields['b'] = makeListType(bt);
 
     const a = parseJson(`[
       StructKind, "A", [
@@ -590,11 +589,12 @@ suite('Decode', () => {
         ],
         "b", ListKind, ParentKind, 0
       ], false, []]`);
-    const r = new JsonArrayReader(a, ds);
+
+    const r = new JsonArrayReader(a, db);
     const v = r.readValue();
 
-    assert.isTrue(equals(v.type, ta));
-    assert.isTrue(equals(v.b.type, tb));
+    assert.isTrue(equals(v.type, at));
+    assert.isTrue(equals(v.b.type, bt));
   });
 
   test('read union list', async () => {
