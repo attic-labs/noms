@@ -161,19 +161,19 @@ export class JsonArrayReader {
     return list;
   }
 
-  readListLeafSequence(): ListLeafSequence {
+  readListLeafSequence(t: Type): ListLeafSequence {
     const seq = this.readSequence();
     // TODO(arv): Pass along type here so we do not have to compute it again.
-    return new ListLeafSequence(this._ds, seq);
+    return new ListLeafSequence(this._ds, t, seq);
   }
 
-  readSetLeafSequence(): SetLeafSequence {
+  readSetLeafSequence(t: Type): SetLeafSequence {
     const seq = this.readSequence();
     // TODO(arv): Pass along type here so we do not have to compute it again.
-    return new SetLeafSequence(this._ds, seq);
+    return new SetLeafSequence(this._ds, t, seq);
   }
 
-  readMapLeafSequence(): MapLeafSequence {
+  readMapLeafSequence(t: Type): MapLeafSequence {
     const entries = [];
     while (!this.atEnd()) {
       const k = this.readValue();
@@ -182,7 +182,7 @@ export class JsonArrayReader {
     }
 
     // TODO(arv): Pass along type here so we do not have to compute it again.
-    return new MapLeafSequence(this._ds, entries);
+    return new MapLeafSequence(this._ds, t, entries);
   }
 
   readMetaSequence(): Array<MetaTuple> {
@@ -238,7 +238,7 @@ export class JsonArrayReader {
         if (isMeta) {
           return new NomsList(r2.readIndexedMetaSequence(t));
         }
-        return new NomsList(r2.readListLeafSequence());
+        return new NomsList(r2.readListLeafSequence(t));
       }
       case Kind.Map: {
         const isMeta = this.readBool();
@@ -246,7 +246,7 @@ export class JsonArrayReader {
         if (isMeta) {
           return new NomsMap(r2.readOrderedMetaSequence(t));
         }
-        return new NomsMap(r2.readMapLeafSequence());
+        return new NomsMap(r2.readMapLeafSequence(t));
       }
       case Kind.Ref:
         return this.readRefValue(t);
@@ -256,7 +256,7 @@ export class JsonArrayReader {
         if (isMeta) {
           return new NomsSet(r2.readOrderedMetaSequence(t));
         }
-        return new NomsSet(r2.readSetLeafSequence());
+        return new NomsSet(r2.readSetLeafSequence(t));
       }
       case Kind.Struct:
         return this.readStruct(t);
