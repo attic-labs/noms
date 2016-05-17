@@ -15,6 +15,7 @@ import {
   listOfValueType,
   makeListType,
   makeMapType,
+  makeRefType,
   makeSetType,
   makeStructType,
   makeUnionType,
@@ -26,6 +27,7 @@ import {
   valueType,
 } from './type.js';
 import {equals} from './compare.js';
+import RefValue from './ref-value.js';
 
 suite('validate type', () => {
 
@@ -158,15 +160,90 @@ suite('validate type', () => {
   test('empty list', async () => {
     const lt = makeListType(numberType);
     validateType(lt, await newList([]));
+
+    // List<> not a subtype of List<Number>
+    assertInvalid(makeListType(makeUnionType([])), await newList([1]));
   });
 
   test('empty set', async () => {
     const st = makeSetType(numberType);
     validateType(st, await newSet([]));
+
+    // Set<> not a subtype of Set<Number>
+    assertInvalid(makeSetType(makeUnionType([])), await newSet([1]));
   });
 
   test('empty map', async () => {
     const mt = makeMapType(numberType, stringType);
     validateType(mt, await newMap([]));
+
+    // Map<> not a subtype of Map<Number, Number>
+    assertInvalid(makeMapType(makeUnionType([]), makeUnionType([])), await newMap([1, 2]));
+  });
+
+  test('struct subtype by name', () => {
+    const namedT = makeStructType('Name', {x: numberType});
+    const anonT = makeStructType('', {x: numberType});
+    const namedV = newStruct('Name', {x: 42});
+    const name2V = newStruct('foo', {x: 42});
+    const anonV = newStruct('', {x: 42});
+
+    validateType(namedT, namedV);
+    assertInvalid(namedT, name2V);
+    assertInvalid(namedT, anonV);
+
+    validateType(anonT, namedV);
+    validateType(anonT, name2V);
+    validateType(anonT, anonV);
+  });
+
+  test('struct subtype extra fields', () => {
+    const at = makeStructType('', {});
+    const bt = makeStructType('', {x: numberType});
+    const ct = makeStructType('', {x: numberType, s: stringType});
+    const av = newStruct('', {});
+    const bv = newStruct('', {x: 1});
+    const cv = newStruct('', {x: 2, s: 'hi'});
+
+    validateType(at, av);
+    assertInvalid(bt, av);
+    assertInvalid(ct, av);
+
+    validateType(at, bv);
+    validateType(bt, bv);
+    assertInvalid(ct, bv);
+
+    validateType(at, cv);
+    validateType(bt, cv);
+    validateType(ct, cv);
+  });
+
+  test('struct subtype', async () => {
+    const c1 = newStruct('Commit', {
+      value: 1,
+      parents: await newSet([]),
+    });
+    const t1 = makeStructType('Commit', {
+      value: numberType,
+      parents: makeSetType(makeUnionType([])),
+    });
+    validateType(t1, c1);
+
+    const t11 = makeStructType('Commit', {
+      value: numberType,
+      parents: makeSetType(makeRefType(numberType /* placeholder */)),
+    });
+    t11.desc.fields['parents'].desc.elemTypes[0].desc.elemTypes[0] = t11;
+    validateType(t11, c1);
+
+    const c2 = newStruct('Commit', {
+      value: 2,
+      parents: await newSet([new RefValue(c1)]),
+    });
+    validateType(t11, c2);
+
+    // struct { v: V, p: Set<> } <!
+    // struct { v: V, p: Set<Ref<...>> }
+    assertInvalid(t1, c2);
   });
 });

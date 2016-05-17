@@ -134,14 +134,87 @@ func TestAssertTypeEmptyListUnion(tt *testing.T) {
 func TestAssertTypeEmptyList(tt *testing.T) {
 	lt := MakeListType(NumberType)
 	validateType(lt, NewList())
+
+	// List<> not a subtype of List<Number>
+	assertInvalid(tt, MakeListType(MakeUnionType()), NewList(Number(1)))
 }
 
 func TestAssertTypeEmptySet(tt *testing.T) {
 	st := MakeSetType(NumberType)
 	validateType(st, NewSet())
+
+	// Set<> not a subtype of Set<Number>
+	assertInvalid(tt, MakeSetType(MakeUnionType()), NewSet(Number(1)))
 }
 
 func TestAssertTypeEmptyMap(tt *testing.T) {
 	mt := MakeMapType(NumberType, StringType)
 	validateType(mt, NewMap())
+
+	// Map<> not a subtype of Map<Number, Number>
+	assertInvalid(tt, MakeMapType(MakeUnionType(), MakeUnionType()), NewMap(Number(1), Number(2)))
+}
+
+func TestAssertTypeStructSubtypeByName(tt *testing.T) {
+	namedT := MakeStructType("Name", TypeMap{"x": NumberType})
+	anonT := MakeStructType("", TypeMap{"x": NumberType})
+	namedV := NewStruct("Name", structData{"x": Number(42)})
+	name2V := NewStruct("foo", structData{"x": Number(42)})
+	anonV := NewStruct("", structData{"x": Number(42)})
+
+	validateType(namedT, namedV)
+	assertInvalid(tt, namedT, name2V)
+	assertInvalid(tt, namedT, anonV)
+
+	validateType(anonT, namedV)
+	validateType(anonT, name2V)
+	validateType(anonT, anonV)
+}
+
+func TestAssertTypeStructSubtypeExtraFields(tt *testing.T) {
+	at := MakeStructType("", TypeMap{})
+	bt := MakeStructType("", TypeMap{"x": NumberType})
+	ct := MakeStructType("", TypeMap{"x": NumberType, "s": StringType})
+	av := NewStruct("", structData{})
+	bv := NewStruct("", structData{"x": Number(1)})
+	cv := NewStruct("", structData{"x": Number(2), "s": NewString("hi")})
+
+	validateType(at, av)
+	assertInvalid(tt, bt, av)
+	assertInvalid(tt, ct, av)
+
+	validateType(at, bv)
+	validateType(bt, bv)
+	assertInvalid(tt, ct, bv)
+
+	validateType(at, cv)
+	validateType(bt, cv)
+	validateType(ct, cv)
+}
+
+func TestAssertTypeStructSubtype(tt *testing.T) {
+	c1 := NewStruct("Commit", structData{
+		"value":   Number(1),
+		"parents": NewSet(),
+	})
+	t1 := MakeStructType("Commit", TypeMap{
+		"value":   NumberType,
+		"parents": MakeSetType(MakeUnionType()),
+	})
+	validateType(t1, c1)
+
+	t11 := MakeStructType("Commit", TypeMap{
+		"value":   NumberType,
+		"parents": MakeSetType(MakeRefType(NumberType /* placeholder */)),
+	})
+	t11.Desc.(StructDesc).Fields["parents"].Desc.(CompoundDesc).ElemTypes[0].Desc.(CompoundDesc).ElemTypes[0] = t11
+	validateType(t11, c1)
+
+	c2 := NewStruct("Commit", structData{
+		"value":   Number(2),
+		"parents": NewSet(NewRef(c1)),
+	})
+	validateType(t11, c2)
+
+	// t3 :=
 }

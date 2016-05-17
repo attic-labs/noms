@@ -36,6 +36,29 @@ func subtype(expected, actual *Type) bool {
 		return true
 	}
 
+	if expected.Kind() == StructKind {
+		expectedDesc := expected.Desc.(StructDesc)
+		actualDesc := actual.Desc.(StructDesc)
+		if expectedDesc.Name != "" && expectedDesc.Name != actualDesc.Name {
+			return false
+		}
+		type Entry struct {
+			name string
+			t    *Type
+		}
+		entries := make([]Entry, 0, len(expectedDesc.Fields))
+		expectedDesc.IterFields(func(name string, t *Type) {
+			entries = append(entries, Entry{name, t})
+		})
+		for _, entry := range entries {
+			at, ok := actualDesc.Fields[entry.name]
+			if !ok || !subtype(entry.t, at) {
+				return false
+			}
+		}
+		return true
+	}
+
 	panic("unreachable")
 }
 

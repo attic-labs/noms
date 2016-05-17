@@ -68,6 +68,21 @@ function subtype(expected: Type, actual: Type): boolean {
     return expected.desc.elemTypes.every((t, i) => compoundSubtype(t, actualElemTypes[i]));
   }
 
+  if (expected.kind === Kind.Struct) {
+    if (expected.desc.name !== '' && expected.desc.name !== actual.desc.name) {
+      return false;
+    }
+
+    const fields: Array<[string, Type]> = [];
+    expected.desc.forEachField((name: string, type: Type) => {
+      fields.push([name, type]);
+    });
+    return fields.every(f => {
+      const at = actual.desc.fields[f[0]];
+      return at && subtype(f[1], at);
+    });
+  }
+
   invariant(false);
 }
 
