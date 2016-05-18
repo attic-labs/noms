@@ -18,10 +18,10 @@ func TestRead(t *testing.T) {
 	assert := assert.New(t)
 	cs := NewTestValueStore()
 
-	a := []interface{}{Number(1), "hi", true}
+	a := []interface{}{NewNumber(1), "hi", true}
 	r := newJSONArrayReader(a, cs)
 
-	assert.Equal(Number(1), r.read().(Number))
+	assert.Equal(NewNumber(1), r.read().(Number))
 	assert.False(r.atEnd())
 
 	assert.Equal("hi", r.readString())
@@ -88,7 +88,7 @@ func TestReadPrimitives(t *testing.T) {
 
 	test(Bool(true), "[BoolKind, true]")
 	test(Bool(false), "[BoolKind, false]")
-	test(Number(0), `[NumberKind, "0"]`)
+	test(NewNumber(0), `[NumberKind, "0"]`)
 	test(NewString("hi"), `[StringKind, "hi"]`)
 
 	blob := NewBlob(bytes.NewBuffer([]byte{0x00, 0x01}))
@@ -103,7 +103,7 @@ func TestReadListOfNumber(t *testing.T) {
 	r := newJSONArrayReader(a, cs)
 
 	l := r.readValue()
-	l2 := NewList(Number(0), Number(1), Number(2), Number(3))
+	l2 := NewList(NewNumber(0), NewNumber(1), NewNumber(2), NewNumber(3))
 	assert.True(l2.Equals(l))
 }
 
@@ -121,7 +121,8 @@ func TestReadListOfMixedTypes(t *testing.T) {
 
 	tr := MakeListType(MakeUnionType(BoolType, NumberType, StringType))
 	assert.True(v.Type().Equals(tr))
-	assert.Equal(Number(1), v.Get(0))
+	assert.True(NewNumber(1).Equals(v.Get(0)))
+	//	assert.Equal(NewNumber(1), v.Get(0))
 	assert.Equal(NewString("hi"), v.Get(1))
 	assert.Equal(Bool(true), v.Get(2))
 }
@@ -140,7 +141,7 @@ func TestReadSetOfMixedTypes(t *testing.T) {
 
 	tr := MakeSetType(MakeUnionType(BoolType, NumberType, StringType))
 	assert.True(v.Type().Equals(tr))
-	assert.True(v.Has(Number(1)))
+	assert.True(v.Has(NewNumber(1)))
 	assert.True(v.Has(NewString("hi")))
 	assert.True(v.Has(Bool(true)))
 }
@@ -161,19 +162,19 @@ func TestReadMapOfMixedTypes(t *testing.T) {
 
 	tr := MakeMapType(MakeUnionType(BoolType, NumberType), MakeUnionType(NumberType, StringType))
 	assert.True(v.Type().Equals(tr))
-	assert.True(v.Get(Bool(true)).Equals(Number(1)))
-	assert.True(v.Get(Number(2)).Equals(NewString("hi")))
+	assert.True(v.Get(Bool(true)).Equals(NewNumber(1)))
+	assert.True(v.Get(NewNumber(2)).Equals(NewString("hi")))
 }
 
 func TestReadCompoundList(t *testing.T) {
 	assert := assert.New(t)
 	cs := NewTestValueStore()
 
-	list1 := newList(newListLeafSequence(cs, Number(0)))
-	list2 := newList(newListLeafSequence(cs, Number(1), Number(2), Number(3)))
+	list1 := newList(newListLeafSequence(cs, NewNumber(0)))
+	list2 := newList(newListLeafSequence(cs, NewNumber(1), NewNumber(2), NewNumber(3)))
 	l2 := newList(newListMetaSequence([]metaTuple{
-		newMetaTuple(Number(1), list1, NewRef(list1), 1),
-		newMetaTuple(Number(4), list2, NewRef(list2), 4),
+		newMetaTuple(NewNumber(1), list1, NewRef(list1), 1),
+		newMetaTuple(NewNumber(4), list2, NewRef(list2), 4),
 	}, cs))
 
 	a := parseJSON(`[
@@ -192,11 +193,11 @@ func TestReadCompoundSet(t *testing.T) {
 	assert := assert.New(t)
 	cs := NewTestValueStore()
 
-	set1 := newSet(newSetLeafSequence(cs, Number(0), Number(1)))
-	set2 := newSet(newSetLeafSequence(cs, Number(2), Number(3), Number(4)))
+	set1 := newSet(newSetLeafSequence(cs, NewNumber(0), NewNumber(1)))
+	set2 := newSet(newSetLeafSequence(cs, NewNumber(2), NewNumber(3), NewNumber(4)))
 	l2 := newSet(newSetMetaSequence([]metaTuple{
-		newMetaTuple(Number(1), set1, NewRef(set1), 2),
-		newMetaTuple(Number(4), set2, NewRef(set2), 3),
+		newMetaTuple(NewNumber(1), set1, NewRef(set1), 2),
+		newMetaTuple(NewNumber(4), set2, NewRef(set2), 3),
 	}, cs))
 
 	a := parseJSON(`[
@@ -219,7 +220,7 @@ func TestReadMapOfNumberToNumber(t *testing.T) {
 	r := newJSONArrayReader(a, cs)
 
 	m := r.readValue()
-	m2 := NewMap(Number(0), Number(1), Number(2), Number(3))
+	m2 := NewMap(NewNumber(0), NewNumber(1), NewNumber(2), NewNumber(3))
 	assert.True(m2.Equals(m))
 }
 
@@ -231,7 +232,7 @@ func TestReadSetOfNumber(t *testing.T) {
 	r := newJSONArrayReader(a, cs)
 
 	s := r.readValue()
-	s2 := NewSet(Number(0), Number(1), Number(2), Number(3))
+	s2 := NewSet(NewNumber(0), NewNumber(1), NewNumber(2), NewNumber(3))
 	assert.True(s2.Equals(s))
 }
 
@@ -240,9 +241,9 @@ func TestReadCompoundBlob(t *testing.T) {
 	cs := NewTestValueStore()
 
 	// Arbitrary valid refs.
-	r1 := Number(1).Ref()
-	r2 := Number(2).Ref()
-	r3 := Number(3).Ref()
+	r1 := NewNumber(1).Ref()
+	r2 := NewNumber(2).Ref()
+	r3 := NewNumber(3).Ref()
 	a := parseJSON(`[
 		BlobKind, true, [
 			RefKind, BlobKind, "%s", "1", NumberKind, "20", "20",
@@ -256,9 +257,9 @@ func TestReadCompoundBlob(t *testing.T) {
 	_, ok := m.(Blob)
 	assert.True(ok)
 	m2 := newBlob(newBlobMetaSequence([]metaTuple{
-		newMetaTuple(Number(20), nil, constructRef(RefOfBlobType, r1, 1), 20),
-		newMetaTuple(Number(40), nil, constructRef(RefOfBlobType, r2, 1), 40),
-		newMetaTuple(Number(60), nil, constructRef(RefOfBlobType, r3, 1), 60),
+		newMetaTuple(NewNumber(20), nil, constructRef(RefOfBlobType, r1, 1), 20),
+		newMetaTuple(NewNumber(40), nil, constructRef(RefOfBlobType, r2, 1), 40),
+		newMetaTuple(NewNumber(60), nil, constructRef(RefOfBlobType, r3, 1), 60),
 	}, cs))
 
 	assert.True(m.Type().Equals(m2.Type()))
@@ -280,7 +281,7 @@ func TestReadStruct(t *testing.T) {
 	v := r.readValue().(Struct)
 
 	assert.True(v.Type().Equals(typ))
-	assert.True(v.Get("x").Equals(Number(42)))
+	assert.True(v.Get("x").Equals(NewNumber(42)))
 	assert.True(v.Get("s").Equals(NewString("hi")))
 	assert.True(v.Get("b").Equals(Bool(true)))
 }
@@ -307,7 +308,7 @@ func TestReadStructWithList(t *testing.T) {
 
 	assert.True(v.Type().Equals(typ))
 	assert.True(v.Get("b").Equals(Bool(true)))
-	l := NewList(Number(0), Number(1), Number(2))
+	l := NewList(NewNumber(0), NewNumber(1), NewNumber(2))
 	assert.True(v.Get("l").Equals(l))
 	assert.True(v.Get("s").Equals(NewString("hi")))
 }
@@ -334,7 +335,7 @@ func TestReadStructWithValue(t *testing.T) {
 
 	assert.True(v.Type().Equals(typ))
 	assert.True(v.Get("b").Equals(Bool(true)))
-	assert.True(v.Get("v").Equals(Number(42)))
+	assert.True(v.Get("v").Equals(NewNumber(42)))
 	assert.True(v.Get("s").Equals(NewString("hi")))
 }
 
@@ -452,7 +453,7 @@ func TestReadUnionList(t *testing.T) {
 
 	r := newJSONArrayReader(a, cs)
 	v := r.readValue().(List)
-	v2 := NewList(NewString("hi"), Number(42))
+	v2 := NewList(NewString("hi"), NewNumber(42))
 	assert.True(v.Equals(v2))
 }
 

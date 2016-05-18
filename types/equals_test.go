@@ -14,9 +14,9 @@ func TestValueEquals(t *testing.T) {
 		func() Value { return nil },
 		func() Value { return Bool(false) },
 		func() Value { return Bool(true) },
-		func() Value { return Number(0) },
-		func() Value { return Number(-1) },
-		func() Value { return Number(1) },
+		func() Value { return NewNumber(0) },
+		func() Value { return NewNumber(-1) },
+		func() Value { return NewNumber(1) },
 		func() Value { return NewString("") },
 		func() Value { return NewString("hi") },
 		func() Value { return NewString("bye") },
@@ -33,8 +33,8 @@ func TestValueEquals(t *testing.T) {
 			b1 := NewBlob(bytes.NewBufferString("hi"))
 			b2 := NewBlob(bytes.NewBufferString("bye"))
 			return newBlob(newBlobMetaSequence([]metaTuple{
-				newMetaTuple(Number(uint64(2)), b1, NewRef(b1), 2),
-				newMetaTuple(Number(uint64(5)), b2, NewRef(b2), 5),
+				newMetaTuple(NewNumber(uint64(2)), b1, NewRef(b1), 2),
+				newMetaTuple(NewNumber(uint64(5)), b2, NewRef(b2), 5),
 			}, nil))
 		},
 		func() Value { return NewList() },

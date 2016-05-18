@@ -44,7 +44,7 @@ func (ts testSet) toSet() Set {
 func newTestSet(length int) testSet {
 	var values []Value
 	for i := 0; i < length; i++ {
-		values = append(values, Number(i))
+		values = append(values, NewNumber(i))
 	}
 
 	return testSet{values, MakeSetType(NumberType)}
@@ -58,7 +58,7 @@ func newTestSetWithGen(length int, gen testSetGenFn, tr *Type) testSet {
 	for len(values) < length {
 		v := s.Int63() & 0xffffff
 		if _, ok := used[v]; !ok {
-			values = append(values, gen(Number(v)))
+			values = append(values, gen(NewNumber(v)))
 			used[v] = true
 		}
 	}
@@ -95,14 +95,14 @@ func newSetTestSuite(size uint, expectRefStr string, expectChunkCount int, expec
 			},
 			prependOne: func() Collection {
 				dup := make([]Value, length+1)
-				dup[0] = Number(-1)
+				dup[0] = NewNumber(-1)
 				copy(dup[1:], elems.values)
 				return NewSet(dup...)
 			},
 			appendOne: func() Collection {
 				dup := make([]Value, length+1)
 				copy(dup, elems.values)
-				dup[len(dup)-1] = Number(length + 1)
+				dup[len(dup)-1] = NewNumber(length + 1)
 				return NewSet(dup...)
 			},
 		},
@@ -152,13 +152,13 @@ func TestNewSet(t *testing.T) {
 	assert.True(MakeSetType(MakeUnionType()).Equals(s.Type()))
 	assert.Equal(uint64(0), s.Len())
 
-	s = NewSet(Number(0))
+	s = NewSet(NewNumber(0))
 	assert.True(MakeSetType(NumberType).Equals(s.Type()))
 
 	s = NewSet()
 	assert.IsType(MakeSetType(NumberType), s.Type())
 
-	s2 := s.Remove(Number(1))
+	s2 := s.Remove(NewNumber(1))
 	assert.IsType(s.Type(), s2.Type())
 }
 
@@ -166,7 +166,7 @@ func TestSetLen(t *testing.T) {
 	assert := assert.New(t)
 	s0 := NewSet()
 	assert.Equal(uint64(0), s0.Len())
-	s1 := NewSet(Bool(true), Number(1), NewString("hi"))
+	s1 := NewSet(Bool(true), NewNumber(1), NewString("hi"))
 	assert.Equal(uint64(3), s1.Len())
 	s2 := s1.Insert(Bool(false))
 	assert.Equal(uint64(4), s2.Len())
@@ -205,7 +205,7 @@ func TestSetEmptyInsertRemove(t *testing.T) {
 // BUG 98
 func TestSetDuplicateInsert(t *testing.T) {
 	assert := assert.New(t)
-	s1 := NewSet(Bool(true), Number(42), Number(42))
+	s1 := NewSet(Bool(true), NewNumber(42), NewNumber(42))
 	assert.Equal(uint64(2), s1.Len())
 }
 
@@ -218,24 +218,24 @@ func TestSetUniqueKeysString(t *testing.T) {
 	assert.False(s1.Has(NewString("foo")))
 }
 
-func TestSetUniqueKeysNumber(t *testing.T) {
+func TestSetUniqueKeysNewNumber(t *testing.T) {
 	assert := assert.New(t)
-	s1 := NewSet(Number(4), Number(1), Number(0), Number(0), Number(1), Number(3))
+	s1 := NewSet(NewNumber(4), NewNumber(1), NewNumber(0), NewNumber(0), NewNumber(1), NewNumber(3))
 	assert.Equal(uint64(4), s1.Len())
-	assert.True(s1.Has(Number(4)))
-	assert.True(s1.Has(Number(1)))
-	assert.True(s1.Has(Number(0)))
-	assert.True(s1.Has(Number(3)))
-	assert.False(s1.Has(Number(2)))
+	assert.True(s1.Has(NewNumber(4)))
+	assert.True(s1.Has(NewNumber(1)))
+	assert.True(s1.Has(NewNumber(0)))
+	assert.True(s1.Has(NewNumber(3)))
+	assert.False(s1.Has(NewNumber(2)))
 }
 
 func TestSetHas(t *testing.T) {
 	assert := assert.New(t)
-	s1 := NewSet(Bool(true), Number(1), NewString("hi"))
+	s1 := NewSet(Bool(true), NewNumber(1), NewString("hi"))
 	assert.True(s1.Has(Bool(true)))
 	assert.False(s1.Has(Bool(false)))
-	assert.True(s1.Has(Number(1)))
-	assert.False(s1.Has(Number(0)))
+	assert.True(s1.Has(NewNumber(1)))
+	assert.False(s1.Has(NewNumber(0)))
 	assert.True(s1.Has(NewString("hi")))
 	assert.False(s1.Has(NewString("ho")))
 
@@ -274,7 +274,7 @@ func TestSetInsert(t *testing.T) {
 	s := NewSet()
 	v1 := Bool(false)
 	v2 := Bool(true)
-	v3 := Number(0)
+	v3 := NewNumber(0)
 
 	assert.False(s.Has(v1))
 	s = s.Insert(v1)
@@ -332,7 +332,7 @@ func TestSetRemove(t *testing.T) {
 	assert := assert.New(t)
 	v1 := Bool(false)
 	v2 := Bool(true)
-	v3 := Number(0)
+	v3 := NewNumber(0)
 	s := NewSet(v1, v2, v3)
 	assert.True(s.Has(v1))
 	assert.True(s.Has(v2))
@@ -383,7 +383,7 @@ func TestSetRemoveNonexistentValue(t *testing.T) {
 
 	ts := getTestNativeOrderSet(2)
 	original := ts.toSet()
-	actual := original.Remove(Number(-1)) // rand.Int63 returns non-negative values.
+	actual := original.Remove(NewNumber(-1)) // rand.Int63 returns non-negative values.
 
 	assert.Equal(original.Len(), actual.Len())
 	assert.True(original.Equals(actual))
@@ -393,13 +393,13 @@ func TestSetFirst(t *testing.T) {
 	assert := assert.New(t)
 	s := NewSet()
 	assert.Nil(s.First())
-	s = s.Insert(Number(1))
+	s = s.Insert(NewNumber(1))
 	assert.NotNil(s.First())
-	s = s.Insert(Number(2))
+	s = s.Insert(NewNumber(2))
 	assert.NotNil(s.First())
-	s2 := s.Remove(Number(1))
+	s2 := s.Remove(NewNumber(1))
 	assert.NotNil(s2.First())
-	s2 = s2.Remove(Number(2))
+	s2 = s2.Remove(NewNumber(2))
 	assert.Nil(s2.First())
 }
 
@@ -412,7 +412,7 @@ func TestSetOfStruct(t *testing.T) {
 
 	elems := []Value{}
 	for i := 0; i < 200; i++ {
-		elems = append(elems, newStructFromData(structData{"o": Number(i)}, typ))
+		elems = append(elems, newStructFromData(structData{"o": NewNumber(i)}, typ))
 	}
 
 	s := NewSet(elems...)
@@ -423,7 +423,7 @@ func TestSetOfStruct(t *testing.T) {
 
 func TestSetIter(t *testing.T) {
 	assert := assert.New(t)
-	s := NewSet(Number(0), Number(1), Number(2), Number(3), Number(4))
+	s := NewSet(NewNumber(0), NewNumber(1), NewNumber(2), NewNumber(3), NewNumber(4))
 	acc := NewSet()
 	s.Iter(func(v Value) bool {
 		_, ok := v.(Number)
@@ -469,7 +469,7 @@ func TestSetIter2(t *testing.T) {
 
 func TestSetIterAll(t *testing.T) {
 	assert := assert.New(t)
-	s := NewSet(Number(0), Number(1), Number(2), Number(3), Number(4))
+	s := NewSet(NewNumber(0), NewNumber(1), NewNumber(2), NewNumber(3), NewNumber(4))
 	acc := NewSet()
 	s.IterAll(func(v Value) {
 		_, ok := v.(Number)
@@ -534,60 +534,60 @@ func TestSetOrdering(t *testing.T) {
 	testSetOrder(assert,
 		NumberType,
 		[]Value{
-			Number(0),
-			Number(1000),
-			Number(1),
-			Number(100),
-			Number(2),
-			Number(10),
+			NewNumber(0),
+			NewNumber(1000),
+			NewNumber(1),
+			NewNumber(100),
+			NewNumber(2),
+			NewNumber(10),
 		},
 		[]Value{
-			Number(0),
-			Number(1),
-			Number(2),
-			Number(10),
-			Number(100),
-			Number(1000),
-		},
-	)
-
-	testSetOrder(assert,
-		NumberType,
-		[]Value{
-			Number(0),
-			Number(-30),
-			Number(25),
-			Number(1002),
-			Number(-5050),
-			Number(23),
-		},
-		[]Value{
-			Number(-5050),
-			Number(-30),
-			Number(0),
-			Number(23),
-			Number(25),
-			Number(1002),
+			NewNumber(0),
+			NewNumber(1),
+			NewNumber(2),
+			NewNumber(10),
+			NewNumber(100),
+			NewNumber(1000),
 		},
 	)
 
 	testSetOrder(assert,
 		NumberType,
 		[]Value{
-			Number(0.0001),
-			Number(0.000001),
-			Number(1),
-			Number(25.01e3),
-			Number(-32.231123e5),
-			Number(23),
+			NewNumber(0),
+			NewNumber(-30),
+			NewNumber(25),
+			NewNumber(1002),
+			NewNumber(-5050),
+			NewNumber(23),
 		},
 		[]Value{
-			Number(-32.231123e5),
-			Number(0.000001),
-			Number(0.0001),
-			Number(1),
-			Number(23),
-			Number(25.01e3),
+			NewNumber(-5050),
+			NewNumber(-30),
+			NewNumber(0),
+			NewNumber(23),
+			NewNumber(25),
+			NewNumber(1002),
+		},
+	)
+
+	testSetOrder(assert,
+		NumberType,
+		[]Value{
+			NewNumber(0.0001),
+			NewNumber(0.000001),
+			NewNumber(1),
+			NewNumber(25.01e3),
+			NewNumber(-32.231123e5),
+			NewNumber(23),
+		},
+		[]Value{
+			NewNumber(-32.231123e5),
+			NewNumber(0.000001),
+			NewNumber(0.0001),
+			NewNumber(1),
+			NewNumber(23),
+			NewNumber(25.01e3),
 		},
 	)
 
@@ -632,29 +632,29 @@ func TestSetType(t *testing.T) {
 	s := NewSet()
 	assert.True(s.Type().Equals(MakeSetType(MakeUnionType())))
 
-	s = NewSet(Number(0))
+	s = NewSet(NewNumber(0))
 	assert.True(s.Type().Equals(MakeSetType(NumberType)))
 
-	s2 := s.Remove(Number(1))
+	s2 := s.Remove(NewNumber(1))
 	assert.True(s2.Type().Equals(MakeSetType(NumberType)))
 
-	s2 = s.Insert(Number(0), Number(1))
+	s2 = s.Insert(NewNumber(0), NewNumber(1))
 	assert.True(s.Type().Equals(s2.Type()))
 
 	s3 := s.Insert(Bool(true))
 	assert.True(s3.Type().Equals(MakeSetType(MakeUnionType(BoolType, NumberType))))
-	s4 := s.Insert(Number(3), Bool(true))
+	s4 := s.Insert(NewNumber(3), Bool(true))
 	assert.True(s4.Type().Equals(MakeSetType(MakeUnionType(BoolType, NumberType))))
 }
 
 func TestSetChunks(t *testing.T) {
 	assert := assert.New(t)
 
-	l1 := NewSet(Number(0))
+	l1 := NewSet(NewNumber(0))
 	c1 := l1.Chunks()
 	assert.Len(c1, 0)
 
-	l2 := NewSet(NewRef(Number(0)))
+	l2 := NewSet(NewRef(NewNumber(0)))
 	c2 := l2.Chunks()
 	assert.Len(c2, 1)
 }

@@ -42,11 +42,11 @@ func TestEnsureRef(t *testing.T) {
 	}()
 
 	bl := newBlob(newBlobLeafSequence(nil, []byte("hi")))
-	cb := newBlob(newBlobMetaSequence([]metaTuple{{bl, Ref{}, Number(2), 2}}, vs))
+	cb := newBlob(newBlobMetaSequence([]metaTuple{{bl, Ref{}, NewNumber(2), 2}}, vs))
 
 	ll := newList(newListLeafSequence(nil, NewString("foo")))
 	lt := MakeListType(StringType)
-	cl := newList(newIndexedMetaSequence([]metaTuple{{ll, Ref{}, Number(1), 1}}, lt, vs))
+	cl := newList(newIndexedMetaSequence([]metaTuple{{ll, Ref{}, NewNumber(1), 1}}, lt, vs))
 
 	ml := newMap(newMapLeafSequence(nil, mapEntry{NewString("foo"), NewString("bar")}))
 	cm := newMap(newOrderedMetaSequence([]metaTuple{{ml, Ref{}, NewString("foo"), 1}}, MakeMapType(StringType, StringType), vs))
@@ -75,7 +75,7 @@ func TestEnsureRef(t *testing.T) {
 	count = byte(1)
 	values = []Value{
 		Bool(false),
-		Number(0),
+		NewNumber(0),
 	}
 	for i := 0; i < 2; i++ {
 		for j, v := range values {

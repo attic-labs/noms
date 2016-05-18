@@ -36,20 +36,20 @@ func assertAll(tt *testing.T, t *Type, v Value) {
 func TestAssertTypePrimitives(t *testing.T) {
 	assertSubtype(BoolType, Bool(true))
 	assertSubtype(BoolType, Bool(false))
-	assertSubtype(NumberType, Number(42))
+	assertSubtype(NumberType, NewNumber(42))
 	assertSubtype(StringType, NewString("abc"))
 
-	assertInvalid(t, BoolType, Number(1))
+	assertInvalid(t, BoolType, NewNumber(1))
 	assertInvalid(t, BoolType, NewString("abc"))
 	assertInvalid(t, NumberType, Bool(true))
-	assertInvalid(t, StringType, Number(42))
+	assertInvalid(t, StringType, NewNumber(42))
 }
 
 func TestAssertTypeValue(t *testing.T) {
 	assertSubtype(ValueType, Bool(true))
-	assertSubtype(ValueType, Number(1))
+	assertSubtype(ValueType, NewNumber(1))
 	assertSubtype(ValueType, NewString("abc"))
-	l := NewList(Number(0), Number(1), Number(2), Number(3))
+	l := NewList(NewNumber(0), NewNumber(1), NewNumber(2), NewNumber(3))
 	assertSubtype(ValueType, l)
 }
 
@@ -60,7 +60,7 @@ func TestAssertTypeBlob(t *testing.T) {
 
 func TestAssertTypeList(tt *testing.T) {
 	listOfNumberType := MakeListType(NumberType)
-	l := NewList(Number(0), Number(1), Number(2), Number(3))
+	l := NewList(NewNumber(0), NewNumber(1), NewNumber(2), NewNumber(3))
 	assertSubtype(listOfNumberType, l)
 	assertAll(tt, listOfNumberType, l)
 	assertSubtype(MakeListType(ValueType), l)
@@ -68,7 +68,7 @@ func TestAssertTypeList(tt *testing.T) {
 
 func TestAssertTypeMap(tt *testing.T) {
 	mapOfNumberToStringType := MakeMapType(NumberType, StringType)
-	m := NewMap(Number(0), NewString("a"), Number(2), NewString("b"))
+	m := NewMap(NewNumber(0), NewString("a"), NewNumber(2), NewString("b"))
 	assertSubtype(mapOfNumberToStringType, m)
 	assertAll(tt, mapOfNumberToStringType, m)
 	assertSubtype(MakeMapType(ValueType, ValueType), m)
@@ -76,7 +76,7 @@ func TestAssertTypeMap(tt *testing.T) {
 
 func TestAssertTypeSet(tt *testing.T) {
 	setOfNumberType := MakeSetType(NumberType)
-	s := NewSet(Number(0), Number(1), Number(2), Number(3))
+	s := NewSet(NewNumber(0), NewNumber(1), NewNumber(2), NewNumber(3))
 	assertSubtype(setOfNumberType, s)
 	assertAll(tt, setOfNumberType, s)
 	assertSubtype(MakeSetType(ValueType), s)
@@ -101,25 +101,25 @@ func TestAssertTypeStruct(tt *testing.T) {
 }
 
 func TestAssertTypeUnion(tt *testing.T) {
-	assertSubtype(MakeUnionType(NumberType), Number(42))
-	assertSubtype(MakeUnionType(NumberType, StringType), Number(42))
+	assertSubtype(MakeUnionType(NumberType), NewNumber(42))
+	assertSubtype(MakeUnionType(NumberType, StringType), NewNumber(42))
 	assertSubtype(MakeUnionType(NumberType, StringType), NewString("hi"))
-	assertSubtype(MakeUnionType(NumberType, StringType, BoolType), Number(555))
+	assertSubtype(MakeUnionType(NumberType, StringType, BoolType), NewNumber(555))
 	assertSubtype(MakeUnionType(NumberType, StringType, BoolType), NewString("hi"))
 	assertSubtype(MakeUnionType(NumberType, StringType, BoolType), Bool(true))
 
 	lt := MakeListType(MakeUnionType(NumberType, StringType))
-	assertSubtype(lt, NewList(Number(1), NewString("hi"), Number(2), NewString("bye")))
+	assertSubtype(lt, NewList(NewNumber(1), NewString("hi"), NewNumber(2), NewString("bye")))
 
 	st := MakeSetType(StringType)
-	assertSubtype(MakeUnionType(st, NumberType), Number(42))
+	assertSubtype(MakeUnionType(st, NumberType), NewNumber(42))
 	assertSubtype(MakeUnionType(st, NumberType), NewSet(NewString("a"), NewString("b")))
 
-	assertInvalid(tt, MakeUnionType(), Number(42))
-	assertInvalid(tt, MakeUnionType(StringType), Number(42))
-	assertInvalid(tt, MakeUnionType(StringType, BoolType), Number(42))
-	assertInvalid(tt, MakeUnionType(st, StringType), Number(42))
-	assertInvalid(tt, MakeUnionType(st, NumberType), NewSet(Number(1), Number(2)))
+	assertInvalid(tt, MakeUnionType(), NewNumber(42))
+	assertInvalid(tt, MakeUnionType(StringType), NewNumber(42))
+	assertInvalid(tt, MakeUnionType(StringType, BoolType), NewNumber(42))
+	assertInvalid(tt, MakeUnionType(st, StringType), NewNumber(42))
+	assertInvalid(tt, MakeUnionType(st, NumberType), NewSet(NewNumber(1), NewNumber(2)))
 }
 
 func TestAssertTypeEmptyListUnion(tt *testing.T) {
@@ -132,7 +132,7 @@ func TestAssertTypeEmptyList(tt *testing.T) {
 	assertSubtype(lt, NewList())
 
 	// List<> not a subtype of List<Number>
-	assertInvalid(tt, MakeListType(MakeUnionType()), NewList(Number(1)))
+	assertInvalid(tt, MakeListType(MakeUnionType()), NewList(NewNumber(1)))
 }
 
 func TestAssertTypeEmptySet(tt *testing.T) {
@@ -140,7 +140,7 @@ func TestAssertTypeEmptySet(tt *testing.T) {
 	assertSubtype(st, NewSet())
 
 	// Set<> not a subtype of Set<Number>
-	assertInvalid(tt, MakeSetType(MakeUnionType()), NewSet(Number(1)))
+	assertInvalid(tt, MakeSetType(MakeUnionType()), NewSet(NewNumber(1)))
 }
 
 func TestAssertTypeEmptyMap(tt *testing.T) {
@@ -148,15 +148,15 @@ func TestAssertTypeEmptyMap(tt *testing.T) {
 	assertSubtype(mt, NewMap())
 
 	// Map<> not a subtype of Map<Number, Number>
-	assertInvalid(tt, MakeMapType(MakeUnionType(), MakeUnionType()), NewMap(Number(1), Number(2)))
+	assertInvalid(tt, MakeMapType(MakeUnionType(), MakeUnionType()), NewMap(NewNumber(1), NewNumber(2)))
 }
 
 func TestAssertTypeStructSubtypeByName(tt *testing.T) {
 	namedT := MakeStructType("Name", TypeMap{"x": NumberType})
 	anonT := MakeStructType("", TypeMap{"x": NumberType})
-	namedV := NewStruct("Name", structData{"x": Number(42)})
-	name2V := NewStruct("foo", structData{"x": Number(42)})
-	anonV := NewStruct("", structData{"x": Number(42)})
+	namedV := NewStruct("Name", structData{"x": NewNumber(42)})
+	name2V := NewStruct("foo", structData{"x": NewNumber(42)})
+	anonV := NewStruct("", structData{"x": NewNumber(42)})
 
 	assertSubtype(namedT, namedV)
 	assertInvalid(tt, namedT, name2V)
@@ -172,8 +172,8 @@ func TestAssertTypeStructSubtypeExtraFields(tt *testing.T) {
 	bt := MakeStructType("", TypeMap{"x": NumberType})
 	ct := MakeStructType("", TypeMap{"x": NumberType, "s": StringType})
 	av := NewStruct("", structData{})
-	bv := NewStruct("", structData{"x": Number(1)})
-	cv := NewStruct("", structData{"x": Number(2), "s": NewString("hi")})
+	bv := NewStruct("", structData{"x": NewNumber(1)})
+	cv := NewStruct("", structData{"x": NewNumber(2), "s": NewString("hi")})
 
 	assertSubtype(at, av)
 	assertInvalid(tt, bt, av)
@@ -190,7 +190,7 @@ func TestAssertTypeStructSubtypeExtraFields(tt *testing.T) {
 
 func TestAssertTypeStructSubtype(tt *testing.T) {
 	c1 := NewStruct("Commit", structData{
-		"value":   Number(1),
+		"value":   NewNumber(1),
 		"parents": NewSet(),
 	})
 	t1 := MakeStructType("Commit", TypeMap{
@@ -207,7 +207,7 @@ func TestAssertTypeStructSubtype(tt *testing.T) {
 	assertSubtype(t11, c1)
 
 	c2 := NewStruct("Commit", structData{
-		"value":   Number(2),
+		"value":   NewNumber(2),
 		"parents": NewSet(NewRef(c1)),
 	})
 	assertSubtype(t11, c2)

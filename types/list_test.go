@@ -43,7 +43,7 @@ func (tl testList) toList() List {
 func newTestList(length int) testList {
 	tl := testList{}
 	for i := 0; i < length; i++ {
-		tl = append(tl, Number(i))
+		tl = append(tl, NewNumber(i))
 	}
 	return tl
 }
@@ -85,14 +85,14 @@ func newListTestSuite(size uint, expectRefStr string, expectChunkCount int, expe
 			},
 			prependOne: func() Collection {
 				dup := make([]Value, length+1)
-				dup[0] = Number(0)
+				dup[0] = NewNumber(0)
 				copy(dup[1:], elems)
 				return NewList(dup...)
 			},
 			appendOne: func() Collection {
 				dup := make([]Value, length+1)
 				copy(dup, elems)
-				dup[len(dup)-1] = Number(0)
+				dup[len(dup)-1] = NewNumber(0)
 				return NewList(dup...)
 			},
 		},
@@ -125,13 +125,13 @@ func (suite *listTestSuite) TestIter() {
 func (suite *listTestSuite) TestMap() {
 	list := suite.col.(List)
 	l := list.Map(func(v Value, i uint64) interface{} {
-		v1 := v.(Number)
-		return v1 + Number(i)
+		v1 := v.(Number).ToUint64()
+		return NewNumber(v1 + i)
 	})
 
 	suite.Equal(uint64(len(l)), suite.expectLen)
 	for i := 0; i < len(l); i++ {
-		suite.Equal(l[i], list.Get(uint64(i)).(Number)+Number(i))
+		suite.True(l[i].(Number).Equals(NewNumber(list.Get(uint64(i)).(Number).ToUint64() + uint64(i))))
 	}
 }
 
@@ -150,8 +150,8 @@ func TestListInsert(t *testing.T) {
 	list := tl.toList()
 
 	for i := 0; i < len(tl); i += 16 {
-		tl = tl.Insert(i, Number(i))
-		list = list.Insert(uint64(i), Number(i))
+		tl = tl.Insert(i, NewNumber(i))
+		list = list.Insert(uint64(i), NewNumber(i))
 	}
 
 	assert.True(tl.toList().Equals(list))
@@ -195,7 +195,7 @@ func getTestList() testList {
 	s := rand.NewSource(42)
 	values := make([]Value, length)
 	for i := 0; i < length; i++ {
-		values[i] = Number(s.Int63() & 0xff)
+		values[i] = NewNumber(s.Int63() & 0xff)
 	}
 
 	return values
@@ -210,7 +210,7 @@ func getTestListUnique() testList {
 	}
 	values := make([]Value, 0, length)
 	for k := range uniques {
-		values = append(values, Number(k))
+		values = append(values, NewNumber(k))
 	}
 	return values
 }
@@ -242,7 +242,7 @@ func TestStreamingListCreation(t *testing.T) {
 	sl := <-listChan
 	assert.True(cl.Equals(sl))
 	cl.Iter(func(v Value, idx uint64) (done bool) {
-		done = !assert.EqualValues(v, sl.Get(idx))
+		done = !assert.True(v.Equals(sl.Get(idx)))
 		return
 	})
 }
@@ -265,10 +265,10 @@ func TestListAppend(t *testing.T) {
 	}
 
 	cl := newList(getTestList())
-	cl2 := cl.Append(Number(42))
-	cl3 := cl2.Append(Number(43))
+	cl2 := cl.Append(NewNumber(42))
+	cl3 := cl2.Append(NewNumber(43))
 	cl4 := cl3.Append(getTestList()...)
-	cl5 := cl4.Append(Number(44), Number(45))
+	cl5 := cl4.Append(NewNumber(44), NewNumber(45))
 	cl6 := cl5.Append(getTestList()...)
 
 	expected := getTestList()
@@ -276,12 +276,12 @@ func TestListAppend(t *testing.T) {
 	assert.Equal(getTestListLen(), cl.Len())
 	assert.True(newList(expected).Equals(cl))
 
-	expected = append(expected, Number(42))
+	expected = append(expected, NewNumber(42))
 	assert.Equal(expected, listToSimple(cl2))
 	assert.Equal(getTestListLen()+1, cl2.Len())
 	assert.True(newList(expected).Equals(cl2))
 
-	expected = append(expected, Number(43))
+	expected = append(expected, NewNumber(43))
 	assert.Equal(expected, listToSimple(cl3))
 	assert.Equal(getTestListLen()+2, cl3.Len())
 	assert.True(newList(expected).Equals(cl3))
@@ -291,7 +291,7 @@ func TestListAppend(t *testing.T) {
 	assert.Equal(2*getTestListLen()+2, cl4.Len())
 	assert.True(newList(expected).Equals(cl4))
 
-	expected = append(expected, Number(44), Number(45))
+	expected = append(expected, NewNumber(44), NewNumber(45))
 	assert.Equal(expected, listToSimple(cl5))
 	assert.Equal(2*getTestListLen()+4, cl5.Len())
 	assert.True(newList(expected).Equals(cl5))
@@ -322,10 +322,10 @@ func TestListInsertStart(t *testing.T) {
 	assert := assert.New(t)
 
 	cl := getTestList().toList()
-	cl2 := cl.Insert(0, Number(42))
-	cl3 := cl2.Insert(0, Number(43))
+	cl2 := cl.Insert(0, NewNumber(42))
+	cl3 := cl2.Insert(0, NewNumber(43))
 	cl4 := cl3.Insert(0, getTestList()...)
-	cl5 := cl4.Insert(0, Number(44), Number(45))
+	cl5 := cl4.Insert(0, NewNumber(44), NewNumber(45))
 	cl6 := cl5.Insert(0, getTestList()...)
 
 	expected := getTestList()
@@ -333,12 +333,12 @@ func TestListInsertStart(t *testing.T) {
 	assert.Equal(getTestListLen(), cl.Len())
 	assert.True(expected.toList().Equals(cl))
 
-	expected = expected.Insert(0, Number(42))
+	expected = expected.Insert(0, NewNumber(42))
 	assert.Equal(expected, testListFromNomsList(cl2))
 	assert.Equal(getTestListLen()+1, cl2.Len())
 	assert.True(expected.toList().Equals(cl2))
 
-	expected = expected.Insert(0, Number(43))
+	expected = expected.Insert(0, NewNumber(43))
 	assert.Equal(expected, testListFromNomsList(cl3))
 	assert.Equal(getTestListLen()+2, cl3.Len())
 	assert.True(expected.toList().Equals(cl3))
@@ -348,7 +348,7 @@ func TestListInsertStart(t *testing.T) {
 	assert.Equal(2*getTestListLen()+2, cl4.Len())
 	assert.True(expected.toList().Equals(cl4))
 
-	expected = expected.Insert(0, Number(44), Number(45))
+	expected = expected.Insert(0, NewNumber(44), NewNumber(45))
 	assert.Equal(expected, testListFromNomsList(cl5))
 	assert.Equal(2*getTestListLen()+4, cl5.Len())
 	assert.True(expected.toList().Equals(cl5))
@@ -366,24 +366,24 @@ func TestListInsertMiddle(t *testing.T) {
 	assert := assert.New(t)
 
 	cl := getTestList().toList()
-	cl2 := cl.Insert(100, Number(42))
-	cl3 := cl2.Insert(200, Number(43))
+	cl2 := cl.Insert(100, NewNumber(42))
+	cl3 := cl2.Insert(200, NewNumber(43))
 	cl4 := cl3.Insert(300, getTestList()...)
-	cl5 := cl4.Insert(400, Number(44), Number(45))
+	cl5 := cl4.Insert(400, NewNumber(44), NewNumber(45))
 	cl6 := cl5.Insert(500, getTestList()...)
-	cl7 := cl6.Insert(600, Number(100))
+	cl7 := cl6.Insert(600, NewNumber(100))
 
 	expected := getTestList()
 	assert.Equal(expected, testListFromNomsList(cl))
 	assert.Equal(getTestListLen(), cl.Len())
 	assert.True(expected.toList().Equals(cl))
 
-	expected = expected.Insert(100, Number(42))
+	expected = expected.Insert(100, NewNumber(42))
 	assert.Equal(expected, testListFromNomsList(cl2))
 	assert.Equal(getTestListLen()+1, cl2.Len())
 	assert.True(expected.toList().Equals(cl2))
 
-	expected = expected.Insert(200, Number(43))
+	expected = expected.Insert(200, NewNumber(43))
 	assert.Equal(expected, testListFromNomsList(cl3))
 	assert.Equal(getTestListLen()+2, cl3.Len())
 	assert.True(expected.toList().Equals(cl3))
@@ -393,7 +393,7 @@ func TestListInsertMiddle(t *testing.T) {
 	assert.Equal(2*getTestListLen()+2, cl4.Len())
 	assert.True(expected.toList().Equals(cl4))
 
-	expected = expected.Insert(400, Number(44), Number(45))
+	expected = expected.Insert(400, NewNumber(44), NewNumber(45))
 	assert.Equal(expected, testListFromNomsList(cl5))
 	assert.Equal(2*getTestListLen()+4, cl5.Len())
 	assert.True(expected.toList().Equals(cl5))
@@ -403,7 +403,7 @@ func TestListInsertMiddle(t *testing.T) {
 	assert.Equal(3*getTestListLen()+4, cl6.Len())
 	assert.True(expected.toList().Equals(cl6))
 
-	expected = expected.Insert(600, Number(100))
+	expected = expected.Insert(600, NewNumber(100))
 	assert.Equal(expected, testListFromNomsList(cl7))
 	assert.Equal(3*getTestListLen()+5, cl7.Len())
 	assert.True(expected.toList().Equals(cl7))
@@ -518,7 +518,7 @@ func TestListSet(t *testing.T) {
 	cl := testList.toList()
 
 	testIdx := func(idx int, testEquality bool) {
-		newVal := Number(-1) // Test values are never < 0
+		newVal := NewNumber(-1) // Test values are never < 0
 		cl2 := cl.Set(uint64(idx), newVal)
 		assert.False(cl.Equals(cl2))
 		if testEquality {
@@ -544,7 +544,7 @@ func TestListFirstNNumbers(t *testing.T) {
 	firstNNumbers := func(n int) []Value {
 		nums := []Value{}
 		for i := 0; i < n; i++ {
-			nums = append(nums, Number(i))
+			nums = append(nums, NewNumber(i))
 		}
 
 		return nums
@@ -565,7 +565,7 @@ func TestListRefOfStructFirstNNumbers(t *testing.T) {
 	firstNNumbers := func(n int) []Value {
 		nums := []Value{}
 		for i := 0; i < n; i++ {
-			r := vs.WriteValue(NewStruct("num", structData{"n": Number(i)}))
+			r := vs.WriteValue(NewStruct("num", structData{"n": NewNumber(i)}))
 			nums = append(nums, r)
 		}
 

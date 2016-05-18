@@ -7,10 +7,6 @@ type ValueWriter interface {
 	WriteValue(v Value) Ref
 }
 
-type primitive interface {
-	ToPrimitive() interface{}
-}
-
 // EncodeValue takes a Value and encodes it to a Chunk, if |vw| is non-nill, it will vw.WriteValue reachable unwritten sub-chunks.
 func EncodeValue(v Value, vw ValueWriter) chunks.Chunk {
 	e := toEncodeable(v, vw)

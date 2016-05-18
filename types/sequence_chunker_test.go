@@ -21,7 +21,7 @@ func (b modBoundaryChecker) WindowSize() int {
 func listFromInts(ints []int) List {
 	vals := make([]Value, len(ints))
 	for i, v := range ints {
-		vals[i] = Number(v)
+		vals[i] = NewNumber(v)
 	}
 
 	return NewList(vals...)

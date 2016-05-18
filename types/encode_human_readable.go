@@ -55,7 +55,7 @@ func (w *hrsWriter) Write(v Value) {
 	case BoolKind:
 		w.write(strconv.FormatBool(bool(v.(Bool))))
 	case NumberKind:
-		w.write(strconv.FormatFloat(float64(v.(Number)), 'g', -1, 64))
+		w.write(strconv.FormatFloat(float64(v.(Number).ToFloat64()), 'g', -1, 64))
 
 	case StringKind:
 		w.write(strconv.Quote(v.(String).String()))

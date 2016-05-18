@@ -11,7 +11,7 @@ import (
 var (
 	testVals = []Value{
 		Bool(true),
-		Number(1),
+		NewNumber(1),
 		NewString("hi"),
 		NewBlob(bytes.NewReader([]byte("hi"))),
 		// compoundBlob
@@ -103,7 +103,7 @@ func SkipTestIncrementalAddRef(t *testing.T) {
 	cs := chunks.NewTestStore()
 	vs := newLocalValueStore(cs)
 
-	expectedItem := Number(42)
+	expectedItem := NewNumber(42)
 	ref := vs.WriteValue(expectedItem)
 
 	expected := NewList(ref)

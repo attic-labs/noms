@@ -136,7 +136,7 @@ func (w *jsonArrayWriter) writeValue(v Value) {
 	case BoolKind:
 		w.writeBool(bool(v.(Bool)))
 	case NumberKind:
-		w.writeFloat(float64(v.(Number)))
+		w.writeFloat(float64(v.(Number).ToFloat64()))
 	case ListKind:
 		seq := v.(List).sequence()
 		if w.maybeWriteMetaSequence(seq, t) {
