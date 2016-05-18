@@ -203,14 +203,28 @@ function recordToItem(record: DbRecord): ChunkItem {
   return {hash: record.hash, data: new Uint8Array(record.data.buffer)};
 }
 
-function makeTempDir(): Promise<string> {
+async function makeTempDir(): Promise<string> {
+  // NodeJS 6 has fs.mkdtemp but some of our tools are not yet at 6.x
+  let lastErr;
+  for (let i = 0; i < 10; i++) {
+    try {
+      const p = await tryMakeTempDir();  // the await is required to handle rejections.
+      return p;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
+function tryMakeTempDir(): Promise<string> {
   return new Promise((resolve, reject) => {
-    //$FlowIssue
-    fs.mkdtemp('/tmp/put-cache-', (err, folder) => {
+    const path = '/tmp/put-cache-' + (Math.random() * 1e9).toString().slice(-6);
+    fs.mkdir(path, 0o777, err => {
       if (err) {
         reject(err);
       } else {
-        resolve(folder);
+        resolve(path);
       }
     });
   });
