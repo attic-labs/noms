@@ -12,6 +12,7 @@ import {
 } from '@attic/noms';
 import type {
   Struct,
+  valueOrPrimitive,
 } from '@attic/noms';
 
 const args = argv
@@ -83,7 +84,7 @@ async function main(): Promise<void> {
 
   process.stdout.write(clearLine);
   return out.commit(newStruct('', {
-    photosetsMeta: toNoms(photosetsJSON),
+    photosetsMeta: await toNoms(photosetsJSON),
     photosets: await photosets,
   })).then();
 }
@@ -99,8 +100,7 @@ async function getPhotoset(id: string): Promise<Struct> {
       'last_update, geo, tags, machine_tags, o_dims, views, media, path_alias, url_sq, url_t, ' +
       'url_s, url_m, url_o',
   }); 
-  json.photoset.photo = await newList(json.photoset.photo.map(s => toNoms(s, 'PhotoMeta')));
-  return newStruct('', json.photoset);
+  return await toNoms(json.photoset);
 }
 
 function getAuthToken(): Promise<[string, string]> {
@@ -158,13 +158,26 @@ function callFlickr(method: string, params: ?{[key: string]: string}) {
   });
 }
 
-function toNoms(obj: {[key: string]: any}, structName?: string = ''): Struct {
-  const props = Object.assign({}, obj);
-  for (const k of Object.keys(props)) {
-    const v = props[k];
-    if (typeof v === 'object') {
-      props[k] = toNoms(v);
-    }
+async function toNoms(v: any): Promise<valueOrPrimitive> {
+  switch (typeof v) {
+    case 'boolean':
+    case 'number':
+    case 'string':
+      return v;
   }
-  return newStruct(structName, props);
+
+  if (Array.isArray(v)) {
+    return await newList(await Promise.all(v.map(c => toNoms(c))));
+  }
+
+  if (v instanceof Object) {
+    const props = {};
+    await Promise.all(
+      Object.keys(v).map(k => {
+        return toNoms(v[k]).then(c => props[k] = c);
+      }));
+    return newStruct('', props);
+  }
+
+  throw new Error('unexpected type: ' + v);
 }

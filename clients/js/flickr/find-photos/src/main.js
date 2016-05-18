@@ -18,7 +18,7 @@ import type {
 const args = argv
   .usage(
     'Indexes Photo objects out of slurped Flickr metadata\n\n' +
-    'Usage: flickr-idx <in-object> <out-dataset>')
+    'Usage: flickr-find-photos <in-object> <out-dataset>')
   .demand(2)
   .argv;
 
@@ -43,17 +43,16 @@ async function main(): Promise<void> {
 
   // TODO: How to report progress?
   await walk(input, output.store, async v => {
-    if (v instanceof Struct) {
-      if (v.type.desc.name === 'PhotoMeta') {
-        const s = newStruct('Photo', {
-          title: v.title || '',
-          tags: await newSet(v.tags ? v.tags.split(' ') : []),
-          geoposition: getGeo(v),
-          sizes: await getSizes(v),
-        });
-        result = result.then(r => r.insert(s));
-        return false;
-      }
+    // TODO: Use some kind of subtype/instanceof check instead.
+    if (v instanceof Struct && v.url_t) {
+      const s = newStruct('Photo', {
+        title: v.title || '',
+        tags: await newSet(v.tags ? v.tags.split(' ') : []),
+        geoposition: getGeo(v),
+        sizes: await getSizes(v),
+      });
+      result = result.then(r => r.insert(s));
+      return false;
     }
     return true;
   });
@@ -69,7 +68,7 @@ function getGeo(input: Struct): Struct {
   return newStruct('Geoposition', geopos);
 }
 
-async function getSizes(input: Struct): Promise<NomsMap<Struct, string>> {
+function getSizes(input: Struct): Promise<NomsMap<Struct, string>> {
   let res: Promise<NomsMap<Struct, string>> = newMap([]);
 
   // TODO: Really want to do Go-style interface checking here.

@@ -1,6 +1,6 @@
 {
-  "name": "noms-flickr-idx",
-  "description": "Indexes standard photo structs out of slurped flickr data",
+  "name": "noms-flickr-find-photos",
+  "description": "Creates standard photo structs out of slurped flickr data",
   "main": "dist/main.js",
   "dependencies": {
     "@attic/noms": "29.0.0",
