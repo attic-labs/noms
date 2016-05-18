@@ -214,7 +214,7 @@ func (bhcs *httpBatchStore) batchPutRequests() {
 		hints := types.Hints{}
 		hashes := hashSet{}
 		handleRequest := func(wr writeRequest) {
-			if _, present := hashes[wr.hash]; present {
+			if hashes.Has(wr.hash) {
 				bhcs.requestWg.Done() // Already have a put enqueued for wr.hash.
 			} else {
 				hashes.Insert(wr.hash)
