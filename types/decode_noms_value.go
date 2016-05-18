@@ -187,7 +187,7 @@ func (r *jsonArrayReader) readValue() Value {
 	case BoolKind:
 		return Bool(r.read().(bool))
 	case NumberKind:
-		return Number(r.readFloat())
+		return NewNumber(r.readFloat())
 	case StringKind:
 		return NewString(r.readString())
 	case ListKind:

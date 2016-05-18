@@ -9,8 +9,8 @@ import (
 func TestPrimitives(t *testing.T) {
 	data := []Value{
 		Bool(true), Bool(false),
-		Number(0), Number(-1),
-		Number(-0.1), Number(0.1),
+		NewNumber(0), NewNumber(-1),
+		NewNumber(-0.1), NewNumber(0.1),
 	}
 
 	for i := range data {
@@ -30,7 +30,7 @@ func TestPrimitivesType(t *testing.T) {
 		k NomsKind
 	}{
 		{Bool(false), BoolKind},
-		{Number(0), NumberKind},
+		{NewNumber(0), NumberKind},
 	}
 
 	for _, d := range data {

@@ -9,7 +9,7 @@ var generateNumbersAsValues = func(n int) []Value {
 	d.Chk.True(n > 0, "must be an integer greater than zero")
 	nums := []Value{}
 	for i := 0; i < n; i++ {
-		nums = append(nums, Number(i))
+		nums = append(nums, NewNumber(i))
 	}
 	return nums
 }
@@ -18,7 +18,7 @@ var generateNumbersAsStructs = func(n int) []Value {
 	d.Chk.True(n > 0, "must be an integer greater than zero")
 	nums := []Value{}
 	for i := 0; i < n; i++ {
-		nums = append(nums, NewStruct("num", structData{"n": Number(i)}))
+		nums = append(nums, NewStruct("num", structData{"n": NewNumber(i)}))
 	}
 	return nums
 }
@@ -28,7 +28,7 @@ var generateNumbersAsRefOfStructs = func(n int) []Value {
 	vs := NewTestValueStore()
 	nums := []Value{}
 	for i := 0; i < n; i++ {
-		r := vs.WriteValue(NewStruct("num", structData{"n": Number(i)}))
+		r := vs.WriteValue(NewStruct("num", structData{"n": NewNumber(i)}))
 		nums = append(nums, r)
 	}
 	return nums

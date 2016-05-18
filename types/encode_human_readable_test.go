@@ -28,14 +28,14 @@ func TestWriteHumanReadablePrimitiveValues(t *testing.T) {
 	assertWriteHRSEqual(t, "true", Bool(true))
 	assertWriteHRSEqual(t, "false", Bool(false))
 
-	assertWriteHRSEqual(t, "0", Number(0))
-	assertWriteHRSEqual(t, "42", Number(42))
+	assertWriteHRSEqual(t, "0", NewNumber(0))
+	assertWriteHRSEqual(t, "42", NewNumber(42))
 
-	assertWriteHRSEqual(t, "-42", Number(-42))
+	assertWriteHRSEqual(t, "-42", NewNumber(-42))
 
-	assertWriteHRSEqual(t, "3.1415926535", Number(3.1415926535))
-	assertWriteHRSEqual(t, "314159.26535", Number(3.1415926535e5))
-	assertWriteHRSEqual(t, "3.1415926535e+20", Number(3.1415926535e20))
+	assertWriteHRSEqual(t, "3.1415926535", NewNumber(3.1415926535))
+	assertWriteHRSEqual(t, "314159.26535", NewNumber(3.1415926535e5))
+	assertWriteHRSEqual(t, "3.1415926535e+20", NewNumber(3.1415926535e20))
 
 	assertWriteHRSEqual(t, `"abc"`, NewString("abc"))
 	assertWriteHRSEqual(t, `" "`, NewString(" "))
@@ -56,29 +56,29 @@ func TestWriteHumanReadablePrimitiveValues(t *testing.T) {
 func TestWriteHumanReadableRef(t *testing.T) {
 	vs := NewTestValueStore()
 
-	x := Number(42)
+	x := NewNumber(42)
 	rv := vs.WriteValue(x)
 	assertWriteHRSEqual(t, "sha1-bd0b7d4cb11321762f4206f0d6c6fdf820f8556e", rv)
 	assertWriteTaggedHRSEqual(t, "Ref<Number>(sha1-bd0b7d4cb11321762f4206f0d6c6fdf820f8556e)", rv)
 }
 
 func TestWriteHumanReadableCollections(t *testing.T) {
-	l := NewList(Number(0), Number(1), Number(2), Number(3))
+	l := NewList(NewNumber(0), NewNumber(1), NewNumber(2), NewNumber(3))
 	assertWriteHRSEqual(t, "[\n  0,\n  1,\n  2,\n  3,\n]", l)
 	assertWriteTaggedHRSEqual(t, "List<Number>([\n  0,\n  1,\n  2,\n  3,\n])", l)
 
-	s := NewSet(Number(0), Number(1), Number(2), Number(3))
+	s := NewSet(NewNumber(0), NewNumber(1), NewNumber(2), NewNumber(3))
 	assertWriteHRSEqual(t, "{\n  0,\n  1,\n  2,\n  3,\n}", s)
 	assertWriteTaggedHRSEqual(t, "Set<Number>({\n  0,\n  1,\n  2,\n  3,\n})", s)
 
-	m := NewMap(Number(0), Bool(false), Number(1), Bool(true))
+	m := NewMap(NewNumber(0), Bool(false), NewNumber(1), Bool(true))
 	assertWriteHRSEqual(t, "{\n  0: false,\n  1: true,\n}", m)
 	assertWriteTaggedHRSEqual(t, "Map<Number, Bool>({\n  0: false,\n  1: true,\n})", m)
 }
 
 func TestWriteHumanReadableNested(t *testing.T) {
-	l := NewList(Number(0), Number(1))
-	l2 := NewList(Number(2), Number(3))
+	l := NewList(NewNumber(0), NewNumber(1))
+	l2 := NewList(NewNumber(2), NewNumber(3))
 
 	s := NewSet(NewString("a"), NewString("b"))
 	s2 := NewSet(NewString("c"), NewString("d"))
@@ -120,8 +120,8 @@ func TestWriteHumanReadableNested(t *testing.T) {
 
 func TestWriteHumanReadableStruct(t *testing.T) {
 	str := NewStruct("S1", map[string]Value{
-		"x": Number(1),
-		"y": Number(2),
+		"x": NewNumber(1),
+		"y": NewNumber(2),
 	})
 	assertWriteHRSEqual(t, "S1 {\n  x: 1,\n  y: 2,\n}", str)
 	assertWriteTaggedHRSEqual(t, "struct S1 {\n  x: Number\n  y: Number\n}({\n  x: 1,\n  y: 2,\n})", str)
@@ -129,13 +129,13 @@ func TestWriteHumanReadableStruct(t *testing.T) {
 
 func TestWriteHumanReadableListOfStruct(t *testing.T) {
 	str1 := NewStruct("S3", map[string]Value{
-		"x": Number(1),
+		"x": NewNumber(1),
 	})
 	str2 := NewStruct("S3", map[string]Value{
-		"x": Number(2),
+		"x": NewNumber(2),
 	})
 	str3 := NewStruct("S3", map[string]Value{
-		"x": Number(3),
+		"x": NewNumber(3),
 	})
 	l := NewList(str1, str2, str3)
 	assertWriteHRSEqual(t, `[
@@ -218,15 +218,15 @@ func TestWriteHumanReadableTaggedPrimitiveValues(t *testing.T) {
 	assertWriteHRSEqual(t, "true", Bool(true))
 	assertWriteHRSEqual(t, "false", Bool(false))
 
-	assertWriteTaggedHRSEqual(t, "Number(0)", Number(0))
-	assertWriteTaggedHRSEqual(t, "Number(42)", Number(42))
-	assertWriteTaggedHRSEqual(t, "Number(-42)", Number(-42))
+	assertWriteTaggedHRSEqual(t, "Number(0)", NewNumber(0))
+	assertWriteTaggedHRSEqual(t, "Number(42)", NewNumber(42))
+	assertWriteTaggedHRSEqual(t, "Number(-42)", NewNumber(-42))
 
-	assertWriteTaggedHRSEqual(t, "Number(3.1415926535)", Number(3.1415926535))
+	assertWriteTaggedHRSEqual(t, "Number(3.1415926535)", NewNumber(3.1415926535))
 
-	assertWriteTaggedHRSEqual(t, "Number(314159.26535)", Number(3.1415926535e5))
+	assertWriteTaggedHRSEqual(t, "Number(314159.26535)", NewNumber(3.1415926535e5))
 
-	assertWriteTaggedHRSEqual(t, "Number(3.1415926535e+20)", Number(3.1415926535e20))
+	assertWriteTaggedHRSEqual(t, "Number(3.1415926535e+20)", NewNumber(3.1415926535e20))
 
 	assertWriteTaggedHRSEqual(t, `"abc"`, NewString("abc"))
 	assertWriteTaggedHRSEqual(t, `" "`, NewString(" "))
@@ -326,5 +326,5 @@ func TestWriteHumanReadableWriterError(t *testing.T) {
 	assert := assert.New(t)
 	err := errors.New("test")
 	w := &errorWriter{err}
-	assert.Equal(err, WriteEncodedValueWithTags(w, Number(42)))
+	assert.Equal(err, WriteEncodedValueWithTags(w, NewNumber(42)))
 }
