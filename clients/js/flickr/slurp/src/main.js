@@ -6,12 +6,13 @@ import readline from 'readline';
 import {
   Dataset,
   DatasetSpec,
+  invariant,
   newList,
   newSet,
   newStruct,
+  Struct,
 } from '@attic/noms';
 import type {
-  Struct,
   valueOrPrimitive,
 } from '@attic/noms';
 
@@ -99,8 +100,10 @@ async function getPhotoset(id: string): Promise<Struct> {
     extras: 'license, date_upload, date_taken, owner_name, icon_server, original_format, ' +
       'last_update, geo, tags, machine_tags, o_dims, views, media, path_alias, url_sq, url_t, ' +
       'url_s, url_m, url_o',
-  }); 
-  return await toNoms(json.photoset);
+  });
+  const res = await toNoms(json.photoset);
+  invariant(res instanceof Struct);
+  return res;
 }
 
 function getAuthToken(): Promise<[string, string]> {
@@ -166,7 +169,7 @@ async function toNoms(v: any): Promise<valueOrPrimitive> {
       return v;
   }
 
-  if (Array.isArray(v)) {
+  if (v instanceof Array) {
     return await newList(await Promise.all(v.map(c => toNoms(c))));
   }
 
