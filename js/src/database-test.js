@@ -22,7 +22,7 @@ suite('Database', () => {
     const v1 = await ds.readValue(c.ref);
     assert.equal(null, v1);
 
-    bs.schedulePut(c, new Set());
+    bs.schedulePut(c, 1, new Set());
     bs.flush();
 
     const v2 = await ds.readValue(c.ref);
