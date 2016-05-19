@@ -103,12 +103,12 @@ Noms Type | JavaScript Type
 Boolean | boolean
 Number | number
 String | string
-Blob | [noms.Blob](#NomsBlob)
-Set | [noms.Set](#NomsSet)
-List | [noms.List](#NomsList)
-Map | [noms.Map](#NomsMap)
+Blob | [noms.Blob](#Blob)
+Set | [noms.Set](#Set)
+List | [noms.List](#List)
+Map | [noms.Map](#Map)
 Ref | [Ref](#Ref)
-Struct | object or [noms.Struct](#NomsStruct)
+Struct | object or [noms.Struct](#Struct)
 
 For example:
 

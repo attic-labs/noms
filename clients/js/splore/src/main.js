@@ -4,19 +4,19 @@ import Layout from './layout.js';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import {
+  Blob,
   Database,
   HttpBatchStore,
   IndexedMetaSequence,
   invariant,
-  ListLeafSequence,
-  MapLeafSequence,
-  Blob,
   List,
+  ListLeafSequence,
   Map,
-  Set,
+  MapLeafSequence,
   OrderedMetaSequence,
   Ref,
   RefValue,
+  Set,
   SetLeafSequence,
   Struct,
   StructMirror,
