@@ -448,7 +448,7 @@ suite('Decode', () => {
       ], false, [],
       Kind.Number, '1']);
     const commitRef = commitChunk.ref;
-    bs.schedulePut(commitChunk, new Set());
+    bs.schedulePut(commitChunk, 1, new Set());
 
     // Root
     const rootChunk = makeChunk([
@@ -465,7 +465,7 @@ suite('Decode', () => {
       ],
     ]);
     const rootRef = rootChunk.ref;
-    bs.schedulePut(rootChunk, new Set());
+    bs.schedulePut(rootChunk, 2, new Set());
 
     await bs.flush();
     const rootMap = await ds.readValue(rootRef);

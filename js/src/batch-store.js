@@ -92,8 +92,8 @@ export default class BatchStore {
     this._maybeStartRead();
   }
 
-  schedulePut(c: Chunk, hints: Set<Ref>): void {
-    if (!this._pendingWrites.append(c)) {
+  schedulePut(c: Chunk, refHeight: number, hints: Set<Ref>): void {
+    if (!this._pendingWrites.insert(c, refHeight)) {
       return; // Already in flight.
     }
 
@@ -111,18 +111,17 @@ export default class BatchStore {
     const reqs = notNull(this._unsentWrites);
     this._unsentWrites = null;
 
-    const first = reqs[0].hash;
-    let last = first;
     const hints = new Set();
     for (const req of reqs) {
       req.hints.forEach(hint => hints.add(hint));
-      last = req.hash;
     }
+    const gen = this._pendingWrites.gen;
+    this._pendingWrites.gen++;
     // TODO: Deal with backpressure
-    const chunkStream = await this._pendingWrites.extractChunks(first.toString(), last.toString());
+    const chunkStream = await this._pendingWrites.extractChunks(gen);
     await this._delegate.writeBatch(hints, chunkStream);
 
-    return this._pendingWrites.dropUntil(last.toString());
+    return this._pendingWrites.dropGeneration(gen);
   }
 
   async getRoot(): Promise<Ref> {

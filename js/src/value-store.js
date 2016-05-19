@@ -81,12 +81,12 @@ export default class ValueStore {
       return refValue;
     }
     const hints = this._knownRefs.checkChunksInCache(v);
-    this._bs.schedulePut(chunk, hints);
+    this._bs.schedulePut(chunk, refValue.height, hints);
     this._knownRefs.add(ref, new RefCacheEntry(true, t));
     return refValue;
   }
 
-  async flush(): Promise<void> {
+  flush(): Promise<void> {
     return this._bs.flush();
   }
 

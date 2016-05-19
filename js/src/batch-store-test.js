@@ -14,7 +14,7 @@ suite('BatchStore', () => {
     const input = 'abc';
 
     const c = encodeNomsValue(input);
-    bs.schedulePut(c, new Set());
+    bs.schedulePut(c, 1, new Set());
 
     const chunk = await bs.get(c.ref);
     assert.isTrue(c.ref.equals(chunk.ref));
@@ -26,7 +26,7 @@ suite('BatchStore', () => {
     const input = 'abc';
 
     const c = encodeNomsValue(input);
-    bs.schedulePut(c, new Set());
+    bs.schedulePut(c, 1, new Set());
 
     let chunk = await bs.get(c.ref);
     assert.isTrue(c.ref.equals(chunk.ref));

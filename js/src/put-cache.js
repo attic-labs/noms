@@ -8,12 +8,12 @@ import {invariant} from './assert.js';
 
 const __tingodb = tingodb();
 
-const Db = __tingodb.Db;
+const tDb = __tingodb.Db;
 const Binary = __tingodb.Binary;
 
 type ChunkStream = (cb: (chunk: Chunk) => void) => Promise<void>
-type ChunkItem = {hash: string, data: Uint8Array};
-type DbRecord = {hash: string, data: Binary};
+type ChunkItem = {hash: string, refHeight: number, data: Uint8Array, gen: number};
+type DbRecord = {hash: string, refHeight: number, data: Binary, gen: number};
 
 declare class CursorStream {
   pause(): void;
@@ -26,34 +26,37 @@ type ChunkIndex = Map<string, number>;
 
 export default class OrderedPutCache {
   _chunkIndex: ChunkIndex;
-  _folder: string;
+  _db: Promise<Db>;
   _coll: Promise<DbCollection>;
   _appends: Set<Promise<void>>;
+  gen: number;
 
   constructor() {
     this._chunkIndex = new Map();
-    this._folder = '';
-    this._coll = this._init();
+    this._db = makeTempDir().then(folder => new Db(folder));
+    this._coll = this._db
+      .then(db => db.collection('puts'))
+      .then(coll =>
+        coll.ensureIndex({hash: 1}, {unique: true})
+          .then(() => coll.ensureIndex({refHeight: 1}))
+          .then(() => coll.ensureIndex({gen: 1}))
+          .then(() => coll)
+        );
+
     this._appends = new Set();
+    this.gen = 0;
   }
 
-  _init(): Promise<DbCollection> {
-    return makeTempDir().then((dir): Promise<DbCollection> => {
-      this._folder = dir;
-      const coll = new DbCollection(dir);
-      return coll.ensureIndex({hash: 1}, {unique: true}).then(() => coll);
-    });
-  }
-
-  append(c: Chunk): boolean {
+  insert(c: Chunk, refHeight: number): boolean {
     const hash = c.ref.toString();
     if (this._chunkIndex.has(hash)) {
       return false;
     }
     this._chunkIndex.set(hash, -1);
+    const currentGen = this.gen;
     const p = this._coll
-      .then(coll => coll.insert({hash: hash, data: c.data}))
-      .then(itemId => this._chunkIndex.set(hash, itemId))
+      .then(coll => coll.insert({hash: hash, refHeight: refHeight, data: c.data, gen: currentGen}))
+      .then((gen) => this._chunkIndex.set(hash, gen))
       .then(() => { this._appends.delete(p); });
     this._appends.add(p);
     return true;
@@ -75,42 +78,29 @@ export default class OrderedPutCache {
       });
   }
 
-  dropUntil(limit: string): Promise<void> {
-    if (!this._chunkIndex.has(limit)) {
-      return Promise.reject(new Error('Tried to drop unknown chunk: ' + limit));
-    }
+  dropGeneration(gen: number): Promise<void> {
     //$FlowIssue
     return Promise.all(this._appends).then(() => this._coll).then(coll => {
       let count = 0;
-      for (const [hash, dbKey] of this._chunkIndex) {
-        count++;
-        this._chunkIndex.delete(hash);
-        if (hash === limit) {
-          return coll.dropUntil(dbKey).then(dropped => invariant(dropped === count));
+      for (const [hash, chunkGen] of this._chunkIndex) {
+        if (chunkGen === gen) {
+          count++;
+          this._chunkIndex.delete(hash);
         }
       }
+      return coll.dropGeneration(gen).then(dropped => invariant(dropped === count));
     });
   }
 
-  extractChunks(first: string, last: string): Promise<ChunkStream> {
+  extractChunks(gen: number): Promise<ChunkStream> {
     //$FlowIssue
     return Promise.all(this._appends)
       .then(() => this._coll)
-      .then(coll => {
-        const firstDbKey = this._chunkIndex.get(first);
-        const lastDbKey = this._chunkIndex.get(last);
-        if (firstDbKey === undefined) {
-          throw new Error('Tried to range from unknown chunk: ' + first);
-        }
-        if (lastDbKey === undefined) {
-          throw new Error('Tried to range to unknown chunk: ' + last);
-        }
-        return coll.findRange(firstDbKey, lastDbKey);
-      });
+      .then(coll => coll.findGen(gen));
   }
 
   destroy(): Promise<void> {
-    return this._coll.then(() => removeDir(this._folder));
+    return this._db.then(db => db.destroy());
   }
 }
 
@@ -128,12 +118,41 @@ function createChunkStream(stream: CursorStream): ChunkStream {
   };
 }
 
+class Db {
+  _db: tDb;
+  _folder: string;
+
+  constructor(folder: string) {
+    this._folder = folder;
+    this._db = new tDb(folder, {});
+  }
+
+  collection(name: string): Promise<DbCollection> {
+    return new DbCollection(this._db.collection(name));
+  }
+
+  destroy(): Promise<void> {
+    return this._close().then(() => removeDir(this._folder));
+  }
+
+  _close(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this._db.close(err => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+}
+
 class DbCollection {
   _coll: Collection;
 
-  constructor(folder: string) {
-    const db = new Db(folder, {});
-    this._coll = db.collection('puts');
+  constructor(coll: Collection) {
+    this._coll = coll;
   }
 
   ensureIndex(obj: Object, options: Object = {}): Promise<void> {
@@ -152,13 +171,11 @@ class DbCollection {
   insert(item: ChunkItem, options: Object = {}): Promise<number> {
     return new Promise((resolve, reject) => {
       options.w = 1;
-      //$FlowIssue
-      const data = new Binary(new Buffer(item.data.buffer));
-      this._coll.insert({hash: item.hash, data: data}, options, (err, result) => {
+      this._coll.insert(itemToRecord(item), options, err => {
         if (err) {
           reject(err);
         } else {
-          resolve(result[0]._id);
+          resolve(item.gen);
         }
       });
     });
@@ -177,18 +194,19 @@ class DbCollection {
     });
   }
 
-  findRange(first: number, last: number, options: Object = {}): ChunkStream {
+  findGen(gen: number, options: Object = {}): ChunkStream {
     options.w = 1;
-    options.hint = {_id: 1};
-    const stream = this._coll.find({_id: {$gte: first, $lte: last}}, options).stream();
+    options.hint = {gen: 1, refHeight: 1};
+    options.sort = {refHeight: 1};
+    const stream = this._coll.find({gen: gen}, options).stream();
     stream.pause();
     return createChunkStream(stream);
   }
 
-  dropUntil(limit: number, options: Object = {}): Promise<number> {
+  dropGeneration(gen: number, options: Object = {}): Promise<number> {
     return new Promise((resolve, reject) => {
       options.w = 1;
-      this._coll.remove({_id: {$lte: limit}}, options, (err, numRemovedDocs) => {
+      this._coll.remove({gen: gen}, options, (err, numRemovedDocs) => {
         if (err) {
           reject(err);
         } else {
@@ -199,8 +217,23 @@ class DbCollection {
   }
 }
 
-function recordToItem(record: DbRecord): ChunkItem {
-  return {hash: record.hash, data: new Uint8Array(record.data.buffer)};
+function recordToItem(rec: DbRecord): ChunkItem {
+  return {
+    hash: rec.hash,
+    refHeight: rec.refHeight,
+    data: new Uint8Array(rec.data.buffer),
+    gen: rec.gen,
+  };
+}
+
+function itemToRecord(item: ChunkItem): DbRecord {
+  return {
+    hash: item.hash,
+    refHeight: item.refHeight,
+    //$FlowIssue
+    data: new Binary(new Buffer(item.data.buffer)),
+    gen: item.gen,
+  };
 }
 
 function makeTempDir(): Promise<string> {
