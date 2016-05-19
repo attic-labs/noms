@@ -158,7 +158,6 @@ func StructDiff(s1, s2 Struct) (changed []string) {
 		if !v1.Equals(v2) {
 			changed = append(changed, name)
 		}
-		return
 	})
 
 	return
