@@ -10,6 +10,11 @@ import (
 
 type Path []pathPart
 
+type pathPart interface {
+	Resolve(v Value) Value
+	String() string
+}
+
 func NewPath() Path {
 	return Path{}
 }
@@ -22,30 +27,25 @@ func (p Path) AddIndex(idx Value) Path {
 	return append(p, newIndexPart(idx))
 }
 
-func (p Path) Resolve(v Value) (Resolved Value) {
-	Resolved = v
+func (p Path) Resolve(v Value) (resolved Value) {
+	resolved = v
 	for _, part := range p {
-		if Resolved == nil {
+		if resolved == nil {
 			break
 		}
-		Resolved = part.Resolve(Resolved)
+		resolved = part.Resolve(resolved)
 	}
 
 	return
 }
 
 func (p Path) String() string {
-	strs := []string{}
+	strs := make([]string, len(p))
 	for _, part := range p {
 		strs = append(strs, part.String())
 	}
 
 	return strings.Join(strs, "")
-}
-
-type pathPart interface {
-	Resolve(v Value) Value
-	String() string
 }
 
 type fieldPart struct {
