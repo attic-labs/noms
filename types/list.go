@@ -53,10 +53,20 @@ func NewStreamingTypedList(t *Type, vrw ValueReadWriter, values <-chan Value) <-
 	return out
 }
 
-func (l List) Type() *Type {
-	return l.seq.Type()
+// Collection interface
+func (l List) Len() uint64 {
+	return l.seq.numLeaves()
 }
 
+func (l List) Empty() bool {
+	return l.Len() == 0
+}
+
+func (l List) sequence() sequence {
+	return l.seq
+}
+
+// Value interface
 func (l List) Equals(other Value) bool {
 	return other != nil && l.Ref() == other.Ref()
 }
@@ -67,14 +77,6 @@ func (l List) Less(other Value) bool {
 
 func (l List) Ref() ref.Ref {
 	return EnsureRef(l.ref, l)
-}
-
-func (l List) Len() uint64 {
-	return l.seq.numLeaves()
-}
-
-func (l List) Empty() bool {
-	return l.Len() == 0
 }
 
 func (l List) ChildValues() (values []Value) {
@@ -88,8 +90,8 @@ func (l List) Chunks() []Ref {
 	return l.seq.Chunks()
 }
 
-func (l List) sequence() sequence {
-	return l.seq
+func (l List) Type() *Type {
+	return l.seq.Type()
 }
 
 func (l List) Get(idx uint64) Value {

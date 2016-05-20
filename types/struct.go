@@ -29,6 +29,7 @@ func NewStruct(t *Type, data structData) Struct {
 	return newStructFromData(newData, t)
 }
 
+// Value interface
 func (s Struct) Equals(other Value) bool {
 	return other != nil && s.t.Equals(other.Type()) && s.Ref() == other.Ref()
 }
@@ -41,6 +42,16 @@ func (s Struct) Ref() ref.Ref {
 	return EnsureRef(s.ref, s)
 }
 
+func (s Struct) ChildValues() (res []Value) {
+	res = append(res, s.t)
+	for name := range s.desc().Fields {
+		v, ok := s.data[name]
+		d.Chk.True(ok)
+		res = append(res, v)
+	}
+	return
+}
+
 func (s Struct) Chunks() (chunks []Ref) {
 	chunks = append(chunks, s.t.Chunks()...)
 	for name := range s.desc().Fields {
@@ -49,16 +60,6 @@ func (s Struct) Chunks() (chunks []Ref) {
 		chunks = append(chunks, v.Chunks()...)
 	}
 
-	return
-}
-
-func (s Struct) ChildValues() (res []Value) {
-	res = append(res, s.t)
-	for name := range s.desc().Fields {
-		v, ok := s.data[name]
-		d.Chk.True(ok)
-		res = append(res, v)
-	}
 	return
 }
 

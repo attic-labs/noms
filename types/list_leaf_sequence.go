@@ -13,6 +13,11 @@ func newListLeafSequence(t *Type, vr ValueReader, v ...Value) indexedSequence {
 	return listLeafSequence{v, t, vr}
 }
 
+func (ll listLeafSequence) getOffset(idx int) uint64 {
+	return uint64(idx)
+}
+
+// sequence interface
 func (ll listLeafSequence) getItem(idx int) sequenceItem {
 	return ll.values[idx]
 }
@@ -25,8 +30,8 @@ func (ll listLeafSequence) numLeaves() uint64 {
 	return uint64(len(ll.values))
 }
 
-func (ll listLeafSequence) getOffset(idx int) uint64 {
-	return uint64(idx)
+func (ll listLeafSequence) valueReader() ValueReader {
+	return ll.vr
 }
 
 func (ll listLeafSequence) Chunks() (chunks []Ref) {
@@ -38,8 +43,4 @@ func (ll listLeafSequence) Chunks() (chunks []Ref) {
 
 func (ll listLeafSequence) Type() *Type {
 	return ll.t
-}
-
-func (ll listLeafSequence) valueReader() ValueReader {
-	return ll.vr
 }
