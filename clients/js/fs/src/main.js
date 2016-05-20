@@ -10,15 +10,12 @@ import {
   createStructClass,
   DatasetSpec,
   Database,
-  makeMapType,
   makeRefType,
   makeStructType,
-  newMap,
+  makeUnionType,
+  Map,
   Blob,
   RefValue,
-  stringType,
-  valueType,
-  Value,
 } from '@attic/noms';
 
 const clearLine = '\x1b[2K\r';
@@ -31,18 +28,15 @@ const args = argv
   .demand(1)
   .argv;
 
-// TODO(aa): Change to Map<string, File|Directory> once we have unions.
-const entriesType = makeMapType(stringType, valueType);
-const File = createStructClass(makeStructType('File', {
+const fileType = makeStructType('File', {
   content: makeRefType(blobType),
-}));
-const Directory = createStructClass(makeStructType('Directory', {
-  entries: makeRefType(entriesType),
-}));
+});
+const directoryType = makeStructType('Directory', {
+  entries: makeRefType(makeUnionType([fileType, directoryType])),
+});
 
-async function newDirectoryEntryMap(values) {
-  return newMap(values, entriesType);
-}
+const File = createStructClass(fileType);
+const Directory = createStructClass(directoryType);
 
 let numFilesFound = 0;
 let numFilesComplete = 0;
@@ -78,7 +72,7 @@ async function main(): Promise<void> {
 
 }
 
-async function processPath(p: string, store: Database): Promise<?Value> {
+async function processPath(p: string, store: Database): Promise<null|Directory|File> {
   numFilesFound++;
   const st = await fs.stat(p);
   sizeFilesFound += st.size;
@@ -108,7 +102,7 @@ async function processDirectory(p: string, store: Database): Promise<Directory> 
   const entries = resolved
     .filter(([, dirEntry]) => dirEntry)
     .reduce((l, t) => { l.push(...t); return l; }, []);
-  const fm = await newDirectoryEntryMap(entries);
+  const fm = new Map(entries);
   return new Directory({
     entries: store.writeValue(fm),
   });
@@ -122,7 +116,6 @@ async function processFile(p: string, store: Database): Promise<File> {
   updateProgress();
   return f;
 }
-
 
 function processBlob(p: string, store: Database): Promise<RefValue<Blob>> {
   const w = new BlobWriter();
