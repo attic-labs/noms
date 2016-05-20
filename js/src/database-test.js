@@ -4,7 +4,7 @@ import {suite, test} from 'mocha';
 import {makeTestingBatchStore} from './batch-store-adaptor.js';
 import {emptyRef} from './ref.js';
 import {assert} from 'chai';
-import {default as Database, newCommit} from './database.js';
+import Database, {newCommit} from './database.js';
 import {invariant, notNull} from './assert.js';
 import {newList} from './list.js';
 import {newMap} from './map.js';
@@ -155,7 +155,7 @@ suite('Database', () => {
     const commit = await newCommit('foo', []);
 
     const commitRef = ds.writeValue(commit);
-    const datasets = await newMap(['foo', commitRef]);
+    const datasets = await newMap([['foo', commitRef]]);
     const rootRef = ds.writeValue(datasets).targetRef;
     assert.isTrue(await bs.updateRoot(rootRef, emptyRef));
     ds = new Database(bs); // refresh the datasets

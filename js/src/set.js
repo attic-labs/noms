@@ -28,7 +28,7 @@ const setPattern = ((1 << 6) | 0) - 1;
 
 function newSetLeafChunkFn<T:valueOrPrimitive>(vr: ?ValueReader): makeChunkFn {
   return (items: Array<T>) => {
-    const setLeaf = new SetLeafSequence(vr, items);
+    const setLeaf = newSetLeafSequence(vr, items);
 
     let indexValue: ?(T | RefValue) = null;
     if (items.length > 0) {
@@ -38,7 +38,7 @@ function newSetLeafChunkFn<T:valueOrPrimitive>(vr: ?ValueReader): makeChunkFn {
       }
     }
 
-    const ns = new NomsSet(setLeaf);
+    const ns = new Set(setLeaf);
     const mt = new MetaTuple(new RefValue(ns), indexValue, items.length, ns);
     return [mt, ns];
   };
@@ -57,14 +57,14 @@ function buildSetData<T>(values: Array<any>): Array<T> {
 }
 
 export function newSet<T:valueOrPrimitive>(values: Array<T>):
-    Promise<NomsSet<T>> {
+    Promise<Set<T>> {
   return chunkSequence(null, buildSetData(values), 0, newSetLeafChunkFn(null),
                        newOrderedMetaSequenceChunkFn(Kind.Set, null),
                        newSetLeafBoundaryChecker(),
                        newOrderedMetaSequenceBoundaryChecker);
 }
 
-export class NomsSet<T: valueOrPrimitive> extends Collection<OrderedSequence> {
+export default class Set<T: valueOrPrimitive> extends Collection<OrderedSequence> {
   async has(key: T): Promise<boolean> {
     const cursor = await this.sequence.newCursorAt(key);
     return cursor.valid && equals(cursor.getCurrentKey(), key);
@@ -100,7 +100,7 @@ export class NomsSet<T: valueOrPrimitive> extends Collection<OrderedSequence> {
   }
 
   _splice(cursor: OrderedSequenceCursor, insert: Array<T>, remove: number):
-      Promise<NomsSet<T>> {
+      Promise<Set<T>> {
     const vr = this.sequence.vr;
     return chunkSequence(cursor, insert, remove, newSetLeafChunkFn(vr),
                          newOrderedMetaSequenceChunkFn(Kind.Set, vr),
@@ -108,7 +108,7 @@ export class NomsSet<T: valueOrPrimitive> extends Collection<OrderedSequence> {
                          newOrderedMetaSequenceBoundaryChecker);
   }
 
-  async insert(value: T): Promise<NomsSet<T>> {
+  async insert(value: T): Promise<Set<T>> {
     const cursor = await this.sequence.newCursorAt(value, true);
     if (cursor.valid && equals(cursor.getCurrentKey(), value)) {
       return this;
@@ -117,7 +117,7 @@ export class NomsSet<T: valueOrPrimitive> extends Collection<OrderedSequence> {
     return this._splice(cursor, [value], 0);
   }
 
-  async remove(value: T): Promise<NomsSet<T>> {
+  async remove(value: T): Promise<Set<T>> {
     const cursor = await this.sequence.newCursorAt(value);
     if (cursor.valid && equals(cursor.getCurrentKey(), value)) {
       return this._splice(cursor, [], 1);
@@ -126,7 +126,7 @@ export class NomsSet<T: valueOrPrimitive> extends Collection<OrderedSequence> {
     return this;
   }
 
-  // TODO: Find some way to return a NomsSet.
+  // TODO: Find some way to return a Set.
   async map<S>(cb: (v: T) => (Promise<S> | S)): Promise<Array<S>> {
     const cursor = await this.sequence.newCursorAt(null);
     const values = [];
@@ -142,7 +142,7 @@ export class NomsSet<T: valueOrPrimitive> extends Collection<OrderedSequence> {
     return this.sequence.numLeaves;
   }
 
-  async intersect(...sets: Array<NomsSet<T>>): Promise<NomsSet<T>> {
+  async intersect(...sets: Array<Set<T>>): Promise<Set<T>> {
     if (sets.length === 0) {
       return this;
     }
@@ -176,13 +176,13 @@ export class NomsSet<T: valueOrPrimitive> extends Collection<OrderedSequence> {
     }
 
     // TODO: Chunk the resulting set.
-    return new NomsSet(new SetLeafSequence(null, values));
+    return new Set(newSetLeafSequence(null, values));
   }
 
   /**
    * Returns a 2-tuple [added, removed] sorted values.
    */
-  diff(from: NomsSet<T>): Promise<[Array<T> /* added */, Array<T> /* removed */]> {
+  diff(from: Set<T>): Promise<[Array<T> /* added */, Array<T> /* removed */]> {
     return diff(from.sequence, this.sequence).then(([added, removed, modified]) => {
       invariant(modified.length === 0);
       return [added, removed];
@@ -191,11 +191,6 @@ export class NomsSet<T: valueOrPrimitive> extends Collection<OrderedSequence> {
 }
 
 export class SetLeafSequence<K: valueOrPrimitive> extends OrderedSequence<K, K> {
-  constructor(vr: ?ValueReader, items: K[]) {
-    const t = makeSetType(makeUnionType(items.map(getTypeOfValue)));
-    super(vr, t, items);
-  }
-
   getKey(idx: number): K {
     return this.items[idx];
   }
@@ -207,6 +202,11 @@ export class SetLeafSequence<K: valueOrPrimitive> extends OrderedSequence<K, K> 
   get chunks(): Array<RefValue> {
     return getValueChunks(this.items);
   }
+}
+
+export function newSetLeafSequence<K: valueOrPrimitive>(vr: ?ValueReader, items: K[]) {
+  const t = makeSetType(makeUnionType(items.map(getTypeOfValue)));
+  return new SetLeafSequence(vr, t, items);
 }
 
 type OrderedCursor<K: valueOrPrimitive> = {

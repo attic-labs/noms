@@ -18,12 +18,24 @@ func newStructFromData(data structData, t *Type) Struct {
 	return Struct{data, t, &ref.Ref{}}
 }
 
-func NewStruct(t *Type, data structData) Struct {
-	newData := make(structData)
+func NewStruct(name string, data structData) Struct {
+	fields := make(TypeMap, len(data))
+	newData := make(structData, len(data))
+	for k, v := range data {
+		fields[k] = v.Type()
+		newData[k] = v
+	}
+	t := MakeStructType(name, fields)
+	return newStructFromData(newData, t)
+}
+
+func NewStructWithType(t *Type, data structData) Struct {
+	newData := make(structData, len(data))
 	desc := t.Desc.(StructDesc)
-	for name := range desc.Fields {
+	for name, t := range desc.Fields {
 		v, ok := data[name]
 		d.Chk.True(ok, "Missing required field %s", name)
+		assertSubtype(t, v)
 		newData[name] = v
 	}
 	return newStructFromData(newData, t)
@@ -91,7 +103,7 @@ func (s Struct) Get(n string) Value {
 func (s Struct) Set(n string, v Value) Struct {
 	t, ok := s.findField(n)
 	d.Chk.True(ok, "Struct has no field %s", n)
-	assertType(t, v)
+	assertSubtype(t, v)
 	data := make(structData, len(s.data))
 	for k, v := range s.data {
 		data[k] = v
@@ -135,4 +147,19 @@ func structReader(s Struct, t *Type) []Value {
 	})
 
 	return values
+}
+
+// s1 & s2 must be of the same type. Returns the set of field names which have different values in the respective structs
+func StructDiff(s1, s2 Struct) (changed []string) {
+	d.Chk.True(s1.Type().Equals(s2.Type()))
+
+	s1.desc().IterFields(func(name string, t *Type) {
+		v1 := s1.data[name]
+		v2 := s2.data[name]
+		if !v1.Equals(v2) {
+			changed = append(changed, name)
+		}
+	})
+
+	return
 }

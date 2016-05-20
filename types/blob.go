@@ -137,7 +137,7 @@ func newBlobLeafBoundaryChecker() boundaryChecker {
 }
 
 func newBlobLeafChunkFn(vr ValueReader) makeChunkFn {
-	return func(items []sequenceItem) (sequenceItem, Value) {
+	return func(items []sequenceItem) (metaTuple, Collection) {
 		buff := make([]byte, len(items))
 
 		for i, v := range items {
@@ -150,7 +150,7 @@ func newBlobLeafChunkFn(vr ValueReader) makeChunkFn {
 }
 
 func NewBlob(r io.Reader) Blob {
-	seq := newEmptySequenceChunker(newBlobLeafChunkFn(nil), newIndexedMetaSequenceChunkFn(BlobType, nil, nil), newBlobLeafBoundaryChecker(), newIndexedMetaSequenceBoundaryChecker)
+	seq := newEmptySequenceChunker(newBlobLeafChunkFn(nil), newIndexedMetaSequenceChunkFn(BlobKind, nil, nil), newBlobLeafBoundaryChecker(), newIndexedMetaSequenceBoundaryChecker)
 	buf := []byte{0}
 	for {
 		n, err := r.Read(buf)
