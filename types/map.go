@@ -185,9 +185,9 @@ func (m Map) elemTypes() []*Type {
 	return m.Type().Desc.(CompoundDesc).ElemTypes
 }
 
-func buildMapData(values []Value) (uniqueSorted mapEntrySlice) {
+func buildMapData(values []Value) mapEntrySlice {
 	if len(values) == 0 {
-		return
+		return mapEntrySlice{}
 	}
 
 	// Sadly, d.Chk.Equals() costs too much. BUG #83
@@ -199,6 +199,7 @@ func buildMapData(values []Value) (uniqueSorted mapEntrySlice) {
 		kvs[i/2] = entry
 	}
 
+	uniqueSorted := make(mapEntrySlice, 0, len(kvs))
 	sort.Stable(kvs)
 	last := kvs[0]
 	for i := 1; i < len(kvs); i++ {
@@ -209,8 +210,8 @@ func buildMapData(values []Value) (uniqueSorted mapEntrySlice) {
 
 		last = kv
 	}
-	uniqueSorted = append(uniqueSorted, last)
-	return
+
+	return append(uniqueSorted, last)
 }
 
 func newMapLeafBoundaryChecker() boundaryChecker {

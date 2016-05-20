@@ -170,11 +170,12 @@ func (s Set) elemType() *Type {
 	return s.Type().Desc.(CompoundDesc).ElemTypes[0]
 }
 
-func buildSetData(values ValueSlice) (uniqueSorted ValueSlice) {
+func buildSetData(values ValueSlice) ValueSlice {
 	if len(values) == 0 {
-		return values
+		return ValueSlice{}
 	}
 
+	uniqueSorted := make(ValueSlice, 0, len(values))
 	sort.Stable(values)
 	last := values[0]
 	for i := 1; i < len(values); i++ {
@@ -185,8 +186,7 @@ func buildSetData(values ValueSlice) (uniqueSorted ValueSlice) {
 		last = v
 	}
 
-	uniqueSorted = append(uniqueSorted, last)
-	return
+	return append(uniqueSorted, last)
 }
 
 func newSetLeafBoundaryChecker() boundaryChecker {
