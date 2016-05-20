@@ -2,7 +2,7 @@
 
 import {AsyncIterator} from './async-iterator.js';
 import type {AsyncIteratorResult} from './async-iterator.js';
-import type {Value} from './value.js'; // eslint-disable-line no-unused-vars
+import type Value from './value.js'; // eslint-disable-line no-unused-vars
 import {invariant, notNull} from './assert.js';
 import {compare} from './compare.js';
 import Sequence, {search, SequenceCursor} from './sequence.js';

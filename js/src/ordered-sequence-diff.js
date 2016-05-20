@@ -4,7 +4,7 @@ import {invariant} from './assert.js';
 import {equals, less} from './compare.js';
 import {OrderedSequence, OrderedSequenceCursor} from './ordered-sequence.js';
 import {SequenceCursor} from './sequence.js';
-import type {Value} from './value.js'; // eslint-disable-line no-unused-vars
+import type Value from './value.js'; // eslint-disable-line no-unused-vars
 
 // TODO: Expose an iteration API.
 

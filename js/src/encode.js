@@ -17,7 +17,7 @@ import {setEncodeNomsValue} from './get-ref.js';
 import Blob, {BlobLeafSequence} from './blob.js';
 import {describeTypeOfValue} from './encode-human-readable.js';
 import type {primitive} from './primitives.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 import type {ValueWriter} from './value-store.js';
 
 const typedTag = 't ';

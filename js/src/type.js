@@ -6,7 +6,7 @@ import type {NomsKind} from './noms-kind.js';
 import {invariant} from './assert.js';
 import {isPrimitiveKind, Kind} from './noms-kind.js';
 import {ValueBase} from './value.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 import {compare, equals} from './compare.js';
 
 export interface TypeDesc {

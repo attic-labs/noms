@@ -4,7 +4,7 @@ import Chunk from './chunk.js';
 import Ref, {emptyRef} from './ref.js';
 import RefValue from './ref-value.js';
 import type BatchStore from './batch-store.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 import {
   getTypeOfValue,
   Type,

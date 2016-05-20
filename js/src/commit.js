@@ -3,7 +3,7 @@
 import {invariant} from './assert.js';
 import {getDatasTypes} from './database.js';
 import Struct from './struct.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 import type RefValue from './ref-value.js';
 import Set from './set.js';
 

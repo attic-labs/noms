@@ -8,7 +8,7 @@ import RefValue from './ref-value.js';
 import Struct, {StructMirror} from './struct.js';
 
 import type Database from './database.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 
 type walkCb = (v: Value) => ?bool | Promise<?bool>;
 

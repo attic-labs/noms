@@ -1,5 +1,5 @@
 // @flow
-import type {Value} from './value.js';
+import type Value from './value.js';
 import {Kind} from './noms-kind.js';
 import List from './list.js';
 import Map from './map.js';

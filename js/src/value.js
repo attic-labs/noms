@@ -26,7 +26,8 @@ export class ValueBase {
   }
 }
 
-export type Value = primitive | ValueBase;
+type Value = primitive | ValueBase;
+export type {Value as default};
 
 export function getChunksOfValue(v: Value): Array<RefValue> {
   if (v instanceof ValueBase) {

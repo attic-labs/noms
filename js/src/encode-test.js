@@ -29,7 +29,7 @@ import {newMapFromSequence, newMapLeafSequence} from './map.js';
 import {newSetFromSequence, newSetLeafSequence} from './set.js';
 import Blob from './blob.js';
 import Database from './database.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 
 suite('Encode', () => {
   let db;

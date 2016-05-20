@@ -19,7 +19,7 @@ import walk from './walk.js';
 import {suite, suiteSetup, suiteTeardown, test} from 'mocha';
 import {assert} from 'chai';
 
-import type {Value} from './value.js';
+import type Value from './value.js';
 
 suite('walk', () => {
   let ds;

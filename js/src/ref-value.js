@@ -6,7 +6,7 @@ import {getRefOfValue} from './get-ref.js';
 import {Kind} from './noms-kind.js';
 import type Ref from './ref.js';
 import type {Type} from './type.js';
-import type {Value} from './value.js'; // eslint-disable-line no-unused-vars
+import type Value from './value.js'; // eslint-disable-line no-unused-vars
 import {invariant} from './assert.js';
 import {getTypeOfValue, makeRefType} from './type.js';
 import {ValueBase, getChunksOfValue} from './value.js';

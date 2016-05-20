@@ -1,6 +1,6 @@
 // @flow
 
-import type {Value} from './value.js';
+import type Value from './value.js';
 
 // All Noms values are ordered. The ordering is booleans, numbers, strings and then Values.
 // All Value objects are ordered by their hash.

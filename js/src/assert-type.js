@@ -5,7 +5,7 @@ import {CompoundDesc, getTypeOfValue} from './type.js';
 import type {Type} from './type.js';
 import {invariant} from './assert.js';
 import {equals} from './compare.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 
 /**
  * Ensures that the Noms value is a subtype of the Noms type. Throws a `TypeError` if not.

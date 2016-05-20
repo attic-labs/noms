@@ -5,7 +5,7 @@ import {suite, test} from 'mocha';
 import {equals} from './compare.js';
 
 import Path from './path.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 import List from './list.js';
 import Map from './map.js';
 import {newStruct} from './struct.js';

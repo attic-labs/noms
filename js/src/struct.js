@@ -3,7 +3,7 @@
 import assertSubtype from './assert-type.js';
 import type RefValue from './ref-value.js';
 import type {Type, StructDesc} from './type.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 import {Kind} from './noms-kind.js';
 import {ValueBase} from './value.js';
 import {equals} from './compare.js';

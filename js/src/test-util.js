@@ -2,7 +2,7 @@
 
 import Database from './database.js';
 import type {Collection} from './collection.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 import {assert} from 'chai';
 import {notNull} from './assert.js';
 import {AsyncIterator} from './async-iterator.js';

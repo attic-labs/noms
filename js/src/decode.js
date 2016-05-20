@@ -27,7 +27,7 @@ import {ListLeafSequence, newListFromSequence} from './list.js';
 import {MapLeafSequence, newMapFromSequence} from './map.js';
 import {SetLeafSequence, newSetFromSequence} from './set.js';
 import {IndexedMetaSequence, OrderedMetaSequence} from './meta-sequence.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 import type {ValueReader} from './value-store.js';
 
 const typedTag = 't ';

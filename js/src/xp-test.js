@@ -2,7 +2,7 @@
 
 import {assert} from 'chai';
 import {suite, test} from 'mocha';
-import type {Value} from './value.js';
+import type Value from './value.js';
 import Database from './database.js';
 import {makeTestingBatchStore} from './batch-store-adaptor.js';
 

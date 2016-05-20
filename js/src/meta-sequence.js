@@ -4,7 +4,7 @@ import BuzHashBoundaryChecker from './buzhash-boundary-checker.js';
 import {sha1Size} from './ref.js';
 import type {BoundaryChecker, makeChunkFn} from './sequence-chunker.js';
 import type {ValueReader} from './value-store.js';
-import type {Value} from './value.js'; // eslint-disable-line no-unused-vars
+import type Value from './value.js'; // eslint-disable-line no-unused-vars
 import type {Collection} from './collection.js';
 import type {Type} from './type.js';
 import {makeListType, makeUnionType, blobType, makeSetType, makeMapType} from './type.js';

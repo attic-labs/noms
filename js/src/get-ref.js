@@ -4,7 +4,7 @@ import type Chunk from './chunk.js';
 import type Ref from './ref.js';
 import type {ValueWriter} from './value-store.js';
 import {notNull} from './assert.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 import {getTypeOfValue} from './type.js';
 import {ValueBase} from './value.js';
 

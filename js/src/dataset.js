@@ -1,7 +1,7 @@
 // @flow
 
 import Commit from './commit.js';
-import type {Value} from './value.js';
+import type Value from './value.js';
 import type Database from './database.js';
 import RefValue from './ref-value.js';
 import Set from './set.js';
