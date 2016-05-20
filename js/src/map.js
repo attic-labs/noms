@@ -17,7 +17,7 @@ import {MetaTuple, newOrderedMetaSequenceBoundaryChecker, newOrderedMetaSequence
 import {OrderedSequence, OrderedSequenceCursor, OrderedSequenceIterator,} from
   './ordered-sequence.js';
 import diff from './ordered-sequence-diff.js';
-import {Value} from './value.js';
+import {ValueBase} from './value.js';
 import {Kind} from './noms-kind.js';
 
 export type MapEntry<K: valueOrPrimitive, V: valueOrPrimitive> = [K, V];
@@ -34,7 +34,7 @@ function newMapLeafChunkFn<K: valueOrPrimitive, V: valueOrPrimitive>(vr: ?ValueR
     let indexValue: ?valueOrPrimitive = null;
     if (items.length > 0) {
       indexValue = items[items.length - 1][KEY];
-      if (indexValue instanceof Value) {
+      if (indexValue instanceof ValueBase) {
         indexValue = new RefValue(indexValue);
       }
     }
@@ -207,10 +207,10 @@ export class MapLeafSequence<K: valueOrPrimitive, V: valueOrPrimitive> extends
   get chunks(): Array<RefValue> {
     const chunks = [];
     for (const entry of this.items) {
-      if (entry[KEY] instanceof Value) {
+      if (entry[KEY] instanceof ValueBase) {
         chunks.push(...entry[KEY].chunks);
       }
-      if (entry[VALUE] instanceof Value) {
+      if (entry[VALUE] instanceof ValueBase) {
         chunks.push(...entry[VALUE].chunks);
       }
     }

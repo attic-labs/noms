@@ -6,7 +6,7 @@ import {makeTestingBatchStore} from './batch-store-adaptor.js';
 import type RefValue from './ref-value.js';
 import Struct, {StructMirror} from './struct.js';
 import type {TypeDesc} from './type.js';
-import type {Value} from './value.js';
+import type {valueOrPrimitive} from './value.js';
 import {assert} from 'chai';
 import {decodeNomsValue, JsonArrayReader} from './decode.js';
 import {
@@ -124,7 +124,7 @@ suite('Decode', () => {
     const a = [Kind.List, Kind.Union, 3, Kind.Bool, Kind.Number, Kind.String, false,
       [Kind.Number, '1', Kind.String, 'hi', Kind.Bool, true]];
     const r = new JsonArrayReader(a, db);
-    const v: List<Value> = r.readValue();
+    const v: List<valueOrPrimitive> = r.readValue();
     invariant(v instanceof List);
 
     const tr = makeListType(makeUnionType([boolType, numberType, stringType]));
@@ -225,7 +225,7 @@ suite('Decode', () => {
       ],
     ];
     const r = new JsonArrayReader(a, db);
-    const v: Map<RefValue<Value>, number> = r.readValue();
+    const v: Map<RefValue<valueOrPrimitive>, number> = r.readValue();
     invariant(v instanceof Map);
 
     const m = new Map([[rv1, 2], [rv2, 4]]);

@@ -5,7 +5,7 @@ import type RefValue from './ref-value.js';
 import type {Type, StructDesc} from './type.js';
 import type {valueOrPrimitive} from './value.js';
 import {Kind} from './noms-kind.js';
-import {Value} from './value.js';
+import {ValueBase} from './value.js';
 import {equals} from './compare.js';
 import {getTypeOfValue, makeStructType} from './type.js';
 import {invariant} from './assert.js';
@@ -34,7 +34,7 @@ type StructData = {[key: string]: valueOrPrimitive};
  *
  * To reflect over structs you can create a new StructMirror.
  */
-export default class Struct extends Value {
+export default class Struct extends ValueBase {
   _data: StructData;
   _type: Type;
 
@@ -58,7 +58,7 @@ export default class Struct extends Value {
     const add = field => {
       const {value} = field;
       if (!isPrimitive(value)) {
-        invariant(value instanceof Value);
+        invariant(value instanceof ValueBase);
         chunks.push(...value.chunks);
       }
     };

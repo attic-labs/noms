@@ -5,7 +5,7 @@ import RefValue from './ref-value.js';
 import type {ValueReader} from './value-store.js';
 import type {BoundaryChecker, makeChunkFn} from './sequence-chunker.js';
 import type {valueOrPrimitive} from './value.js'; // eslint-disable-line no-unused-vars
-import {Value} from './value.js';
+import {ValueBase} from './value.js';
 import {AsyncIterator} from './async-iterator.js';
 import {chunkSequence, chunkSequenceSync} from './sequence-chunker.js';
 import {Collection} from './collection.js';
@@ -31,7 +31,7 @@ function newSetLeafChunkFn<T:valueOrPrimitive>(vr: ?ValueReader): makeChunkFn {
     let indexValue: ?(T | RefValue) = null;
     if (items.length > 0) {
       indexValue = items[items.length - 1];
-      if (indexValue instanceof Value) {
+      if (indexValue instanceof ValueBase) {
         indexValue = new RefValue(indexValue);
       }
     }

@@ -6,7 +6,7 @@ import type {valueOrPrimitive} from './value.js'; // eslint-disable-line no-unus
 import {invariant, notNull} from './assert.js';
 import {compare} from './compare.js';
 import Sequence, {search, SequenceCursor} from './sequence.js';
-import {Value} from './value.js';
+import {ValueBase} from './value.js';
 
 export class OrderedSequence<K: valueOrPrimitive, T> extends Sequence<T> {
   // Returns:
@@ -124,10 +124,10 @@ export class OrderedSequenceIterator<T, K: valueOrPrimitive> extends AsyncIterat
 function getSearchFunction(sequence: OrderedSequence, key: valueOrPrimitive):
     (i: number) => number {
   if (sequence.isMeta) {
-    const keyRef = key instanceof Value ? key.ref : null;
+    const keyRef = key instanceof ValueBase ? key.ref : null;
     return i => {
       const sk = sequence.getKey(i);
-      if (sk instanceof Value) {
+      if (sk instanceof ValueBase) {
         if (keyRef) {
           return sk.targetRef.compare(keyRef);
         }

@@ -11,7 +11,7 @@ import {
   valueType,
 } from './type.js';
 import {Kind} from './noms-kind.js';
-import {Value} from './value.js';
+import {ValueBase} from './value.js';
 import {decodeNomsValue} from './decode.js';
 import {invariant, notNull} from './assert.js';
 import {encodeNomsValue} from './encode.js';
@@ -214,7 +214,7 @@ class RefCache {
   }
 
   cacheChunks(v: valueOrPrimitive, ref: Ref) {
-    if (v instanceof Value) {
+    if (v instanceof ValueBase) {
       v.chunks.forEach(reachable => {
         const hash = reachable.targetRef;
         const cur = this.get(hash);
@@ -227,7 +227,7 @@ class RefCache {
 
   checkChunksInCache(v: valueOrPrimitive): Set<Ref> {
     const hints = new Set();
-    if (v instanceof Value) {
+    if (v instanceof ValueBase) {
       const chunks = v.chunks;
       for (let i = 0; i < chunks.length; i++) {
         const reachable = chunks[i];

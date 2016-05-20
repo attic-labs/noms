@@ -6,7 +6,7 @@ import {ensureRef} from './get-ref.js';
 import type {Type} from './type.js';
 import type RefValue from './ref-value.js';
 
-export class Value {
+export class ValueBase {
   _ref: ?Ref;
 
   constructor() {
@@ -26,10 +26,10 @@ export class Value {
   }
 }
 
-export type valueOrPrimitive = primitive | Value;
+export type valueOrPrimitive = primitive | ValueBase;
 
 export function getChunksOfValue(v: valueOrPrimitive): Array<RefValue> {
-  if (v instanceof Value) {
+  if (v instanceof ValueBase) {
     return v.chunks;
   }
 

@@ -6,13 +6,13 @@ import type {ValueWriter} from './value-store.js';
 import {notNull} from './assert.js';
 import type {valueOrPrimitive} from './value.js';
 import {getTypeOfValue} from './type.js';
-import {Value} from './value.js';
+import {ValueBase} from './value.js';
 
 type encodeFn = (v: valueOrPrimitive, vw: ?ValueWriter) => Chunk;
 let encodeNomsValue: ?encodeFn = null;
 
 export function getRefOfValue(v: valueOrPrimitive): Ref {
-  if (v instanceof Value) {
+  if (v instanceof ValueBase) {
     return v.ref;
   }
 

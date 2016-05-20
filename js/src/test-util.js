@@ -6,7 +6,7 @@ import type {valueOrPrimitive} from './value.js';
 import {assert} from 'chai';
 import {notNull} from './assert.js';
 import {AsyncIterator} from './async-iterator.js';
-import {getChunksOfValue, Value} from './value.js';
+import {getChunksOfValue, ValueBase} from './value.js';
 import {getRefOfValue} from './get-ref.js';
 import {getTypeOfValue, Type} from './type.js';
 import {makeTestingBatchStore} from './batch-store-adaptor.js';
@@ -53,7 +53,7 @@ export async function testRoundTripAndValidate<T: valueOrPrimitive>(v: T,
   const ds2 = new Database(bs);
 
   const v2 = await ds2.readValue(r1);
-  if (v instanceof Value) {
+  if (v instanceof ValueBase) {
     assert.isTrue(equals(v, v2));
     assert.isTrue(equals(v2, v));
   } else {
