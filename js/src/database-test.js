@@ -55,7 +55,7 @@ suite('Database', () => {
     ds = ds2;
 
     // |a| <- |b|
-    const bCommit = new Commit('b', [aRef]);
+    const bCommit = new Commit('b', new NomsSet([aRef]));
     ds = await ds.commit(datasetID, bCommit);
     const bRef = notNull(await ds.headRef(datasetID));
     assert.isTrue(bCommit.ref.equals(bRef.targetRef));
@@ -77,7 +77,7 @@ suite('Database', () => {
     assert.strictEqual('b', notNull(await ds.head(datasetID)).value);
 
     // |a| <- |b| <- |d|
-    const dCommit = new Commit('d', [bRef]);
+    const dCommit = new Commit('d', new NomsSet([bRef]));
     ds = await ds.commit(datasetID, dCommit);
     const dRef = notNull(await ds.headRef(datasetID));
     assert.isTrue(dCommit.ref.equals(dRef.targetRef));
@@ -115,7 +115,7 @@ suite('Database', () => {
     const aCommit = new Commit('a');
     ds = await ds.commit(datasetID, aCommit);
     const aRef = notNull(await ds.headRef(datasetID));
-    const bCommit = new Commit('b', [aRef]);
+    const bCommit = new Commit('b', new NomsSet([aRef]));
     ds = await ds.commit(datasetID, bCommit);
     const bRef = notNull(await ds.headRef(datasetID));
     assert.strictEqual('b', notNull(await ds.head(datasetID)).value);
@@ -125,14 +125,14 @@ suite('Database', () => {
 
     // Change 1:
     // |a| <- |b| <- |c|
-    const cCommit = new Commit('c', [bRef]);
+    const cCommit = new Commit('c', new NomsSet([bRef]));
     ds = await ds.commit(datasetID, cCommit);
     assert.strictEqual('c', notNull(await ds.head(datasetID)).value);
 
     // Change 2:
     // |a| <- |b| <- |e|
     // Should be disallowed, Database returned by Commit() should have |c| as Head.
-    const eCommit = new Commit('e', [bRef]);
+    const eCommit = new Commit('e', new NomsSet([bRef]));
     let message = '';
     try {
       ds2 = await ds2.commit(datasetID, eCommit);
@@ -157,7 +157,7 @@ suite('Database', () => {
     const bs = new makeTestingBatchStore();
     let ds = new Database(bs);
 
-    const commit = new Commit('foo', []);
+    const commit = new Commit('foo');
 
     const commitRef = ds.writeValue(commit);
     const datasets = new Map([['foo', commitRef]]);

@@ -188,6 +188,7 @@ export default class Map<K: valueOrPrimitive, V: valueOrPrimitive> extends
 export function newMapFromSequence<K: valueOrPrimitive, V: valueOrPrimitive>(
     sequence: OrderedSequence): Map<K, V> {
   const map = Object.create(Map.prototype);
+  map._ref = null; // Value
   map.sequence = sequence;
   return map;
 }

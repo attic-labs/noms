@@ -2,32 +2,36 @@
 
 import {invariant} from './assert.js';
 import {getDatasTypes} from './database.js';
-import Struct, {StructMirror} from './struct.js';
+import Struct from './struct.js';
 import type {valueOrPrimitive} from './value.js';
 import type RefValue from './ref-value.js';
 import Set from './set.js';
 
+
 export default class Commit<T: valueOrPrimitive> extends Struct {
-  // Hold a reference to the struct 'parents' and 'value' fields so that it can be the correct type
-  // when returned from the parents/value getters.
-  _parents: Set<RefValue<Commit>>;
-  _value: T;
-
-  constructor(value: T, parentsArr: Array<RefValue<Commit>> = []) {
-    const parents = new Set(parentsArr);
-    const types = getDatasTypes();
-    super(types.commitType, {value, parents});
-    this._parents = parents;
-    this._value = value;
-  }
-
-  get parents(): Set<RefValue<Commit>> {
-    invariant(new StructMirror(this).get('parents') === this._parents);
-    return this._parents;
+  constructor(value: T, parents: Set<RefValue<Commit>> = new Set()) {
+    const {commitType} = getDatasTypes();
+    super(commitType, {value, parents});
   }
 
   get value(): T {
-    invariant(new StructMirror(this).get('value') === this._value);
-    return this._value;
+    // $FlowIssue: _data is private.
+    const value: T = this._data.value;
+    return value;
+  }
+
+  setValue<U: valueOrPrimitive>(value: U): Commit<U> {
+    return new Commit(value, this.parents);
+  }
+
+  get parents(): Set<RefValue<Commit>> {
+    // $FlowIssue: _data is private.
+    const parents: Set<RefValue<Commit>> = this._data.parents;
+    invariant(parents instanceof Set);
+    return parents;
+  }
+
+  setParents(parents: Set<RefValue<Commit>>): Commit<T> {
+    return new Commit(this.value, parents);
   }
 }

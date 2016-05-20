@@ -198,6 +198,7 @@ export default class Set<T: valueOrPrimitive> extends Collection<OrderedSequence
 
 export function newSetFromSequence<T: valueOrPrimitive>(sequence: OrderedSequence): Set<T> {
   const set = Object.create(Set.prototype);
+  set._ref = null; // Value
   set.sequence = sequence;
   return set;
 }

@@ -4,6 +4,7 @@ import Commit from './commit.js';
 import type {valueOrPrimitive} from './value.js';
 import type Database from './database.js';
 import RefValue from './ref-value.js';
+import Set from './set.js';
 
 export default class Dataset {
   _store: Database;
@@ -38,7 +39,7 @@ export default class Dataset {
       const headRef = await this.headRef();
       parents = headRef ? [headRef] : [];
     }
-    const commit = new Commit(v, parents);
+    const commit = new Commit(v, new Set(parents));
     const store = await this._store.commit(this._id, commit);
     return new Dataset(store, this._id);
   }

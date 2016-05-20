@@ -1,4 +1,4 @@
-  // @flow
+// @flow
 
 import BuzHashBoundaryChecker from './buzhash-boundary-checker.js';
 import type {BoundaryChecker, makeChunkFn} from './sequence-chunker.js';
@@ -127,6 +127,7 @@ export default class List<T: valueOrPrimitive> extends Collection<IndexedSequenc
 
 export function newListFromSequence<T: valueOrPrimitive>(sequence: IndexedSequence): List<T> {
   const list = Object.create(List.prototype);
+  list._ref = null; // Value
   list.sequence = sequence;
   return list;
 }

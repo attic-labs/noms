@@ -26,7 +26,7 @@ import {encode as encodeBase64} from './base64.js';
 import {newListMetaSequence, MetaTuple, newSetMetaSequence} from './meta-sequence.js';
 import {invariant, notNull} from './assert.js';
 import {Kind} from './noms-kind.js';
-import List, {newListFromSequence} from './list.js';
+import List, {newListFromSequence, newListLeafSequence} from './list.js';
 import Map from './map.js';
 import Blob from './blob.js';
 // Set is already in use in this file.
@@ -179,9 +179,9 @@ suite('Decode', () => {
   });
 
   test('read compound list', () => {
-    const r1 = db.writeValue(new List([0]));
-    const r2 = db.writeValue(new List([1, 2]));
-    const r3 = db.writeValue(new List([3, 4, 5]));
+    const r1 = db.writeValue(newListFromSequence(newListLeafSequence(db, [0])));
+    const r2 = db.writeValue(newListFromSequence(newListLeafSequence(db, [1, 2])));
+    const r3 = db.writeValue(newListFromSequence(newListLeafSequence(db, [3, 4, 5])));
     const tuples = [
       new MetaTuple(r1, 1, 1),
       new MetaTuple(r2, 2, 2),
