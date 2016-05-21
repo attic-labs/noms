@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/attic-labs/noms/d"
-	"github.com/attic-labs/noms/ref"
+	"github.com/attic-labs/noms/hash"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -103,7 +103,7 @@ func newDynamoStoreFromDDBsvc(table, namespace string, ddb ddbsvc, showStats boo
 	return store
 }
 
-func (s *DynamoStore) Get(r ref.Ref) Chunk {
+func (s *DynamoStore) Get(r hash.Hash) Chunk {
 	pending := s.unwrittenPuts.Get(r)
 	if !pending.IsEmpty() {
 		return pending
@@ -115,7 +115,7 @@ func (s *DynamoStore) Get(r ref.Ref) Chunk {
 	return <-ch
 }
 
-func (s *DynamoStore) Has(r ref.Ref) bool {
+func (s *DynamoStore) Has(r hash.Hash) bool {
 	pending := s.unwrittenPuts.Get(r)
 	if !pending.IsEmpty() {
 		return true
@@ -140,7 +140,7 @@ func (s *DynamoStore) PutMany(chunks []Chunk) (e BackpressureError) {
 			notPut := chunks[i:]
 			e = make(BackpressureError, len(notPut))
 			for j, np := range notPut {
-				e[j] = np.Ref()
+				e[j] = np.Hash()
 			}
 			return
 		}
@@ -180,10 +180,10 @@ func (s *DynamoStore) sendGetRequests(req ReadRequest) {
 		s.readTime += time.Now().UnixNano() - n
 	}()
 	batch := ReadBatch{}
-	refs := map[ref.Ref]bool{}
+	refs := map[hash.Hash]bool{}
 
 	addReq := func(req ReadRequest) {
-		r := req.Ref()
+		r := req.Hash()
 		batch[r] = append(batch[r], req.Outstanding())
 		refs[r] = true
 		s.requestWg.Done()
@@ -217,7 +217,7 @@ func (s *DynamoStore) sendGetRequests(req ReadRequest) {
 	batch.Close()
 }
 
-func (s *DynamoStore) buildRequestItems(refs map[ref.Ref]bool) map[string]*dynamodb.KeysAndAttributes {
+func (s *DynamoStore) buildRequestItems(refs map[hash.Hash]bool) map[string]*dynamodb.KeysAndAttributes {
 	makeKeysAndAttrs := func() *dynamodb.KeysAndAttributes {
 		out := &dynamodb.KeysAndAttributes{ConsistentRead: aws.Bool(true)} // This doubles the cost :-(
 		for r := range refs {
@@ -232,7 +232,7 @@ func (s *DynamoStore) processResponses(responses []map[string]*dynamodb.Attribut
 	for _, item := range responses {
 		p := item[refAttr]
 		d.Chk.NotNil(p)
-		r := ref.FromSlice(s.removeNamespace(p.B))
+		r := hash.FromSlice(s.removeNamespace(p.B))
 		p = item[chunkAttr]
 		d.Chk.NotNil(p)
 		b := p.B
@@ -314,7 +314,7 @@ func (s *DynamoStore) sendWriteRequests(first Chunk) {
 }
 
 func chunkItemSize(c Chunk) int {
-	r := c.Ref()
+	r := c.Hash()
 	return len(refAttr) + len(r.DigestSlice()) + len(chunkAttr) + len(c.Data()) + len(compAttr) + len(noneValue)
 }
 
@@ -338,7 +338,7 @@ func (s *DynamoStore) buildWriteRequests(chunks []Chunk) map[string][]*dynamodb.
 		s.writeTotal += chunkDataLen
 		s.writeCompTotal += compDataLen
 		return map[string]*dynamodb.AttributeValue{
-			refAttr:   {B: s.makeNamespacedKey(c.Ref())},
+			refAttr:   {B: s.makeNamespacedKey(c.Hash())},
 			chunkAttr: {B: chunkData},
 			compAttr:  {S: aws.String(compression)},
 		}
@@ -380,7 +380,7 @@ func (s *DynamoStore) Close() error {
 	return nil
 }
 
-func (s *DynamoStore) Root() ref.Ref {
+func (s *DynamoStore) Root() hash.Hash {
 	result, err := s.ddbsvc.GetItem(&dynamodb.GetItemInput{
 		TableName: aws.String(s.table),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -390,7 +390,7 @@ func (s *DynamoStore) Root() ref.Ref {
 	d.Exp.NoError(err)
 
 	if len(result.Item) == 0 {
-		return ref.Ref{}
+		return hash.Hash{}
 	}
 
 	itemLen := len(result.Item)
@@ -400,10 +400,10 @@ func (s *DynamoStore) Root() ref.Ref {
 		d.Chk.NotNil(result.Item[compAttr].S)
 		d.Chk.Equal(noneValue, *result.Item[compAttr].S)
 	}
-	return ref.FromSlice(result.Item[chunkAttr].B)
+	return hash.FromSlice(result.Item[chunkAttr].B)
 }
 
-func (s *DynamoStore) UpdateRoot(current, last ref.Ref) bool {
+func (s *DynamoStore) UpdateRoot(current, last hash.Hash) bool {
 	s.requestWg.Wait()
 
 	putArgs := dynamodb.PutItemInput{
@@ -439,7 +439,7 @@ func (s *DynamoStore) UpdateRoot(current, last ref.Ref) bool {
 	return true
 }
 
-func (s *DynamoStore) makeNamespacedKey(r ref.Ref) []byte {
+func (s *DynamoStore) makeNamespacedKey(r hash.Hash) []byte {
 	// This is semantically `return append(s.namespace, r.DigestSlice()...)`, but it seemed like we'd be doing this a LOT, and we know how much space we're going to need anyway. So, pre-allocate a slice and then copy into it.
 	refSlice := r.DigestSlice()
 	key := make([]byte, s.namespaceLen+len(refSlice))

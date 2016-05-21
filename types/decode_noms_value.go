@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/attic-labs/noms/d"
-	"github.com/attic-labs/noms/ref"
+	"github.com/attic-labs/noms/hash"
 )
 
 func fromTypedEncodeable(i []interface{}, vr ValueReader) Value {
@@ -79,7 +79,7 @@ func (r *jsonArrayReader) readKind() NomsKind {
 }
 
 func (r *jsonArrayReader) readRef(t *Type) Ref {
-	ref := ref.Parse(r.readString())
+	ref := hash.Parse(r.readString())
 	height := r.readUint()
 	return constructRef(t, ref, height)
 }

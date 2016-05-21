@@ -29,7 +29,7 @@ func (suite *LevelDBStoreTestSuite) TestReadThroughStoreGet() {
 	input := "abc"
 	c := NewChunk([]byte(input))
 	bs.Put(c)
-	ref := c.Ref()
+	ref := c.Hash()
 
 	// See http://www.di-mgt.com.au/sha_testvectors.html
 	suite.Equal("sha1-a9993e364706816aba3e25717850c26c9cd0d89d", ref.String())
@@ -73,7 +73,7 @@ func (suite *LevelDBStoreTestSuite) TestReadThroughStorePut() {
 	input := "abc"
 	c := NewChunk([]byte(input))
 	rts.Put(c)
-	ref := c.Ref()
+	ref := c.Hash()
 
 	// See http://www.di-mgt.com.au/sha_testvectors.html
 	suite.Equal("sha1-a9993e364706816aba3e25717850c26c9cd0d89d", ref.String())
