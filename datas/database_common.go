@@ -85,7 +85,7 @@ func (ds *databaseCommon) commit(datasetID string, commit types.Struct) error {
 	return ds.doCommit(datasetID, commit)
 }
 
-// doCommit manages concurrent access the single logical piece of mutable state: the current Root. doCommit is optimistic in that it is attempting to update head making the assumption that currentRootRef is the ref of the current head. The call to UpdateRoot below will return an 'ErrOptimisticLockFailed' error if that assumption fails (e.g. because of a race with another writer) and the entire algorithm must be tried again. This method will also fail and return an 'ErrMergeNeeded' error if the |commit| is not a descendent of the current dataset head
+// doCommit manages concurrent access the single logical piece of mutable state: the current Root. doCommit is optimistic in that it is attempting to update head making the assumption that currentRootRef is the hash of the current head. The call to UpdateRoot below will return an 'ErrOptimisticLockFailed' error if that assumption fails (e.g. because of a race with another writer) and the entire algorithm must be tried again. This method will also fail and return an 'ErrMergeNeeded' error if the |commit| is not a descendent of the current dataset head
 func (ds *databaseCommon) doCommit(datasetID string, commit types.Struct) error {
 	currentRootRef, currentDatasets := ds.getRootAndDatasets()
 
@@ -112,7 +112,7 @@ func (ds *databaseCommon) doCommit(datasetID string, commit types.Struct) error 
 	return ds.tryUpdateRoot(currentDatasets, currentRootRef)
 }
 
-// doDelete manages concurrent access the single logical piece of mutable state: the current Root. doDelete is optimistic in that it is attempting to update head making the assumption that currentRootRef is the ref of the current head. The call to UpdateRoot below will return an 'ErrOptimisticLockFailed' error if that assumption fails (e.g. because of a race with another writer) and the entire algorithm must be tried again.
+// doDelete manages concurrent access the single logical piece of mutable state: the current Root. doDelete is optimistic in that it is attempting to update head making the assumption that currentRootRef is the hash of the current head. The call to UpdateRoot below will return an 'ErrOptimisticLockFailed' error if that assumption fails (e.g. because of a race with another writer) and the entire algorithm must be tried again.
 func (ds *databaseCommon) doDelete(datasetID string) error {
 	currentRootRef, currentDatasets := ds.getRootAndDatasets()
 	currentDatasets = currentDatasets.Remove(types.NewString(datasetID))

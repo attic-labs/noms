@@ -126,7 +126,7 @@ func deserializeChunk(reader io.Reader) Chunk {
 	}
 	d.Chk.NoError(err)
 	d.Chk.Equal(int(sha1.Size), n)
-	r := hash.New(digest)
+	h := hash.New(digest)
 
 	chunkSize := uint32(0)
 	err = binary.Read(reader, binary.BigEndian, &chunkSize)
@@ -137,6 +137,6 @@ func deserializeChunk(reader io.Reader) Chunk {
 	d.Chk.NoError(err)
 	d.Chk.Equal(int64(chunkSize), n2)
 	c := w.Chunk()
-	d.Chk.Equal(r, c.Hash())
+	d.Chk.Equal(h, c.Hash())
 	return c
 }

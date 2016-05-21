@@ -42,24 +42,24 @@ var generateNumbersAsRefOfStructs = func(n int) []Value {
 
 func chunkDiffCount(c1 []Ref, c2 []Ref) int {
 	count := 0
-	refs := make(map[hash.Hash]int)
+	hashes := make(map[hash.Hash]int)
 
 	for _, r := range c1 {
-		refs[r.TargetHash()]++
+		hashes[r.TargetHash()]++
 	}
 
 	for _, r := range c2 {
-		if c, ok := refs[r.TargetHash()]; ok {
+		if c, ok := hashes[r.TargetHash()]; ok {
 			if c == 1 {
-				delete(refs, r.TargetHash())
+				delete(hashes, r.TargetHash())
 			} else {
-				refs[r.TargetHash()] = c - 1
+				hashes[r.TargetHash()] = c - 1
 			}
 		} else {
 			count++
 		}
 	}
 
-	count += len(refs)
+	count += len(hashes)
 	return count
 }

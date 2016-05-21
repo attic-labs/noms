@@ -22,7 +22,7 @@ type Factory interface {
 	Shutter()
 }
 
-// RootTracker allows querying and management of the root of an entire tree of references. The "root" is the single mutable variable in a ChunkStore. It can store any ref, but it is typically used by higher layers (such as Database) to store a ref to a value that represents the current state and entire history of a database.
+// RootTracker allows querying and management of the root of an entire tree of references. The "root" is the single mutable variable in a ChunkStore. It can store any hash, but it is typically used by higher layers (such as Database) to store a hash to a value that represents the current state and entire history of a database.
 type RootTracker interface {
 	Root() hash.Hash
 	UpdateRoot(current, last hash.Hash) bool
@@ -30,11 +30,11 @@ type RootTracker interface {
 
 // ChunkSource is a place to get chunks from.
 type ChunkSource interface {
-	// Get gets a reader for the value of the Ref in the store. If the ref is absent from the store nil is returned.
-	Get(ref hash.Hash) Chunk
+	// Get the Chunk for the value of the hash in the store. If the hash is absent from the store nil is returned.
+	Get(h hash.Hash) Chunk
 
-	// Returns true iff the value at the address |ref| is contained in the source
-	Has(ref hash.Hash) bool
+	// Returns true iff the value at the address |h| is contained in the source
+	Has(h hash.Hash) bool
 }
 
 // ChunkSink is a place to put chunks.

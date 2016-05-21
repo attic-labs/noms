@@ -3,8 +3,8 @@ package types
 import "github.com/attic-labs/noms/hash"
 
 type String struct {
-	s   string
-	ref *hash.Hash
+	s string
+	h *hash.Hash
 }
 
 func NewString(s string) String {
@@ -31,7 +31,7 @@ func (s String) Less(other Value) bool {
 }
 
 func (fs String) Hash() hash.Hash {
-	return EnsureRef(fs.ref, fs)
+	return EnsureRef(fs.h, fs)
 }
 
 func (fs String) ChildValues() []Value {

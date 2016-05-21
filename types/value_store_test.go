@@ -39,7 +39,7 @@ func TestWriteValue(t *testing.T) {
 		r := vs.WriteValue(v).TargetHash()
 
 		// Assuming that MemoryStore works correctly, we don't need to check the actual serialization, only the hash. Neat.
-		assert.EqualValues(sha1.Sum([]byte(expected)), r.Digest(), "Incorrect ref serializing %+v. Got: %#x", v, r.Digest())
+		assert.EqualValues(sha1.Sum([]byte(expected)), r.Digest(), "Incorrect hash serializing %+v. Got: %#x", v, r.Digest())
 		return r
 	}
 

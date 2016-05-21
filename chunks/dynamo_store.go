@@ -103,27 +103,27 @@ func newDynamoStoreFromDDBsvc(table, namespace string, ddb ddbsvc, showStats boo
 	return store
 }
 
-func (s *DynamoStore) Get(r hash.Hash) Chunk {
-	pending := s.unwrittenPuts.Get(r)
+func (s *DynamoStore) Get(h hash.Hash) Chunk {
+	pending := s.unwrittenPuts.Get(h)
 	if !pending.IsEmpty() {
 		return pending
 	}
 
 	ch := make(chan Chunk)
 	s.requestWg.Add(1)
-	s.readQueue <- GetRequest{r, ch}
+	s.readQueue <- GetRequest{h, ch}
 	return <-ch
 }
 
-func (s *DynamoStore) Has(r hash.Hash) bool {
-	pending := s.unwrittenPuts.Get(r)
+func (s *DynamoStore) Has(h hash.Hash) bool {
+	pending := s.unwrittenPuts.Get(h)
 	if !pending.IsEmpty() {
 		return true
 	}
 
 	ch := make(chan bool)
 	s.requestWg.Add(1)
-	s.readQueue <- HasRequest{r, ch}
+	s.readQueue <- HasRequest{h, ch}
 	return <-ch
 }
 
@@ -217,10 +217,10 @@ func (s *DynamoStore) sendGetRequests(req ReadRequest) {
 	batch.Close()
 }
 
-func (s *DynamoStore) buildRequestItems(refs map[hash.Hash]bool) map[string]*dynamodb.KeysAndAttributes {
+func (s *DynamoStore) buildRequestItems(hashes map[hash.Hash]bool) map[string]*dynamodb.KeysAndAttributes {
 	makeKeysAndAttrs := func() *dynamodb.KeysAndAttributes {
 		out := &dynamodb.KeysAndAttributes{ConsistentRead: aws.Bool(true)} // This doubles the cost :-(
-		for r := range refs {
+		for r := range hashes {
 			out.Keys = append(out.Keys, map[string]*dynamodb.AttributeValue{refAttr: {B: s.makeNamespacedKey(r)}})
 		}
 		return out
@@ -244,7 +244,7 @@ func (s *DynamoStore) processResponses(responses []map[string]*dynamodb.Attribut
 			d.Chk.NoError(err)
 			b = buf.Bytes()
 		}
-		c := NewChunkWithRef(r, b)
+		c := NewChunkWithHash(r, b)
 		for _, reqChan := range batch[r] {
 			reqChan.Satisfy(c)
 		}
@@ -439,12 +439,12 @@ func (s *DynamoStore) UpdateRoot(current, last hash.Hash) bool {
 	return true
 }
 
-func (s *DynamoStore) makeNamespacedKey(r hash.Hash) []byte {
+func (s *DynamoStore) makeNamespacedKey(h hash.Hash) []byte {
 	// This is semantically `return append(s.namespace, r.DigestSlice()...)`, but it seemed like we'd be doing this a LOT, and we know how much space we're going to need anyway. So, pre-allocate a slice and then copy into it.
-	refSlice := r.DigestSlice()
-	key := make([]byte, s.namespaceLen+len(refSlice))
+	hashSlice := h.DigestSlice()
+	key := make([]byte, s.namespaceLen+len(hashSlice))
 	copy(key, s.namespace)
-	copy(key[s.namespaceLen:], refSlice)
+	copy(key[s.namespaceLen:], hashSlice)
 	return key
 }
 

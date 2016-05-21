@@ -15,7 +15,7 @@ const (
 
 type Set struct {
 	seq orderedSequence
-	ref *hash.Hash
+	h   *hash.Hash
 }
 
 func newSet(seq orderedSequence) Set {
@@ -63,7 +63,7 @@ func (s Set) Less(other Value) bool {
 }
 
 func (s Set) Hash() hash.Hash {
-	return EnsureRef(s.ref, s)
+	return EnsureRef(s.h, s)
 }
 
 func (s Set) ChildValues() (values []Value) {

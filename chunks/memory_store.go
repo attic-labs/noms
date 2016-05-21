@@ -20,10 +20,10 @@ func NewMemoryStore() *MemoryStore {
 	}
 }
 
-func (ms *MemoryStore) Get(ref hash.Hash) Chunk {
+func (ms *MemoryStore) Get(h hash.Hash) Chunk {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
-	if c, ok := ms.data[ref]; ok {
+	if c, ok := ms.data[h]; ok {
 		return c
 	}
 	return EmptyChunk

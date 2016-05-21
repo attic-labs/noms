@@ -35,8 +35,8 @@ func NewBatchStoreAdaptor(cs chunks.ChunkStore) BatchStore {
 }
 
 // Get simply proxies to the backing ChunkStore
-func (lbs *BatchStoreAdaptor) Get(ref hash.Hash) chunks.Chunk {
-	return lbs.cs.Get(ref)
+func (lbs *BatchStoreAdaptor) Get(h hash.Hash) chunks.Chunk {
+	return lbs.cs.Get(h)
 }
 
 // SchedulePut simply calls Put on the underlying ChunkStore, and ignores hints.

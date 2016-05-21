@@ -18,7 +18,7 @@ import (
 
 type Type struct {
 	Desc TypeDesc
-	ref  *hash.Hash
+	h    *hash.Hash
 }
 
 var typeForType = makePrimitiveType(TypeKind)
@@ -48,7 +48,7 @@ func (t *Type) Less(other Value) (res bool) {
 }
 
 func (t *Type) Hash() hash.Hash {
-	return EnsureRef(t.ref, t)
+	return EnsureRef(t.h, t)
 }
 
 func (t *Type) ChildValues() (res []Value) {
@@ -176,7 +176,7 @@ func flattenUnionTypes(ts []*Type, seenTypes *map[hash.Hash]bool) []*Type {
 }
 
 func buildType(desc TypeDesc) *Type {
-	return &Type{Desc: desc, ref: &hash.Hash{}}
+	return &Type{Desc: desc, h: &hash.Hash{}}
 }
 
 var NumberType = makePrimitiveType(NumberKind)

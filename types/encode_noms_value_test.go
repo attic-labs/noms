@@ -107,7 +107,7 @@ func TestWriteMapOfMap(t *testing.T) {
 
 	w := newJSONArrayWriter(NewTestValueStore())
 	w.writeValue(v)
-	// the order of the elements is based on the ref of the value.
+	// the order of the elements is based on the hash of the value.
 	assert.EqualValues([]interface{}{MapKind, MapKind, StringKind, NumberKind, SetKind, BoolKind, false, []interface{}{
 		MapKind, StringKind, NumberKind, false, []interface{}{StringKind, "a", NumberKind, "0"},
 		SetKind, BoolKind, false, []interface{}{BoolKind, true}}}, w.toArray())
@@ -128,7 +128,7 @@ func TestWriteCompoundBlob(t *testing.T) {
 	w := newJSONArrayWriter(NewTestValueStore())
 	w.writeValue(v)
 
-	// the order of the elements is based on the ref of the value.
+	// the order of the elements is based on the hash of the value.
 	assert.EqualValues([]interface{}{
 		BlobKind, true, []interface{}{
 			RefKind, BlobKind, r1.String(), "11", NumberKind, "20", "20",

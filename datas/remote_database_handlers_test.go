@@ -135,11 +135,11 @@ func serializeChunks(chnx []chunks.Chunk, assert *assert.Assertions) io.Reader {
 
 func TestBuildGetRefsRequest(t *testing.T) {
 	assert := assert.New(t)
-	refs := map[hash.Hash]struct{}{
+	hashes := map[hash.Hash]struct{}{
 		hash.Parse("sha1-0000000000000000000000000000000000000002"): struct{}{},
 		hash.Parse("sha1-0000000000000000000000000000000000000003"): struct{}{},
 	}
-	r := buildGetRefsRequest(refs)
+	r := buildGetRefsRequest(hashes)
 	b, err := ioutil.ReadAll(r)
 	assert.NoError(err)
 
@@ -148,9 +148,9 @@ func TestBuildGetRefsRequest(t *testing.T) {
 	assert.NotEmpty(urlValues)
 
 	queryRefs := urlValues["ref"]
-	assert.Len(queryRefs, len(refs))
+	assert.Len(queryRefs, len(hashes))
 	for _, r := range queryRefs {
-		_, present := refs[hash.Parse(r)]
+		_, present := hashes[hash.Parse(r)]
 		assert.True(present, "Query contains %s, which is not in initial refs", r)
 	}
 }

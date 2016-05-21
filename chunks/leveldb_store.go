@@ -170,7 +170,7 @@ func (l *internalLevelDBStore) getByKey(key []byte, ref hash.Hash) Chunk {
 	}
 	d.Chk.NoError(err)
 
-	return NewChunkWithRef(ref, data)
+	return NewChunkWithHash(ref, data)
 }
 
 func (l *internalLevelDBStore) hasByKey(key []byte) bool {

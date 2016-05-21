@@ -33,8 +33,8 @@ func NewChunk(data []byte) Chunk {
 	return Chunk{r, data}
 }
 
-// NewChunkWithRef creates a new chunk with a known hash. The ref is not re-calculated or verified. This should obviously only be used in cases where the caller already knows the specified ref is correct.
-func NewChunkWithRef(r hash.Hash, data []byte) Chunk {
+// NewChunkWithHash creates a new chunk with a known hash. The hash is not re-calculated or verified. This should obviously only be used in cases where the caller already knows the specified hash is correct.
+func NewChunkWithHash(r hash.Hash, data []byte) Chunk {
 	return Chunk{r, data}
 }
 
@@ -64,7 +64,7 @@ func (w *ChunkWriter) Chunk() Chunk {
 	return w.c
 }
 
-// Close() closes computes the ref and Puts it into the ChunkSink Note: The Write() method never returns an error. Instead, like other noms interfaces, errors are reported via panic.
+// Close() closes computes the hash and Puts it into the ChunkSink Note: The Write() method never returns an error. Instead, like other noms interfaces, errors are reported via panic.
 func (w *ChunkWriter) Close() error {
 	if w.buffer == nil {
 		return nil

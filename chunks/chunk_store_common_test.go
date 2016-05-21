@@ -73,7 +73,7 @@ func (suite *ChunkStoreTestSuite) TestChunkStoreRoot() {
 }
 
 func (suite *ChunkStoreTestSuite) TestChunkStoreGetNonExisting() {
-	ref := hash.Parse("sha1-1111111111111111111111111111111111111111")
-	c := suite.Store.Get(ref)
+	h := hash.Parse("sha1-1111111111111111111111111111111111111111")
+	c := suite.Store.Get(h)
 	suite.True(c.IsEmpty())
 }

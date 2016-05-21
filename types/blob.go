@@ -21,7 +21,7 @@ var RefOfBlobType = MakeRefType(BlobType)
 // Blob represents a list of Blobs.
 type Blob struct {
 	seq indexedSequence
-	ref *hash.Hash
+	h   *hash.Hash
 }
 
 func newBlob(seq indexedSequence) Blob {
@@ -61,7 +61,7 @@ func (b Blob) Less(other Value) bool {
 }
 
 func (b Blob) Hash() hash.Hash {
-	return EnsureRef(b.ref, b)
+	return EnsureRef(b.h, b)
 }
 
 func (b Blob) ChildValues() []Value {

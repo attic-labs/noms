@@ -15,7 +15,7 @@ const (
 
 type List struct {
 	seq indexedSequence
-	ref *hash.Hash
+	h   *hash.Hash
 }
 
 func newList(seq indexedSequence) List {
@@ -68,7 +68,7 @@ func (l List) Less(other Value) bool {
 }
 
 func (l List) Hash() hash.Hash {
-	return EnsureRef(l.ref, l)
+	return EnsureRef(l.h, l)
 }
 
 func (l List) ChildValues() (values []Value) {

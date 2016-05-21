@@ -28,7 +28,7 @@ func testCommitInResults(s *nomsShowTestSuite, spec string, i int) {
 	ds, err = ds.Commit(types.Number(1))
 	s.NoError(err)
 	commit := ds.Head()
-	fmt.Printf("commit ref: %s, type: %s\n", commit.Hash(), commit.Type().Name())
+	fmt.Printf("commit hash: %s, type: %s\n", commit.Hash(), commit.Type().Name())
 	ds.Store().Close()
 	s.Contains(s.Run(main, []string{spec}), commit.Hash().String())
 }

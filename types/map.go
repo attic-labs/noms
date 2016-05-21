@@ -15,7 +15,7 @@ const (
 
 type Map struct {
 	seq orderedSequence
-	ref *hash.Hash
+	h   *hash.Hash
 }
 
 func newMap(seq orderedSequence) Map {
@@ -60,7 +60,7 @@ func (m Map) Less(other Value) bool {
 }
 
 func (m Map) Hash() hash.Hash {
-	return EnsureRef(m.ref, m)
+	return EnsureRef(m.h, m)
 }
 
 func (m Map) ChildValues() (values []Value) {

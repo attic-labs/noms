@@ -10,7 +10,7 @@ type structData map[string]Value
 type Struct struct {
 	data structData
 	t    *Type
-	ref  *hash.Hash
+	h    *hash.Hash
 }
 
 func newStructFromData(data structData, t *Type) Struct {
@@ -51,7 +51,7 @@ func (s Struct) Less(other Value) bool {
 }
 
 func (s Struct) Hash() hash.Hash {
-	return EnsureRef(s.ref, s)
+	return EnsureRef(s.h, s)
 }
 
 func (s Struct) ChildValues() (res []Value) {
