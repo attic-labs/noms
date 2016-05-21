@@ -19,7 +19,7 @@ import (
     Chunk N
 
   Chunk:
-    Ref   // 20-byte sha1 hash
+    Hash   // 20-byte sha1 hash
     Len   // 4-byte int
     Data  // len(Data) == Len
 */
