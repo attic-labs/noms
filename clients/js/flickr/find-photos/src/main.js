@@ -4,14 +4,13 @@ import argv from 'yargs';
 import {
   DatasetSpec,
   invariant,
-  newMap,
-  newSet,
+  Map,
   newStruct,
+  Set,
   Struct,
   StructMirror,
   walk,
 } from '@attic/noms';
-import type {Map} from '@attic/noms';
 
 const args = argv
   .usage(
@@ -37,17 +36,17 @@ async function main(): Promise<void> {
 
   const input = await inSpec.value();
   const output = outSpec.set();
-  let result = newSet([]);
+  let result = Promise.resolve(new Set());
 
   // TODO: How to report progress?
-  await walk(input, output.store, async v => {
+  await walk(input, output.store, v => {
     // TODO: Use some kind of subtype/instanceof check instead.
     if (v instanceof Struct && v.url_t) {
       const s = newStruct('Photo', {
         title: v.title || '',
-        tags: await newSet(v.tags ? v.tags.split(' ') : []),
+        tags: new Set(v.tags ? v.tags.split(' ') : []),
         geoposition: getGeo(v),
-        sizes: await getSizes(v),
+        sizes: getSizes(v),
       });
       result = result.then(r => r.insert(s));
       return false;
@@ -66,8 +65,8 @@ function getGeo(input: Struct): Struct {
   return newStruct('Geoposition', geopos);
 }
 
-function getSizes(input: Struct): Promise<Map<Struct, string>> {
-  let res: Promise<Map<Struct, string>> = newMap([]);
+function getSizes(input: Struct): Map<Struct, string> {
+  const elems: [[Struct, string]] = [];
 
   // TODO: Really want to do Go-style interface checking here.
   // Could have one struct for each size, then just check each one in turn, add it if present.
@@ -78,9 +77,9 @@ function getSizes(input: Struct): Promise<Map<Struct, string>> {
       invariant(typeof url === 'string');
       const width = Number(mirror.get('width_' + tag));
       const height = Number(mirror.get('height_' + tag));
-      res = res.then(r => r.set(newStruct('', {width, height}), url));
+      elems.push([newStruct('', {width, height}), url]);
     }
   });
 
-  return res;
+  return new Map(elems);
 }

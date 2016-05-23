@@ -7,13 +7,13 @@ import {
   Dataset,
   DatasetSpec,
   invariant,
-  newList,
-  newSet,
+  List,
   newStruct,
+  Set,
   Struct,
 } from '@attic/noms';
 import type {
-  valueOrPrimitive,
+  Value,
 } from '@attic/noms';
 
 const args = argv
@@ -81,11 +81,11 @@ async function main(): Promise<void> {
         `${clearLine}${++seen} of ${photosetsJSON.length} photosets imported...`);
       return p;
     });
-  })).then(sets => newSet(sets));
+  })).then(sets => new Set(sets));
 
   process.stdout.write(clearLine);
   return out.commit(newStruct('', {
-    photosetsMeta: await toNoms(photosetsJSON),
+    photosetsMeta: toNoms(photosetsJSON),
     photosets: await photosets,
   })).then();
 }
@@ -94,16 +94,17 @@ async function getPhotosetsJSON(): Promise<any> {
   return (await callFlickr('flickr.photosets.getList')).photosets.photoset;
 }
 
-async function getPhotoset(id: string): Promise<Struct> {
-  const json = await callFlickr('flickr.photosets.getPhotos', {
+function getPhotoset(id: string): Promise<Struct> {
+  return callFlickr('flickr.photosets.getPhotos', {
     photoset_id: id,  // eslint-disable-line camelcase
     extras: 'license, date_upload, date_taken, owner_name, icon_server, original_format, ' +
       'last_update, geo, tags, machine_tags, o_dims, views, media, path_alias, url_sq, url_t, ' +
       'url_s, url_m, url_o',
+  }).then(json => {
+    const res = toNoms(json.photoset);
+    invariant(res instanceof Struct);
+    return res;
   });
-  const res = await toNoms(json.photoset);
-  invariant(res instanceof Struct);
-  return res;
 }
 
 function getAuthToken(): Promise<[string, string]> {
@@ -161,7 +162,7 @@ function callFlickr(method: string, params: ?{[key: string]: string}) {
   });
 }
 
-async function toNoms(v: any): Promise<valueOrPrimitive> {
+function toNoms(v: any): Value {
   switch (typeof v) {
     case 'boolean':
     case 'number':
@@ -170,15 +171,14 @@ async function toNoms(v: any): Promise<valueOrPrimitive> {
   }
 
   if (v instanceof Array) {
-    return await newList(await Promise.all(v.map(c => toNoms(c))));
+    return new List(v.map(c => toNoms(c)));
   }
 
   if (v instanceof Object) {
     const props = {};
-    await Promise.all(
-      Object.keys(v).map(k => {
-        return toNoms(v[k]).then(c => props[k] = c);
-      }));
+    for (const [k, val] of v) {
+      props[k] = toNoms(val);
+    }
     return newStruct('', props);
   }
 
