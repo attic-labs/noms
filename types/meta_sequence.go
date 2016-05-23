@@ -27,7 +27,7 @@ type metaTuple struct {
 	numLeaves uint64
 }
 
-func (mt metaTuple) ChildHash() Ref {
+func (mt metaTuple) ChildRef() Ref {
 	return mt.childRef
 }
 
@@ -78,24 +78,16 @@ func (ms metaSequenceObject) valueReader() ValueReader {
 	return ms.vr
 }
 
-func (ms metaSequenceObject) Chunks() (chunks []Ref) {
-	for _, tuple := range ms.tuples {
-		chunks = append(chunks, tuple.ChildHash())
+func (ms metaSequenceObject) Chunks() []Ref {
+	chunks := make([]Ref, len(ms.tuples))
+	for i, tuple := range ms.tuples {
+		chunks[i] = tuple.ChildRef()
 	}
-	return
+	return chunks
 }
 
 func (ms metaSequenceObject) Type() *Type {
 	return ms.t
-}
-
-// Value interface
-func (ms metaSequenceObject) ChildValues() []Value {
-	vals := make([]Value, len(ms.tuples))
-	for i, mt := range ms.tuples {
-		vals[i] = mt.childRef
-	}
-	return vals
 }
 
 // metaSequence interface
