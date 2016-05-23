@@ -123,7 +123,7 @@ func (lvs *ValueStore) checkAndSet(r hash.Hash, entry chunkCacheEntry) {
 	}
 }
 
-func (lvs *ValueStore) checkChunksInCache(v Value) map[hash.Hash]struct{} {
+func (lvs *ValueStore) checkChunksInCache(v Value) Hints {
 	hints := map[hash.Hash]struct{}{}
 	for _, reachable := range v.Chunks() {
 		entry := lvs.check(reachable.TargetHash())
@@ -146,6 +146,32 @@ func (lvs *ValueStore) checkChunksInCache(v Value) map[hash.Hash]struct{} {
 		d.Exp.True(entry.Type().Equals(targetType), "Value to write contains ref %s, which points to a value of a different type: %+v != %+v", reachable.TargetHash(), entry.Type(), targetType)
 	}
 	return hints
+}
+
+func (lvs *ValueStore) ensureChunksInCache(v Value) {
+	for _, reachable := range v.Chunks() {
+		// First, check the type cache to see if reachable is already known to be valid.
+		targetHash := reachable.TargetHash()
+		entry := lvs.check(targetHash)
+
+		// If it's not already in the cache, attempt to read the value directly, which will put it and its chunks into the cache.
+		if entry == nil || !entry.Present() {
+			reachableV := lvs.ReadValue(targetHash)
+			d.Exp.NotNil(reachableV, "Attempted to write Value containing Ref to non-existent object.\n%s\n, contains ref %s, which points to a non-existent Value.", EncodedValueWithTags(v), reachable.TargetHash())
+			entry = lvs.check(targetHash)
+		}
+
+		// BUG 1121
+		// It's possible that entry.Type() will be simply 'Value', but that 'reachable' is actually a
+		// properly-typed object -- that is, a Ref to some specific Type. The Exp below would fail,
+		// though it's possible that the Type is actually correct. We wouldn't be able to verify
+		// without reading it, though, so we'll dig into this later.
+		targetType := getTargetType(reachable)
+		if targetType.Equals(ValueType) {
+			continue
+		}
+		d.Exp.True(entry.Type().Equals(targetType), "Value to write contains ref %s, which points to a value of a different type: %+v != %+v", reachable.TargetHash(), entry.Type(), targetType)
+	}
 }
 
 func getTargetType(refBase Ref) *Type {

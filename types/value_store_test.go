@@ -81,6 +81,57 @@ func TestCheckChunksInCache(t *testing.T) {
 	assert.NotPanics(func() { cvs.checkChunksInCache(bref) })
 }
 
+func TestCheckChunksNotInCache(t *testing.T) {
+	assert := assert.New(t)
+	cs := chunks.NewTestStore()
+	cvs := newLocalValueStore(cs)
+
+	b := NewEmptyBlob()
+	cs.Put(EncodeValue(b, nil))
+
+	bref := NewRef(b)
+	assert.Panics(func() { cvs.checkChunksInCache(bref) })
+}
+
+func TestEnsureChunksInCache(t *testing.T) {
+	assert := assert.New(t)
+	cs := chunks.NewTestStore()
+	cvs := newLocalValueStore(cs)
+
+	b := NewEmptyBlob()
+	s := NewString("oy")
+	bref := NewRef(b)
+	sref := NewRef(s)
+	l := NewList(bref, sref)
+
+	cs.Put(EncodeValue(b, nil))
+	cs.Put(EncodeValue(s, nil))
+	cs.Put(EncodeValue(l, nil))
+
+	assert.NotPanics(func() { cvs.ensureChunksInCache(bref) })
+	assert.NotPanics(func() { cvs.ensureChunksInCache(l) })
+}
+
+func TestEnsureChunksFails(t *testing.T) {
+	assert := assert.New(t)
+	cs := chunks.NewTestStore()
+	cvs := newLocalValueStore(cs)
+
+	b := NewEmptyBlob()
+	bref := NewRef(b)
+	assert.Panics(func() { cvs.ensureChunksInCache(bref) })
+
+	s := NewString("oy")
+	cs.Put(EncodeValue(b, nil))
+	cs.Put(EncodeValue(s, nil))
+
+	badRef := constructRef(MakeRefType(MakePrimitiveType(BoolKind)), s.Hash(), 1)
+	l := NewList(bref, badRef)
+
+	cs.Put(EncodeValue(l, nil))
+	assert.Panics(func() { cvs.ensureChunksInCache(l) })
+}
+
 func TestCacheOnReadValue(t *testing.T) {
 	assert := assert.New(t)
 	cs := chunks.NewTestStore()
