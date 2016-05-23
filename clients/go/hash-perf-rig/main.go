@@ -12,11 +12,12 @@ import (
 	"time"
 
 	"github.com/attic-labs/buzhash"
+	"github.com/codahale/blake2"
 	humanize "github.com/dustin/go-humanize"
 )
 
 func main() {
-	useSHA := flag.String("use-sha", "", "<default>=no hashing, 1=sha1, 256=sha256, 512=sha512")
+	useSHA := flag.String("use-sha", "", "<default>=no hashing, 1=sha1, 256=sha256, 512=sha512, blake=blake2b")
 	useBH := flag.Bool("use-bh", false, "whether we buzhash the bytes")
 	flag.Parse()
 
@@ -46,6 +47,8 @@ func main() {
 		h = sha256.New()
 	} else if *useSHA == "512" {
 		h = sha512.New()
+	} else if *useSHA == "blake" {
+		h = blake2.NewBlake2B()
 	}
 
 	for {
