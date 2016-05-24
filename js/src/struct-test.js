@@ -185,6 +185,7 @@ suite('Struct', () => {
       ['Q', 'Q51'],
       ['AQ1', 'AQ511'],
       ['$', 'Q24'],
+      ['_content', 'Q5Fcontent'],
       ['Few ¢ents Short', 'FewQ20QC2A2entsQ20Short'],
       ['💩', 'QF09F92A9'],
     ];

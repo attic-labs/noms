@@ -249,7 +249,7 @@ export function escapeStructField(input: string): string {
     return input;
   }
 
-  if (input.length == 0) {
+  if (input.length === 0) {
     throw new Error('cannot escape empty field name');
   }
 
@@ -271,7 +271,7 @@ export function escapeStructField(input: string): string {
 
   let output = '';
   let pattern = headPattern;
-  for (let c of input) {
+  for (const c of input) {
     output += encode(c, pattern);
     pattern = tailPattern;
   }
