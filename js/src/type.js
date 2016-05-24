@@ -169,6 +169,7 @@ export function makeRefType(elemType: Type): Type<CompoundDesc> {
 }
 
 export function makeStructType(name: string, fields: {[key: string]: Type}): Type<StructDesc> {
+  verifyStructName(name, 'struct');
   Object.keys(fields).forEach(verifyFieldName);
   return buildType(new StructDesc(name, fields));
 }
@@ -188,10 +189,18 @@ export function makeUnionType(types: Type[]): Type {
 
 const fieldNameRe = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 
-function verifyFieldName(name: string) {
+function verifyName(name, kind) {
   if (!fieldNameRe.test(name)) {
-    throw new Error(`Invalid struct field name: ${name}`);
+    throw new Error(`Invalid struct${kind} name: "${name}"`);
   }
+}
+
+function verifyFieldName(name: string) {
+  verifyName(name, ' field');
+}
+
+function verifyStructName(name: string) {
+  name && verifyName(name, '');
 }
 
 function flattenUnionTypes(types: Type[], seenTypes: {[key: Hash]: boolean}): Type[] {
