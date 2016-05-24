@@ -345,7 +345,7 @@ suite('Diff List', () => {
       [1000, 100, 0, 0],
       [2000, 100, 0, 0],
       [3000, 100, 0, 0],
-      [4000, 100, 0, 0]
+      [4000, 100, 0, 0],
     ];
     assert.deepEqual(expectedDiff, directDiff);
   });
@@ -372,7 +372,7 @@ suite('Diff List', () => {
       [1000, 0, 5, 1005],
       [2000, 0, 5, 2010],
       [3000, 0, 5, 3015],
-      [4000, 0, 5, 4020]
+      [4000, 0, 5, 4020],
     ];
     assert.deepEqual(expectedDiff, directDiff);
   });
