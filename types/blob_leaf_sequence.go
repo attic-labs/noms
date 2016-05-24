@@ -14,10 +14,6 @@ func (bl blobLeafSequence) getOffset(idx int) uint64 {
 	return uint64(idx)
 }
 
-func (bl blobLeafSequence) isMeta() bool {
-	return false
-}
-
 // sequence interface
 func (bl blobLeafSequence) getItem(idx int) sequenceItem {
 	return bl.data[idx]

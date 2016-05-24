@@ -10,7 +10,6 @@ import (
 type indexedSequence interface {
 	sequence
 	getOffset(idx int) uint64
-	isMeta() bool
 }
 
 type indexedMetaSequence struct {
@@ -59,10 +58,6 @@ func (ims indexedMetaSequence) getOffset(idx int) uint64 {
 	}
 
 	return ims.offsets[idx] - 1
-}
-
-func (ims indexedMetaSequence) isMeta() bool {
-	return true
 }
 
 func newCursorAtIndex(seq indexedSequence, idx uint64) *sequenceCursor {

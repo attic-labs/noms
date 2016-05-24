@@ -106,7 +106,7 @@ func (ms metaSequenceObject) getCompositeChildSequence(start uint64, length uint
 		seq := ms.getChildSequence(int(i))
 		if i == start {
 			if idxSeq, ok := seq.(indexedSequence); ok {
-				childIsMeta = idxSeq.isMeta()
+				childIsMeta = isMetaSequence(idxSeq)
 			}
 		}
 		for j := 0; j < seq.seqLen(); j++ {
@@ -123,6 +123,11 @@ func (ms metaSequenceObject) getCompositeChildSequence(start uint64, length uint
 	} else {
 		return newListLeafSequence(ms.vr, valueItems...)
 	}
+}
+
+func isMetaSequence(seq sequence) bool {
+	_, seqIsMeta := seq.(metaSequence)
+	return seqIsMeta
 }
 
 // Creates a sequenceCursor pointing to the first metaTuple in a metaSequence, and returns that cursor plus the leaf Value referenced from that metaTuple.

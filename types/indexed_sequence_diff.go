@@ -35,7 +35,7 @@ func indexedSequenceDiff(last indexedSequence, lastHeight int, lastOffset uint64
 	}
 
 	var edEqFn EditDistanceEqualsFn
-	if last.isMeta() {
+	if isMetaSequence(last) {
 		edEqFn = func(i uint64, j uint64) bool {
 			return last.getItem(int(i)).(metaTuple).ref == current.getItem(int(j)).(metaTuple).ref
 		}
@@ -50,7 +50,7 @@ func indexedSequenceDiff(last indexedSequence, lastHeight int, lastOffset uint64
 	finalSplices := []Splice{}
 	newLoadLimit := loadLimit
 	for _, splice := range initialSplices {
-		if !last.isMeta() || splice.SpRemoved == 0 || splice.SpAdded == 0 {
+		if !isMetaSequence(last) || splice.SpRemoved == 0 || splice.SpAdded == 0 {
 			splice.SpAt += lastOffset
 			if splice.SpAdded > 0 {
 				splice.SpFrom += currentOffset
