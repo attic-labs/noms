@@ -8,11 +8,19 @@ type String struct {
 }
 
 func NewString(s string) String {
-	return String{s, &hash.Hash{}}
+	return newStringWithHash(s, &hash.Hash{})
+}
+
+func newStringWithHash(s string, h *hash.Hash) String {
+	return String{s, h}
 }
 
 func (fs String) String() string {
 	return fs.s
+}
+
+func (s String) hashPointer() *hash.Hash {
+	return s.h
 }
 
 // Value interface
