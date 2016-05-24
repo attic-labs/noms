@@ -319,8 +319,7 @@ export function decodeNomsValue(chunk: Chunk, vr: ValueReader): Value {
       throw new Error('Not implemented');
   }
   if (v instanceof ValueBase) {
-    //$FlowIssue - BUG 1623
-    v._hash = chunk.hash;
+    (v: ValueBase)._hash = chunk.hash;
   }
   return v;
 }
