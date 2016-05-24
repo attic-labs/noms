@@ -24,7 +24,8 @@ type walkCb = (v: Value) => ?bool | Promise<?bool>;
  */
 export default async function walk(v: Value, ds: Database, cb: walkCb): Promise<void> {
   let skip = cb(v);
-  if (skip instanceof Promise) {
+  if (typeof skip !== 'undefined' && typeof skip !== 'boolean') {
+    // Might be a Promise, but we can't check instanceof: https://phabricator.babeljs.io/T7340.
     skip = await skip;
   }
 
