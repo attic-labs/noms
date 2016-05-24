@@ -121,11 +121,9 @@ func MakePrimitiveTypeByString(p string) *Type {
 }
 
 func MakeStructType(name string, fields map[string]*Type) *Type {
-	if name != "" {
-		verifyName(name, "")
-	}
+	verifyStructName(name)
 	for fn := range fields {
-		verifyName(fn, " field")
+		verifyFieldName(fn)
 	}
 	return buildType(StructDesc{name, fields})
 }
@@ -133,7 +131,17 @@ func MakeStructType(name string, fields map[string]*Type) *Type {
 var fieldNameRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_]*$`)
 
 func verifyName(name, kind string) {
-	d.Exp.True(fieldNameRe.MatchString(name), `Invalid struct%s name: "%s"`, name)
+	d.Exp.True(fieldNameRe.MatchString(name), `Invalid struct%s name: "%s"`, kind, name)
+}
+
+func verifyFieldName(name string) {
+	verifyName(name, " field")
+}
+
+func verifyStructName(name string) {
+	if name != "" {
+		verifyName(name, "")
+	}
 }
 
 func MakeListType(elemType *Type) *Type {
