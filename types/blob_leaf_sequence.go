@@ -9,8 +9,13 @@ func newBlobLeafSequence(vr ValueReader, data []byte) indexedSequence {
 	return blobLeafSequence{data, vr}
 }
 
+// indexedSequence interface
 func (bl blobLeafSequence) getOffset(idx int) uint64 {
 	return uint64(idx)
+}
+
+func (bl blobLeafSequence) isMeta() bool {
+	return false
 }
 
 // sequence interface

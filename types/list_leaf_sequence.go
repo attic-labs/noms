@@ -15,8 +15,13 @@ func newListLeafSequence(vr ValueReader, v ...Value) indexedSequence {
 	return listLeafSequence{v, t, vr}
 }
 
+// indexedSequence interface
 func (ll listLeafSequence) getOffset(idx int) uint64 {
 	return uint64(idx)
+}
+
+func (ll listLeafSequence) isMeta() bool {
+	return false
 }
 
 // sequence interface
