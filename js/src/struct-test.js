@@ -186,6 +186,7 @@ suite('Struct', () => {
       ['AQ1', 'AQ511'],
       ['$', 'Q24'],
       ['Few ¢ents Short', 'FewQ20QC2A2entsQ20Short'],
+      ['💩', 'QF09F92A9'],
     ];
 
     cases.forEach(c => {

@@ -239,12 +239,18 @@ const headPattern = /[a-zA-PR-Z]/;
 const tailPattern = /[a-zA-PR-Z1-9_]/;
 const completePattern = new RegExp('^' + headPattern.source + tailPattern.source + '*$');
 
-// Escapes names for use as noms structs. Disallow characters are encoded as
-// 'Q<hex-encoded-utf8-bytes>'. Note that Q itself is also escaped since it is
-// the escape character.
+/**
+ * Escapes names for use as noms structs. Disallow characters are encoded as
+ * 'Q<hex-encoded-utf8-bytes>'. Note that Q itself is also escaped since it is
+ * the escape character.
+ */
 export function escapeStructField(input: string): string {
   if (completePattern.test(input)) {
     return input;
+  }
+
+  if (input.length == 0) {
+    throw new Error('cannot escape empty field name');
   }
 
   const encode = (c: string, p: RegExp) => {
@@ -263,13 +269,11 @@ export function escapeStructField(input: string): string {
     return out;
   };
 
-  if (input.length < 1) {
-    throw new Error('Empty input');
-  }
-
-  let output = encode(input[0], headPattern);
-  for (let i = 1; i < input.length; i++) {
-    output += encode(input[i], tailPattern);
+  let output = '';
+  let pattern = headPattern;
+  for (let c of input) {
+    output += encode(c, pattern);
+    pattern = tailPattern;
   }
 
   return output;
