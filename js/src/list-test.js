@@ -410,8 +410,8 @@ suite('Diff List', () => {
     assert.deepEqual(expectedDiff, directDiff);
   });
 
- test('String 1', async () => {
-    const nums1 = ["one", "two", "three"];
+  test('String 1', async () => {
+    const nums1 = ['one', 'two', 'three'];
     const nums2 = nums1.slice(0);
 
     const directDiff = calcSplices(nums1.length, nums2.length, (i, j) => equals(nums1[i],nums2[j]));
@@ -425,9 +425,9 @@ suite('Diff List', () => {
     assert.deepEqual(expectedDiff, directDiff);
   });
 
- test('String 2', async () => {
-    const nums1 = ["one", "two", "three"];
-    const nums2 = ["one", "two", "three", "four"];
+  test('String 2', async () => {
+    const nums1 = ['one', 'two', 'three'];
+    const nums2 = ['one', 'two', 'three', 'four'];
 
     const directDiff = calcSplices(nums1.length, nums2.length, (i, j) => equals(nums1[i],nums2[j]));
     const l1 = new List(nums1);
@@ -442,9 +442,9 @@ suite('Diff List', () => {
     assert.deepEqual(expectedDiff, directDiff);
   });
 
- test('String 3', async () => {
-    const nums1 = ["one", "two", "three"];
-    const nums2 = ["one", "two", "four"];
+  test('String 3', async () => {
+    const nums1 = ['one', 'two', 'three'];
+    const nums2 = ['one', 'two', 'four'];
 
     const directDiff = calcSplices(nums1.length, nums2.length, (i, j) => equals(nums1[i],nums2[j]));
     const l1 = new List(nums1);
