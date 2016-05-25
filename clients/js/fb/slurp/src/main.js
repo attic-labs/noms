@@ -35,7 +35,7 @@ const args = argv
 const clearLine = '\x1b[2K\r';
 
 main().catch(ex => {
-  process.stdout.write(ex);
+  console.error(ex);
   process.exit(1);
 });
 
@@ -46,11 +46,12 @@ async function main(): Promise<void> {
   }
 
   const out = outSpec.dataset();
-  await out.commit(newStruct('', {
-    user: await getUser(),
-    photos: await getPhotos(),
+  const [user, photos] = await Promise.all([
+    getUser(),
+    getPhotos(),
     // TODO: Add more object types here
-  }));
+  ]);
+  await out.commit(newStruct('', {user, photos}));
   process.stdout.write(clearLine);
   return;
 }
