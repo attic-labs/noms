@@ -28,7 +28,7 @@ const sizeTypes = sizes.map(s =>
   makeStructType('', {
     ['url_' + s]: stringType,
     ['width_' + s]: flickrNum,
-    ['height_' + s]: flickrNum,      
+    ['height_' + s]: flickrNum,
   }));
 
 // This is effectively:
@@ -68,11 +68,11 @@ async function main(): Promise<void> {
   }
 
   const input = await inSpec.value();
-  const output = outSpec.set();
+  const output = outSpec.dataset();
   let result = Promise.resolve(new Set());
 
   // TODO: How to report progress?
-  await walk(input, output.store, v => {
+  await walk(input, output.database, v => {
     if (v instanceof Struct && isSubtype(imageType, v.type)) {
       const s = newStruct('Photo', {
         title: v.title || '',
