@@ -8,11 +8,7 @@ type String struct {
 }
 
 func NewString(s string) String {
-	return newStringWithHash(s, &hash.Hash{})
-}
-
-func newStringWithHash(s string, h *hash.Hash) String {
-	return String{s, h}
+	return String{s, &hash.Hash{}}
 }
 
 func (fs String) String() string {
