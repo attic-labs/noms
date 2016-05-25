@@ -10,7 +10,7 @@ export class ValueBase {
   _hash: ?Hash;
 
   constructor() {
-    this._hash = null;
+    init(this);
   }
 
   get type(): Type {
