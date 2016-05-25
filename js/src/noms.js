@@ -21,6 +21,7 @@ export {
 } from './struct.js';
 export {encodeNomsValue} from './encode.js';
 export {invariant, notNull} from './assert.js';
+export {isSubtype} from './assert-type.js';
 export {isPrimitiveKind, Kind, kindToString} from './noms-kind.js';
 export {default as List, ListLeafSequence} from './list.js';
 export {default as Map, MapLeafSequence} from './map.js';
