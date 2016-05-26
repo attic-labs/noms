@@ -88,7 +88,7 @@ func forEachDir(cb func(dir *os.File) bool) {
 		{"GOPATH", "bin"},
 	}
 
-	seen := map[string]struct{}{}
+	seen := map[string]bool{}
 
 	for _, lookup := range lookups {
 		env := os.Getenv(lookup.Env)
@@ -100,11 +100,11 @@ func forEachDir(cb func(dir *os.File) bool) {
 		for _, p := range paths {
 			p := path.Join(p, lookup.Suffix)
 
-			if _, ok := seen[p]; ok {
+			if seen[p] {
 				continue
-			} else {
-				seen[p] = struct{}{}
 			}
+
+			seen[p] = true
 
 			if dir, err := os.Open(p); err == nil && cb(dir) {
 				return
