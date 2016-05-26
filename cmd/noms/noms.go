@@ -76,15 +76,7 @@ func listCmds() []string {
 	})
 
 	sort.Strings(cmds)
-
-	uniqCmds := []string{}
-	for i, cmd := range cmds {
-		if i == 0 || cmds[i-1] != cmd {
-			uniqCmds = append(uniqCmds, cmd)
-		}
-	}
-
-	return uniqCmds
+	return cmds
 }
 
 func forEachDir(cb func(dir *os.File) bool) {
@@ -96,6 +88,8 @@ func forEachDir(cb func(dir *os.File) bool) {
 		{"GOPATH", "bin"},
 	}
 
+	seen := map[string]struct{}{}
+
 	for _, lookup := range lookups {
 		env := os.Getenv(lookup.Env)
 		if env == "" {
@@ -104,11 +98,15 @@ func forEachDir(cb func(dir *os.File) bool) {
 
 		paths := strings.Split(env, string(os.PathListSeparator))
 		for _, p := range paths {
-			dir, err := os.Open(path.Join(p, lookup.Suffix))
-			if err != nil {
+			p := path.Join(p, lookup.Suffix)
+
+			if _, ok := seen[p]; ok {
 				continue
+			} else {
+				seen[p] = struct{}{}
 			}
-			if cb(dir) {
+
+			if dir, err := os.Open(p); err == nil && cb(dir) {
 				return
 			}
 		}
