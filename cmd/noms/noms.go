@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 	"syscall"
 
@@ -74,7 +75,16 @@ func listCmds() []string {
 		return
 	})
 
-	return cmds
+	sort.Strings(cmds)
+
+	uniqCmds := []string{}
+	for i, cmd := range cmds {
+		if i == 0 || cmds[i-1] != cmd {
+			uniqCmds = append(uniqCmds, cmd)
+		}
+	}
+
+	return uniqCmds
 }
 
 func forEachDir(cb func(dir *os.File) bool) {
