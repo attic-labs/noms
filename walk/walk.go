@@ -96,7 +96,7 @@ func doTreeWalkP(v types.Value, vr types.ValueReader, cb SomeCallback, concurren
 type SomeChunksStopCallback func(r types.Ref) bool
 
 // SomeChunksChunkCallback is called for every unique chunks.Chunk |c| which wasn't stopped from SomeChunksStopCallback. |r| is a types.Ref referring to |c|.
-type SomeChunksChunkCallback func(r types.Ref, c chunks.Chunk)
+type SomeChunksChunkCallback func(r types.Ref, c chunks.Chunk, val types.Value)
 
 // SomeChunksP invokes callbacks on every unique chunk reachable from |r| in top-down order. Callbacks are invoked only once for each chunk regardless of how many times the chunk appears.
 //
@@ -124,13 +124,16 @@ func SomeChunksP(r types.Ref, bs types.BatchStore, stopCb SomeChunksStopCallback
 
 		// Try to avoid the cost of reading |c|. It's only necessary if the caller wants to know about every chunk, or if we need to descend below |c| (ref height > 1).
 		var c chunks.Chunk
+		var v types.Value
 
 		if chunkCb != nil || r.Height() > 1 {
 			c = bs.Get(tr)
 			d.Chk.False(c.IsEmpty())
+			// We should quickly test to see if this slows things down noticeably, but I doubt it.
+			v = types.DecodeChunk(c, nil)
 
 			if chunkCb != nil {
-				chunkCb(r, c)
+				chunkCb(r, c, v)
 			}
 		}
 
@@ -138,7 +141,6 @@ func SomeChunksP(r types.Ref, bs types.BatchStore, stopCb SomeChunksStopCallback
 			return
 		}
 
-		v := types.DecodeChunk(c, nil)
 		for _, r1 := range v.Chunks() {
 			wg.Add(1)
 			rq.tail() <- r1

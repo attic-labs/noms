@@ -1,7 +1,9 @@
 package datas
 
 import (
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/attic-labs/noms/chunks"
 	"github.com/attic-labs/noms/hash"
@@ -42,9 +44,30 @@ func CopyReachableChunksP(source, sink Database, sourceRef, exclude types.Ref, c
 func copyWorker(source, sink Database, sourceRef types.Ref, stopCb walk.SomeChunksStopCallback, concurrency int) {
 	bs := sink.batchSink()
 
-	walk.SomeChunksP(sourceRef, source.batchStore(), stopCb, func(r types.Ref, c chunks.Chunk) {
+	var expect, sofar uint64
+
+	walk.SomeChunksP(sourceRef, source.batchStore(), func(r types.Ref) bool {
+		sofar++
+
+		// Percent is dubiously useful.
+		percent := float32(0)
+		if expect > 0 {
+			percent = 100 * (float32(sofar) / float32(expect))
+		}
+		// Printing should be pulled out into the client; or at least it should be opt-in.
+		fmt.Printf("\r%d/%d (%.2f%%)", sofar, expect, percent)
+		time.Sleep(100 * time.Millisecond) // for testing
+
+		return stopCb(r)
+	}, func(r types.Ref, c chunks.Chunk, val types.Value) {
+		expect += uint64(len(val.Chunks()))
 		bs.SchedulePut(c, r.Height(), types.Hints{})
 	}, concurrency)
 
+	// There is an off-by-something error in here which means I have to cheat at the end. Fix.
+	fmt.Printf("\r%d/%d (100%%)\n", expect, expect)
+
+	// We should experiment a bit to see if Flush() needs another progress, but it would be separate
+	// from the previous walk stage. For push I would expect it to be significant, for pull less so.
 	bs.Flush()
 }
