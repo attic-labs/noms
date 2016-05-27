@@ -102,7 +102,6 @@ suite('List', () => {
     const out = [];
     const foreachPromise = list.forEach(v => p.then(() => {
       out.push(v);
-      return;
     }));
 
     notNull(resolver)();

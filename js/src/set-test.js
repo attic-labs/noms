@@ -255,7 +255,6 @@ suite('SetLeaf', () => {
     const values = [];
     const foreachPromise = m.forEach(k => p.then(() => {
       values.push(k);
-      return;
     }));
 
     notNull(resolver)();
@@ -375,7 +374,6 @@ suite('CompoundSet', () => {
     const values = [];
     const foreachPromise = c.forEach(k => p.then(() => {
       values.push(k);
-      return;
     }));
 
     notNull(resolver)();

@@ -319,7 +319,6 @@ suite('MapLeaf', () => {
     const kv = [];
     const foreachPromise = m.forEach((v, k) => p.then(() => {
       kv.push(k, v);
-      return;
     }));
 
     notNull(resolver)();
@@ -475,7 +474,6 @@ suite('CompoundMap', () => {
     const kv = [];
     const foreachPromise = c.forEach((v, k) => p.then(() => {
       kv.push(k, v);
-      return;
     }));
 
     notNull(resolver)();
