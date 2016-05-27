@@ -1,0 +1,194 @@
+// Copyright 2016 The Noms Authors. All rights reserved.
+// Licensed under the Apache License, version 2.0:
+// http://www.apache.org/licenses/LICENSE-2.0
+
+// @flow
+
+import argv from 'yargs';
+import {
+  DatasetSpec,
+  invariant,
+  notNull,
+  List,
+  Map as NomsMap,
+  Ref,
+  Struct,
+  newStruct,
+} from '@attic/noms';
+import type {Value} from '@attic/noms';
+
+const args = argv
+  .usage('Usage: $0 <input-dataset> <output-dataset>')
+  .demand(2, 'You must provide both a dataset to read from, and one to write to.')
+  .argv;
+
+main().catch(ex => {
+  console.error(ex.stack);
+  process.exit(1);
+});
+
+async function main(): Promise<void> {
+  const inSpec = DatasetSpec.parse(args._[0]);
+  invariant(inSpec, quit('invalid input dataset spec'));
+  const outSpec = DatasetSpec.parse(args._[1]);
+  invariant(outSpec, quit('invalid input dataset spec'));
+
+  const input = inSpec.dataset();
+  const head = await input.head().then(commit => commit && commit.value);
+  invariant(head !== null, quit(`{args._[0]} does not exist}`));
+
+  const pitchers = new Map();
+  const inningPs = [];
+  const playerPs = [];
+  await notNull(head).forEach((ref: Ref<NomsMap<string, NomsMap<string, any>>>) => {
+    // We force elemP to be 'any' here because the 'inning' entry and the 'Player' entry have
+    // different types that involve multiple levels of nested maps OR strings.
+    const elemP: any = ref.targetValue(input.database);
+
+    inningPs.push(elemP.then(elem => elem.get('inning').then(inn =>
+      inn ? processInning(inn) : undefined
+    )));
+
+    playerPs.push(elemP
+      .then(elem => elem.get('Player'))
+      .then(player =>
+        player &&
+          Promise.all([player.get('-id'), player.get('-first_name'), player.get('-last_name')])
+      )
+      .then(pitcherInfo => {
+        if (pitcherInfo) {
+          const [id, first, last] = pitcherInfo;
+          pitchers.set(id, last + ', ' + first);
+        }
+      })
+    );
+  });
+
+  await Promise.all(playerPs);
+  const pitcherPitches = new Map();
+  for (const m of await Promise.all(inningPs)) {
+    if (m) {
+      for (const [pitcherID, pitches] of m) {
+        const pitcher = pitchers.get(pitcherID);
+        pitcherPitches.set(pitcher, extendArray(pitches, pitcherPitches.get(pitcher)));
+      }
+    }
+  }
+  const mapData = [];
+  for (const [pitcher, pitches] of pitcherPitches) {
+    mapData.push([pitcher, new List(pitches)]);
+  }
+  await outSpec.dataset().commit(new NomsMap(mapData));
+}
+
+type PitcherPitches = Map<string, Array<Struct>>;
+
+function mergeInto(a: PitcherPitches, b: ?PitcherPitches) {
+  if (!b) {
+    return a;
+  }
+  for (const [pitcher, pitches] of b) {
+    a.set(pitcher, extendArray(pitches, a.get(pitcher)));
+  }
+}
+
+function processInning(inning: NomsMap<string, NomsMap>): Promise<Map<string, Array<Struct>>> {
+  return Promise.all([inning.get('top'), inning.get('bottom')])
+    .then(halves => {
+      const halfPs = [];
+      for (const half of halves) {
+        if (half) {
+          halfPs.push(half.get('atbat'));
+        }
+      }
+      return Promise.all(halfPs);
+    })
+    .then(abData => {
+      const abPs = [];
+      for (const abs of abData) {
+        abPs.push(processAbs(normalize(abs)));
+      }
+      return Promise.all(abPs);
+    })
+    .then(pitcherPitchList => {
+      const ret = new Map();
+      for (const pitcherPitches of pitcherPitchList) {
+        mergeInto(ret, pitcherPitches);
+      }
+      return ret;
+    });
+}
+
+function processAbs(abs: List): Promise<PitcherPitches> {
+  const ps = [];
+  return abs.forEach(ab => {
+    ps.push(
+      Promise.all([ab.get('-pitcher'), ab.get('pitch')])
+      .then(([pitcher, d]) => Promise.all([pitcher, processPitches(normalize(d))]))
+    );
+  })
+  .then(() => Promise.all(ps))
+  .then(abdata => {
+    const pitchCounts = new Map();
+    for (const [pitcher, pitches] of abdata) {
+      if (pitches.length > 0) {
+        pitchCounts.set(pitcher, extendArray(pitchCounts.get(pitcher), pitches));
+      }
+    }
+    return pitchCounts;
+  });
+}
+
+function extendArray<T>(a: ?Array<T>, b: ?Array<T>): Array<T> {
+  if (!a) {
+    return b ? b : [];
+  }
+  if (!b) {
+    return a ? a : [];
+  }
+  const aOK = notNull(a);
+  const bOK = notNull(b);
+  bOK.forEach(e => aOK.push(e));
+  return aOK;
+}
+
+function normalize<T: Value>(d: ?T | List<T>): List<T> {
+  if (!d) {
+    return new List();
+  }
+  if (d instanceof List) {
+    return d;
+  }
+  return new List([d]);
+}
+
+type PitchData = NomsMap<string, string>;
+
+function processPitches(d: List<PitchData>): Promise<Array<Struct>> {
+  const pitchPs = [];
+  return d.forEach((p: PitchData) => {
+    pitchPs.push(getPitch(p));
+  })
+  .then(() => pitchPs)
+  .then(pitchPs => Promise.all(pitchPs))
+  .then(pitches => pitches.filter((e: ?Struct): boolean => !!e));
+}
+
+function getPitch(p: PitchData): Promise<?Struct> {
+  return Promise.all([p.get('-px'), p.get('-pz')]).then(([xStr, zStr]) => {
+    if (!xStr || !zStr) {
+      return;
+    }
+    const [x, z] = [Number(xStr), Number(zStr)];
+    invariant(!isNaN(x), x + ' should be a number');
+    invariant(!isNaN(z), z + ' should be a number');
+    return newStruct('Pitch', {x: x, z: z});
+  });
+}
+
+function quit(err: string): Function {
+  return () => {
+    process.stderr.write(err + '\n');
+    process.exit(1);
+  };
+}
