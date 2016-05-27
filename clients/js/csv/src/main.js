@@ -33,22 +33,19 @@ function main() {
   let i = 0;
 
   parser.on('readable', () => {
-    const status = () => process.stdout.write(`${clearLine}${i} rows`);
-    const records = [];
     let record;
     while ((record = parser.read())) {
-      records.push(newStruct('', specializeRecordTypes(record)));
       i++;
-      status();
+      const struct = newStruct('', specializeRecordTypes(record));
+      listP = listP.then(list => {
+        process.stdout.write(`${clearLine}${i} rows`);
+        return list.append(struct);
+      });
     }
-    listP = listP.then(list => {
-      status();
-      return list.append(...records);
-    });
   });
 
-  parser.on('error', (err) => {
-    console.error(err.message);
+  parser.on('error', err => {
+    process.stderr.write(`${err.message}\n`);
     process.exit(1);
   });
 
