@@ -74,6 +74,7 @@ function main() {
 }
 
 function specializeType(s: string): number | string {
+  // Prevent empty strings from being treated as 0.
   if (/^\s*$/.test(s)) {
     return s;
   }
@@ -85,6 +86,7 @@ function specializeType(s: string): number | string {
 }
 
 function cleanupName(s: string): string {
+  // Disallow field names that conflict with the Value/Struct API.
   if (s in Struct.prototype) {
     s += '_';
   }
