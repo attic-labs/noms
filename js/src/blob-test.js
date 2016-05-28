@@ -121,9 +121,7 @@ suite('Blob', () => {
 
     await testPrependChunkDiff(buff, blob, expectPrependChunkDiff);
     await testAppendChunkDiff(buff, blob, expectAppendChunkDiff);
-    //console.profile('testRandomRead');
     await testRandomRead(buff, blob);
-    //console.profileEnd('testRandomRead');
   }
 
   class CountingByteReader {
