@@ -49,16 +49,22 @@ export class BlobReader {
    *
    * Returns {done: false, value: chunk} if there is more data, or {done: true} if there is none.
    */
-  async read(): Promise<{done: boolean, value?: Uint8Array}> {
+  read(): Promise<{done: boolean, value?: Uint8Array}> {
     invariant(this._lock === '', `cannot read without completing current ${this._lock}`);
     this._lock = 'read';
 
-    const cur = await this._cursor;
-    if (!cur.valid) {
+    return this._cursor.then(cur => {
+      if (!cur.valid) {
+        return {done: true};
+      }
+      return this._readCur(cur).then(arr => ({done: false, value: arr}));
+    }).then(res => {
       this._lock = '';
-      return {done: true};
-    }
+      return res;
+    });
+  }
 
+  _readCur(cur: SequenceCursor): Promise<Uint8Array> {
     let arr = cur.sequence.items;
     invariant(arr instanceof Uint8Array);
 
@@ -68,11 +74,10 @@ export class BlobReader {
       arr = new Uint8Array(arr.buffer, arr.byteOffset + idx, arr.byteLength - idx);
     }
 
-    await cur.advanceChunk();
-    this._pos += arr.byteLength;
-
-    this._lock = '';
-    return {done: false, value: arr};
+    return cur.advanceChunk().then(() => {
+      this._pos += arr.byteLength;
+      return arr;
+    });
   }
 
   /**
@@ -83,7 +88,7 @@ export class BlobReader {
    * If |whence| is 1, |offset| will be relative to the current position.
    * If |whence| is 2, |offset| will be relative to the end.
    */
-  async seek(offset: number, whence: number = 0): Promise<number> {
+  seek(offset: number, whence: number = 0): Promise<number> {
     invariant(this._lock === '', `cannot seek without completing current ${this._lock}`);
     this._lock = 'seek';
 
@@ -107,12 +112,12 @@ export class BlobReader {
 
     this._cursor = this._sequence.newCursorAt(abs);
 
-    // Force wait for the seek to complete so that reads will be relative to the new position.
-    await this._cursor;
-    this._pos = abs;
-
-    this._lock = '';
-    return abs;
+    // Wait for the seek to complete so that reads will be relative to the new position.
+    return this._cursor.then(() => {
+      this._pos = abs;
+      this._lock = '';
+      return abs;
+    });
   }
 }
 
