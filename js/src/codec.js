@@ -1,3 +1,7 @@
+// Copyright 2016 The Noms Authors. All rights reserved.
+// Licensed under the Apache License, version 2.0:
+// http://www.apache.org/licenses/LICENSE-2.0
+
 // @flow
 
 import Hash, {sha1Size} from './hash.js';
@@ -5,6 +9,7 @@ import {encode, decode} from './utf8.js';
 import {invariant} from './assert.js';
 
 const maxUInt32 = Math.pow(2, 32);
+const littleEndian = true;
 
 export interface NomsReader {
   readBytes(): Uint8Array;
@@ -18,14 +23,14 @@ export interface NomsReader {
 }
 
 export interface NomsWriter {
-	writeBytes(v: Uint8Array): void;
-	writeUint8(v: number): void;
-	writeUint32(v: number): void;
-	writeUint64(v: number): void;
-	writeFloat64(v: number): void;
-	writeBool(v:boolean): void;
-	writeString(v: string): void;
-	writeHash(h: Hash): void;
+  writeBytes(v: Uint8Array): void;
+  writeUint8(v: number): void;
+  writeUint32(v: number): void;
+  writeUint64(v: number): void;
+  writeFloat64(v: number): void;
+  writeBool(v:boolean): void;
+  writeString(v: string): void;
+  writeHash(h: Hash): void;
 }
 
 export class BinaryNomsReader {
@@ -34,20 +39,15 @@ export class BinaryNomsReader {
   offset: number;
   length: number;
 
-  constructor(buff: ArrayBuffer) {
-    this.buff = buff;
+  constructor(data: Uint8Array) {
+    this.buff = data.buffer;
     this.dv = new DataView(this.buff, 0);
     this.offset = 0;
     this.length = this.buff.byteLength;
   }
 
-  checkCanRead(n: number) {
-    invariant(this.offset + n <= this.length);
-  }
-
   readBytes(): Uint8Array {
     const size = this.readUint32();
-    this.checkCanRead(size);
     // Make a copy of the buffer to return
     const v = new Uint8Array(new Uint8Array(this.buff, this.offset, size));
     this.offset += size;
@@ -55,15 +55,13 @@ export class BinaryNomsReader {
   }
 
   readUint8(): number {
-    this.checkCanRead(1);
     const v = this.dv.getUint8(this.offset);
     this.offset++;
     return v;
   }
 
   readUint32(): number {
-    this.checkCanRead(4);
-    const v = this.dv.getUint32(this.offset, true);
+    const v = this.dv.getUint32(this.offset, littleEndian);
     this.offset += 4;
     return v;
   }
@@ -77,8 +75,7 @@ export class BinaryNomsReader {
   }
 
   readFloat64(): number {
-    this.checkCanRead(8);
-    const v = this.dv.getFloat64(this.offset, true);
+    const v = this.dv.getFloat64(this.offset, littleEndian);
     this.offset += 8;
     return v;
   }
@@ -91,14 +88,12 @@ export class BinaryNomsReader {
 
   readString(): string {
     const size = this.readUint32();
-    this.checkCanRead(size);
     const v = new Uint8Array(this.buff, this.offset, size);
     this.offset += size;
     return decode(v);
   }
 
   readHash(): Hash {
-    this.checkCanRead(sha1Size);
     const digest = new Uint8Array(this.buff, this.offset, sha1Size);
     this.offset += sha1Size;
     // fromDigest doesn't take ownership of the memory, so it's safe to pass a view.
@@ -106,7 +101,7 @@ export class BinaryNomsReader {
   }
 }
 
-const initialBufferSize = 1 << 11;
+const initialBufferSize = 2048;
 
 export class BinaryNomsWriter {
   buff: ArrayBuffer;
@@ -161,7 +156,7 @@ export class BinaryNomsWriter {
 
   writeUint32(v: number): void {
     this.ensureCapacity(4);
-    this.dv.setUint32(this.offset, v, true);
+    this.dv.setUint32(this.offset, v, littleEndian);
     this.offset += 4;
   }
 
@@ -175,7 +170,7 @@ export class BinaryNomsWriter {
 
   writeFloat64(v: number): void {
     this.ensureCapacity(8);
-    this.dv.setFloat64(this.offset, v, true);
+    this.dv.setFloat64(this.offset, v, littleEndian);
     this.offset += 8;
   }
 

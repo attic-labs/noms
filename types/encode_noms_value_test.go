@@ -113,6 +113,37 @@ func assertEncoding(t *testing.T, expect []interface{}, v Value) {
 	assert.True(t, v.Equals(v2))
 }
 
+func TestRoundTrips(t *testing.T) {
+	assertRoundTrips := func(v Value) {
+		vs := NewTestValueStore()
+		out := DecodeValue(EncodeValue(v, vs), vs)
+		assert.True(t, v.Equals(out))
+	}
+
+	assertRoundTrips(Bool(false))
+	assertRoundTrips(Bool(true))
+
+	assertRoundTrips(Number(1))
+	assertRoundTrips(Number(-0))
+	assertRoundTrips(Number(0))
+	assertRoundTrips(Number(1))
+
+	assertRoundTrips(NewString(""))
+	assertRoundTrips(NewString("foo"))
+	assertRoundTrips(NewString("AINT NO THANG"))
+	assertRoundTrips(NewString("💩"))
+
+	assertRoundTrips(NewStruct("", structData{"a": Bool(true), "b": NewString("foo"), "c": Number(2.3)}))
+
+	listLeaf := newList(newListLeafSequence(nil, Number(4), Number(5), Number(6), Number(7)))
+	assertRoundTrips(listLeaf)
+
+	assertRoundTrips(newList(newListMetaSequence([]metaTuple{
+		newMetaTuple(Number(10), nil, NewRef(listLeaf), 10),
+		newMetaTuple(Number(20), nil, NewRef(listLeaf), 20),
+	}, nil)))
+}
+
 func TestWritePrimitives(t *testing.T) {
 	assertEncoding(t,
 		[]interface{}{

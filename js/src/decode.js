@@ -237,7 +237,7 @@ export class ValueDecoder {
 
 export function decodeNomsValue(chunk: Chunk, vr: ValueReader): Value {
   const data = chunk.data;
-  const dec = new ValueDecoder(new BinaryNomsReader(data.buffer), vr);
+  const dec = new ValueDecoder(new BinaryNomsReader(data), vr);
   const v = dec.readValue();
 
   if (v instanceof ValueBase) {

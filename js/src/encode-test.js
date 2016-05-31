@@ -33,7 +33,9 @@ import {
 import {
   boolType,
   makeListType,
+  makeMapType,
   makeRefType,
+  makeSetType,
   makeStructType,
   numberType,
   refOfBlobType,
@@ -56,6 +58,7 @@ suite('Encoding - roundtrip', () => {
 
   test('numbers', () => {
     assertRoundTrips(1);
+    assertRoundTrips(-0);
     assertRoundTrips(0);
     assertRoundTrips(-1);
   });
@@ -64,6 +67,7 @@ suite('Encoding - roundtrip', () => {
     assertRoundTrips('');
     assertRoundTrips('foo');
     assertRoundTrips('AINT NO THANG');
+    assertRoundTrips('💩');
   });
 
   test('structs', () => {
@@ -83,24 +87,31 @@ suite('Encoding - roundtrip', () => {
     const mts = [new MetaTuple(new Ref(leaf), 10, 10, null), new MetaTuple(new Ref(leaf), 20, 20, null)];
     assertRoundTrips(List.fromSequence(newListMetaSequence(null, mts)));
   });
-
-  test('list', () => {
-    const strings = [];
-    for (let i = 0; i < 10000; i++) {
-      strings.push(String(i));
-    }
-
-    const l = new List(strings);
-    assertRoundTrips(l);
-  });
 });
 
 suite('Encoding', () => {
+  function uint8(v: NomsKind): NomsKind {
+    return {type: 'uint8', value: v};
+  }
+
+  function uint32(v: NomsKind): NomsKind {
+    return {type: 'uint32', value: v};
+  }
+
+  function uint64(v: NomsKind): NomsKind {
+    return {type: 'uint64', value: v};
+  }
+
+  function float64(v: NomsKind): NomsKind {
+    return {type: 'float64', value: v};
+  }
+
+
   class TestReader {
-    a: [any];
+    a: any[];
     i: number;
 
-    constructor(a: [any]) {
+    constructor(a: any[]) {
       this.a = a;
       this.i = 0;
     }
@@ -115,31 +126,45 @@ suite('Encoding', () => {
     }
 
     readBytes(): Uint8Array {
-      return this.read();
+      const v = this.read();
+      invariant(v instanceof Uint8Array);
+      return v;
     }
 
     readUint8(): number {
-      return this.read();
+      const tagged = this.read();
+      invariant(tagged.type === 'uint8');
+      return tagged.value;
     }
 
     readUint32(): number {
-      return this.read();
+      const tagged = this.read();
+      invariant(tagged.type === 'uint32');
+      return tagged.value;
     }
 
     readUint64(): number {
-      return this.read();
+      const tagged = this.read();
+      invariant(tagged.type === 'uint64');
+      return tagged.value;
     }
 
     readFloat64(): number {
-      return this.read();
+      const tagged = this.read();
+      invariant(tagged.type === 'float64');
+      return tagged.value;
     }
 
     readBool(): boolean {
-      return this.read();
+      const v = this.read();
+      invariant(typeof v === 'boolean');
+      return v;
     }
 
     readString(): string {
-      return this.read();
+      const v = this.read();
+      invariant(typeof v === 'string');
+      return v;
     }
 
     readHash(): Hash {
@@ -148,7 +173,7 @@ suite('Encoding', () => {
   }
 
   class TestWriter {
-    a: [any];
+    a: any[];
     i: number;
 
     constructor() {
@@ -162,20 +187,21 @@ suite('Encoding', () => {
     writeBytes(v: Uint8Array): void {
       this.write(v);
     }
+
     writeUint8(v: number): void {
-      this.write(v);
+      this.write(uint8(v));
     }
 
     writeUint32(v: number): void {
-      this.write(v);
+      this.write(uint32(v));
     }
 
     writeUint64(v: number): void {
-      this.write(v);
+      this.write(uint64(v));
     }
 
     writeFloat64(v: number): void {
-      this.write(v);
+      this.write(float64(v));
     }
 
     writeBool(v:boolean): void {
@@ -190,7 +216,7 @@ suite('Encoding', () => {
       this.writeString(h.toString());
     }
 
-    toArray(): [any] {
+    toArray(): any[] {
       return this.a;
     }
   }
@@ -208,12 +234,7 @@ suite('Encoding', () => {
   const ParentKind = Kind.Parent;
   const UnionKind = Kind.Union;
 
-  function uint8(v: NomsKind): NomsKind { return v; }
-  function uint32(v: number): number { return v; }
-  function uint64(v: number): number { return v; }
-  function float64(v: number): number { return v; }
-
-  function assertEncoding(encoding: [any], v: Value) {
+  function assertEncoding(encoding: any[], v: Value) {
     const w = new TestWriter();
     const enc = new ValueEncoder(w, null);
     enc.writeValue(v);
@@ -239,6 +260,8 @@ suite('Encoding', () => {
     assertEncoding([uint8(TypeKind), uint8(BoolKind)], boolType);
     assertEncoding([uint8(TypeKind), uint8(TypeKind)], typeType);
     assertEncoding([uint8(TypeKind), uint8(ListKind), uint8(BoolKind)], makeListType(boolType));
+    assertEncoding([uint8(TypeKind), uint8(SetKind), uint8(StringKind)], makeSetType(stringType));
+    assertEncoding([uint8(TypeKind), uint8(MapKind), uint8(StringKind), uint8(NumberKind)], makeMapType(stringType, numberType));
   });
 
   test('simple blob', () => {

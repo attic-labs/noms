@@ -22,7 +22,7 @@ func EncodeValue(v Value, vw ValueWriter) chunks.Chunk {
 	return chunks.NewChunk(buff.Bytes())
 }
 
-// DecodeValue decodes a value from a chunk source. It is not considered an error for the requested chunk to be empty; in this case, the function simply returns nil.
+// DecodeValue decodes a value from a chunk source. It is an error to provide an empty chunk.
 func DecodeValue(c chunks.Chunk, vr ValueReader) Value {
 	d.Chk.False(c.IsEmpty())
 	data := c.Data()
@@ -157,11 +157,11 @@ func (b binaryNomsWriter) writeFloat64(v float64) {
 }
 
 func (b binaryNomsWriter) writeBool(v bool) {
-	u := uint8(0)
 	if v {
-		u = 1
+		b.WriteByte(uint8(1))
+	} else {
+		b.WriteByte(uint8(0))
 	}
-	b.WriteByte(u)
 }
 
 func (b binaryNomsWriter) writeString(v string) {
