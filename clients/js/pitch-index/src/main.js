@@ -8,7 +8,6 @@ import argv from 'yargs';
 import {
   DatasetSpec,
   invariant,
-  notNull,
   List,
   Map as NomsMap,
   Ref,
@@ -27,6 +26,8 @@ main().catch(ex => {
   process.exit(1);
 });
 
+type XMLEntity = NomsMap<string, NomsMap<string, any>>;
+
 async function main(): Promise<void> {
   const inSpec = DatasetSpec.parse(args._[0]);
   invariant(inSpec, quit('invalid input dataset spec'));
@@ -34,34 +35,19 @@ async function main(): Promise<void> {
   invariant(outSpec, quit('invalid input dataset spec'));
 
   const input = inSpec.dataset();
-  const head = await input.head().then(commit => commit && commit.value);
-  invariant(head !== null, quit(`{args._[0]} does not exist}`));
+  const commit = await input.head();
+  const head = commit && commit.value;
+  invariant(head, quit(`{args._[0]} does not exist}`));
 
   const pitchers = new Map();
   const inningPs = [];
   const playerPs = [];
-  await notNull(head).forEach((ref: Ref<NomsMap<string, NomsMap<string, any>>>) => {
+  await head.forEach((ref: Ref<XMLEntity>) => {
     // We force elemP to be 'any' here because the 'inning' entry and the 'Player' entry have
     // different types that involve multiple levels of nested maps OR strings.
     const elemP: any = ref.targetValue(input.database);
-
-    inningPs.push(elemP.then(elem => elem.get('inning').then(inn =>
-      inn ? processInning(inn) : undefined
-    )));
-
-    playerPs.push(elemP
-      .then(elem => elem.get('Player'))
-      .then(player =>
-        player &&
-          Promise.all([player.get('-id'), player.get('-first_name'), player.get('-last_name')])
-      )
-      .then(pitcherInfo => {
-        if (pitcherInfo) {
-          const [id, first, last] = pitcherInfo;
-          pitchers.set(id, last + ', ' + first);
-        }
-      })
-    );
+    inningPs.push(maybeProcessInning(elemP));
+    playerPs.push(maybeProcessPitcher(elemP, pitchers));
   });
 
   await Promise.all(playerPs);
@@ -81,6 +67,20 @@ async function main(): Promise<void> {
   await outSpec.dataset().commit(new NomsMap(mapData));
 }
 
+function maybeProcessPitcher(ep: Promise<XMLEntity>, pitchers: Map<string, string>): Promise<void> {
+  return ep.then(elem => elem.get('Player'))
+    .then(player =>
+      player &&
+        Promise.all([player.get('-id'), player.get('-first_name'), player.get('-last_name')])
+    )
+    .then(pitcherInfo => {
+      if (pitcherInfo) {
+        const [id, first, last] = pitcherInfo;
+        pitchers.set(id, last + ', ' + first);
+      }
+    });
+}
+
 type PitcherPitches = Map<string, Array<Struct>>;
 
 function mergeInto(a: PitcherPitches, b: ?PitcherPitches) {
@@ -90,6 +90,10 @@ function mergeInto(a: PitcherPitches, b: ?PitcherPitches) {
   for (const [pitcher, pitches] of b) {
     a.set(pitcher, extendArray(pitches, a.get(pitcher)));
   }
+}
+
+function maybeProcessInning(ep: Promise<XMLEntity>): Promise<?Map<string, Array<Struct>>> {
+  return ep.then(elem => elem.get('inning')).then(inn => inn && processInning(inn));
 }
 
 function processInning(inning: NomsMap<string, NomsMap>): Promise<Map<string, Array<Struct>>> {
@@ -139,17 +143,9 @@ function processAbs(abs: List): Promise<PitcherPitches> {
   });
 }
 
-function extendArray<T>(a: ?Array<T>, b: ?Array<T>): Array<T> {
-  if (!a) {
-    return b ? b : [];
-  }
-  if (!b) {
-    return a ? a : [];
-  }
-  const aOK = notNull(a);
-  const bOK = notNull(b);
-  bOK.forEach(e => aOK.push(e));
-  return aOK;
+function extendArray<T>(a: Array<T> = [], b: Array<T> = []): Array<T> {
+  b.forEach(e => a.push(e));
+  return a;
 }
 
 function normalize<T: Value>(d: ?T | List<T>): List<T> {
@@ -182,11 +178,11 @@ function getPitch(p: PitchData): Promise<?Struct> {
     const [x, z] = [Number(xStr), Number(zStr)];
     invariant(!isNaN(x), x + ' should be a number');
     invariant(!isNaN(z), z + ' should be a number');
-    return newStruct('Pitch', {x: x, z: z});
+    return newStruct('Pitch', {x, z});
   });
 }
 
-function quit(err: string): Function {
+function quit(err: string): () => void {
   return () => {
     process.stderr.write(err + '\n');
     process.exit(1);
