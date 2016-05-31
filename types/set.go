@@ -131,6 +131,16 @@ func (s Set) Remove(values ...Value) Set {
 	return res.Remove(tail...)
 }
 
+// func (s Set) validate() {
+// 	vals := ValueSlice{}
+// 	s.IterAll(func(v Value) {
+// 		vals = append(vals, v)
+// 	})
+
+// 	ns := NewSet(vals...)
+// 	d.Chk.True(ns.Equals(s))
+// }
+
 func (s Set) splice(cur *sequenceCursor, deleteCount uint64, vs ...Value) Set {
 	ch := newSequenceChunker(cur, makeSetLeafChunkFn(s.seq.valueReader()), newOrderedMetaSequenceChunkFn(SetKind, s.seq.valueReader()), newSetLeafBoundaryChecker(), newOrderedMetaSequenceBoundaryChecker)
 	for deleteCount > 0 {
@@ -141,7 +151,10 @@ func (s Set) splice(cur *sequenceCursor, deleteCount uint64, vs ...Value) Set {
 	for _, v := range vs {
 		ch.Append(v)
 	}
-	return ch.Done().(Set)
+
+	ns := ch.Done().(Set)
+	// ns.validate()
+	return ns
 }
 
 func (s Set) getCursorAtValue(v Value) (cur *sequenceCursor, found bool) {
