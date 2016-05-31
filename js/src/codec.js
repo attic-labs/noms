@@ -22,7 +22,6 @@ export function encodeValue(v: Value, vw: ?ValueWriter): Chunk {
 
 setEncodeValue(encodeValue);
 
-
 export function decodeValue(chunk: Chunk, vr: ValueReader): Value {
   const data = chunk.data;
   const dec = new ValueDecoder(new BinaryNomsReader(data), vr);
