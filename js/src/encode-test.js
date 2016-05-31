@@ -473,7 +473,7 @@ suite('Encoding', () => {
   test('recursive struct', () => {
     const structType = makeStructType('A6', {
       v: numberType,
-      cs: null,
+      cs: numberType, // placeholder
     });
     const listType = makeListType(structType);
     structType.desc.fields['cs'] = listType;

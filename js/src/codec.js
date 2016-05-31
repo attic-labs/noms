@@ -41,9 +41,9 @@ export class BinaryNomsReader {
 
   constructor(data: Uint8Array) {
     this.buff = data.buffer;
-    this.dv = new DataView(this.buff, 0);
-    this.offset = 0;
-    this.length = this.buff.byteLength;
+    this.offset = data.byteOffset;
+    this.length = data.byteLength;
+    this.dv = new DataView(this.buff, this.offset, this.length);
   }
 
   readBytes(): Uint8Array {
