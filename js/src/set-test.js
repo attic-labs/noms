@@ -42,11 +42,11 @@ class CountingMemoryStore extends MemoryStore {
   }
 }
 
-async function validateSet(s: Set, values: [number]): Promise<void> {
+async function validateSet(s: Set, values: number[]): Promise<void> {
   assert.isTrue(equals(new Set(values), s));
 
   const out = [];
-  await s.forEach(v => void(out.push(v)));
+  await s.forEach(v => { out.push(v); });
   assert.deepEqual(values, out);
 }
 
@@ -121,7 +121,7 @@ suite('BuildSet', () => {
     await validateSet(s, nums);
   });
 
-  async function validateInsertion(values: [number]): Promise<void> {
+  async function validateInsertion(values: number[]): Promise<void> {
     let s = new Set();
     for (let i = 0; i < values.length; i++) {
       s = await s.insert(values[i]);

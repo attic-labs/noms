@@ -44,7 +44,7 @@ async function assertToJS(list: List, nums: Array<any>, start: number = 0,
   assert.deepEqual(expect, jsArray);
 }
 
-async function validateList(l: List, values: [number]): Promise<void> {
+async function validateList(l: List, values: number[]): Promise<void> {
   assert.isTrue(equals(new List(values), l));
   const out = [];
   await l.forEach(v => void(out.push(v)));
@@ -167,7 +167,7 @@ suite('List', () => {
     assert.strictEqual(height + 1, s.sequence.items[0].ref.height);
   });
 
-  async function validateInsertion(values: [number]): Promise<void> {
+  async function validateInsertion(values: number[]): Promise<void> {
     let l = new List();
     for (let i = 0; i < values.length; i++) {
       l = await l.insert(i, values[i]);
