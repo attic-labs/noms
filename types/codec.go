@@ -71,7 +71,7 @@ type binaryNomsReader struct {
 
 func (b *binaryNomsReader) assertCanRead(n uint32) {
 	if b.offset+n > uint32(len(b.buff)) {
-		panic("unexpected end up slice in decoder")
+		panic("unexpected end of input")
 	}
 }
 
