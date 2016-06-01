@@ -26,7 +26,7 @@ main().catch(ex => {
   process.exit(1);
 });
 
-type XMLEntity = NomsMap<string, NomsMap<string, any>>;
+type XMLElement = NomsMap<string, NomsMap<string, any>>;
 
 async function main(): Promise<void> {
   const inSpec = DatasetSpec.parse(args._[0]);
@@ -42,7 +42,7 @@ async function main(): Promise<void> {
   const pitchers = new Map();
   const inningPs = [];
   const playerPs = [];
-  await head.forEach((ref: Ref<XMLEntity>) => {
+  await head.forEach((ref: Ref<XMLElement>) => {
     // We force elemP to be 'any' here because the 'inning' entry and the 'Player' entry have
     // different types that involve multiple levels of nested maps OR strings.
     const elemP: any = ref.targetValue(input.database);
@@ -67,18 +67,14 @@ async function main(): Promise<void> {
   await outSpec.dataset().commit(new NomsMap(mapData));
 }
 
-function maybeProcessPitcher(ep: Promise<XMLEntity>, pitchers: Map<string, string>): Promise<void> {
-  return ep.then(elem => elem.get('Player'))
-    .then(player =>
-      player &&
-        Promise.all([player.get('-id'), player.get('-first_name'), player.get('-last_name')])
-    )
-    .then(pitcherInfo => {
-      if (pitcherInfo) {
-        const [id, first, last] = pitcherInfo;
-        pitchers.set(id, last + ', ' + first);
-      }
-    });
+async function maybeProcessPitcher(ep: Promise<XMLEntity>, pitchers: Map<string, string>):
+  Promise<void> {
+  const player = await (await ep).get('Player');
+  if (player) {
+    const [id, first, last] = await Promise.all([
+      player.get('-id'), player.get('-first_name'), player.get('-last_name')]);
+    pitchers.set(id, last + ', ' + first);
+  }
 }
 
 type PitcherPitches = Map<string, Array<Struct>>;
@@ -92,7 +88,7 @@ function mergeInto(a: PitcherPitches, b: ?PitcherPitches) {
   }
 }
 
-function maybeProcessInning(ep: Promise<XMLEntity>): Promise<?Map<string, Array<Struct>>> {
+function maybeProcessInning(ep: Promise<XMLElement>): Promise<?Map<string, Array<Struct>>> {
   return ep.then(elem => elem.get('inning')).then(inn => inn && processInning(inn));
 }
 
