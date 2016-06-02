@@ -13,7 +13,13 @@ import {hex as hexBrowser} from './browser/sha1.js';
 suite('Sha1', () => {
   test('hex', () => {
     function assertSame(arr: Uint8Array) {
-      assert.strictEqual(hexNode(arr), hexBrowser(arr));
+      // Node uses a Buffer, browser uses a Uint8Array
+      const n = hexNode(arr);
+      const b = hexBrowser(arr);
+      assert.equal(n.length, b.length);
+      for (let i = 0; i < n.length; i++) {
+        assert.equal(n[i], b[i]);
+      }
     }
 
     assertSame(new Uint8Array(0));

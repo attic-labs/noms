@@ -61,11 +61,11 @@ suite('Hash', () => {
 
   test('isEmpty', () => {
     const digest = new Uint8Array(20);
-    let r = Hash.fromDigest(digest);
+    let r = new Hash(digest);
     assert.isTrue(r.isEmpty());
 
     digest[0] = 10;
-    r = Hash.fromDigest(digest);
+    r = new Hash(digest);
     assert.isFalse(r.isEmpty());
 
     r = emptyHash;

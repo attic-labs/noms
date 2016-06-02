@@ -10,61 +10,56 @@ export const sha1Size = 20;
 const pattern = /^(sha1-[0-9a-f]{40})$/;
 
 const sha1Prefix = 'sha1-';
+const sha1PrefixLength = sha1Prefix.length;
 const emtpyHashStr = sha1Prefix + '0'.repeat(40);
 
 function uint8ArrayToHex(a: Uint8Array): string {
-  let hex = '';
+  const hex = [];
   for (let i = 0; i < a.length; i++) {
-    const v = a[i].toString(16);
-    if (v.length === 1) {
-      hex += '0' + v;
-    } else {
-      hex += v;
-    }
+    hex[i] = byteToAscii[a[i]];
   }
-
-  return hex;
+  return hex.join('');
 }
 
-function hexToUint8(s: string): Uint8Array {
+function hexToUint8Array(s: string): Uint8Array {
   const digest = new Uint8Array(sha1Size);
   for (let i = 0; i < sha1Size; i++) {
-    const ch = s.substring(i * 2, i * 2 + 2);
-    digest[i] = parseInt(ch, 16);
+    const hc = asciiToBinary(s.charCodeAt(sha1PrefixLength + 2 * i));
+    const lc = asciiToBinary(s.charCodeAt(sha1PrefixLength + 2 * i + 1));
+    digest[i] = hc << 4 | lc;
   }
-
   return digest;
 }
 
 export default class Hash {
   _hashStr: string;
+  _digest: Uint8Array;
 
-  constructor(hahsStr: string) {
-    this._hashStr = hahsStr;
-  }
-
-  get hash(): Hash {
-    return this;
+  constructor(digest: Uint8Array) {
+    this._digest = digest;
+    this._hashStr = '';
   }
 
   get digest(): Uint8Array {
-    return hexToUint8(this._hashStr.substring(5));
+    return this._digest;
   }
 
   isEmpty(): boolean {
-    return this._hashStr === emtpyHashStr;
+    return this.toString() === emtpyHashStr;
   }
 
   equals(other: Hash): boolean {
-    return this._hashStr === other._hashStr;
+    return this.toString() === other.toString();
   }
 
   compare(other: Hash): number {
-    return this._hashStr === other._hashStr ? 0 : this._hashStr < other._hashStr ? -1 : 1;
+    const s1 = this.toString();
+    const s2 = other.toString();
+    return s1 === s2 ? 0 : s1 < s2 ? -1 : 1;
   }
 
   toString(): string {
-    return this._hashStr;
+    return this._hashStr || (this._hashStr = sha1Prefix + uint8ArrayToHex(this._digest));
   }
 
   static parse(s: string): Hash {
@@ -72,22 +67,28 @@ export default class Hash {
     if (!m) {
       throw Error('Could not parse hash: ' + s);
     }
-
-    return new Hash(m[1]);
+    return new Hash(hexToUint8Array(s));
   }
 
   static maybeParse(s: string): ?Hash {
     const m = s.match(pattern);
-    return m ? new Hash(m[1]) : null;
-  }
-
-  static fromDigest(digest: Uint8Array = new Uint8Array(sha1Size)) {
-    return new Hash(sha1Prefix + uint8ArrayToHex(digest));
+    return m && new Hash(hexToUint8Array(m[1]));
   }
 
   static fromData(data: Uint8Array): Hash {
-    return new Hash(sha1Prefix + hex(data));
+    return new Hash(hex(data));
   }
 }
 
-export const emptyHash = new Hash(emtpyHashStr);
+export const emptyHash = new Hash(new Uint8Array(sha1Size));
+
+function asciiToBinary(cc: number): number {
+  // This only accepts the char code for '0' - '9', 'a' - 'f'
+  return cc - (cc <= 57 ? 48 : 87); // '9', '0', 'a' - 10
+}
+
+// Precompute '00' to 'ff'.
+const byteToAscii = new Array(256);
+for (let i = 0; i < 256; i++) {
+  byteToAscii[i] = (i < 0x10 ? '0' : '') + i.toString(16);
+}
