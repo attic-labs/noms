@@ -190,7 +190,7 @@ func (r *valueDecoder) readStructType(parentStructTypes []*Type) *Type {
 
 	count := r.readUint32()
 
-	fields := make(map[string]*Type, count)
+	fields := make(TypeMap, count)
 	fieldNames := make([]string, count, count)
 	desc := StructDesc{name, fields, fieldNames}
 	st := buildType(desc)
