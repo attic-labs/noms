@@ -8,7 +8,7 @@
 
 import crypto from 'crypto';
 
-export default function sha1(data: Uint8Array): TypedArray {
+export default function sha1(data: Uint8Array): Uint8Array {
   const hash = crypto.createHash('sha1');
   hash.update(data);
   return hash.digest();

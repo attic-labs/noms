@@ -75,14 +75,7 @@ export default class Hash {
     return uint8ArrayToSha1(this._digest);
   }
 
-  static parse(s: string): Hash {
-    if (!pattern.test(s)) {
-      throw new Error(`Could not parse hash: ${s}`);
-    }
-    return new Hash(sha1ToUint8Array(s));
-  }
-
-  static maybeParse(s: string): ?Hash {
+  static parse(s: string): ?Hash {
     if (pattern.test(s)) {
       return new Hash(sha1ToUint8Array(s));
     }
