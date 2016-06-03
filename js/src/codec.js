@@ -12,6 +12,8 @@ import {encode, decode} from './utf8.js';
 import {invariant} from './assert.js';
 import {setEncodeValue} from './get-hash.js';
 import {setHash, ValueBase} from './value.js';
+import type Value from './value.js';
+import type {ValueReader, ValueWriter} from './value-store.js';
 
 export function encodeValue(v: Value, vw: ?ValueWriter): Chunk {
   const w = new BinaryNomsWriter();
