@@ -130,7 +130,6 @@ export class BinaryNomsReader {
   readHash(): Hash {
     const digest = new Uint8Array(this.buff, this.offset, sha1Size);
     this.offset += sha1Size;
-    // new Hash doesn't take ownership of the memory, so it's safe to pass a view.
     return new Hash(digest);
   }
 }

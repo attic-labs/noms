@@ -7,21 +7,21 @@
 import {hex} from './sha1.js';
 
 export const sha1Size = 20;
-const pattern = /^(sha1-[0-9a-f]{40})$/;
+const pattern = /^sha1-[0-9a-f]{40}$/;
 
 const sha1Prefix = 'sha1-';
 const sha1PrefixLength = sha1Prefix.length;
-const emtpyHashStr = sha1Prefix + '0'.repeat(40);
 
-function uint8ArrayToHex(a: Uint8Array): string {
-  const hex = [];
+function uint8ArrayToSha1(a: Uint8Array): string {
+  const sha1 = new Array(1 + sha1Size * 2);
+  sha1[0] = [sha1Prefix];
   for (let i = 0; i < a.length; i++) {
-    hex[i] = byteToAscii[a[i]];
+    sha1[i + 1] = byteToAscii[a[i]];
   }
-  return hex.join('');
+  return sha1.join('');
 }
 
-function hexToUint8Array(s: string): Uint8Array {
+function sha1ToUint8Array(s: string): Uint8Array {
   const digest = new Uint8Array(sha1Size);
   for (let i = 0; i < sha1Size; i++) {
     const hc = asciiToBinary(s.charCodeAt(sha1PrefixLength + 2 * i));
@@ -32,12 +32,11 @@ function hexToUint8Array(s: string): Uint8Array {
 }
 
 export default class Hash {
-  _hashStr: string;
   _digest: Uint8Array;
 
-  constructor(digest: Uint8Array) {
-    this._digest = digest;
-    this._hashStr = '';
+  constructor(digest: TypedArray) {
+    // Make a copy to prevent holding on to the data that was passed in.
+    this._digest = new Uint8Array(digest);
   }
 
   get digest(): Uint8Array {
@@ -45,34 +44,49 @@ export default class Hash {
   }
 
   isEmpty(): boolean {
-    return this.toString() === emtpyHashStr;
+    for (let i = 0; i < sha1Size; i++) {
+      if (this._digest[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   equals(other: Hash): boolean {
-    return this.toString() === other.toString();
+    for (let i = 0; i < sha1Size; i++) {
+      if (this._digest[i] !== other._digest[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   compare(other: Hash): number {
-    const s1 = this.toString();
-    const s2 = other.toString();
-    return s1 === s2 ? 0 : s1 < s2 ? -1 : 1;
+    for (let i = 0; i < sha1Size; i++) {
+      const d = this._digest[i] - other._digest[i];
+      if (d) {
+        return d;
+      }
+    }
+    return 0;
   }
 
   toString(): string {
-    return this._hashStr || (this._hashStr = sha1Prefix + uint8ArrayToHex(this._digest));
+    return uint8ArrayToSha1(this._digest);
   }
 
   static parse(s: string): Hash {
-    const m = s.match(pattern);
-    if (!m) {
-      throw Error('Could not parse hash: ' + s);
+    if (!pattern.test(s)) {
+      throw new Error(`Could not parse hash: ${s}`);
     }
-    return new Hash(hexToUint8Array(s));
+    return new Hash(sha1ToUint8Array(s));
   }
 
   static maybeParse(s: string): ?Hash {
-    const m = s.match(pattern);
-    return m && new Hash(hexToUint8Array(m[1]));
+    if (pattern.test(s)) {
+      return new Hash(sha1ToUint8Array(s));
+    }
+    return null;
   }
 
   static fromData(data: Uint8Array): Hash {
