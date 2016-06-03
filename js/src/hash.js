@@ -4,7 +4,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-import {hex} from './sha1.js';
+import sha1 from './sha1.js';
 
 export const sha1Size = 20;
 const pattern = /^sha1-[0-9a-f]{40}$/;
@@ -34,7 +34,7 @@ function sha1ToUint8Array(s: string): Uint8Array {
 export default class Hash {
   _digest: Uint8Array;
 
-  constructor(digest: TypedArray) {
+  constructor(digest: Uint8Array) {
     // Make a copy to prevent holding on to the data that was passed in.
     this._digest = new Uint8Array(digest);
   }
@@ -90,7 +90,7 @@ export default class Hash {
   }
 
   static fromData(data: Uint8Array): Hash {
-    return new Hash(hex(data));
+    return new Hash(sha1(data));
   }
 }
 
