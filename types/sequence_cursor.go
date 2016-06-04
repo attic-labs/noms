@@ -31,7 +31,7 @@ func (cur *sequenceCursor) getItem(idx int) sequenceItem {
 }
 
 func (cur *sequenceCursor) sync() {
-	d.Chk.NotNil(cur.parent)
+	d.Chk.True(cur.parent != nil)
 	cur.seq = cur.parent.getChildSequence()
 }
 

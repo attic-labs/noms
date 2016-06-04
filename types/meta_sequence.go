@@ -136,7 +136,7 @@ func isMetaSequence(seq sequence) bool {
 
 // Creates a sequenceCursor pointing to the first metaTuple in a metaSequence, and returns that cursor plus the leaf Value referenced from that metaTuple.
 func newMetaSequenceCursor(root metaSequence, vr ValueReader) (*sequenceCursor, Value) {
-	d.Chk.NotNil(root)
+	d.Chk.True(root != nil)
 
 	cursors := []*sequenceCursor{newSequenceCursor(nil, root, 0)}
 	for {

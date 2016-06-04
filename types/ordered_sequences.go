@@ -92,7 +92,7 @@ func newCursorAtKey(seq orderedSequence, key Value, forInsertion bool, last bool
 		seq = cs.(orderedSequence)
 	}
 
-	d.Chk.NotNil(cur)
+	d.Chk.True(cur != nil)
 	return cur
 }
 

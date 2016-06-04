@@ -38,7 +38,7 @@ func NewSerializer(writer io.Writer) ChunkSink {
 
 	go func() {
 		for chunk := range s.chs {
-			d.Chk.NotNil(chunk.Data)
+			d.Chk.True(chunk.Data != nil)
 
 			digest := chunk.Hash().Digest()
 			n, err := io.Copy(s.writer, bytes.NewReader(digest[:]))

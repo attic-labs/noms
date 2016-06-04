@@ -81,7 +81,7 @@ func newCursorAtIndex(seq indexedSequence, idx uint64) *sequenceCursor {
 		seq = cs.(indexedSequence)
 	}
 
-	d.Chk.NotNil(cur)
+	d.Chk.True(cur != nil)
 	return cur
 }
 
