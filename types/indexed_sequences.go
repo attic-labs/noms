@@ -126,7 +126,7 @@ func newIndexedMetaSequenceChunkFn(kind NomsKind, source ValueReader, sink Value
 			metaSeq := newListMetaSequence(tuples, source)
 			col = newList(metaSeq)
 		} else {
-			d.Chk.Equal(BlobKind, kind)
+			d.Chk.True(BlobKind == kind)
 			metaSeq := newBlobMetaSequence(tuples, source)
 			col = newBlob(metaSeq)
 		}

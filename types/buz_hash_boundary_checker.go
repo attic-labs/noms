@@ -24,7 +24,7 @@ func newBuzHashBoundaryChecker(windowSize, valueSize int, pattern uint32, getByt
 
 func (b *buzHashBoundaryChecker) Write(item sequenceItem) bool {
 	bytes := b.getBytes(item)
-	d.Chk.Equal(b.valueSize, len(bytes))
+	d.Chk.True(b.valueSize == len(bytes))
 	_, err := b.h.Write(bytes)
 	d.Chk.NoError(err)
 	return b.h.Sum32()&b.pattern == b.pattern

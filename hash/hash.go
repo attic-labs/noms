@@ -71,7 +71,7 @@ func MaybeParse(s string) (r Hash, ok bool) {
 	d.Chk.NoError(err) // The regexp above should have validated the input
 
 	// If there was no error, we should have decoded exactly one digest worth of bytes.
-	d.Chk.Equal(sha1.Size, n)
+	d.Chk.True(sha1.Size == n)
 	ok = true
 	return
 }

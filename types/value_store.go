@@ -185,7 +185,7 @@ func (lvs *ValueStore) checkChunksInCache(v Value, readValues bool) Hints {
 
 func getTargetType(refBase Ref) *Type {
 	refType := refBase.Type()
-	d.Chk.Equal(RefKind, refType.Kind())
+	d.Chk.True(RefKind == refType.Kind())
 	return refType.Desc.(CompoundDesc).ElemTypes[0]
 }
 

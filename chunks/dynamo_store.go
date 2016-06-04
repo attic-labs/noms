@@ -402,7 +402,7 @@ func (s *DynamoStore) Root() hash.Hash {
 	if itemLen == 3 {
 		d.Chk.NotNil(result.Item[compAttr])
 		d.Chk.NotNil(result.Item[compAttr].S)
-		d.Chk.Equal(noneValue, *result.Item[compAttr].S)
+		d.Chk.True(noneValue == *result.Item[compAttr].S)
 	}
 	return hash.FromSlice(result.Item[chunkAttr].B)
 }
