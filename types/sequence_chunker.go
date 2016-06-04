@@ -129,7 +129,7 @@ func (seq *sequenceChunker) skipParentIfExists() {
 }
 
 func (seq *sequenceChunker) createParent() {
-	d.Chk.Nil(seq.parent)
+	d.Chk.True(seq.parent == nil)
 	var parent *sequenceCursor
 	if seq.cur != nil && seq.cur.parent != nil {
 		// Clone the parent cursor because otherwise calling cur.advance() will affect our parent - and vice versa - in surprising ways. Instead, Skip moves forward our parent's cursor if we advance across a boundary.

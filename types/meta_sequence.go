@@ -19,7 +19,7 @@ type metaSequence interface {
 }
 
 func newMetaTuple(ref Ref, value Value, numLeaves uint64, child Collection) metaTuple {
-	d.Chk.NotEqual(Ref{}, ref)
+	d.Chk.True(Ref{} != ref)
 	return metaTuple{ref, value, numLeaves, child}
 }
 

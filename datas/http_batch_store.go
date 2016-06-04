@@ -376,7 +376,7 @@ func (bhcs *httpBatchStore) sendWriteRequests(hashes hashSet, hints types.Hints)
 			}
 		}
 
-		d.Exp.Equal(http.StatusCreated, res.StatusCode, "Unexpected response: %s", formatErrorResponse(res))
+		d.Exp.True(http.StatusCreated == res.StatusCode, "Unexpected response: %s", formatErrorResponse(res))
 	}()
 }
 
