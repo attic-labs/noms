@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	SPLICE_UNASSIGNED = math.MaxUint64
+	DISTANCE_MATRIX_LIMIT = 10000
+	SPLICE_UNASSIGNED     = math.MaxUint64
 
 	UNCHANGED = 0
 	UPDATED   = 1
@@ -36,11 +37,24 @@ func (s Splice) String() string {
 	return fmt.Sprintf("[%d, %d, %d, %d]", s.SpAt, s.SpRemoved, s.SpAdded, s.SpFrom)
 }
 
-func min(a, b uint64) uint64 {
+func uint64_min(a, b uint64) uint64 {
 	if a < b {
 		return a
 	}
 	return b
+}
+
+func uint64_min3(a, b, c uint64) uint64 {
+	if a < b {
+		if a < c {
+			return a
+		}
+	} else {
+		if b < c {
+			return b
+		}
+	}
+	return c
 }
 
 func reverse(numbers []uint64) []uint64 {
@@ -61,7 +75,7 @@ func addSplice(splices []Splice, s Splice) []Splice {
 
 func calcSplices(previousLength uint64, currentLength uint64, eqFn EditDistanceEqualsFn) []Splice {
 	splices := make([]Splice, 0)
-	minLength := min(previousLength, currentLength)
+	minLength := uint64_min(previousLength, currentLength)
 	prefixCount := sharedPrefix(eqFn, minLength)
 	suffixCount := sharedSuffix(eqFn, previousLength, currentLength, minLength-prefixCount)
 
@@ -80,6 +94,10 @@ func calcSplices(previousLength uint64, currentLength uint64, eqFn EditDistanceE
 		return []Splice{Splice{previousStart, 0, currentEnd - currentStart, currentStart}}
 	}
 
+	if previousEnd-previousStart > DISTANCE_MATRIX_LIMIT &&
+		currentEnd-currentStart > DISTANCE_MATRIX_LIMIT {
+		return []Splice{Splice{0, previousEnd - previousStart, currentEnd - currentStart, 0}}
+	}
 	distances := calcEditDistances(eqFn, previousStart, previousEnd, currentStart, currentEnd)
 	ops := operationsFromEditDistances(distances)
 
@@ -170,7 +188,7 @@ func calcEditDistances(eqFn EditDistanceEqualsFn, previousStart uint64, previous
 			} else {
 				north := distances[i-1][j] + 1
 				west := distances[i][j-1] + 1
-				distances[i][j] = min(north, west)
+				distances[i][j] = uint64_min(north, west)
 			}
 		}
 	}
@@ -198,8 +216,7 @@ func operationsFromEditDistances(distances [][]uint64) []uint64 {
 		west := distances[i-1][j]
 		north := distances[i][j-1]
 
-		minValue := min(west, north)
-		minValue = min(minValue, northWest)
+		minValue := uint64_min3(west, north, northWest)
 
 		if minValue == northWest {
 			if northWest == current {
