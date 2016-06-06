@@ -1,8 +1,8 @@
+// @flow
+
 // Copyright 2016 The Noms Authors. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
-
-// @flow
 
 import Hash from './hash.js';
 import BatchStore from './batch-store.js';
@@ -12,6 +12,7 @@ import type {ChunkStream} from './chunk-serializer.js';
 import {serialize, deserializeChunks} from './chunk-serializer.js';
 import {emptyChunk} from './chunk.js';
 import {fetchArrayBuffer, fetchText} from './fetch.js';
+import {notNull} from './assert.js';
 
 const HTTP_STATUS_CONFLICT = 409;
 
@@ -103,7 +104,7 @@ export class Delegate {
 
   async getRoot(): Promise<Hash> {
     const hashStr = await fetchText(this._rpc.root, this._rootOptions);
-    return Hash.parse(hashStr);
+    return notNull(Hash.parse(hashStr));
   }
 
   async updateRoot(current: Hash, last: Hash): Promise<boolean> {

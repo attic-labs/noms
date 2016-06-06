@@ -1,8 +1,8 @@
+// @flow
+
 // Copyright 2016 The Noms Authors. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
-
-// @flow
 
 import Chunk from './chunk.js';
 import Hash from './hash.js';
@@ -11,6 +11,7 @@ import BatchStore from './batch-store.js';
 import type {ChunkStore} from './chunk-store.js';
 import type {UnsentReadMap} from './batch-store.js';
 import type {ChunkStream} from './chunk-serializer.js';
+import {notNull} from './assert.js';
 
 export function makeTestingBatchStore(): BatchStore {
   return new BatchStore(3, new BatchStoreAdaptorDelegate(new MemoryStore()));
@@ -31,7 +32,7 @@ export class BatchStoreAdaptorDelegate {
 
   async readBatch(reqs: UnsentReadMap): Promise<void> {
     Object.keys(reqs).forEach(hashStr => {
-      this._cs.get(Hash.parse(hashStr)).then(chunk => { reqs[hashStr](chunk); });
+      this._cs.get(notNull(Hash.parse(hashStr))).then(chunk => { reqs[hashStr](chunk); });
     });
   }
 

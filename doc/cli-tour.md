@@ -6,7 +6,9 @@ This is a quick introduction to the Noms command-line interface. It should only 
 
 ## Install Noms
 
-... if you haven't already. Follow the instructions [here](https://github.com/attic-labs/noms#get-noms).
+... if you haven't already. Follow the instructions [here](https://github.com/attic-labs/noms#setup).
+
+## The `noms` command
 
 Now you should be able to run `noms`:
 
@@ -26,8 +28,6 @@ Available commands:
 See noms <command> -h for information on each available command.
 ```
 
-## The `noms` command
-
 Without any arguments, `noms` lists out all available commands. To get information on a specific command, we can suffix it with `-h`:
 
 ```
@@ -39,7 +39,7 @@ noms sync [options] <source-object> <dest-dataset>
 ...
 ```
 
-## Explore
+## noms ds
 
 There's a sample database running at http://demo.noms.io/cli-tour. Let's take a look inside...
 
@@ -53,6 +53,8 @@ film-locations
 fire-incidents
 fire-permits
 ```
+
+## noms log
 
 Noms datasets are versioned. You can see the history with `log`:
 
@@ -86,6 +88,8 @@ List<struct Row {
 
 Note that Noms is a typed system. What is being shown here is not text, but the first bit of a serialization of the structured data that Noms actually stores.
 
+## noms show
+
 You can see the entire serialization of any object in the database with `noms show`:
 
 ```
@@ -115,9 +119,9 @@ struct Commit {
     },
 ```
 
-## Sync
+## noms sync
 
-You can work with Noms databases that are remote exactly the same as you work with local databases. But it's frequently useful to move data to a local machine, for example, if you intend to make local changes.
+You can work with Noms databases that are remote exactly the same as you work with local databases. But it's frequently useful to move data to a local machine, for example, to make a private fork or to work with the data disconnected from the source database.
 
 Moving data in Noms is done with the `sync` command. Note that unlike Git, we do not make a distinction between _push_ and _pull_. It's the same operation in both directions:
 
@@ -130,17 +134,36 @@ films
 We can now make an edit locally:
 
 ```
-> cd $GOPATH/src/github.com/attic-labs/noms/clients/go/csv
+> cd $GOPATH/src/github.com/attic-labs/noms/samples/go/csv
 > go install ./...
-> csv-export ldb:/tmp/noms:films /tmp/film-locations.csv
+> csv-export ldb:/tmp/noms:films > /tmp/film-locations.csv
 ```
 
 open /tmp/film-location.csv and edit it, then:
 
 ```
-> csv-import /tmp/film-location.csv ldb:/tmp/noms:films
+> csv-import ldb:/tmp/noms:films /tmp/film-locations.csv
 ```
 
-`noms show ldb:/tmp/noms:films` should now include your change!
+#noms diff
 
-`noms diff` [coming soon](https://github.com/attic-labs/noms/issues/1272) to make this more clear.
+The `noms diff` command can show you the differences between any two values. Let's see our change:
+
+```
+> noms diff http://demo.noms.io/cli-tour:film-locations ldb:/tmp/noms:films
+
+./.parents {
+-   Ref<struct Commit {
+-     parents: Set<Ref<Cycle<0>>>
+-     value: Value
+-   }>(sha1-4883ff49f930718f7aafede265b51f83c99cf7bc)
++   Ref<struct Commit {
++     parents: Set<Ref<Cycle<0>>>
++     value: Value
++   }>(sha1-b50c323c568bfff07a13fe276236cbdf40b5d846)
+  }
+./.value[213] {
+-   "Locations": "Mission Delores Park (Mission District) via J-Church MUNI Train"
++   "Locations": "Mission Dolores Park (Mission District) via J-Church MUNI Train"
+...
+```

@@ -1,8 +1,8 @@
+// @flow
+
 // Copyright 2016 The Noms Authors. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
-
-// @flow
 
 import BatchStoreAdaptor from './batch-store-adaptor.js';
 import Dataset from './dataset.js';
@@ -121,7 +121,7 @@ export class HashSpec {
       return null;
     }
 
-    const hash = Hash.maybeParse(match[2]);
+    const hash = Hash.parse(match[2]);
     if (!hash) {
       return null;
     }
