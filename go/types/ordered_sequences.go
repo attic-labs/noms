@@ -67,7 +67,7 @@ func (oms orderedMetaSequence) getKey(idx int) Value {
 }
 
 func (oms orderedMetaSequence) equalsAt(idx int, other interface{}) bool {
-	return oms.tuples[idx].ref.Equals(other.(metaTuple).ref)
+	return oms.tuples[idx].ref.TargetHash() == other.(metaTuple).ref.TargetHash()
 }
 
 func newCursorAtKey(seq orderedSequence, key Value, forInsertion bool, last bool) *sequenceCursor {
