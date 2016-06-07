@@ -6,7 +6,7 @@
 
 import Blob, {BlobLeafSequence} from './blob.js';
 import Ref, {constructRef} from './ref.js';
-import {newStructWithTypeNoValidation} from './struct.js';
+import {newStructWithValues} from './struct.js';
 import type Struct from './struct.js';
 import type {NomsKind} from './noms-kind.js';
 import {
@@ -198,10 +198,13 @@ export default class ValueDecoder {
     const {desc} = type;
     invariant(desc instanceof StructDesc);
 
-    const data: {[key: string]: Value} = Object.create(null);
-    desc.forEachField((name: string) => data[name] = this.readValue());
+    const count = desc.fieldCount;
+    const values = new Array(count);
+    for (let i = 0; i < count; i++) {
+      values[i] = this.readValue();
+    }
 
-    return newStructWithTypeNoValidation(type, data);
+    return newStructWithValues(type, values);
   }
 
   readStructType(parentStructTypes: Type[]): Type {

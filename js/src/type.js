@@ -131,12 +131,21 @@ export class StructDesc {
 }
 
 function findField(name: string, fields: Field[]): ?Field {
+  const i = findFieldIndex(name, fields);
+  return i !== -1 ? fields[i] : undefined;
+}
+
+/**
+ * Finds the index of the `Field` or `-1` if not found.
+ */
+export function findFieldIndex(name: string, fields: Field[]): number {
   const i = search(fields.length, i => {
     const n = fields[i].name;
     return n === name ? 0 : n > name ? 1 : -1;
   });
-  return i === fields.length || fields[i].name !== name ? null : fields[i];
+  return i === fields.length || fields[i].name !== name ? -1 : i;
 }
+
 
 export class Type<T: TypeDesc> extends ValueBase {
   _desc: T;
