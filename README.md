@@ -4,6 +4,8 @@
 
 In other words, Noms is Git for data.
 
+This repository contains two reference implementations of the database—one in Go, and one in JavaScript. It also includes a number of tools and sample applications.
+
 ## Setup
 
 1. Install [Go 1.6+](https://golang.org/dl/)
@@ -62,7 +64,7 @@ Work on data together. Track changes, fork, merge, sync, etc. The entire Git wor
 
 #### ETL
 
-Noms should work really well as a backing store for ETL pipelines. Noms-backed ETL is naturally:
+ETL based on Noms is naturally:
 
 * **Incremental:** Noms datasets can be efficiently diffed, so only the changed data needs to be run through the pipeline.
 * **Versioned:** Any transform can be compared to the previous run and trivially undone or re-applied.
@@ -71,17 +73,21 @@ Noms should work really well as a backing store for ETL pipelines. Noms-backed E
 
 #### Data Integration and Enrichment
 
-Similar to ETL, Noms makes a natural store for data aggregation, integration, and enrichment. Data integration and enrichment can be modeled in a non-destructive way as metadata assertions from content to attribute. Assertions can be owned by the creating application and undone en-masse by deleting a single Noms dataset.
+Use Noms as a central place to collect, integrate, index, and integrate data from disparate sources.
+
+Noms naturally deduplicates all data, so import can be trivially simple - just dump coarse-grained snapshots periodically and only reprocess the changes.
+
+Model metadata non-destructively, as verioned, revertable assertions from source object to metadata.
 
 #### Decentralized database
 
-Noms should be a natural fit to move data around certain kinds of widely decentralized applications. Rather than just moving raw files, e.g., with rsync, you can move around structured data which is immediately queryable and usable by the applciation.
+Noms is a natural fit for moving structured data around widely distributed or decentralized applications. Rather than moving raw data files, e.g., with rsync, and then rebuilding the database at each node, just move the database itself.
 
 
 ## Get Involved
 
 Noms is developed in the open. Come say hi.
 
-- [Mailing List](nomsdb@googlegroups.com)
+- [Mailing List](https://groups.google.com/forum/#!forum/nomsdb)
 - [Slack](atticlabs.slack.com/messages/dev)
 - [Twitter](https://twitter.com/nomsdb)
