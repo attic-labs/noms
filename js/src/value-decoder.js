@@ -208,17 +208,17 @@ export default class ValueDecoder {
     const name = this._r.readString();
     const count = this._r.readUint32();
 
-    const fields = Object.create(null);
-    const desc = new StructDesc(name, fields, count);
+    const fields = new Array(count);
+    const desc = new StructDesc(name, fields);
     const structType = new Type(desc);
     parentStructTypes.push(structType);
 
     for (let i = 0; i < count; i++) {
-      const fieldName = this._r.readString();
-      const fieldType = this.readType(parentStructTypes);
+      const name = this._r.readString();
+      const type = this.readType(parentStructTypes);
       // Mutate the already created structType since when looking for the cycle we compare
       // by identity.
-      fields[fieldName] = fieldType;
+      fields[i] = {name, type};
     }
 
     parentStructTypes.pop();
