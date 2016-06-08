@@ -28,6 +28,13 @@ func (ts testSequence) numLeaves() uint64 {
 	return uint64(len(ts.items))
 }
 
+func (bl testSequence) getCompareFn(other sequence) compareFn {
+	obl := other.(testSequence)
+	return func(idx, otherIdx int) bool {
+		return bl.items[idx] == obl.items[otherIdx]
+	}
+}
+
 func (ts testSequence) valueReader() ValueReader {
 	panic("not reached")
 }

@@ -51,7 +51,7 @@ export function diff(last: IndexedSequence, lastHeight: number, lastOffset: numb
   invariant(lastHeight === currentHeight);
 
   const splices = calcSplices(last.length, current.length, last.isMeta ?
-        (l, c) => equals(last.items[l].ref, current.items[c].ref) :
+        (l, c) => last.items[l].ref.targetHash.equals(current.items[c].ref.targetHash) :
         (l, c) => equals(last.items[l], current.items[c]));
 
   const splicesP = splices.map(splice => {

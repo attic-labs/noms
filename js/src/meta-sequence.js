@@ -23,7 +23,6 @@ import List from './list.js';
 import Map from './map.js';
 import Set from './set.js';
 import Blob from './blob.js';
-import {equals} from './compare.js';
 
 export type MetaSequence = Sequence<MetaTuple>;
 
@@ -195,7 +194,7 @@ export class OrderedMetaSequence<K: Value> extends OrderedSequence<K, MetaTuple<
   }
 
   equalsAt(idx: number, other: MetaTuple): boolean {
-    return equals(this.items[idx].ref, other.ref);
+    return this.items[idx].ref.targetHash.equals(other.ref.targetHash);
   }
 }
 
