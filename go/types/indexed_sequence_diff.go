@@ -26,14 +26,12 @@ func maybeLoadCompositeSequence(ms indexedMetaSequence, idx uint64, length uint6
 
 func indexedSequenceDiff(last indexedSequence, lastHeight int, lastOffset uint64,
 	current indexedSequence, currentHeight int, currentOffset uint64, loadLimit uint64) ([]Splice, error) {
-
 	if lastHeight > currentHeight {
 		lastChild, newLoadLimit, err := maybeLoadCompositeSequence(last.(indexedMetaSequence), 0, uint64(last.seqLen()), loadLimit)
 		if err != nil {
 			return nil, err
 		}
-		splices, err := indexedSequenceDiff(lastChild, lastHeight-1, lastOffset, current, currentHeight, currentOffset, newLoadLimit)
-		return splices, err
+		return indexedSequenceDiff(lastChild, lastHeight-1, lastOffset, current, currentHeight, currentOffset, newLoadLimit)
 	}
 
 	if currentHeight > lastHeight {
@@ -41,14 +39,12 @@ func indexedSequenceDiff(last indexedSequence, lastHeight int, lastOffset uint64
 		if err != nil {
 			return nil, err
 		}
-		splices, err := indexedSequenceDiff(last, lastHeight, lastOffset, currentChild, currentHeight-1, currentOffset, newLoadLimit)
-		return splices, err
+		return indexedSequenceDiff(last, lastHeight, lastOffset, currentChild, currentHeight-1, currentOffset, newLoadLimit)
 	}
 
-	initialSplices := calcSplices(uint64(last.seqLen()), uint64(current.seqLen()),
-		func(i uint64, j uint64) bool {
-			return last.equalsAt(int(i), current.getItem(int(j)))
-		})
+	initialSplices := calcSplices(uint64(last.seqLen()), uint64(current.seqLen()), func(i uint64, j uint64) bool {
+		return last.equalsAt(int(i), current.getItem(int(j)))
+	})
 
 	finalSplices := []Splice{}
 	newLoadLimit := loadLimit
