@@ -115,13 +115,13 @@ suite('BuildSet', () => {
     assert.strictEqual(height + 1, s.sequence.items[0].ref.height);
   });
 
-  test('LONG: insert', async () => {
+  test('LONG: add', async () => {
     const nums = intSequence(testSetSize);
     const build = nums.slice(0, testSetSize - 10);
     const insert = nums.slice(testSetSize - 10);
     let s = new Set(build);
     for (let i = 0; i < insert.length; i++) {
-      s = await s.insert(insert[i]);
+      s = await s.add(insert[i]);
       assert.strictEqual(build.length + i + 1, s.size);
     }
 
@@ -131,12 +131,12 @@ suite('BuildSet', () => {
   async function validateInsertion(values: number[]): Promise<void> {
     let s = new Set();
     for (let i = 0; i < values.length; i++) {
-      s = await s.insert(values[i]);
+      s = await s.add(values[i]);
       await validateSet(s, values.slice(0, i + 1));
     }
   }
 
-  test('LONG: validate - insert ascending', async () => {
+  test('LONG: validate - add ascending', async () => {
     await validateInsertion(intSequence(300));
   });
 
@@ -577,13 +577,13 @@ suite('CompoundSet', () => {
 
     {
       // Insert/delete at start.
-      const s2 = await s1.insert(-1);
+      const s2 = await s1.add(-1);
       assert.deepEqual([[-1], []], await s2.diff(s1));
       assert.deepEqual([[], [-1]], await s1.diff(s2));
     }
     {
       // Insert/delete at end.
-      const s2 = await s1.insert(testSetSize);
+      const s2 = await s1.add(testSetSize);
       assert.deepEqual([[testSetSize], []], await s2.diff(s1));
       assert.deepEqual([[], [testSetSize]], await s1.diff(s2));
     }
@@ -680,7 +680,7 @@ suite('CompoundSet', () => {
       assert.instanceOf(s.sequence, c);
       assert.isTrue(equals(s.type, makeSetType(numberType)));
 
-      s = await s.insert('a');
+      s = await s.add('a');
       assert.equal(s.size, n + 1);
       assert.instanceOf(s.sequence, c);
       assert.isTrue(equals(s.type, makeSetType(makeUnionType([numberType, stringType]))));

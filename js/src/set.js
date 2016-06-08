@@ -120,7 +120,7 @@ export default class Set<T: Value> extends Collection<OrderedSequence> {
                          newOrderedMetaSequenceBoundaryChecker);
   }
 
-  async insert(value: T): Promise<Set<T>> {
+  async add(value: T): Promise<Set<T>> {
     const cursor = await this.sequence.newCursorAt(value, true);
     if (cursor.valid && equals(cursor.getCurrentKey(), value)) {
       return this;
