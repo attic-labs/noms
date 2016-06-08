@@ -6,7 +6,6 @@ package types
 
 import (
 	"crypto/sha1"
-	"math"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
@@ -189,20 +188,20 @@ func (l List) IterAll(f listIterAllFunc) {
 	})
 }
 
-func (l List) Diff(last List) ([]Splice, error) {
-	return l.DiffWithLoadLimit(last, math.MaxUint64)
+func (l List) Diff(last List) (splices []Splice, numSequencesLoaded uint64, err error) {
+	return l.DiffWithLoadLimit(last, DIFF_WITHOUT_LIMIT)
 }
 
-func (l List) DiffWithLoadLimit(last List, loadLimit uint64) ([]Splice, error) {
+func (l List) DiffWithLoadLimit(last List, loadLimit uint64) (splices []Splice, numSequencesLoaded uint64, err error) {
 	if l.Equals(last) {
-		return []Splice{}, nil // nothing changed
+		return []Splice{}, uint64(0), nil // nothing changed
 	}
 	lLen, lastLen := l.Len(), last.Len()
 	if lLen == 0 {
-		return []Splice{Splice{0, lastLen, 0, 0}}, nil // everything removed
+		return []Splice{Splice{0, lastLen, 0, 0}}, uint64(0), nil // everything removed
 	}
 	if lastLen == 0 {
-		return []Splice{Splice{0, 0, lLen, 0}}, nil // everything added
+		return []Splice{Splice{0, 0, lLen, 0}}, uint64(0), nil // everything added
 	}
 	lastCur := newCursorAtIndex(last.seq, 0)
 	lCur := newCursorAtIndex(l.seq, 0)

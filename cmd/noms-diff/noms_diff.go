@@ -118,7 +118,7 @@ func diff(w io.Writer) {
 
 func diffLists(w io.Writer, p types.Path, v1, v2 types.List) {
 	wroteHeader := false
-	splices, _ := v2.Diff(v1)
+	splices, _, _ := v2.Diff(v1)
 	for _, splice := range splices {
 		if splice.SpRemoved == splice.SpAdded {
 			for i := uint64(0); i < splice.SpRemoved; i++ {

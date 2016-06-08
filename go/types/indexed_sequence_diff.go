@@ -9,9 +9,13 @@ import (
 	"math"
 )
 
+const (
+	DIFF_WITHOUT_LIMIT = math.MaxUint64
+)
+
 func maybeLoadCompositeSequence(ms indexedMetaSequence, idx uint64, length uint64, loadLimit uint64) (seq indexedSequence, newLoadLimit uint64, err error) {
 	newLoadLimit = loadLimit
-	if loadLimit > 0 && loadLimit != math.MaxUint64 {
+	if loadLimit > 0 && loadLimit != DIFF_WITHOUT_LIMIT {
 		if length > newLoadLimit {
 			return nil, 0, errors.New("load limit exceeded")
 		}
@@ -21,26 +25,34 @@ func maybeLoadCompositeSequence(ms indexedMetaSequence, idx uint64, length uint6
 }
 
 func indexedSequenceDiff(last indexedSequence, lastHeight int, lastOffset uint64,
-	current indexedSequence, currentHeight int, currentOffset uint64, loadLimit uint64) ([]Splice, error) {
+	current indexedSequence, currentHeight int, currentOffset uint64,
+	loadLimit uint64) (splices []Splice, numSequencesLoaded uint64, err error) {
+
+	numSequencesLoaded = 0
 	if lastHeight > currentHeight {
-		lastChild, newLoadLimit, err := maybeLoadCompositeSequence(last.(indexedMetaSequence), 0, uint64(last.seqLen()), loadLimit)
+		seqLen := uint64(last.seqLen())
+		lastChild, newLoadLimit, err := maybeLoadCompositeSequence(last.(indexedMetaSequence), 0, seqLen, loadLimit)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		return indexedSequenceDiff(lastChild, lastHeight-1, lastOffset, current, currentHeight, currentOffset, newLoadLimit)
+		splices, nSeqLoaded, err := indexedSequenceDiff(lastChild, lastHeight-1, lastOffset, current, currentHeight, currentOffset, newLoadLimit)
+		return splices, nSeqLoaded + seqLen, err
 	}
 
 	if currentHeight > lastHeight {
-		currentChild, newLoadLimit, err := maybeLoadCompositeSequence(current.(indexedMetaSequence), 0, uint64(current.seqLen()), loadLimit)
+		seqLen := uint64(current.seqLen())
+		currentChild, newLoadLimit, err := maybeLoadCompositeSequence(current.(indexedMetaSequence), 0, seqLen, loadLimit)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		return indexedSequenceDiff(last, lastHeight, lastOffset, currentChild, currentHeight-1, currentOffset, newLoadLimit)
+		splices, nSeqLoaded, err := indexedSequenceDiff(last, lastHeight, lastOffset, currentChild, currentHeight-1, currentOffset, newLoadLimit)
+		return splices, nSeqLoaded + seqLen, err
 	}
 
-	initialSplices := calcSplices(uint64(last.seqLen()), uint64(current.seqLen()), func(i uint64, j uint64) bool {
-		return last.equalsAt(int(i), current.getItem(int(j)))
-	})
+	initialSplices := calcSplices(uint64(last.seqLen()), uint64(current.seqLen()),
+		func(i uint64, j uint64) bool {
+			return last.equalsAt(int(i), current.getItem(int(j)))
+		})
 
 	finalSplices := []Splice{}
 	newLoadLimit := loadLimit
@@ -54,13 +66,15 @@ func indexedSequenceDiff(last indexedSequence, lastHeight int, lastOffset uint64
 		} else {
 			lastChild, lastLoadLimit, lastErr := maybeLoadCompositeSequence(last.(indexedMetaSequence), splice.SpAt, splice.SpRemoved, newLoadLimit)
 			if lastErr != nil {
-				return nil, lastErr
+				return nil, numSequencesLoaded, lastErr
 			}
+			numSequencesLoaded += splice.SpRemoved
 			newLoadLimit = lastLoadLimit
 			currentChild, currentLoadLimit, currentErr := maybeLoadCompositeSequence(current.(indexedMetaSequence), splice.SpFrom, splice.SpAdded, newLoadLimit)
 			if currentErr != nil {
-				return nil, currentErr
+				return nil, numSequencesLoaded, currentErr
 			}
+			numSequencesLoaded += splice.SpAdded
 			newLoadLimit = currentLoadLimit
 			lastChildOffset := lastOffset
 			if splice.SpAt > 0 {
@@ -70,13 +84,14 @@ func indexedSequenceDiff(last indexedSequence, lastHeight int, lastOffset uint64
 			if splice.SpFrom > 0 {
 				currentChildOffset += current.getOffset(int(splice.SpFrom)-1) + 1
 			}
-			childSplices, err := indexedSequenceDiff(lastChild, lastHeight-1, lastChildOffset, currentChild, currentHeight-1, currentChildOffset, newLoadLimit)
+			childSplices, nSeqLoaded, err := indexedSequenceDiff(lastChild, lastHeight-1, lastChildOffset, currentChild, currentHeight-1, currentChildOffset, newLoadLimit)
 			if err != nil {
-				return nil, err
+				return nil, nSeqLoaded + numSequencesLoaded, err
 			}
+			numSequencesLoaded += nSeqLoaded
 			finalSplices = append(finalSplices, childSplices...)
 		}
 	}
 
-	return finalSplices, nil
+	return finalSplices, numSequencesLoaded, nil
 }
