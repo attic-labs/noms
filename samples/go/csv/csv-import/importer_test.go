@@ -65,31 +65,6 @@ func (s *testSuite) TestCSVImporter() {
 	})
 }
 
-func (s *testSuite) TestCSVImporterReportTypes() {
-	oldReportTypes := *reportTypes
-	*reportTypes = true
-	defer func() { *reportTypes = oldReportTypes }()
-
-	input, err := ioutil.TempFile(s.TempDir, "")
-	d.Chk.NoError(err)
-	defer input.Close()
-	defer os.Remove(input.Name())
-
-	_, err = input.WriteString("a,b\n")
-	d.Chk.NoError(err)
-	for i := 0; i < 100; i++ {
-		_, err = input.WriteString(fmt.Sprintf("a%d,%d\n", i, i))
-		d.Chk.NoError(err)
-	}
-	_, err = input.Seek(0, 0)
-	d.Chk.NoError(err)
-
-	setName := "csv"
-	dataspec := test_util.CreateValueSpecString("ldb", s.LdbDir, setName)
-	out := s.Run(main, []string{"-no-progress", "-column-types", "String,Number", dataspec, input.Name()})
-	s.Equal("Possible types for each column:\na: String\nb: Number,String\n", out)
-}
-
 func (s *testSuite) TestCSVImporterWithPipe() {
 	oldDelimiter := delimiter
 	newDelimiter := "|"
