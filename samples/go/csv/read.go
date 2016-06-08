@@ -132,8 +132,8 @@ func ReadToMap(r *csv.Reader, headers_raw []string, pkIdx int, kinds KindSlice, 
 		}
 
 		fieldIndex := 0
-		for rowIndex, v := range row {
-			if rowIndex == pkIdx {
+		for x, v := range row {
+			if x == pkIdx {
 				pk = StringToType(v, pkKind)
 			} else if fieldIndex < len(headers) {
 				name := headers[fieldIndex]

@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,19 +31,19 @@ const (
 	destMap  = iota
 )
 
-var (
-	// Actually the delimiter uses runes, which can be multiple characters long.
-	// https://blog.golang.org/strings
-	delimiter       = flag.String("delimiter", ",", "field delimiter for csv file, must be exactly one character long.")
-	header          = flag.String("header", "", "header row. If empty, we'll use the first row of the file")
-	name            = flag.String("name", "Row", "struct name. The user-visible name to give to the struct type that will hold each row of data.")
-	columnTypes     = flag.String("column-types", "", "a comma-separated list of types representing the desired type of each column. if absent all types default to be String")
-	noProgress      = flag.Bool("no-progress", false, "prevents progress from being output if true")
-	destType        = flag.String("dest-type", "list", "the destination type to import to. can be 'list' or 'map:<pk>', where <pk> is the name of the column that is a the unique identifier for the column")
-	destTypePattern = regexp.MustCompile("^(list|map):(.*)$")
-)
-
 func main() {
+	var (
+		// Actually the delimiter uses runes, which can be multiple characters long.
+		// https://blog.golang.org/strings
+		delimiter       = flag.String("delimiter", ",", "field delimiter for csv file, must be exactly one character long.")
+		header          = flag.String("header", "", "header row. If empty, we'll use the first row of the file")
+		name            = flag.String("name", "Row", "struct name. The user-visible name to give to the struct type that will hold each row of data.")
+		columnTypes     = flag.String("column-types", "", "a comma-separated list of types representing the desired type of each column. if absent all types default to be String")
+		noProgress      = flag.Bool("no-progress", false, "prevents progress from being output if true")
+		destType        = flag.String("dest-type", "list", "the destination type to import to. can be 'list' or 'map:<pk>', where <pk> is the name of the column that is a the unique identifier for the column")
+		destTypePattern = regexp.MustCompile("^(list|map):(\\d+)$")
+	)
+
 	flags.RegisterDatabaseFlags()
 	cpuCount := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpuCount)
@@ -72,12 +73,13 @@ func main() {
 	}
 
 	var dest int
-	var pk string
+	var pk int
 	if *destType == "list" {
 		dest = destList
 	} else if match := destTypePattern.FindStringSubmatch(*destType); match != nil {
 		dest = destMap
-		pk = match[2]
+		pk, err = strconv.Atoi(match[2])
+		d.Chk.NoError(err)
 	} else {
 		fmt.Println("Invalid dest-type: ", *destType)
 		return
