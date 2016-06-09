@@ -7,7 +7,7 @@
 import BuzHashBoundaryChecker from './buzhash-boundary-checker.js';
 import type {BoundaryChecker, makeChunkFn} from './sequence-chunker.js';
 import type {ValueReader, ValueWriter, ValueReadWriter} from './value-store.js';
-import type {Splice} from './edit-distance.js';
+import type {EqualsFn, Splice} from './edit-distance.js';
 import type Value from './value.js'; // eslint-disable-line no-unused-vars
 import type {AsyncIterator} from './async-iterator.js';
 import {chunkSequence, chunkSequenceSync} from './sequence-chunker.js';
@@ -146,6 +146,11 @@ export class ListLeafSequence<T: Value> extends IndexedSequence<T> {
 
   getOffset(idx: number): number {
     return idx;
+  }
+
+  getCompareFn(other: IndexedSequence): EqualsFn {
+    return (idx: number, otherIdx: number) =>
+      equals(this.items[idx], other.items[otherIdx]);
   }
 
   range(start: number, end: number): Promise<Array<T>> {
