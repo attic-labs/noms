@@ -73,11 +73,7 @@ func (ds *Dataset) CommitWithParents(v types.Value, p types.Set) (Dataset, error
 	return Dataset{store, ds.id}, err
 }
 
-func (ds *Dataset) Pull(sourceStore datas.Database, sourceRef types.Ref, concurrency int) (Dataset, error) {
-	return ds.pull(sourceStore, sourceRef, concurrency)
-}
-
-func (ds *Dataset) pull(source datas.Database, sourceRef types.Ref, concurrency int) (Dataset, error) {
+func (ds *Dataset) Pull(source datas.Database, sourceRef types.Ref, concurrency int, progressCb datas.ProgressCallback) (Dataset, error) {
 	sink := *ds
 
 	sinkHeadRef := types.Ref{}
@@ -89,7 +85,7 @@ func (ds *Dataset) pull(source datas.Database, sourceRef types.Ref, concurrency 
 		return sink, nil
 	}
 
-	datas.Pull(source, sink.Database(), sourceRef, sinkHeadRef)
+	datas.Pull(source, sink.Database(), sourceRef, sinkHeadRef, progressCb)
 	err := datas.ErrOptimisticLockFailed
 	for ; err == datas.ErrOptimisticLockFailed; sink, err = sink.setNewHead(sourceRef) {
 	}

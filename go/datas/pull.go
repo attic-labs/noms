@@ -12,9 +12,12 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
+// ProgressCallback sends information about the progress back to the caller
+type ProgressCallback func(sofar, expected uint64)
+
 // Pull objects that descends from sourceRef from srcDB to sinkDB. sinkHeadRef should point to a Commit (in sinkDB) that's an ancestor of sourceRef. This allows the algorithm to figure out which portions of data are already present in sinkDB and skip copying them.
 // TODO: Figure out how to add concurrency.
-func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref) {
+func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, progressCb ProgressCallback) {
 	srcQ, sinkQ := types.RefHeap{sourceRef}, types.RefHeap{sinkHeadRef}
 	heap.Init(&srcQ)
 	heap.Init(&sinkQ)
@@ -38,18 +41,18 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref) {
 
 		// If the head of one Q is "higher" than the other, traverse it and then loop again. "HigherThan" sorts first by greater ref-height, then orders Refs by TargetHash.
 		if sinkQ.Empty() || types.HigherThan(srcRef, sinkQ[0]) {
-			traverseSource(&srcQ, srcDB, sinkDB, reachableChunks)
+			traverseSource(&srcQ, srcDB, sinkDB, reachableChunks, progressCb)
 			continue
 		}
 		// Either the head of sinkQ is higher, or the heads of both queues are equal.
 		if types.HigherThan(sinkQ[0], srcRef) {
-			traverseSink(&sinkQ, mostLocalDB, hc)
+			traverseSink(&sinkQ, mostLocalDB, hc, progressCb)
 			continue
 		}
 
 		// The heads of both Qs are the same.
 		d.Chk.True(!sinkQ.Empty(), "The heads should be the same, but sinkQ is empty!")
-		traverseCommon(sinkHeadRef, &sinkQ, &srcQ, mostLocalDB, hc)
+		traverseCommon(sinkHeadRef, &sinkQ, &srcQ, mostLocalDB, hc, progressCb)
 	}
 	hints := types.Hints{}
 	for hash := range reachableChunks {
@@ -62,8 +65,9 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref) {
 
 type hintCache map[hash.Hash]hash.Hash
 
-func traverseSource(srcQ *types.RefHeap, src Database, sinkDB Database, reachableChunks hashSet) {
+func traverseSource(srcQ *types.RefHeap, src Database, sinkDB Database, reachableChunks hashSet, progressCb ProgressCallback) {
 	srcRef := heap.Pop(srcQ).(types.Ref)
+	progressCb(1, 0)
 	h := srcRef.TargetHash()
 	if !sinkDB.has(h) {
 		srcBS := src.batchStore()
@@ -72,6 +76,7 @@ func traverseSource(srcQ *types.RefHeap, src Database, sinkDB Database, reachabl
 		d.Chk.True(v != nil, "Expected decoded chunk to be non-nil.")
 		for _, reachable := range v.Chunks() {
 			heap.Push(srcQ, reachable)
+			progressCb(0, 1)
 			reachableChunks.Insert(reachable.TargetHash())
 		}
 		sinkDB.batchStore().SchedulePut(c, srcRef.Height(), types.Hints{})
@@ -79,19 +84,22 @@ func traverseSource(srcQ *types.RefHeap, src Database, sinkDB Database, reachabl
 	}
 }
 
-func traverseSink(sinkQ *types.RefHeap, db Database, hc hintCache) {
+func traverseSink(sinkQ *types.RefHeap, db Database, hc hintCache, progressCb ProgressCallback) {
 	sinkRef := heap.Pop(sinkQ).(types.Ref)
+	progressCb(1, 0)
 	if sinkRef.Height() > 1 {
 		h := sinkRef.TargetHash()
 		for _, reachable := range sinkRef.TargetValue(db).Chunks() {
 			heap.Push(sinkQ, reachable)
+			progressCb(0, 1)
 			hc[reachable.TargetHash()] = h
 		}
 	}
 }
 
-func traverseCommon(sinkHead types.Ref, sinkQ, srcQ *types.RefHeap, db Database, hc hintCache) {
+func traverseCommon(sinkHead types.Ref, sinkQ, srcQ *types.RefHeap, db Database, hc hintCache, progressCb ProgressCallback) {
 	comRef, sinkRef := heap.Pop(srcQ).(types.Ref), heap.Pop(sinkQ).(types.Ref)
+	progressCb(1, 0)
 	d.Chk.True(comRef.Equals(sinkRef), "traverseCommon expects refs to be equal: %s != %s", comRef.TargetHash(), sinkRef.TargetHash())
 	if comRef.Height() == 1 {
 		return
@@ -108,8 +116,10 @@ func traverseCommon(sinkHead types.Ref, sinkQ, srcQ *types.RefHeap, db Database,
 		for _, reachable := range commit.Chunks() {
 			if !exclusionSet.Has(reachable) {
 				heap.Push(sinkQ, reachable)
+				progressCb(0, 1)
 				if !isHeadOfSink {
 					heap.Push(srcQ, reachable)
+					progressCb(0, 1)
 				}
 				hc[reachable.TargetHash()] = commitHash
 			}
