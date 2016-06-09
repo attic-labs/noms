@@ -17,7 +17,7 @@ import type {NomsWriter} from './codec.js';
 import type {ValueWriter} from './value-store.js';
 import type {primitive} from './primitives.js';
 import {MetaTuple} from './meta-sequence.js';
-import {StructDesc, Type, getTypeOfValue} from './type.js';
+import {StructDesc, tc, Type, getTypeOfValue} from './type.js';
 import {describeTypeOfValue} from './encode-human-readable.js';
 import {invariant} from './assert.js';
 import {isPrimitiveKind, kindToString, Kind} from './noms-kind.js';
@@ -43,6 +43,13 @@ export default class ValueEncoder {
   }
 
   writeType(t: Type, parentStructTypes: Type<StructDesc>[]) {
+    if (t.byteSequence) {
+      this._w.append(t.byteSequence);
+      return;
+    }
+
+    const startIdx = this._w.pos();
+
     const k = t.kind;
     switch (k) {
       case Kind.List:
@@ -67,6 +74,8 @@ export default class ValueEncoder {
         invariant(isPrimitiveKind(k));
         this.writeKind(k);
     }
+
+    tc.set(this._w.sliceFrom(startIdx), t);
   }
 
   writeBlobLeafSequence(seq: BlobLeafSequence) {

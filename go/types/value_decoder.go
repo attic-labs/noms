@@ -30,34 +30,75 @@ func (r *valueDecoder) readRef(t *Type) Ref {
 	return constructRef(t, h, height)
 }
 
-func (r *valueDecoder) readType(parentStructTypes []*Type) *Type {
+func (r *valueDecoder) scanType() {
 	k := r.readKind()
 	switch k {
 	case ListKind:
-		return MakeListType(r.readType(parentStructTypes))
+		r.scanType() // elem
 	case MapKind:
-		return MakeMapType(r.readType(parentStructTypes), r.readType(parentStructTypes))
+		r.scanType() // key
+		r.scanType() // value
 	case RefKind:
-		return MakeRefType(r.readType(parentStructTypes))
+		r.scanType() // referenced
 	case SetKind:
-		return MakeSetType(r.readType(parentStructTypes))
+		r.scanType() // value
 	case StructKind:
-		return r.readStructType(parentStructTypes)
+		r.scanStructType()
 	case UnionKind:
-		l := r.readUint32()
-		elemTypes := make([]*Type, l)
-		for i := uint32(0); i < l; i++ {
+		count := r.readUint32()
+		for i := uint32(0); i < count; i++ {
+			r.scanType()
+		}
+	case CycleKind:
+		r.readUint32()
+	}
+}
+
+var tc = newTypeCache(1024, 1024)
+
+func (r *valueDecoder) readType(parentStructTypes []*Type) (t *Type) {
+	// Scan forward to lookup type
+	startIdx := r.pos()
+	r.scanType()
+	typeSlice := r.sliceFrom(startIdx)
+	if t, ok := tc.get(typeSlice); ok {
+		return t // Cache hit
+	}
+
+	// Cache miss
+	r.seek(startIdx)
+
+	k := r.readKind()
+	switch k {
+	case ListKind:
+		t = MakeListType(r.readType(parentStructTypes))
+	case MapKind:
+		t = MakeMapType(r.readType(parentStructTypes), r.readType(parentStructTypes))
+	case RefKind:
+		t = MakeRefType(r.readType(parentStructTypes))
+	case SetKind:
+		t = MakeSetType(r.readType(parentStructTypes))
+	case StructKind:
+		t = r.readStructType(parentStructTypes)
+	case UnionKind:
+		count := r.readUint32()
+		elemTypes := make([]*Type, count)
+		for i := uint32(0); i < count; i++ {
 			elemTypes[i] = r.readType(parentStructTypes)
 		}
-		return MakeUnionType(elemTypes...)
+		t = MakeUnionType(elemTypes...)
 	case CycleKind:
 		i := r.readUint32()
 		d.Chk.True(i < uint32(len(parentStructTypes)))
-		return parentStructTypes[len(parentStructTypes)-1-int(i)]
+		t = parentStructTypes[len(parentStructTypes)-1-int(i)]
+	default:
+		d.Chk.True(IsPrimitiveKind(k))
+		t = MakePrimitiveType(k)
 	}
 
-	d.Chk.True(IsPrimitiveKind(k))
-	return MakePrimitiveType(k)
+	// Insert in cache
+	tc.set(typeSlice, t)
+	return t
 }
 
 func (r *valueDecoder) readBlobLeafSequence() indexedSequence {
@@ -181,6 +222,16 @@ func (r *valueDecoder) readStruct(t *Type) Value {
 	}
 
 	return Struct{values, t, &hash.Hash{}}
+}
+
+func (r *valueDecoder) scanStructType() {
+	r.scanString() // struct name
+	count := r.readUint32()
+
+	for i := uint32(0); i < count; i++ {
+		r.scanString() // field name
+		r.scanType()
+	}
 }
 
 func (r *valueDecoder) readStructType(parentStructTypes []*Type) *Type {

@@ -149,10 +149,12 @@ export function findFieldIndex(name: string, fields: Field[]): number {
 
 export class Type<T: TypeDesc> extends ValueBase {
   _desc: T;
+  byteSequence: Uint8Array;
 
   constructor(desc: T) {
     super();
     this._desc = desc;
+    this.byteSequence = null;
   }
 
   get type(): Type {
@@ -329,3 +331,91 @@ export function getTypeOfValue(v: Value): Type {
       throw new Error('Unknown type');
   }
 }
+
+function toUint32(buff: Uint8Array): number {
+  let v = 0;
+  for (let i = 0; i < buff.byteLength; i++) {
+    v = (v << 8) | buff[i];
+  }
+
+  return v;
+}
+
+function fnv(buff: Uint8Array): number {
+  let hash = 0x811C9DC5;
+  for (let i = 0; i < buff.byteLength; i++) {
+    hash = hash ^ buff[i];
+    hash += (hash << 24) + (hash << 8) + (hash << 7) + (hash << 4) + (hash << 1);
+  }
+
+  return hash;
+}
+
+function bytesEqual(b1: Uint8Array, b2: Uint8Array): boolean {
+  invariant(b1.byteLength === b2.byteLength);
+  for (let i = 0; i < b1.byteLength; i++) {
+    if (b1[i] !== b2[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export class TypeCache {
+  simpleTypes: Map<number, Type>;
+  complexTypes: Map<number, Type>;
+
+  constructor() {
+    this.simpleTypes = new Map();
+    this.complexTypes = new Map();
+  }
+
+  get(buff: Uint8Array): ?Type {
+    if (buff.byteLength === 1) {
+      switch (buff[0]) {
+        case Kind.Bool:
+          return boolType;
+        case Kind.Number:
+          return numberType;
+        case Kind.String:
+          return stringType;
+        case Kind.Value:
+          return valueType;
+        case Kind.Blob:
+          return blobType;
+        case Kind.Type:
+          return typeType;
+        default:
+          throw new Error('unreached');
+      }
+    }
+
+    if (buff.byteLength <= 4) {
+      return this.simpleTypes.get(toUint32(buff));
+    }
+
+    const t = this.complexTypes.get(fnv(buff));
+    if (t && bytesEqual(buff, t.byteSequence, buff)) {
+      return t;
+    }
+  }
+
+  set(buff: Uint8Array, t: Type) {
+    t.byteSequence = buff;
+    if (buff.byteLength === 1) {
+      return;
+    }
+
+    t.byteSequence = new Uint8Array(buff);
+
+    if (buff.byteLength <= 4) {
+      this.simpleTypes.set(toUint32(buff), t);
+      return;
+    }
+
+    this.complexTypes.set(fnv(buff), t);
+  }
+}
+
+export const tc = new TypeCache();

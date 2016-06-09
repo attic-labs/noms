@@ -41,11 +41,13 @@ export function decodeValue(chunk: Chunk, vr: ValueReader): Value {
   return v;
 }
 
-
 const maxUInt32 = Math.pow(2, 32);
 const littleEndian = true;
 
 export interface NomsReader {
+  pos(): number;
+  seek(idx: number): void;
+  sliceFrom(idx: number): Uint8Array;
   readBytes(): Uint8Array;
   readUint8(): number;
   readUint32(): number;
@@ -53,10 +55,14 @@ export interface NomsReader {
   readFloat64(): number;
   readBool(): boolean;
   readString(): string;
+  scanString(): void;
   readHash(): Hash;
 }
 
 export interface NomsWriter {
+  pos(): number;
+  sliceFrom(idx: number): Uint8Array;
+  append(data: Uint8Array): void;
   writeBytes(v: Uint8Array): void;
   writeUint8(v: number): void;
   writeUint32(v: number): void;
@@ -78,6 +84,18 @@ export class BinaryNomsReader {
     this.offset = data.byteOffset;
     this.length = data.byteLength;
     this.dv = new DataView(this.buff, this.offset, this.length);
+  }
+
+  pos(): number {
+    return this.offset;
+  }
+
+  seek(pos: number) {
+    this.offset = pos;
+  }
+
+  sliceFrom(idx: number): Uint8Array {
+    return new Uint8Array(this.buff, idx, this.offset - idx);
   }
 
   readBytes(): Uint8Array {
@@ -120,6 +138,11 @@ export class BinaryNomsReader {
     return v === 1;
   }
 
+  scanString() {
+    const size = this.readUint32();
+    this.offset += size;
+  }
+
   readString(): string {
     const size = this.readUint32();
     const v = new Uint8Array(this.buff, this.offset, size);
@@ -148,6 +171,22 @@ export class BinaryNomsWriter {
     this.dv = new DataView(this.buff, 0);
     this.offset = 0;
     this.length = this.buff.byteLength;
+  }
+
+  pos(): number {
+    return this.offset;
+  }
+
+  sliceFrom(idx: number): Uint8Array {
+    return new Uint8Array(this.buff, idx, this.offset - idx);
+  }
+
+  append(data: Uint8Array) {
+    const size = data.byteLength;
+    this.ensureCapacity(size);
+    const a = new Uint8Array(this.buff, this.offset, size);
+    a.set(data);
+    this.offset += size;
   }
 
   get data(): Uint8Array {
