@@ -16,7 +16,8 @@ export default class BinaryNomsWriter {
   length: number;
 
   constructor() {
-    this.buf = new Buffer(initialBufferSize);
+    // $FlowIssue: Flow does not know about allocUnsafe
+    this.buf = Buffer.allocUnsafe(initialBufferSize);
     this.offset = 0;
     this.length = initialBufferSize;
   }
@@ -40,7 +41,8 @@ export default class BinaryNomsWriter {
     while (this.offset + n > this.length) {
       this.length *= 2;
     }
-    this.buf = new Buffer(this.length);
+    // $FlowIssue: Flow does not know about allocUnsafe
+    this.buf = Buffer.allocUnsafe(this.length);
     oldBuf.copy(this.buf);
   }
 
@@ -78,14 +80,14 @@ export default class BinaryNomsWriter {
   }
 
   writeString(v: string): void {
-    const byteLength = Buffer.byteLength(v, 'utf8');
+    const byteLength = Buffer.byteLength(v);
     this.writeUint32(byteLength);
 
     this.ensureCapacity(byteLength);
 
     // Unlike other write methods write returns the number of bytes written and does not include
     // the offset
-    this.buf.write(v, this.offset, byteLength, 'utf8');
+    this.buf.write(v, this.offset, byteLength);
     this.offset += byteLength;
   }
 

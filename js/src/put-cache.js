@@ -156,11 +156,19 @@ class DbCollection {
   insert(item: ChunkItem, options: Object = {}): Promise<number> {
     return new Promise((resolve, reject) => {
       options.w = 1;
-      const {buffer, byteOffset, byteLength} = item.data;
-      const ua = new Uint8Array(buffer.slice(byteOffset, byteOffset + byteLength));
-      // $FlowIssue
-      const buf = new Buffer(ua);
-      const data = new Binary(buf);
+
+      // TODO(arv): TingoDB is broken for Uint8Array
+      let data;
+      if (item.data instanceof Buffer) {
+        data = new Binary(item.data);
+      } else {
+        invariant(item.data instanceof Uint8Array);
+        const {buffer, byteOffset, byteLength} = item.data;
+        const ua = new Uint8Array(buffer.slice(byteOffset, byteOffset + byteLength));
+        // $FlowIssue
+        const buf = new Buffer(ua);
+        data = new Binary(buf);
+      }
 
       this._coll.insert({hash: item.hash, data}, options, (err, result) => {
         if (err) {
