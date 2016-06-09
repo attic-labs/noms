@@ -9,6 +9,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/golang/snappy"
 )
 
 type URLParams interface {
@@ -25,58 +27,17 @@ type URLParams interface {
 
 type Handler func(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore)
 
-// HandlePostRefs puts a bunch of chunks into cs without doing any validation. This is bad and shall be done away with once we fix BUG 822.
-func HandlePostRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore) {
-	err := d.Try(func() {
-		d.Exp.Equal("POST", req.Method)
-
-		reader := bodyReader(req)
-		defer reader.Close()
-		chunks.Deserialize(reader, cs, nil)
-		w.WriteHeader(http.StatusCreated)
-	})
-
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error: %v", err), http.StatusBadRequest)
-		return
-	}
-}
-
-func bodyReader(req *http.Request) (reader io.ReadCloser) {
-	reader = req.Body
-	if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
-		gr, err := gzip.NewReader(reader)
-		d.Exp.NoError(err)
-		reader = gr
-	}
-	return
-}
-
-func respWriter(req *http.Request, w http.ResponseWriter) (writer io.WriteCloser) {
-	writer = wc{w.(io.Writer)}
-	if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
-		w.Header().Add("Content-Encoding", "gzip")
-		gw := gzip.NewWriter(w)
-		writer = gw
-	}
-	return
-}
-
-type wc struct {
-	io.Writer
-}
-
-func (wc wc) Close() error {
-	return nil
-}
-
 func HandleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore) {
 	hashes := hash.HashSlice{}
 	err := d.Try(func() {
 		d.Exp.Equal("POST", req.Method)
 
 		reader := bodyReader(req)
-		defer reader.Close()
+		defer func() {
+			// Ensure all data on reader is consumed
+			io.Copy(ioutil.Discard, reader)
+			reader.Close()
+		}()
 		vbs := types.NewValidatingBatchingSink(cs)
 		vbs.Prepare(deserializeHints(reader))
 
@@ -116,10 +77,41 @@ func HandleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs
 // Contents of the returned io.Reader are gzipped.
 func buildWriteValueRequest(serializedChunks io.Reader, hints map[hash.Hash]struct{}) io.Reader {
 	body := &bytes.Buffer{}
-	gw := gzip.NewWriter(body)
+	gw := snappy.NewBufferedWriter(body)
 	serializeHints(gw, hints)
 	d.Chk.NoError(gw.Close())
 	return io.MultiReader(body, serializedChunks)
+}
+
+func bodyReader(req *http.Request) (reader io.ReadCloser) {
+	reader = req.Body
+	if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
+		gr, err := gzip.NewReader(reader)
+		d.Exp.NoError(err)
+		reader = gr
+	} else if strings.Contains(req.Header.Get("Content-Encoding"), "x-snappy-framed") {
+		sr := snappy.NewReader(reader)
+		reader = ioutil.NopCloser(sr)
+	}
+	return
+}
+
+func respWriter(req *http.Request, w http.ResponseWriter) (writer io.WriteCloser) {
+	writer = wc{w.(io.Writer)}
+	if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+		w.Header().Add("Content-Encoding", "gzip")
+		gw := gzip.NewWriter(w)
+		writer = gw
+	}
+	return
+}
+
+type wc struct {
+	io.Writer
+}
+
+func (wc wc) Close() error {
+	return nil
 }
 
 func HandleGetRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore) {

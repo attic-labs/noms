@@ -169,10 +169,9 @@ func (w *hrsWriter) writeStruct(v Struct, printStructName bool) {
 func (w *hrsWriter) WriteTagged(v Value) {
 	t := v.Type()
 	switch t.Kind() {
-	case BoolKind, StringKind:
+	case BoolKind, NumberKind, StringKind:
 		w.Write(v)
-	case NumberKind, BlobKind, ListKind, MapKind, RefKind, SetKind, TypeKind, CycleKind:
-		// TODO: Numbers have unique syntax now...
+	case BlobKind, ListKind, MapKind, RefKind, SetKind, TypeKind, CycleKind:
 		w.writeType(t, nil)
 		w.write("(")
 		w.Write(v)
@@ -245,6 +244,7 @@ func (w *hrsWriter) writeStructType(t *Type, parentStructTypes []*Type) {
 		w.write(name)
 		w.write(": ")
 		w.writeType(t, parentStructTypes)
+		w.write(",")
 		w.newLine()
 	})
 	w.outdent()
