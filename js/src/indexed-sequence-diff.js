@@ -49,8 +49,7 @@ export function diff(last: IndexedSequence, lastHeight: number, lastOffset: numb
   invariant(last.isMeta === current.isMeta);
   invariant(lastHeight === currentHeight);
 
-  const compareFn = last.getCompareFn(current);
-  const splices = calcSplices(last.length, current.length, (l, c) => compareFn(l, c));
+  const splices = calcSplices(last.length, current.length, last.getCompareFn(current));
 
   const splicesP = splices.map(splice => {
     if (!last.isMeta || splice[SPLICE_REMOVED] === 0 || splice[SPLICE_ADDED] === 0) {
