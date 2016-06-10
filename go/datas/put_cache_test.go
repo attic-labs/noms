@@ -14,6 +14,7 @@ import (
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/testify/suite"
+	"github.com/golang/snappy"
 )
 
 func TestLevelDBPutCacheSuite(t *testing.T) {
@@ -179,12 +180,12 @@ func (suite *LevelDBPutCacheSuite) TestExtractChunksOrder() {
 	suite.Len(orderedHashes, 0)
 }
 
-func (suite *LevelDBPutCacheSuite) extractChunks(hashes hashSet) <-chan chunks.Chunk {
+func (suite *LevelDBPutCacheSuite) extractChunks(hashes hashSet) <-chan *chunks.Chunk {
 	buf := &bytes.Buffer{}
 	err := suite.cache.ExtractChunks(hashes, buf)
 	suite.NoError(err)
 
-	chunkChan := make(chan chunks.Chunk)
-	go chunks.DeserializeToChan(buf, chunkChan)
+	chunkChan := make(chan *chunks.Chunk)
+	go chunks.DeserializeToChan(snappy.NewReader(buf), chunkChan)
 	return chunkChan
 }

@@ -26,6 +26,7 @@ import {sha1Size} from './hash.js';
 import {removeDuplicateFromOrdered} from './map.js';
 import {getValueChunks} from './sequence.js';
 import {Kind} from './noms-kind.js';
+import type {EqualsFn} from './edit-distance.js';
 
 const setWindowSize = 1;
 const setPattern = ((1 << 6) | 0) - 1;
@@ -120,7 +121,7 @@ export default class Set<T: Value> extends Collection<OrderedSequence> {
                          newOrderedMetaSequenceBoundaryChecker);
   }
 
-  async insert(value: T): Promise<Set<T>> {
+  async add(value: T): Promise<Set<T>> {
     const cursor = await this.sequence.newCursorAt(value, true);
     if (cursor.valid && equals(cursor.getCurrentKey(), value)) {
       return this;
@@ -129,7 +130,7 @@ export default class Set<T: Value> extends Collection<OrderedSequence> {
     return this._splice(cursor, [value], 0);
   }
 
-  async remove(value: T): Promise<Set<T>> {
+  async delete(value: T): Promise<Set<T>> {
     const cursor = await this.sequence.newCursorAt(value);
     if (cursor.valid && equals(cursor.getCurrentKey(), value)) {
       return this._splice(cursor, [], 1);
@@ -157,11 +158,6 @@ export default class Set<T: Value> extends Collection<OrderedSequence> {
   async intersect(...sets: Array<Set<T>>): Promise<Set<T>> {
     if (sets.length === 0) {
       return this;
-    }
-
-    // Can't intersect sets of different element type.
-    for (let i = 0; i < sets.length; i++) {
-      invariant(equals(sets[i].type, this.type));
     }
 
     let cursor = await this.sequence.newCursorAt(null);
@@ -206,8 +202,9 @@ export class SetLeafSequence<K: Value> extends OrderedSequence<K, K> {
     return this.items[idx];
   }
 
-  equalsAt(idx: number, other: any): boolean {
-    return equals(this.items[idx], other);
+  getCompareFn(other: OrderedSequence): EqualsFn {
+    return (idx: number, otherIdx: number) =>
+      equals(this.items[idx], other.items[otherIdx]);
   }
 
   get chunks(): Array<Ref> {

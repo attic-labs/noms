@@ -7,7 +7,6 @@ package datas
 import (
 	"bufio"
 	"bytes"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,10 +17,10 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/testify/assert"
+	"github.com/golang/snappy"
 )
 
 func TestHandleWriteValue(t *testing.T) {
@@ -107,9 +106,7 @@ func TestBuildWriteValueRequest(t *testing.T) {
 		hash.Parse("sha1-0000000000000000000000000000000000000003"): struct{}{},
 	}
 	compressed := buildWriteValueRequest(serializeChunks(chnx, assert), hints)
-	gr, err := gzip.NewReader(compressed)
-	d.Exp.NoError(err)
-	defer gr.Close()
+	gr := snappy.NewReader(compressed)
 
 	count := 0
 	for hint := range deserializeHints(gr) {
@@ -119,7 +116,7 @@ func TestBuildWriteValueRequest(t *testing.T) {
 	}
 	assert.Equal(len(hints), count)
 
-	chunkChan := make(chan chunks.Chunk, 16)
+	chunkChan := make(chan *chunks.Chunk, 16)
 	go chunks.DeserializeToChan(gr, chunkChan)
 	for c := range chunkChan {
 		assert.Equal(chnx[0].Hash(), c.Hash())
@@ -130,7 +127,7 @@ func TestBuildWriteValueRequest(t *testing.T) {
 
 func serializeChunks(chnx []chunks.Chunk, assert *assert.Assertions) io.Reader {
 	body := &bytes.Buffer{}
-	gw := gzip.NewWriter(body)
+	gw := snappy.NewBufferedWriter(body)
 	sz := chunks.NewSerializer(gw)
 	assert.NoError(sz.PutMany(chnx))
 	assert.NoError(sz.Close())
@@ -183,7 +180,7 @@ func TestHandleGetRefs(t *testing.T) {
 	)
 
 	if assert.Equal(http.StatusOK, w.Code, "Handler error:\n%s", string(w.Body.Bytes())) {
-		chunkChan := make(chan chunks.Chunk)
+		chunkChan := make(chan *chunks.Chunk)
 		go chunks.DeserializeToChan(w.Body, chunkChan)
 		for c := range chunkChan {
 			assert.Equal(chnx[0].Hash(), c.Hash())

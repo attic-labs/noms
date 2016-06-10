@@ -23,7 +23,7 @@ import (
     Chunk N
 
   Chunk:
-    Hash   // 20-byte sha1 hash
+    Hash  // 20-byte sha1 hash
     Len   // 4-byte int
     Data  // len(Data) == Len
 */
@@ -38,27 +38,31 @@ func NewSerializer(writer io.Writer) ChunkSink {
 
 	go func() {
 		for chunk := range s.chs {
-			d.Chk.True(chunk.Data != nil)
-
-			digest := chunk.Hash().Digest()
-			n, err := io.Copy(s.writer, bytes.NewReader(digest[:]))
-			d.Chk.NoError(err)
-			d.Chk.True(int64(sha1.Size) == n)
-
-			// Because of chunking at higher levels, no chunk should never be more than 4GB
-			chunkSize := uint32(len(chunk.Data()))
-			err = binary.Write(s.writer, binary.BigEndian, chunkSize)
-			d.Chk.NoError(err)
-
-			n, err = io.Copy(s.writer, bytes.NewReader(chunk.Data()))
-			d.Chk.NoError(err)
-			d.Chk.True(uint32(n) == chunkSize)
+			Serialize(chunk, s.writer)
 		}
-
-		s.done <- struct{}{}
+		close(s.done)
 	}()
 
 	return s
+}
+
+// Serialize a single Chunk to writer.
+func Serialize(chunk Chunk, writer io.Writer) {
+	d.Chk.True(chunk.data != nil)
+
+	digest := chunk.Hash().Digest()
+	n, err := io.Copy(writer, bytes.NewReader(digest[:]))
+	d.Chk.NoError(err)
+	d.Chk.True(int64(sha1.Size) == n)
+
+	// Because of chunking at higher levels, no chunk should never be more than 4GB
+	chunkSize := uint32(len(chunk.Data()))
+	err = binary.Write(writer, binary.BigEndian, chunkSize)
+	d.Chk.NoError(err)
+
+	n, err = io.Copy(writer, bytes.NewReader(chunk.Data()))
+	d.Chk.NoError(err)
+	d.Chk.True(uint32(n) == chunkSize)
 }
 
 type serializer struct {
@@ -89,8 +93,8 @@ func Deserialize(reader io.Reader, cs ChunkSink, rateLimit chan struct{}) {
 	wg := sync.WaitGroup{}
 
 	for {
-		c := deserializeChunk(reader)
-		if c.IsEmpty() {
+		c, success := deserializeChunk(reader)
+		if !success {
 			break
 		}
 
@@ -111,22 +115,22 @@ func Deserialize(reader io.Reader, cs ChunkSink, rateLimit chan struct{}) {
 }
 
 // DeserializeToChan reads off of |reader| until EOF, sending chunks to chunkChan in the order they are read.
-func DeserializeToChan(reader io.Reader, chunkChan chan<- Chunk) {
+func DeserializeToChan(reader io.Reader, chunkChan chan<- *Chunk) {
 	for {
-		c := deserializeChunk(reader)
-		if c.IsEmpty() {
+		c, success := deserializeChunk(reader)
+		if !success {
 			break
 		}
-		chunkChan <- c
+		chunkChan <- &c
 	}
 	close(chunkChan)
 }
 
-func deserializeChunk(reader io.Reader) Chunk {
+func deserializeChunk(reader io.Reader) (Chunk, bool) {
 	digest := hash.Sha1Digest{}
 	n, err := io.ReadFull(reader, digest[:])
 	if err == io.EOF {
-		return EmptyChunk
+		return EmptyChunk, false
 	}
 	d.Chk.NoError(err)
 	d.Chk.True(int(sha1.Size) == n)
@@ -141,6 +145,6 @@ func deserializeChunk(reader io.Reader) Chunk {
 	d.Chk.NoError(err)
 	d.Chk.True(int64(chunkSize) == n2)
 	c := w.Chunk()
-	d.Chk.True(h == c.Hash())
-	return c
+	d.Chk.True(h == c.Hash(), "%s != %s", h, c.Hash())
+	return c, true
 }

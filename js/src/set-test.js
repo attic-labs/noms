@@ -13,7 +13,7 @@ import Database from './database.js';
 import Hash from './hash.js';
 import MemoryStore from './memory-store.js';
 import Ref from './ref.js';
-import Set from './set.js';
+import Set, {SetLeafSequence} from './set.js';
 import type {ValueReadWriter} from './value-store.js';
 import {BatchStoreAdaptorDelegate, makeTestingBatchStore} from './batch-store-adaptor.js';
 import {MetaTuple, newSetMetaSequence} from './meta-sequence.js';
@@ -22,6 +22,13 @@ import {compare, equals} from './compare.js';
 import {flatten, flattenParallel, intSequence, deriveCollectionHeight} from './test-util.js';
 import {invariant, notNull} from './assert.js';
 import {newStruct} from './struct.js';
+import {OrderedMetaSequence} from './meta-sequence.js';
+import {
+  makeSetType,
+  makeUnionType,
+  numberType,
+  stringType,
+} from './type.js';
 
 const testSetSize = 5000;
 const setOfNRef = 'sha1-1fc97c4e369770b643e013569c68687765601514';
@@ -108,13 +115,13 @@ suite('BuildSet', () => {
     assert.strictEqual(height + 1, s.sequence.items[0].ref.height);
   });
 
-  test('LONG: insert', async () => {
+  test('LONG: add', async () => {
     const nums = intSequence(testSetSize);
     const build = nums.slice(0, testSetSize - 10);
     const insert = nums.slice(testSetSize - 10);
     let s = new Set(build);
     for (let i = 0; i < insert.length; i++) {
-      s = await s.insert(insert[i]);
+      s = await s.add(insert[i]);
       assert.strictEqual(build.length + i + 1, s.size);
     }
 
@@ -124,21 +131,21 @@ suite('BuildSet', () => {
   async function validateInsertion(values: number[]): Promise<void> {
     let s = new Set();
     for (let i = 0; i < values.length; i++) {
-      s = await s.insert(values[i]);
+      s = await s.add(values[i]);
       await validateSet(s, values.slice(0, i + 1));
     }
   }
 
-  test('LONG: validate - insert ascending', async () => {
+  test('LONG: validate - add ascending', async () => {
     await validateInsertion(intSequence(300));
   });
 
-  test('LONG: remove', async () => {
+  test('LONG: delete', async () => {
     const nums = intSequence(testSetSize + 10);
     let s = new Set(nums);
     let count = 10;
     while (count-- > 0) {
-      s = await s.remove(testSetSize + count);
+      s = await s.delete(testSetSize + count);
       assert.strictEqual(testSetSize + count, s.size);
     }
 
@@ -158,7 +165,7 @@ suite('BuildSet', () => {
     assert.strictEqual(testSetSize, s2.size);
 
     invariant(s2 instanceof Set);
-    const s3 = await s2.remove(testSetSize - 1);
+    const s3 = await s2.delete(testSetSize - 1);
     const outNums2 = [];
     await s3.forEach(k => outNums2.push(k));
     nums.splice(testSetSize - 1, 1);
@@ -213,7 +220,7 @@ suite('BuildSet', () => {
     }
 
     invariant(s2 instanceof Set);
-    const s3 = await s2.remove(vals[testSetSize - 1]);  // removes struct
+    const s3 = await s2.delete(vals[testSetSize - 1]);  // removes struct
     const outVals2 = [];
     await s3.forEach(k => outVals2.push(k));
     vals.splice(testSetSize - 1, 1);
@@ -309,8 +316,8 @@ suite('SetLeaf', () => {
   test('chunks', () => {
     const refs = ['x', 'a', 'b'].map(c => db.writeValue(c));
     refs.sort(compare);
-    const l = new Set(['z', ...refs]);
-    assert.deepEqual(refs, l.chunks);
+    const s = new Set(['z', ...refs]);
+    assert.deepEqual(refs, s.chunks);
   });
 });
 
@@ -328,8 +335,8 @@ suite('CompoundSet', () => {
 
     let tuples = [];
     for (let i = 0; i < values.length; i += 2) {
-      const l = new Set([values[i], values[i + 1]]);
-      const r = vwr.writeValue(l);
+      const s = new Set([values[i], values[i + 1]]);
+      const r = vwr.writeValue(s);
       tuples.push(new MetaTuple(r, values[i + 1], 2, null));
     }
 
@@ -569,20 +576,20 @@ suite('CompoundSet', () => {
     s1 = await db.readValue(db.writeValue(s1).targetHash);
 
     {
-      // Insert/remove at start.
-      const s2 = await s1.insert(-1);
+      // Insert/delete at start.
+      const s2 = await s1.add(-1);
       assert.deepEqual([[-1], []], await s2.diff(s1));
       assert.deepEqual([[], [-1]], await s1.diff(s2));
     }
     {
-      // Insert/remove at end.
-      const s2 = await s1.insert(testSetSize);
+      // Insert/delete at end.
+      const s2 = await s1.add(testSetSize);
       assert.deepEqual([[testSetSize], []], await s2.diff(s1));
       assert.deepEqual([[], [testSetSize]], await s1.diff(s2));
     }
     {
-      // Insert/remove in middle.
-      const s2 = await s1.remove(testSetSize / 2);
+      // Insert/delete in middle.
+      const s2 = await s1.delete(testSetSize / 2);
       assert.deepEqual([[], [testSetSize / 2]], await s2.diff(s1));
       assert.deepEqual([[testSetSize / 2], []], await s1.diff(s2));
     }
@@ -662,5 +669,61 @@ suite('CompoundSet', () => {
     assert.equal(2, chunks.length);
     assert.deepEqual(sequence.items[0].ref, chunks[0]);
     assert.deepEqual(sequence.items[1].ref, chunks[1]);
+  });
+
+  test('Type after mutations', async () => {
+    async function t(n, c) {
+      const values: any = intSequence(n);
+
+      let s = new Set(values);
+      assert.equal(s.size, n);
+      assert.instanceOf(s.sequence, c);
+      assert.isTrue(equals(s.type, makeSetType(numberType)));
+
+      s = await s.add('a');
+      assert.equal(s.size, n + 1);
+      assert.instanceOf(s.sequence, c);
+      assert.isTrue(equals(s.type, makeSetType(makeUnionType([numberType, stringType]))));
+
+      s = await s.delete('a');
+      assert.equal(s.size, n);
+      assert.instanceOf(s.sequence, c);
+      assert.isTrue(equals(s.type, makeSetType(numberType)));
+    }
+
+    await t(10, SetLeafSequence);
+    await t(100, OrderedMetaSequence);
+  });
+
+  test('Type after mutations - interesect', async () => {
+    async function t(n, c) {
+      const nums: any = intSequence(n);
+      const strings = nums.map(n => String.fromCodePoint(n));
+      const combined = nums.concat(strings);
+
+      const numSet = new Set(nums);
+      assert.equal(numSet.size, n);
+      assert.instanceOf(numSet.sequence, c);
+      assert.isTrue(equals(numSet.type, makeSetType(numberType)));
+
+      const stringSet = new Set(strings);
+      assert.equal(stringSet.size, n);
+      assert.instanceOf(stringSet.sequence, c);
+      assert.isTrue(equals(stringSet.type, makeSetType(stringType)));
+
+      const combinedSet = new Set(combined);
+      assert.equal(combinedSet.size, 2 * n);
+      assert.instanceOf(combinedSet.sequence, c);
+      assert.isTrue(equals(combinedSet.type, makeSetType(makeUnionType([numberType, stringType]))));
+
+      const s = await combinedSet.intersect(numSet);
+      assert.isTrue(equals(s, numSet));
+
+      const s2 = await combinedSet.intersect(stringSet);
+      assert.isTrue(equals(s2, stringSet));
+    }
+
+    await t(10, SetLeafSequence);
+    await t(100, OrderedMetaSequence);
   });
 });

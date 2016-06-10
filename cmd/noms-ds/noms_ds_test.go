@@ -31,8 +31,8 @@ func (s *testSuite) TestEmptyNomsDs() {
 
 	ds.Close()
 
-	dataStoreName := "ldb:" + dir + "/name"
-	rtnVal := s.Run(main, []string{dataStoreName})
+	dbSpec := test_util.CreateDatabaseSpecString("ldb", dir+"/name")
+	rtnVal := s.Run(main, []string{dbSpec})
 	s.Equal("", rtnVal)
 }
 
@@ -41,14 +41,13 @@ func (s *testSuite) TestNomsDs() {
 
 	cs := chunks.NewLevelDBStore(dir+"/name", "", 24, false)
 	ds := datas.NewDatabase(cs)
-	id := "testdataset"
 
+	id := "testdataset"
 	set := dataset.NewDataset(ds, id)
 	set, err := set.Commit(types.NewString("Commit Value"))
 	s.NoError(err)
 
 	id2 := "testdataset2"
-
 	set2 := dataset.NewDataset(ds, id2)
 	set2, err = set2.Commit(types.NewString("Commit Value2"))
 	s.NoError(err)
@@ -56,35 +55,31 @@ func (s *testSuite) TestNomsDs() {
 	err = ds.Close()
 	s.NoError(err)
 
-	dataStoreName := "ldb:" + dir + "/name"
-	datasetName := dataStoreName + ":" + id
-	dataset2Name := dataStoreName + ":" + id2
+	dbSpec := test_util.CreateDatabaseSpecString("ldb", dir+"/name")
+	datasetName := test_util.CreateValueSpecString("ldb", dir+"/name", id)
+	dataset2Name := test_util.CreateValueSpecString("ldb", dir+"/name", id2)
 
 	// both datasets show up
-	rtnVal := s.Run(main, []string{dataStoreName})
+	rtnVal := s.Run(main, []string{dbSpec})
 	s.Equal(id+"\n"+id2+"\n", rtnVal)
 
 	// both datasets again, to make sure printing doesn't change them
-	rtnVal = s.Run(main, []string{dataStoreName})
+	rtnVal = s.Run(main, []string{dbSpec})
 	s.Equal(id+"\n"+id2+"\n", rtnVal)
 
 	// delete one dataset, print message at delete
 	rtnVal = s.Run(main, []string{"-d", datasetName})
 	s.Equal("Deleted dataset "+id+" (was sha1-d54b79552cda9ebe8e446eeb19aab0e69b6ceee3)\n\n", rtnVal)
 
-	// resetting flag because main is called multiple times
-	*toDelete = ""
 	// print datasets, just one left
-	rtnVal = s.Run(main, []string{dataStoreName})
+	rtnVal = s.Run(main, []string{dbSpec})
 	s.Equal(id2+"\n", rtnVal)
 
 	// delete the second dataset
 	rtnVal = s.Run(main, []string{"-d", dataset2Name})
 	s.Equal("Deleted dataset "+id2+" (was sha1-7b75b0ebfc2a0815ba6fb2b31d03c8f9976ae530)\n\n", rtnVal)
 
-	//resetting flag because main is called multiple times
-	*toDelete = ""
 	// print datasets, none left
-	rtnVal = s.Run(main, []string{dataStoreName})
+	rtnVal = s.Run(main, []string{dbSpec})
 	s.Equal("", rtnVal)
 }

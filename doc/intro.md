@@ -3,20 +3,32 @@
 Most conventional database systems share two central properties:
 
 1. Data is modeled as a single point-in-time. Once a transaction commits, the previous state of the database is either lost, or available only as a fallback by reconstructing from transaction logs.
+
 2. Data is modeled as a single source of truth. Even large-scale distributed databases which are internally a fault-tolerant network of nodes, present the abstraction to clients of being a single logical master, with which clients must coordinate in order to change state.
 
-Noms blends the properties of decentralized systems, such as Git, with properties of traditional databases in order to create a general-purpose decentralized database, in which:
+Noms blends the properties of decentralized systems, such as [Git](https://git-scm.com/), with properties of traditional databases in order to create a general-purpose decentralized database, in which:
 
-1. Any peer’s state is as valid as any other
-2. All commit-states of the database are retained and available at any time. 
-3. Any peer is free to move forward independently of communication from any other -- while retaining the ability to reconcile changes at some point in the future.
+1. Any peer’s state is as valid as any other.
+
+2. All commits of the database are retained and available at any time. 
+
+3. Any peer is free to move forward independently of communication from any other—while retaining the ability to reconcile changes at some point in the future.
+
 4. The basic properties of structured databases (efficient queries, updates, and range scans) are retained.
+
 5. Diffs between any two sets of data can be computed efficiently.
+
 6. Synchronization between disconnected copies of the database can be performed efficiently and correctly.
 
 ## Basics
 
-The central idea of Noms is similar that of Git: model data as a directed graph of nodes in which every node has a hash value which is derived from the values encoded in the node and (transitively) from the values encoded in all nodes which are reachable from that node (IOW, as  a “[Merkle DAG](https://github.com/jbenet/random-ideas/issues/20)”). When two nodes have the same hash, they represent identical logical values and the respective subgraph of nodes reachable from each are topologically equivalent. This allows for efficient operations such as computing and reconciling differences and synchronizing state.
+As in Git, [Bitcoin](https://bitcoin.org/en/), [Ethereum](https://www.ethereum.org/), [IPFS](https://ipfs.io/), [Camlistore](https://camlistore.org/), [bup](https://bup.github.io/), and other systems, Noms models data as a [directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) of nodes in which every node has a _hash_. A node's hash is derived from the values encoded in the node and (transitively) from the values encoded in all nodes which are reachable from that node.
+
+In other words, a Noms database is a single large [Merkle DAG](https://github.com/jbenet/random-ideas/issues/20).
+
+When two nodes have the same hash, they represent identical logical values and the respective subgraph of nodes reachable from each are topologically equivalent. Importantly, in Noms, the reverse is also true: a single logical value has one and only one hash. When two nodes have differnet hashes, they represent different logical values.
+
+Noms extends the ideas of prior systems to enable efficiently computing and reconciling differences, synchronizing state, and building indexes over large-scale, structured data.
 
 ## Databases and Datasets
 
@@ -38,24 +50,20 @@ var db = noms.DatabaseSpec.parse('http://localhost:8000').db();
 A dataset is nothing more than a named pointer into the DAG. Consider the following command to copy the dataset named `foo` to the dataset named `bar` within a database:
 
 ```
-noms sync http://localhost:8000:foo http://localhost:8000:bar
+noms sync http://localhost:8000::foo http://localhost:8000::bar
 ```
 
-This command is trivial and causes basically zero IO. Noms checks whether the destination database has the chunk pointed to by `foo`, finds that it does (obviously, because it is in the same database), and then adds a new dataset pointing at that chunk.
+This command is trivial and causes basically zero IO. Noms first resolves the dataset name `foo` in `http://localhost:8000`. This results in a hash. Noms then checks whether that hash exists in the destination database (which in this case is the same as the source database), finds that it does, and then adds a new dataset pointing at that chunk.
 
 Syncs across database can be efficient by the same logic if the destination database already has all or most of the chunks required chunks.
 
-See [Noms Command Line Tour](cli-tour.md) for more on the command-line interface to Noms.
+## Time
 
-See [Spelling in Noms](spelling.md) for more on accessing databases and datasets.
-
-## Modeling data as a graph
-
-Noms models any logical value as a [directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) which has exactly one root node, zero or more descendent nodes and exactly one corresponding hash value, which is deterministically derived from the data of the value itself.
+All data in Noms is immutable. Once a piece of data is stored, it is never changed. To represent state changes, Noms uses a progression of `Commit`  structures.
 
 [TODO - diagram]
 
-A Commit represents the state of a Noms dataset at a point in time. Changes to state are represented by progressions of commits. All values, including commits, are immutable.
+As in Git, Commits typically have one _parent_, which is the previous commit in time. But in the cases of merges, a Noms commit can have multiple parents.
 
 ### Chunks
 

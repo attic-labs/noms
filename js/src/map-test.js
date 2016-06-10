@@ -16,11 +16,18 @@ import Struct, {newStruct} from './struct.js';
 import {flatten, flattenParallel, deriveCollectionHeight} from './test-util.js';
 import {invariant, notNull} from './assert.js';
 import Chunk from './chunk.js';
-import Map from './map.js';
+import Map, {MapLeafSequence} from './map.js';
 import {MetaTuple, newMapMetaSequence} from './meta-sequence.js';
 import Hash from './hash.js';
 import type {ValueReadWriter} from './value-store.js';
 import {compare, equals} from './compare.js';
+import {OrderedMetaSequence} from './meta-sequence.js';
+import {
+  makeMapType,
+  makeUnionType,
+  numberType,
+  stringType,
+} from './type.js';
 
 const testMapSize = 1000;
 const mapOfNRef = 'sha1-9fce950ce2606ced8681a695b608384c642ffb53';
@@ -158,7 +165,7 @@ suite('BuildMap', () => {
     assert.strictEqual(m.hash.toString(), mapOfNRef);
   });
 
-  test('LONG: remove', async () => {
+  test('LONG: delete', async () => {
     const kvs = [];
     for (let i = 0; i < testMapSize + 10; i++) {
       kvs.push([i, i + 1]);
@@ -166,7 +173,7 @@ suite('BuildMap', () => {
 
     let m = new Map(kvs);
     for (let i = testMapSize; i < testMapSize + 10; i++) {
-      m = await m.remove(i);
+      m = await m.delete(i);
     }
 
     assert.strictEqual(m.hash.toString(), mapOfNRef);
@@ -188,7 +195,7 @@ suite('BuildMap', () => {
     assert.strictEqual(testMapSize, m2.size);
 
     invariant(m2 instanceof Map);
-    const m3 = await m2.remove(testMapSize - 1);
+    const m3 = await m2.delete(testMapSize - 1);
     const outKvs2 = [];
     await m3.forEach((v, k) => outKvs2.push([k, v]));
     kvs.splice(testMapSize * 1 - 1, 1);
@@ -263,7 +270,7 @@ suite('BuildMap', () => {
     }
 
     invariant(m2 instanceof Map);
-    const m3 = await m2.remove(sortedKeys[testMapSize - 1]);  // removes struct
+    const m3 = await m2.delete(sortedKeys[testMapSize - 1]);  // removes struct
     const outVals2 = [];
     const outKeys2 = [];
     await m2.forEach((v, k) => {
@@ -657,5 +664,33 @@ suite('CompoundMap', () => {
     assert.equal(2, chunks.length);
     assert.deepEqual(sequence.items[0].ref, chunks[0]);
     assert.deepEqual(sequence.items[1].ref, chunks[1]);
+  });
+
+  test('Type after mutations', async () => {
+    async function t(n, c) {
+      const values: any = new Array(n);
+      for (let i = 0; i < n; i++) {
+        values[i] = [i, i];
+      }
+
+      let m = new Map(values);
+      assert.equal(m.size, n);
+      assert.instanceOf(m.sequence, c);
+      assert.isTrue(equals(m.type, makeMapType(numberType, numberType)));
+
+      m = await m.set('a', 'a');
+      assert.equal(m.size, n + 1);
+      assert.instanceOf(m.sequence, c);
+      assert.isTrue(equals(m.type, makeMapType(makeUnionType([numberType, stringType]),
+                                               makeUnionType([numberType, stringType]))));
+
+      m = await m.delete('a');
+      assert.equal(m.size, n);
+      assert.instanceOf(m.sequence, c);
+      assert.isTrue(equals(m.type, makeMapType(numberType, numberType)));
+    }
+
+    await t(10, MapLeafSequence);
+    await t(100, OrderedMetaSequence);
   });
 });

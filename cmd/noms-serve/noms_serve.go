@@ -14,6 +14,7 @@ import (
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
+	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/samples/go/flags"
 	"github.com/attic-labs/noms/samples/go/util"
 )
@@ -24,8 +25,8 @@ var (
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Serves a Noms database over HTTP\n")
-		fmt.Fprintln(os.Stderr, "Usage: noms serve <database>")
+		fmt.Fprintf(os.Stderr, "Serves a Noms database over HTTP\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: noms serve <database>\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nFor detailed information on spelling databases, see: at https://github.com/attic-labs/noms/blob/master/doc/spelling.md.\n\n")
 	}
@@ -59,9 +60,7 @@ func main() {
 	}()
 
 	d.Try(func() {
-		if util.MaybeStartCPUProfile() {
-			defer util.StopCPUProfile()
-		}
+		defer profile.MaybeStartProfile().Stop()
 		server.Run()
 	})
 }

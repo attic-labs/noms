@@ -384,6 +384,7 @@ func TestSetInsert2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping test in short mode.")
 	}
+	t.Parallel()
 	assert := assert.New(t)
 
 	doTest := func(incr, offset int, ts testSet) {
@@ -444,7 +445,7 @@ func TestSetRemove2(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping test in short mode.")
 	}
-
+	t.Parallel()
 	assert := assert.New(t)
 
 	doTest := func(incr, offset int, ts testSet) {
@@ -803,4 +804,30 @@ func TestSetModifyAfterRead(t *testing.T) {
 	assert.True(set.Has(set.First()))
 	set = set.Insert(fst)
 	assert.True(set.Has(fst))
+}
+
+func TestSetTypeAfterMutations(t *testing.T) {
+	assert := assert.New(t)
+
+	test := func(n int, c interface{}) {
+		values := generateNumbersAsValues(n)
+
+		s := NewSet(values...)
+		assert.Equal(s.Len(), uint64(n))
+		assert.IsType(c, s.sequence())
+		assert.True(s.Type().Equals(MakeSetType(NumberType)))
+
+		s = s.Insert(NewString("a"))
+		assert.Equal(s.Len(), uint64(n+1))
+		assert.IsType(c, s.sequence())
+		assert.True(s.Type().Equals(MakeSetType(MakeUnionType(NumberType, StringType))))
+
+		s = s.Remove(NewString("a"))
+		assert.Equal(s.Len(), uint64(n))
+		assert.IsType(c, s.sequence())
+		assert.True(s.Type().Equals(MakeSetType(NumberType)))
+	}
+
+	test(10, setLeafSequence{})
+	test(100, orderedMetaSequence{})
 }

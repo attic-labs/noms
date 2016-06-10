@@ -44,7 +44,7 @@ export function getDatasTypes(): DatasTypes {
     });
     const refOfCommitType = makeRefType(commitType);
     const commitSetType = makeSetType(refOfCommitType);
-    commitType.desc.fields['parents'] = commitSetType;
+    commitType.desc.setField('parents', commitSetType);
     const commitMapType = makeMapType(stringType, refOfCommitType);
     datasTypes = {
       commitType,
@@ -156,7 +156,7 @@ async function getAncestors(commits: Set<Ref<Commit>>, database: Database):
   let ancestors = new Set();
   await commits.map(async (commitRef) => {
     const commit = await database.readValue(commitRef.targetHash);
-    await commit.parents.map(async (ref) => ancestors = await ancestors.insert(ref));
+    await commit.parents.map(async (ref) => ancestors = await ancestors.add(ref));
   });
   return ancestors;
 }

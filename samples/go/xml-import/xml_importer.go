@@ -17,6 +17,7 @@ import (
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/samples/go/flags"
 	"github.com/attic-labs/noms/samples/go/util"
 	"github.com/clbanning/mxj"
@@ -63,9 +64,7 @@ func main() {
 		ds, err := spec.Dataset()
 		util.CheckError(err)
 
-		if util.MaybeStartCPUProfile() {
-			defer util.StopCPUProfile()
-		}
+		defer profile.MaybeStartProfile().Stop()
 
 		cpuCount := runtime.NumCPU()
 		runtime.GOMAXPROCS(cpuCount)
@@ -89,7 +88,7 @@ func main() {
 		}
 
 		wg := sync.WaitGroup{}
-		importXml := func() {
+		importXML := func() {
 			expectedType := types.NewMap()
 			for f := range filesChan {
 				file, err := os.Open(f.path)
@@ -117,7 +116,7 @@ func main() {
 		go getFilePaths()
 		for i := 0; i < cpuCount*8; i++ {
 			wg.Add(1)
-			go importXml()
+			go importXML()
 		}
 		go func() {
 			wg.Wait()
@@ -141,8 +140,6 @@ func main() {
 			_, err := ds.Commit(rl)
 			d.Exp.NoError(err)
 		}
-
-		util.MaybeWriteMemProfile()
 	})
 
 	if err != nil {
