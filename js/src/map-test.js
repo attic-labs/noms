@@ -9,8 +9,6 @@ import {suite, setup, teardown, test} from 'mocha';
 
 import Ref from './ref.js';
 import Struct, {newStruct} from './struct.js';
-import type Chunk from './chunk.js'; // eslint-disable-line no-unused-vars
-import type Hash from './hash.js'; // eslint-disable-line no-unused-vars
 import {
   flatten,
   flattenParallel,

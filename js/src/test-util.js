@@ -16,8 +16,6 @@ import {getTypeOfValue, Type} from './type.js';
 import {equals} from './compare.js';
 import {BatchStoreAdaptor} from './batch-store.js';
 import MemoryStore from './memory-store.js';
-import type Chunk from './chunk.js'; // eslint-disable-line no-unused-vars
-import type Hash from './hash.js'; // eslint-disable-line no-unused-vars
 import type Ref from './ref.js';
 
 export class TestDatabase extends Database {

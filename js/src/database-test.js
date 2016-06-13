@@ -36,7 +36,7 @@ suite('Database', () => {
   });
 
   test('commit', async () => {
-    const bs = new makeTestingRemoteBatchStore();
+    const bs = makeTestingRemoteBatchStore();
     let ds = new Database(bs);
     const datasetID = 'ds1';
 
@@ -111,7 +111,7 @@ suite('Database', () => {
   });
 
   test('concurrency', async () => {
-    const bs = new makeTestingRemoteBatchStore();
+    const bs = makeTestingRemoteBatchStore();
     let ds = new Database(bs);
     const datasetID = 'ds1';
 
@@ -158,7 +158,7 @@ suite('Database', () => {
   });
 
   test('head', async () => {
-    const bs = new makeTestingRemoteBatchStore();
+    const bs = makeTestingRemoteBatchStore();
     let ds = new Database(bs);
 
     const commit = new Commit('foo');
