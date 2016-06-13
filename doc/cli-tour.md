@@ -134,7 +134,7 @@ films
 We can now make an edit locally:
 
 ```
-> go install github.com/attic-labs/noms/samples/go/csv
+> go install github.com/attic-labs/noms/samples/go/csv/...
 > csv-export ldb:/tmp/noms::films > /tmp/film-locations.csv
 ```
 
