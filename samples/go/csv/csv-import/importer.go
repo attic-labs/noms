@@ -16,12 +16,12 @@ import (
 	"time"
 
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/progressreader"
 	"github.com/attic-labs/noms/go/util/status"
 	"github.com/attic-labs/noms/samples/go/csv"
-	"github.com/attic-labs/noms/samples/go/flags"
 	"github.com/attic-labs/noms/samples/go/util"
 
 	humanize "github.com/dustin/go-humanize"
@@ -41,11 +41,11 @@ func main() {
 		name            = flag.String("name", "Row", "struct name. The user-visible name to give to the struct type that will hold each row of data.")
 		columnTypes     = flag.String("column-types", "", "a comma-separated list of types representing the desired type of each column. if absent all types default to be String")
 		noProgress      = flag.Bool("no-progress", false, "prevents progress from being output if true")
-		destType        = flag.String("dest-type", "list", "the destination type to import to. can be 'list' or 'map:<pk>', where <pk> is the name of the column that is a the unique identifier for the column")
+		destType        = flag.String("dest-type", "list", "the destination type to import to. can be 'list' or 'map:<pk>', where <pk> is the index position (0-based) of the column that is a the unique identifier for the column")
 		destTypePattern = regexp.MustCompile("^(list|map):(\\d+)$")
 	)
 
-	flags.RegisterDatabaseFlags()
+	spec.RegisterDatabaseFlags()
 	cpuCount := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpuCount)
 
@@ -105,7 +105,7 @@ func main() {
 		headers = strings.Split(*header, string(comma))
 	}
 
-	spec, err := flags.ParseDatasetSpec(flag.Arg(0))
+	spec, err := spec.ParseDatasetSpec(flag.Arg(0))
 	util.CheckError(err)
 	ds, err := spec.Dataset()
 	util.CheckError(err)
