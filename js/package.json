@@ -54,10 +54,6 @@
     "./src/fetch.js": "./src/browser/fetch.js",
     "./dist/commonjs/fetch.js": "./dist/commonjs/browser/fetch.js",
     "./src/put-cache.js": "./src/browser/put-cache.js",
-    "./dist/commonjs/put-cache.js": "./dist/commonjs/browser/put-cache.js",
-    "./src/sha1.js": "./src/browser/sha1.js",
-    "./dist/commonjs/sha1.js": "./dist/commonjs/browser/sha1.js",
-    "./src/utf8.js": "./src/browser/utf8.js",
-    "./dist/commonjs/utf8.js": "./dist/commonjs/browser/utf8.js"
+    "./dist/commonjs/put-cache.js": "./dist/commonjs/browser/put-cache.js"
   }
 }
