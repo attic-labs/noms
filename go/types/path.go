@@ -40,6 +40,14 @@ func (p Path) AddIndex(idx Value) Path {
 
 func (p Path) AddPath(str string) (Path, error) {
 	if len(str) == 0 {
+		return Path{}, errors.New("Empty path")
+	}
+
+	return p.addPath(str)
+}
+
+func (p Path) addPath(str string) (Path, error) {
+	if len(str) == 0 {
 		return p, nil
 	}
 
@@ -48,21 +56,23 @@ func (p Path) AddPath(str string) (Path, error) {
 	switch op {
 	case '.':
 		idx := fieldNameComponentRe.FindIndex([]byte(tail))
-		if idx == nil || idx[0] != 0 {
+		if idx == nil {
 			return Path{}, errors.New("Invalid field " + tail)
 		}
 
-		p, err := p.AddField(tail[:idx[1]]).AddPath(tail[idx[1]:])
-		return p, err
+		return p.AddField(tail[:idx[1]]).addPath(tail[idx[1]:])
 
 	case '[':
+		if len(tail) == 0 {
+			return Path{}, errors.New("Path ends in [")
+		}
+
 		idx, rem, err := parsePathIndex(tail)
 		if err != nil {
 			return Path{}, err
 		}
 
-		p, err = p.AddIndex(idx).AddPath(rem)
-		return p, err
+		return p.AddIndex(idx).addPath(rem)
 
 	case ']':
 		return Path{}, errors.New("] is missing opening [")
@@ -150,11 +160,6 @@ func (ip indexPart) String() string {
 }
 
 func parsePathIndex(str string) (idx Value, rem string, err error) {
-	if len(str) == 0 {
-		err = errors.New("[ is missing closing ]")
-		return
-	}
-
 Switch:
 	switch str[0] {
 	case '"':
@@ -167,7 +172,7 @@ Switch:
 			if c == '"' {
 				break
 			}
-			if c == '\\' {
+			if c == '\\' && i < len(str)-1 {
 				i++
 				c = str[i]
 				if c != '\\' && c != '"' {
