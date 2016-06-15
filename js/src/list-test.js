@@ -13,10 +13,12 @@ import {MetaTuple, newListMetaSequence} from './meta-sequence.js';
 import {DEFAULT_MAX_SPLICE_MATRIX_SIZE, calcSplices} from './edit-distance.js';
 import {equals} from './compare.js';
 import {invariant, notNull} from './assert.js';
-import {newStruct} from './struct.js';
+import {newStruct, newStructWithType} from './struct.js';
 import {
+  boolType,
   makeListType,
   makeRefType,
+  makeStructType,
   makeUnionType,
   numberType,
   stringType,
@@ -657,4 +659,27 @@ suite('ListWriter', () => {
     await t(10, ListLeafSequence);
     await t(100, IndexedMetaSequence);
   });
+
+  test('List XXX Read', async () => {
+    const type = makeStructType('S1', {
+      'num': numberType,
+      'str': stringType,
+      'bool': boolType,
+    });
+
+    const values = intSequence(50000).map(v => newStructWithType(type, {num: v, str: String(v), bool: (v % 2 === 0)}));
+
+    const t1 = Date.now();
+    const l = new List(values);
+
+    const r = db.writeValue(l);
+
+    const t2 = Date.now();
+    const l2 = await db.readValue(r.targetHash);
+
+    let num = 0;
+    await l2.forEach(v => num = v);
+    const t3 = Date.now();
+    console.log(t2 - t1, t3 - t2, 'ms');
+  })
 });

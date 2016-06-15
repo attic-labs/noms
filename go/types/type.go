@@ -5,6 +5,8 @@
 package types
 
 import (
+	"bytes"
+	"hash/crc32"
 	"regexp"
 	"sort"
 
@@ -22,8 +24,9 @@ import (
 // If Kind() refers to Struct, then Desc contains a []Field.
 
 type Type struct {
-	Desc TypeDesc
-	h    *hash.Hash
+	Desc         TypeDesc
+	h            *hash.Hash
+	byteSequence []byte
 }
 
 var typeForType = makePrimitiveType(TypeKind)
@@ -217,3 +220,82 @@ var StringType = makePrimitiveType(StringKind)
 var BlobType = makePrimitiveType(BlobKind)
 var TypeType = makePrimitiveType(TypeKind)
 var ValueType = makePrimitiveType(ValueKind)
+
+type typeCache struct {
+	simpleTypes  map[uint64]*Type
+	complexTypes map[uint32]*Type
+}
+
+func newTypeCache(simpleSize uint, complexSize uint) typeCache {
+	return typeCache{
+		make(map[uint64]*Type, simpleSize),
+		make(map[uint32]*Type, complexSize),
+	}
+}
+
+func toUint64(key []byte) uint64 {
+	v := uint64(0)
+	for i := 0; i < len(key); i++ {
+		v = v<<8 | uint64(key[i])
+	}
+	return v
+}
+
+var crcTable = crc32.MakeTable(crc32.Koopman)
+
+func (tc typeCache) get(key []byte) (*Type, bool) {
+	// Primitive Types
+	if len(key) == 1 {
+		k := NomsKind(key[0])
+		switch k {
+		case BoolKind:
+			return BoolType, true
+		case NumberKind:
+			return NumberType, true
+		case StringKind:
+			return StringType, true
+		case ValueKind:
+			return ValueType, true
+		case BlobKind:
+			return BlobType, true
+		case TypeKind:
+			return TypeType, true
+		default:
+			panic("not reached")
+		}
+	}
+
+	if len(key) <= 8 {
+		if t, ok := tc.simpleTypes[toUint64(key)]; ok {
+			return t, true
+		} else {
+			return nil, false
+		}
+	}
+
+	if t, ok := tc.complexTypes[crc32.Checksum(key, crcTable)]; ok {
+		d.Chk.NotNil(t.byteSequence)
+		if bytes.Compare(t.byteSequence, key) == 0 {
+			return t, true
+		}
+	}
+
+	return nil, false
+}
+
+func (tc typeCache) set(key []byte, t *Type) {
+	byteSequence := make([]byte, len(key))
+	copy(byteSequence, key)
+	t.byteSequence = byteSequence
+
+	if len(key) == 1 {
+		return
+	}
+
+	if len(key) <= 8 {
+		tc.simpleTypes[toUint64(key)] = t
+		return
+	}
+
+	tc.complexTypes[crc32.Checksum(key, crcTable)] = t
+}

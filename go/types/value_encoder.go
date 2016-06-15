@@ -29,6 +29,15 @@ func (w *valueEncoder) writeRef(r Ref) {
 }
 
 func (w *valueEncoder) writeType(t *Type, parentStructTypes []*Type) {
+	// Lookup type bytes
+	if t.byteSequence != nil {
+		w.append(t.byteSequence)
+		return
+	}
+
+	// Cache miss
+	startIdx := w.pos()
+
 	k := t.Kind()
 	switch k {
 	case ListKind, MapKind, RefKind, SetKind:
@@ -52,6 +61,8 @@ func (w *valueEncoder) writeType(t *Type, parentStructTypes []*Type) {
 		w.writeKind(k)
 		d.Chk.True(IsPrimitiveKind(k))
 	}
+
+	tc.set(w.sliceFrom(startIdx), t)
 }
 
 func (w *valueEncoder) writeBlobLeafSequence(seq blobLeafSequence) {

@@ -29,6 +29,7 @@ import {IndexedMetaSequence, OrderedMetaSequence} from './meta-sequence.js';
 import type Value from './value.js';
 import type {ValueReader} from './value-store.js';
 import type {NomsReader} from './codec.js';
+import {tc} from './type.js';
 
 export default class ValueDecoder {
   _r: NomsReader;
@@ -49,36 +50,91 @@ export default class ValueDecoder {
     return constructRef(t, hash, height);
   }
 
-  readType(parentStructTypes: Type[]): Type {
+  scanType() {
     const k = this.readKind();
     switch (k) {
       case Kind.List:
-        return makeListType(this.readType(parentStructTypes));
+        this.scanType(); // elem
+        break;
       case Kind.Map:
-        return makeMapType(this.readType(parentStructTypes),
-                           this.readType(parentStructTypes));
-      case Kind.Set:
-        return makeSetType(this.readType(parentStructTypes));
+        this.scanType(); // key
+        this.scanType(); // value
+        break;
       case Kind.Ref:
-        return makeRefType(this.readType(parentStructTypes));
+        this.scanType(); // referenced
+        break;
+      case Kind.Set:
+        this.scanType(); // elem
+        break;
       case Kind.Struct:
-        return this.readStructType(parentStructTypes);
+        this.scanStructType();
+        break;
+      case Kind.Union: {
+        const count = this._r.readUint32();
+        for (let i = 0; i < count; i++) {
+          this.scanType();
+        }
+        break;
+      }
+      case Kind.Cycle: {
+        this._r.readUint32();
+        break;
+      }
+    }
+  }
+
+  readType(parentStructTypes: Type[]): Type {
+    const startIdx = this._r.pos();
+    this.scanType();
+    const typeSlice = this._r.sliceFrom(startIdx);
+    // TODO: Don't do for 1-byte types.
+    let t = tc.get(typeSlice);
+    if (t) {
+      return t;
+    }
+
+    this._r.seek(startIdx);
+
+    const k = this.readKind();
+    switch (k) {
+      case Kind.List:
+        t = makeListType(this.readType(parentStructTypes));
+        break;
+      case Kind.Map:
+        t = makeMapType(this.readType(parentStructTypes),
+                        this.readType(parentStructTypes));
+        break;
+      case Kind.Set:
+        t = makeSetType(this.readType(parentStructTypes));
+        break;
+      case Kind.Ref:
+        t = makeRefType(this.readType(parentStructTypes));
+        break;
+      case Kind.Struct:
+        t = this.readStructType(parentStructTypes);
+        break;
       case Kind.Union: {
         const len = this._r.readUint32();
         const types: Type[] = new Array(len);
         for (let i = 0; i < len; i++) {
           types[i] = this.readType(parentStructTypes);
         }
-        return makeUnionType(types);
+        t = makeUnionType(types);
+        break;
       }
       case Kind.Cycle: {
         const i = this._r.readUint32();
-        return parentStructTypes[parentStructTypes.length - 1 - i];
+        t = parentStructTypes[parentStructTypes.length - 1 - i];
+        break;
       }
+      default:
+        invariant(isPrimitiveKind(k));
+        t = getPrimitiveType(k);
+        break;
     }
 
-    invariant(isPrimitiveKind(k));
-    return getPrimitiveType(k);
+    tc.set(typeSlice, t);
+    return t;
   }
 
   readBlobLeafSequence(): BlobLeafSequence {
@@ -205,6 +261,16 @@ export default class ValueDecoder {
     }
 
     return newStructWithValues(type, values);
+  }
+
+  scanStructType() {
+    this._r.scanString(); // struct name;
+    const count = this._r.readUint32();
+
+    for (let i = 0; i < count; i++) {
+      this._r.scanString(); // field name;
+      this.scanType();
+    }
   }
 
   readStructType(parentStructTypes: Type[]): Type {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
+	"github.com/golang/snappy"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/filter"
@@ -94,9 +95,9 @@ func (l *LevelDBStore) PutMany(chunks []Chunk) (e BackpressureError) {
 	numBytes := 0
 	b := new(leveldb.Batch)
 	for _, c := range chunks {
-		d := c.Data()
-		numBytes += len(d)
-		b.Put(l.toChunkKey(c.Hash()), d)
+		compressed := snappy.Encode(nil, c.Data())
+		numBytes += len(compressed)
+		b.Put(l.toChunkKey(c.Hash()), compressed)
 	}
 	l.putBatch(b, numBytes)
 	return
@@ -129,7 +130,7 @@ func newBackingStore(dir string, maxFileHandles int, dumpStats bool) *internalLe
 	d.Exp.NotEmpty(dir)
 	d.Exp.NoError(os.MkdirAll(dir, 0700))
 	db, err := leveldb.OpenFile(dir, &opt.Options{
-		Compression:            opt.SnappyCompression,
+		Compression:            opt.NoCompression,
 		Filter:                 filter.NewBloomFilter(10), // 10 bits/key
 		OpenFilesCacheCapacity: maxFileHandles,
 		WriteBuffer:            1 << 24, // 16MiB,
@@ -173,8 +174,8 @@ func (l *internalLevelDBStore) getByKey(key []byte, ref hash.Hash) Chunk {
 		return EmptyChunk
 	}
 	d.Chk.NoError(err)
-
-	return NewChunkWithHash(ref, data)
+	uncompressed, err := snappy.Decode(nil, data)
+	return NewChunkWithHash(ref, uncompressed)
 }
 
 func (l *internalLevelDBStore) hasByKey(key []byte) bool {
@@ -186,10 +187,11 @@ func (l *internalLevelDBStore) hasByKey(key []byte) bool {
 
 func (l *internalLevelDBStore) putByKey(key []byte, c Chunk) {
 	l.concurrentWriteLimit <- struct{}{}
-	err := l.db.Put(key, c.Data(), nil)
+	compressed := snappy.Encode(nil, c.Data())
+	err := l.db.Put(key, compressed, nil)
 	d.Chk.NoError(err)
 	l.putCount++
-	l.putBytes += int64(len(c.Data()))
+	l.putBytes += int64(len(compressed))
 	<-l.concurrentWriteLimit
 }
 
