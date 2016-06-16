@@ -4,6 +4,8 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
+import {NomsVersion} from '../version.js';
+
 export type FetchOptions = {
   method?: string,
   body?: any,
@@ -19,6 +21,11 @@ function fetch<T>(url: string, responseType: string, options: FetchOptions = {})
   const p = new Promise((res, rej) => {
     xhr.onloadend = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
+        const vers = xhr.getResponseHeader('x-noms-version');
+        if (vers !== NomsVersion) {
+          rej(new Error(
+            `SDK version ${NomsVersion} is not compatible with data of version ${vers}.`));
+        }
         res(xhr.response);
       } else {
         rej(xhr.status);

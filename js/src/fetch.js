@@ -7,6 +7,7 @@
 import {request} from 'http';
 import {parse} from 'url';
 import Bytes from './bytes.js';
+import {NomsVersion} from './version.js';
 
 export type FetchOptions = {
   method?: string,
@@ -50,6 +51,11 @@ function fetch(url: string, options: FetchOptions = {}): Promise<Uint8Array> {
         offset += size;
       });
       res.on('end', () => {
+        const vers = res.headers['x-noms-version'];
+        if (vers !== NomsVersion) {
+          reject(new Error(
+            `SDK version ${NomsVersion} is not compatible with data of version ${vers}.`));
+        }
         resolve(Bytes.subarray(buf, 0, offset));
       });
     });

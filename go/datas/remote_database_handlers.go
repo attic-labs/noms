@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/attic-labs/noms/go/chunks"
+	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
@@ -27,7 +28,10 @@ type URLParams interface {
 
 type Handler func(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore)
 
+const nomsVersionHeader = "X-Noms-Version"
+
 func HandleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore) {
+	w.Header().Set(nomsVersionHeader, constants.NomsVersion)
 	hashes := hash.HashSlice{}
 	err := d.Try(func() {
 		d.Exp.Equal("POST", req.Method)
@@ -119,6 +123,7 @@ func (wc wc) Close() error {
 }
 
 func HandleGetRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore) {
+	w.Header().Set(nomsVersionHeader, constants.NomsVersion)
 	err := d.Try(func() {
 		d.Exp.Equal("POST", req.Method)
 
@@ -166,6 +171,7 @@ func buildHashesRequest(hashes map[hash.Hash]struct{}) io.Reader {
 }
 
 func HandleHasRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore) {
+	w.Header().Set(nomsVersionHeader, constants.NomsVersion)
 	err := d.Try(func() {
 		d.Exp.Equal("POST", req.Method)
 
@@ -187,6 +193,7 @@ func HandleHasRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs ch
 }
 
 func HandleRootGet(w http.ResponseWriter, req *http.Request, ps URLParams, rt chunks.ChunkStore) {
+	w.Header().Set(nomsVersionHeader, constants.NomsVersion)
 	err := d.Try(func() {
 		d.Exp.Equal("GET", req.Method)
 
@@ -202,6 +209,7 @@ func HandleRootGet(w http.ResponseWriter, req *http.Request, ps URLParams, rt ch
 }
 
 func HandleRootPost(w http.ResponseWriter, req *http.Request, ps URLParams, rt chunks.ChunkStore) {
+	w.Header().Set(nomsVersionHeader, constants.NomsVersion)
 	err := d.Try(func() {
 		d.Exp.Equal("POST", req.Method)
 
