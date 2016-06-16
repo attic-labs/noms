@@ -148,24 +148,9 @@ func planWork(srcQ, sinkQ *types.RefHeap) (srcRefs, sinkRefs, comRefs types.RefS
 		sinkRefs, comRefs = burnDown(sinkQ, srcQ, sinkHt, srcHt)
 		return
 	}
-
 	d.Chk.True(srcHt == sinkHt, "%d != %d", srcHt, sinkHt)
-	stopHt := srcHt
-	for ; srcHt == stopHt || sinkHt == stopHt; srcHt, sinkHt = headHeight(srcQ), headHeight(sinkQ) {
-		srcPeek, sinkPeek := srcQ.Peek(), sinkQ.Peek()
-		if types.HeapOrder(sinkPeek, srcPeek) {
-			sinkRefs = append(sinkRefs, heap.Pop(sinkQ).(types.Ref))
-			continue
-		}
-		if types.HeapOrder(srcPeek, sinkPeek) {
-			srcRefs = append(srcRefs, heap.Pop(srcQ).(types.Ref))
-			continue
-		}
-		d.Chk.True(!sinkQ.Empty(), "The heads should be the same, but sinkQ is empty!")
-		d.Chk.True(srcPeek.Equals(sinkPeek), "Refs should be equal: %s != %s", srcPeek.TargetHash(), sinkPeek.TargetHash())
-		heap.Pop(sinkQ)
-		comRefs = append(comRefs, heap.Pop(srcQ).(types.Ref))
-	}
+	srcRefs, comRefs = burnDown(srcQ, sinkQ, srcHt, sinkHt)
+	sinkRefs, _ = burnDown(sinkQ, srcQ, sinkHt, srcHt)
 	return
 }
 
@@ -180,7 +165,6 @@ func burnDown(taller, shorter *types.RefHeap, tall, short uint64) (tallRefs, com
 			tallRefs = append(tallRefs, tallRef)
 			continue
 		}
-		// This clause is the reason this code is different than the body of planWork.
 		if types.HeapOrder(shortPeek, tallRef) {
 			shortIdx++
 			continue
