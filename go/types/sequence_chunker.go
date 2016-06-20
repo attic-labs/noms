@@ -52,7 +52,6 @@ func newSequenceChunker(cur *sequenceCursor, makeChunk, parentMakeChunk makeChun
 	}
 
 	if cur != nil {
-		// Eagerly create a chunker for each level of the existing tree, but note that we may not necessarily need them all (fixed in Done).
 		if cur.parent != nil {
 			sc.createParent()
 		}
