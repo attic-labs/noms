@@ -7,7 +7,6 @@
 import {assert} from 'chai';
 import {suite, setup, teardown, test} from 'mocha';
 
-
 import Ref from './ref.js';
 import Set, {SetLeafSequence} from './set.js';
 import type {ValueReadWriter} from './value-store.js';
