@@ -127,7 +127,7 @@ func DeserializeToChan(reader io.Reader, chunkChan chan<- *Chunk) {
 }
 
 func deserializeChunk(reader io.Reader) (Chunk, bool) {
-	digest := hash.Sha1Digest{}
+	digest := hash.Digest{}
 	n, err := io.ReadFull(reader, digest[:])
 	if err == io.EOF {
 		return EmptyChunk, false

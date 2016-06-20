@@ -261,9 +261,9 @@ func TestWriteMapOfMap(t *testing.T) {
 }
 
 func TestWriteCompoundBlob(t *testing.T) {
-	r1 := hash.Parse("sha1-0000000000000000000000000000000000000001")
-	r2 := hash.Parse("sha1-0000000000000000000000000000000000000002")
-	r3 := hash.Parse("sha1-0000000000000000000000000000000000000003")
+	r1 := hash.Parse("00000000000000000000000000000000000000000000000001")
+	r2 := hash.Parse("00000000000000000000000000000000000000000000000002")
+	r3 := hash.Parse("00000000000000000000000000000000000000000000000003")
 
 	assertEncoding(t,
 		[]interface{}{
@@ -387,7 +387,7 @@ func TestWriteCompoundSet(t *testing.T) {
 func TestWriteListOfUnion(t *testing.T) {
 	assertEncoding(t,
 		[]interface{}{
-			uint8(ListKind), uint8(UnionKind), uint32(3) /* len */, uint8(BoolKind), uint8(StringKind), uint8(NumberKind), false,
+			uint8(ListKind), uint8(UnionKind), uint32(3) /* len */, uint8(NumberKind), uint8(StringKind), uint8(BoolKind), false,
 			uint32(4) /* len */, uint8(StringKind), "0", uint8(NumberKind), float64(1), uint8(StringKind), "2", uint8(BoolKind), true,
 		},
 		NewList(
@@ -416,7 +416,7 @@ func TestWriteListOfUnionWithType(t *testing.T) {
 
 	assertEncoding(t,
 		[]interface{}{
-			uint8(ListKind), uint8(UnionKind), uint32(2) /* len */, uint8(BoolKind), uint8(TypeKind), false,
+			uint8(ListKind), uint8(UnionKind), uint32(2) /* len */, uint8(TypeKind), uint8(BoolKind), false,
 			uint32(4) /* len */, uint8(BoolKind), true, uint8(TypeKind), uint8(NumberKind), uint8(TypeKind), uint8(TypeKind), uint8(TypeKind), uint8(StructKind), "S", uint32(1) /* len */, "x", uint8(NumberKind),
 		},
 		NewList(
@@ -481,7 +481,7 @@ func nomsTestWriteRecursiveStruct(t *testing.T) {
 func TestWriteUnionList(t *testing.T) {
 	assertEncoding(t,
 		[]interface{}{
-			uint8(ListKind), uint8(UnionKind), uint32(2) /* len */, uint8(StringKind), uint8(NumberKind),
+			uint8(ListKind), uint8(UnionKind), uint32(2) /* len */, uint8(NumberKind), uint8(StringKind),
 			false, uint32(2) /* len */, uint8(StringKind), "hi", uint8(NumberKind), float64(42),
 		},
 		NewList(String("hi"), Number(42)),
