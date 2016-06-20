@@ -123,7 +123,7 @@ func (b *binaryNomsReader) readString() string {
 }
 
 func (b *binaryNomsReader) readHash() hash.Hash {
-	digest := hash.Sha1Digest{}
+	digest := hash.Digest{}
 	copy(digest[:], b.buff[b.offset:b.offset+sha1.Size])
 	b.offset += sha1.Size
 	return hash.New(digest)

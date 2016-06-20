@@ -62,8 +62,8 @@ func TestWriteHumanReadableRef(t *testing.T) {
 
 	x := Number(42)
 	rv := vs.WriteValue(x)
-	assertWriteHRSEqual(t, "sha1-c47f695d492ba4a218281aa7c0269d304af48b9e", rv)
-	assertWriteTaggedHRSEqual(t, "Ref<Number>(sha1-c47f695d492ba4a218281aa7c0269d304af48b9e)", rv)
+	assertWriteHRSEqual(t, "2bzzl9ubifx79hztgddt6jheyksuouw9wh2d0muwqcnz71jw7l", rv)
+	assertWriteTaggedHRSEqual(t, "Ref<Number>(2bzzl9ubifx79hztgddt6jheyksuouw9wh2d0muwqcnz71jw7l)", rv)
 }
 
 func TestWriteHumanReadableCollections(t *testing.T) {
@@ -211,10 +211,10 @@ func TestWriteHumanReadableType(t *testing.T) {
 	assertWriteHRSEqual(t, "Set<Number>", MakeSetType(NumberType))
 	assertWriteHRSEqual(t, "Ref<Number>", MakeRefType(NumberType))
 	assertWriteHRSEqual(t, "Map<Number, String>", MakeMapType(NumberType, StringType))
-	assertWriteHRSEqual(t, "String | Number", MakeUnionType(NumberType, StringType))
+	assertWriteHRSEqual(t, "Number | String", MakeUnionType(NumberType, StringType))
 	assertWriteHRSEqual(t, "Bool", MakeUnionType(BoolType))
 	assertWriteHRSEqual(t, "", MakeUnionType())
-	assertWriteHRSEqual(t, "List<String | Number>", MakeListType(MakeUnionType(NumberType, StringType)))
+	assertWriteHRSEqual(t, "List<Number | String>", MakeListType(MakeUnionType(NumberType, StringType)))
 	assertWriteHRSEqual(t, "List<>", MakeListType(MakeUnionType()))
 }
 
