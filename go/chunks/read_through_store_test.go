@@ -35,8 +35,7 @@ func (suite *LevelDBStoreTestSuite) TestReadThroughStoreGet() {
 	bs.Put(c)
 	h := c.Hash()
 
-	// See http://www.di-mgt.com.au/sha_testvectors.html
-	suite.Equal("sha1-a9993e364706816aba3e25717850c26c9cd0d89d", h.String())
+	suite.Equal("5iwptz4zkfklr9te27dtmaktmy9i2rgo5qp1aiqwx8rd95tztm", h.String())
 
 	suite.Equal(1, bs.Len())
 	suite.Equal(1, bs.Writes)
@@ -79,8 +78,7 @@ func (suite *LevelDBStoreTestSuite) TestReadThroughStorePut() {
 	rts.Put(c)
 	h := c.Hash()
 
-	// See http://www.di-mgt.com.au/sha_testvectors.html
-	suite.Equal("sha1-a9993e364706816aba3e25717850c26c9cd0d89d", h.String())
+	suite.Equal("5iwptz4zkfklr9te27dtmaktmy9i2rgo5qp1aiqwx8rd95tztm", h.String())
 
 	assertInputInStore("abc", h, bs, suite.Assert())
 	assertInputInStore("abc", h, cs, suite.Assert())

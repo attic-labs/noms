@@ -20,19 +20,19 @@ func TestParseError(t *testing.T) {
 	}
 
 	assertParseError("foo")
-	assertParseError("sha1")
-	assertParseError("sha1-0")
+	assertParseError("sha512")
+	assertParseError("sha512-00000000000000000000000000000000000000000000000000")
+
+	// not enough digits
+	assertParseError("0000000000000000000000000000000000000000000000001")
 
 	// too many digits
-	assertParseError("sha1-00000000000000000000000000000000000000000")
+	assertParseError("000000000000000000000000000000000000000000000000001")
 
-	// 'g' not valid hex
-	assertParseError("sha1-000000000000000000000000000000000000000g")
+	// '?' not valid char
+	assertParseError("0000000000000000000000000000000000000000000000000?")
 
-	// sha2 not supported
-	assertParseError("sha2-0000000000000000000000000000000000000000")
-
-	r := Parse("sha1-0000000000000000000000000000000000000000")
+	r := Parse("00000000000000000000000000000000000000000000000000")
 	assert.NotNil(r)
 }
 
@@ -49,19 +49,17 @@ func TestMaybeParse(t *testing.T) {
 		}
 	}
 
-	parse("sha1-0000000000000000000000000000000000000000", true)
-	parse("sha1-0000000000000000000000000000000000000001", true)
+	parse("00000000000000000000000000000000000000000000000000", true)
+	parse("00000000000000000000000000000000000000000000000001", true)
 	parse("", false)
-	parse("adsfasdf", false)
-	parse("sha2-0000000000000000000000000000000000000000", false)
 }
 
 func TestEquals(t *testing.T) {
 	assert := assert.New(t)
 
-	r0 := Parse("sha1-0000000000000000000000000000000000000000")
-	r01 := Parse("sha1-0000000000000000000000000000000000000000")
-	r1 := Parse("sha1-0000000000000000000000000000000000000001")
+	r0 := Parse("00000000000000000000000000000000000000000000000000")
+	r01 := Parse("00000000000000000000000000000000000000000000000000")
+	r1 := Parse("00000000000000000000000000000000000000000000000001")
 
 	assert.Equal(r0, r01)
 	assert.Equal(r01, r0)
@@ -69,14 +67,14 @@ func TestEquals(t *testing.T) {
 	assert.NotEqual(r1, r0)
 }
 
-func TestString(t *testing.T) {
-	s := "sha1-0123456789abcdef0123456789abcdef01234567"
+func TestRoundTrip(t *testing.T) {
+	s := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcd"
 	r := Parse(s)
 	assert.Equal(t, s, r.String())
 }
 
 func TestDigest(t *testing.T) {
-	r := New(Sha1Digest{})
+	r := New(Digest{})
 	d := r.Digest()
 	assert.Equal(t, r.Digest(), d)
 	// Digest() must return a copy otherwise things get weird.
@@ -85,7 +83,7 @@ func TestDigest(t *testing.T) {
 }
 
 func TestDigestSlice(t *testing.T) {
-	r := New(Sha1Digest{})
+	r := New(Digest{})
 	d := r.DigestSlice()
 	assert.Equal(t, r.DigestSlice(), d)
 	// DigestSlice() must return a copy otherwise things get weird.
@@ -95,25 +93,25 @@ func TestDigestSlice(t *testing.T) {
 
 func TestFromData(t *testing.T) {
 	r := FromData([]byte("abc"))
-	assert.Equal(t, "sha1-a9993e364706816aba3e25717850c26c9cd0d89d", r.String())
+	assert.Equal(t, "5iwptz4zkfklr9te27dtmaktmy9i2rgo5qp1aiqwx8rd95tztm", r.String())
 }
 
 func TestIsEmpty(t *testing.T) {
 	r1 := Hash{}
 	assert.True(t, r1.IsEmpty())
 
-	r2 := Parse("sha1-0000000000000000000000000000000000000000")
+	r2 := Parse("00000000000000000000000000000000000000000000000000")
 	assert.True(t, r2.IsEmpty())
 
-	r3 := Parse("sha1-a9993e364706816aba3e25717850c26c9cd0d89d")
+	r3 := Parse("00000000000000000000000000000000000000000000000001")
 	assert.False(t, r3.IsEmpty())
 }
 
 func TestLess(t *testing.T) {
 	assert := assert.New(t)
 
-	r1 := Parse("sha1-0000000000000000000000000000000000000001")
-	r2 := Parse("sha1-0000000000000000000000000000000000000002")
+	r1 := Parse("00000000000000000000000000000000000000000000000001")
+	r2 := Parse("00000000000000000000000000000000000000000000000002")
 
 	assert.False(r1.Less(r1))
 	assert.True(r1.Less(r2))
@@ -129,8 +127,8 @@ func TestLess(t *testing.T) {
 func TestGreater(t *testing.T) {
 	assert := assert.New(t)
 
-	r1 := Parse("sha1-0000000000000000000000000000000000000001")
-	r2 := Parse("sha1-0000000000000000000000000000000000000002")
+	r1 := Parse("00000000000000000000000000000000000000000000000001")
+	r2 := Parse("00000000000000000000000000000000000000000000000002")
 
 	assert.False(r1.Greater(r1))
 	assert.False(r1.Greater(r2))

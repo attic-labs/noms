@@ -232,9 +232,9 @@ func TestRefSpec(t *testing.T) {
 	assert := assert.New(t)
 
 	testCases := []map[string]string{
-		map[string]string{"spec": "http://local.attic.io/john/doe::sha1-0123456789012345678901234567890123456789", "scheme": "http", "path": "//local.attic.io/john/doe", "ref": "sha1-0123456789012345678901234567890123456789"},
-		map[string]string{"spec": "ldb:/filesys/john/doe::sha1-0123456789012345678901234567890123456789", "scheme": "ldb", "path": "/filesys/john/doe", "ref": "sha1-0123456789012345678901234567890123456789"},
-		map[string]string{"spec": "mem::sha1-0123456789012345678901234567890123456789", "scheme": "mem", "ref": "sha1-0123456789012345678901234567890123456789"},
+		map[string]string{"spec": "http://local.attic.io/john/doe::11111111111111111111111111111111111111111111111111", "scheme": "http", "path": "//local.attic.io/john/doe", "ref": "11111111111111111111111111111111111111111111111111"},
+		map[string]string{"spec": "ldb:/filesys/john/doe::11111111111111111111111111111111111111111111111111", "scheme": "ldb", "path": "/filesys/john/doe", "ref": "11111111111111111111111111111111111111111111111111"},
+		map[string]string{"spec": "mem::11111111111111111111111111111111111111111111111111", "scheme": "mem", "ref": "11111111111111111111111111111111111111111111111111"},
 	}
 
 	for _, tc := range testCases {
@@ -249,7 +249,7 @@ func TestPathSpec(t *testing.T) {
 	assert := assert.New(t)
 
 	testCases := []map[string]string{
-		map[string]string{"spec": "http://local.attic.io/john/doe::sha1-0123456789012345678901234567890123456789", "scheme": "http", "path": "//local.attic.io/john/doe", "ref": "sha1-0123456789012345678901234567890123456789"},
+		map[string]string{"spec": "http://local.attic.io/john/doe::11111111111111111111111111111111111111111111111111", "scheme": "http", "path": "//local.attic.io/john/doe", "ref": "11111111111111111111111111111111111111111111111111"},
 		map[string]string{"spec": "http://localhost:8000/john/doe/::ds1", "scheme": "http", "path": "//localhost:8000/john/doe/", "ds": "ds1"},
 	}
 

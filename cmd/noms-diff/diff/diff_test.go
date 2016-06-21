@@ -89,7 +89,7 @@ func TestNomsSetDiff(t *testing.T) {
 	Diff(buf, s1, s2)
 	assert.Equal(expected, buf.String())
 
-	expected = "./.sha1-c26be7ea6e815f747c1552fe402a773ad466be88 {\n-   \"m3\": \"m-three\"\n+   \"m3\": \"m-three-diff\"\n  }\n./.sha1-c26be7ea6e815f747c1552fe402a773ad466be88.\"m4\" {\n-   \"a1\": \"a-one\"\n+   \"a1\": \"a-one-diff\"\n  }\n"
+	expected = "./.0rshb04hvvyqai22ahnh1ey4ggpesjjheari6qzh92rh4a0gic {\n-   \"m3\": \"m-three\"\n+   \"m3\": \"m-three-diff\"\n  }\n./.0rshb04hvvyqai22ahnh1ey4ggpesjjheari6qzh92rh4a0gic.\"m4\" {\n-   \"a1\": \"a-one\"\n+   \"a1\": \"a-one-diff\"\n  }\n"
 	s1 = createSet(mm1, mm2, mm3, mm4)
 	s2 = createSet(mm1, mm2, mm3x, mm4)
 	buf = util.NewBuffer(nil)

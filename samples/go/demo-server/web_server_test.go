@@ -36,7 +36,7 @@ func TestRoot(t *testing.T) {
 	w := httptest.NewRecorder()
 	r, _ := http.NewRequest("GET", dbName+constants.RootPath, nil)
 	router.ServeHTTP(w, r)
-	assert.Equal("sha1-0000000000000000000000000000000000000000", w.Body.String())
+	assert.Equal("00000000000000000000000000000000000000000000000000", w.Body.String())
 
 	w = httptest.NewRecorder()
 	r, _ = http.NewRequest("OPTIONS", dbName+constants.RootPath, nil)

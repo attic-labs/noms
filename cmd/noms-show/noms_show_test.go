@@ -24,11 +24,11 @@ type nomsShowTestSuite struct {
 }
 
 const (
-	res1 = "struct Commit {\n  parents: Set<Ref<Cycle<0>>>,\n  value: Value,\n}({\n  parents: {},\n  value: sha1-0ddf89c44a4ce4075714a4fc51d31a76e38f84ce,\n})\n"
+	res1 = "struct Commit {\n  parents: Set<Ref<Cycle<0>>>,\n  value: Value,\n}({\n  parents: {},\n  value: 12p4gc9k31cj9bwu8g8nrh03dadtg87pjqhd9zyi6hx80e25uf,\n})\n"
 	res2 = "\"test string\"\n"
-	res3 = "struct Commit {\n  parents: Set<Ref<Cycle<0>>>,\n  value: Value,\n}({\n  parents: {\n    sha1-46506c93810ce363c04c4bcf945797e4843a2a50,\n  },\n  value: sha1-dc6f386ab57b4ca62f54f7b63e5fe21a787f761e,\n})\n"
-	res4 = "List<String | Number>([\n  \"elem1\",\n  2,\n  \"elem3\",\n])\n"
-	res5 = "struct Commit {\n  parents: Set<Ref<Cycle<0>>>,\n  value: Value,\n}({\n  parents: {\n    sha1-88ccdecaa410c101bfac396ed6a451aa14b5043b,\n  },\n  value: sha1-0ddf89c44a4ce4075714a4fc51d31a76e38f84ce,\n})\n"
+	res3 = "struct Commit {\n  parents: Set<Ref<Cycle<0>>>,\n  value: Value,\n}({\n  parents: {\n    65peo6a27ctstqj2du8vyfep2zffo9pdvpb2blrs7hpfurvqdk,\n  },\n  value: 22sx5udbba8xjlwipwrqif9su0nc7kokqo3xuffpzt5kuc0w4g,\n})\n"
+	res4 = "List<Number | String>([\n  \"elem1\",\n  2,\n  \"elem3\",\n])\n"
+	res5 = "struct Commit {\n  parents: Set<Ref<Cycle<0>>>,\n  value: Value,\n}({\n  parents: {\n    2f4gg3u1euh0z3joocekcanah6bgfm19n9n5bco6p8ijt4tcpg,\n  },\n  value: 12p4gc9k31cj9bwu8g8nrh03dadtg87pjqhd9zyi6hx80e25uf,\n})\n"
 )
 
 func writeTestData(ds dataset.Dataset, value types.Value) types.Ref {

@@ -24,14 +24,14 @@ type testSuite struct {
 // please update Go and JS to keep them in sync - see js/src//xp-test.js
 func newTestSuite() *testSuite {
 	testValues := []*testValue{
-		&testValue{Bool(true), "sha1-3f29546453678b855931c174a97d6c0894b8f546", "bool - true"},
-		&testValue{Bool(false), "sha1-1489f923c4dca729178b3e3233458550d8dddf29", "bool - false"},
-		&testValue{Number(-1), "sha1-cd243416f913f4a81d020a866266316b30200e34", "num - -1"},
-		&testValue{Number(0), "sha1-80e331473af6cb0cd7ae6f75793070cfbc4d642b", "num - 0"},
-		&testValue{Number(1), "sha1-9f34f68652a49c4b7cc5e25951311e92c61d46d0", "num - 1"},
-		&testValue{String(""), "sha1-e1bc1dae59f116abb43f9dafbb2acc9b141aa6b0", "str - empty"},
-		&testValue{String("0"), "sha1-a1c90c71d1ffdb51138677c578e6f2e8a011070d", "str - 0"},
-		&testValue{String("false"), "sha1-e15d53dc6c9d3aa6eca4eea28382c9c45ba8fd9e", "str - false"},
+		&testValue{Bool(true), "3753t1pev51ajbmitxl6ykqeryx72q128b0mm9fqk9t89wcvu6", "bool - true"},
+		&testValue{Bool(false), "2cxf1z91qo0h4e3irlm7y9bp0sd4vsbvizisup3g1tzt2xc4au", "bool - false"},
+		&testValue{Number(-1), "5xqj6rxt33yper4t7epvl5e80f7uz8q2v1j93tkyt9jwpcleon", "num - -1"},
+		&testValue{Number(0), "06flsmqayz48yh4p47383sbgpgqo7t8senfogzv7s6swcn9qx8", "num - 0"},
+		&testValue{Number(1), "5ea6wxe8o8vk067otqo8cmom9d8rgpjs5mi4mdr8alldtdv77u", "num - 1"},
+		&testValue{String(""), "5rdmp2c6fd6mjlcouryxs8g9yqdl1320uw9j70rw9n05h41hbk", "str - empty"},
+		&testValue{String("0"), "3xnohwqoivqfjev41d13tozncju9y7h6u50v71kp9tzpq8bx0k", "str - 0"},
+		&testValue{String("false"), "0e5l07lb03e6n46h5u12kilyg43o0ev9l6f4pib6s2w0elfrfq", "str - false"},
 	}
 
 	// TODO: add these types too

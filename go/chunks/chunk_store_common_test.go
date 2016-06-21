@@ -22,8 +22,7 @@ func (suite *ChunkStoreTestSuite) TestChunkStorePut() {
 	suite.Store.Put(c)
 	h := c.Hash()
 
-	// See http://www.di-mgt.com.au/sha_testvectors.html
-	suite.Equal("sha1-a9993e364706816aba3e25717850c26c9cd0d89d", h.String())
+	suite.Equal("5iwptz4zkfklr9te27dtmaktmy9i2rgo5qp1aiqwx8rd95tztm", h.String())
 
 	suite.Store.UpdateRoot(h, suite.Store.Root()) // Commit writes
 
@@ -64,8 +63,8 @@ func (suite *ChunkStoreTestSuite) TestChunkStoreRoot() {
 	oldRoot := suite.Store.Root()
 	suite.True(oldRoot.IsEmpty())
 
-	bogusRoot := hash.Parse("sha1-81c870618113ba29b6f2b396ea3a69c6f1d626c5") // sha1("Bogus, Dude")
-	newRoot := hash.Parse("sha1-907d14fb3af2b0d4f18c2d46abe8aedce17367bd")   // sha1("Hello, World")
+	bogusRoot := hash.Parse("11111111111111111111111111111111111111111111111111")
+	newRoot := hash.Parse("22222222222222222222222222222222222222222222222222")
 
 	// Try to update root with bogus oldRoot
 	result := suite.Store.UpdateRoot(newRoot, bogusRoot)
@@ -77,7 +76,7 @@ func (suite *ChunkStoreTestSuite) TestChunkStoreRoot() {
 }
 
 func (suite *ChunkStoreTestSuite) TestChunkStoreGetNonExisting() {
-	h := hash.Parse("sha1-1111111111111111111111111111111111111111")
+	h := hash.Parse("11111111111111111111111111111111111111111111111111")
 	c := suite.Store.Get(h)
 	suite.True(c.IsEmpty())
 }

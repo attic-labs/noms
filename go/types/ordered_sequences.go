@@ -5,7 +5,6 @@
 package types
 
 import (
-	"crypto/sha1"
 	"sort"
 
 	"github.com/attic-labs/noms/go/d"
@@ -139,7 +138,7 @@ func getCurrentKey(cur *sequenceCursor) Value {
 }
 
 func newOrderedMetaSequenceBoundaryChecker() boundaryChecker {
-	return newBuzHashBoundaryChecker(orderedSequenceWindowSize, sha1.Size, objectPattern, func(item sequenceItem) []byte {
+	return newBuzHashBoundaryChecker(orderedSequenceWindowSize, hash.HashSize, objectPattern, func(item sequenceItem) []byte {
 		digest := item.(metaTuple).ref.TargetHash().Digest()
 		return digest[:]
 	})

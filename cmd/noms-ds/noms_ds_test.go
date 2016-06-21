@@ -69,7 +69,7 @@ func (s *testSuite) TestNomsDs() {
 
 	// delete one dataset, print message at delete
 	rtnVal = s.Run(main, []string{"-d", datasetName})
-	s.Equal("Deleted dataset "+id+" (was sha1-d54b79552cda9ebe8e446eeb19aab0e69b6ceee3)\n\n", rtnVal)
+	s.Equal("Deleted dataset "+id+" (was 4ozv8ollylrhfv4lbcc4865km4s8zxnpsl1eqvfwdxzesegvc3)\n\n", rtnVal)
 
 	// print datasets, just one left
 	rtnVal = s.Run(main, []string{dbSpec})
@@ -77,7 +77,7 @@ func (s *testSuite) TestNomsDs() {
 
 	// delete the second dataset
 	rtnVal = s.Run(main, []string{"-d", dataset2Name})
-	s.Equal("Deleted dataset "+id2+" (was sha1-7b75b0ebfc2a0815ba6fb2b31d03c8f9976ae530)\n\n", rtnVal)
+	s.Equal("Deleted dataset "+id2+" (was 0p3re1cxpsbfr6qlxzulusfjbatai6qanco17y5qnrllnfntea)\n\n", rtnVal)
 
 	// print datasets, none left
 	rtnVal = s.Run(main, []string{dbSpec})
