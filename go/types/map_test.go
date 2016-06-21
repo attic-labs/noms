@@ -465,6 +465,21 @@ func TestMapSetGet(t *testing.T) {
 	assert.Nil(m4.Get(String("foo")))
 }
 
+func TestMapMx(t *testing.T) {
+	assert := assert.New(t)
+	vs := NewTestValueStore()
+
+	mx := NewMap().Mx(vs)
+	m := mx.Set(String("foo"), Number(42)).Set(String("foo"), Number(43)).Set(Number(1), NewList(Number(2))).Finish()
+
+	assert.False(Number(42).Equals(m.Get(String("foo"))))
+	assert.True(Number(43).Equals(m.Get(String("foo"))))
+
+	l := m.Get(Number(1))
+	assert.NotNil(l)
+	assert.True(Number(2).Equals(l.(List).Get(0)))
+}
+
 func validateMapInsertion(t *testing.T, tm testMap) {
 	m := NewMap()
 	for i, entry := range tm.entries {

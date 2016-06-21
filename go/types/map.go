@@ -112,6 +112,11 @@ func (m Map) MaybeGet(key Value) (v Value, ok bool) {
 	return entry.value, true
 }
 
+func (m Map) Mx(vrw ValueReadWriter) *MapMutator {
+	d.Chk.True(m.Empty(), "Mx() currently only works on empty Maps")
+	return newMutator(vrw)
+}
+
 func (m Map) Set(key Value, val Value) Map {
 	return m.SetM(key, val)
 }
