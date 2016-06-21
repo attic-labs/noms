@@ -469,6 +469,7 @@ func (bhcs *httpBatchStore) requestRoot(method string, current, last hash.Hash) 
 func newRequest(method, auth, url string, body io.Reader, header http.Header) *http.Request {
 	req, err := http.NewRequest(method, url, body)
 	d.Chk.NoError(err)
+	req.Header.Set(NomsVersionHeader, constants.NomsVersion)
 	for k, vals := range header {
 		for _, v := range vals {
 			req.Header.Add(k, v)
@@ -487,7 +488,7 @@ func formatErrorResponse(res *http.Response) string {
 }
 
 func expectVersion(res *http.Response) {
-	dataVersion := res.Header.Get(nomsVersionHeader)
+	dataVersion := res.Header.Get(NomsVersionHeader)
 	if constants.NomsVersion != dataVersion {
 		ioutil.ReadAll(res.Body)
 		res.Body.Close()

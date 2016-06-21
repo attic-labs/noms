@@ -113,7 +113,7 @@ func newBadVersionHTTPBatchStoreForTest(suite *HTTPBatchStoreSuite) *httpBatchSt
 		constants.RootPath,
 		func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 			HandleRootPost(w, req, ps, suite.cs)
-			w.Header().Set(nomsVersionHeader, "BAD")
+			w.Header().Set(NomsVersionHeader, "BAD")
 		},
 	)
 	hcs := newHTTPBatchStore("http://localhost", "")
