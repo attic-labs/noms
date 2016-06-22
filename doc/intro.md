@@ -128,7 +128,7 @@ We do the same thing for datasets. If you commit a `Set<Number>`, the type of th
 ```
 struct Commit {
 	Value: Set<Number>
-	Parents: Set<Ref<Cycle<0>>>
+	Parents: Set<Ref<Cycle<2>>>
 }
 ```
 
@@ -139,10 +139,10 @@ But if you then commit a `Set<String>` to this same dataset, then the type of th
 ```
 struct Commit {
 	Value: Set<String>
-	Parents: Set<Ref<Cycle<0>> |
+	Parents: Set<Ref<Cycle<2>> |
 		Ref<struct Commit {
 			Value: Set<Number>
-			Parents: Cycle<0>
+			Parents: Cycle<2>
 		}>>
 	}
 }
