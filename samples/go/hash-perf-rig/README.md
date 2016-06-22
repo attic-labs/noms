@@ -1,4 +1,4 @@
-This is a performance test rig for the two main types of hashing we do in NOMS - buzhash and sha1. There's also support for sha256, sha512, and blake2b hash functions for comparison.
+This is a performance test rig for various hash functions we either use in Noms or have considered using.
 
 As of May 9, these are the numbers I get on a macbook pro 3.1 GHz Intel Core i7.
 

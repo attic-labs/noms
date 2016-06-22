@@ -153,11 +153,11 @@ func (suite *listTestSuite) TestMap() {
 }
 
 func TestListSuite1K(t *testing.T) {
-	suite.Run(t, newListTestSuite(10, "sha1-99a9e8aa75f9363b561d4576c99630b1103c9083", 2, 2, 2))
+	suite.Run(t, newListTestSuite(10, "4pqx07gqrb9lkg073jfxuqc8h5az7vxus0mwngfb8szu8y1j0i", 2, 21, 2))
 }
 
 func TestListSuite4K(t *testing.T) {
-	suite.Run(t, newListTestSuite(12, "sha1-3e4d4c123dceea5b45fcddb207a40b7e0f69a4f2", 4, 2, 2))
+	suite.Run(t, newListTestSuite(12, "12cr1rghl4tx83v6ppa70rjdzuomnbb92t6ot5478ylemgzsml", 2, 63, 2))
 }
 
 func TestListInsert(t *testing.T) {
@@ -595,7 +595,7 @@ func TestListFirstNNumbers(t *testing.T) {
 
 	nums := generateNumbersAsValues(testListSize)
 	s := NewList(nums...)
-	assert.Equal("sha1-241e54086d50c131db3c2f3f5f17e68f42fd98ac", s.Hash().String())
+	assert.Equal("0bdcmp4eeqvy2pgj2urn5a439i71k7jm6yq0qi1iu3b6jw6j8q", s.Hash().String())
 }
 
 func TestListRefOfStructFirstNNumbers(t *testing.T) {
@@ -606,7 +606,7 @@ func TestListRefOfStructFirstNNumbers(t *testing.T) {
 
 	nums := generateNumbersAsRefOfStructs(testListSize)
 	s := NewList(nums...)
-	assert.Equal("sha1-ac7830942e248613be6643a2667048667e9c22d1", s.Hash().String())
+	assert.Equal("2bj1s4nqzr9y5ng8ie9rh7n64r1xgdrepstcr3thmh5jcp0khy", s.Hash().String())
 }
 
 func TestListModifyAfterRead(t *testing.T) {
@@ -854,10 +854,10 @@ func TestListDiffLargeWithSameMiddle(t *testing.T) {
 	assert.Equal(diff1, diff2)
 
 	// should only read/write a "small & reasonably sized portion of the total"
-	assert.Equal(95, cs1.Writes)
-	assert.Equal(18, cs1.Reads)
-	assert.Equal(85, cs2.Writes)
-	assert.Equal(8, cs2.Reads)
+	assert.Equal(74, cs1.Writes)
+	assert.Equal(13, cs1.Reads)
+	assert.Equal(70, cs2.Writes)
+	assert.Equal(9, cs2.Reads)
 }
 
 func TestListTypeAfterMutations(t *testing.T) {
@@ -882,6 +882,6 @@ func TestListTypeAfterMutations(t *testing.T) {
 		assert.True(l.Type().Equals(MakeListType(NumberType)))
 	}
 
-	test(10, listLeafSequence{})
+	test(4, listLeafSequence{})
 	test(100, indexedMetaSequence{})
 }

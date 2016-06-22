@@ -5,8 +5,6 @@
 package types
 
 import (
-	"crypto/sha1"
-
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 )
@@ -214,7 +212,7 @@ func (l List) DiffWithLimit(last List, maxSpliceMatrixSize uint64) []Splice {
 }
 
 func newListLeafBoundaryChecker() boundaryChecker {
-	return newBuzHashBoundaryChecker(listWindowSize, sha1.Size, listPattern, func(item sequenceItem) []byte {
+	return newBuzHashBoundaryChecker(listWindowSize, hash.HashSize, listPattern, func(item sequenceItem) []byte {
 		digest := item.(Value).Hash().Digest()
 		return digest[:]
 	})

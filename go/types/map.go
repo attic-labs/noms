@@ -5,7 +5,6 @@
 package types
 
 import (
-	"crypto/sha1"
 	"sort"
 
 	"github.com/attic-labs/noms/go/d"
@@ -227,7 +226,7 @@ func buildMapData(values []Value) mapEntrySlice {
 }
 
 func newMapLeafBoundaryChecker() boundaryChecker {
-	return newBuzHashBoundaryChecker(mapWindowSize, sha1.Size, mapPattern, func(item sequenceItem) []byte {
+	return newBuzHashBoundaryChecker(mapWindowSize, hash.HashSize, mapPattern, func(item sequenceItem) []byte {
 		digest := item.(mapEntry).key.Hash().Digest()
 		return digest[:]
 	})

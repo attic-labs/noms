@@ -37,7 +37,7 @@ func (suite *ParserTestSuite) parseNotPanics(test string) {
 
 func (suite *ParserTestSuite) TestAlias() {
 	importTmpl := `alias Noms = import "%s"`
-	ref := "sha1-ffffffff"
+	ref := "ffffffff"
 	path := `some/path/\"quotes\"/path`
 
 	pkg := runParser("", strings.NewReader(fmt.Sprintf(importTmpl, ref)))

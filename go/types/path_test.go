@@ -226,6 +226,6 @@ func TestPathParseErrors(t *testing.T) {
 	test(`.foo["`, "[ is missing closing ]")
 	test(`.foo["\`, "[ is missing closing ]")
 	test(`.foo["]`, "[ is missing closing ]")
-	test(".foo[#sha1-invalid]", "Invalid index #sha1-invalid")
+	test(".foo[#invalid]", "Invalid index #invalid")
 	test(`.foo["hello\nworld"]`, `Only " and \ can be escaped`)
 }

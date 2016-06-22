@@ -5,7 +5,6 @@
 package types
 
 import (
-	"crypto/sha1"
 	"math"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -85,23 +84,23 @@ func (b *binaryNomsReader) readUint8() uint8 {
 }
 
 func (b *binaryNomsReader) readUint32() uint32 {
-	v := uint32(b.buff[b.offset]) |
-		uint32(b.buff[b.offset+1])<<8 |
-		uint32(b.buff[b.offset+2])<<16 |
-		uint32(b.buff[b.offset+3])<<24
+	v := uint32(b.buff[b.offset])<<24 |
+		uint32(b.buff[b.offset+1])<<16 |
+		uint32(b.buff[b.offset+2])<<8 |
+		uint32(b.buff[b.offset+3])
 	b.offset += 4
 	return v
 }
 
 func (b *binaryNomsReader) readUint64() uint64 {
-	v := uint64(b.buff[b.offset]) |
-		uint64(b.buff[b.offset+1])<<8 |
-		uint64(b.buff[b.offset+2])<<16 |
-		uint64(b.buff[b.offset+3])<<24 |
-		uint64(b.buff[b.offset+4])<<32 |
-		uint64(b.buff[b.offset+5])<<40 |
-		uint64(b.buff[b.offset+6])<<48 |
-		uint64(b.buff[b.offset+7])<<56
+	v := uint64(b.buff[b.offset])<<56 |
+		uint64(b.buff[b.offset+1])<<48 |
+		uint64(b.buff[b.offset+2])<<40 |
+		uint64(b.buff[b.offset+3])<<32 |
+		uint64(b.buff[b.offset+4])<<24 |
+		uint64(b.buff[b.offset+5])<<16 |
+		uint64(b.buff[b.offset+6])<<8 |
+		uint64(b.buff[b.offset+7])
 	b.offset += 8
 	return v
 }
@@ -123,9 +122,9 @@ func (b *binaryNomsReader) readString() string {
 }
 
 func (b *binaryNomsReader) readHash() hash.Hash {
-	digest := hash.Sha1Digest{}
-	copy(digest[:], b.buff[b.offset:b.offset+sha1.Size])
-	b.offset += sha1.Size
+	digest := hash.Digest{}
+	copy(digest[:], b.buff[b.offset:b.offset+hash.HashSize])
+	b.offset += hash.HashSize
 	return hash.New(digest)
 }
 
@@ -171,26 +170,23 @@ func (b *binaryNomsWriter) writeUint8(v uint8) {
 
 func (b *binaryNomsWriter) writeUint32(v uint32) {
 	b.ensureCapacity(4)
-	// Little-Endian: TODO: Need Big
-	b.buff[b.offset] = byte(v)
-	b.buff[b.offset+1] = byte(v >> 8)
-	b.buff[b.offset+2] = byte(v >> 16)
-	b.buff[b.offset+3] = byte(v >> 24)
+	b.buff[b.offset] = byte(v >> 24)
+	b.buff[b.offset+1] = byte(v >> 16)
+	b.buff[b.offset+2] = byte(v >> 8)
+	b.buff[b.offset+3] = byte(v)
 	b.offset += 4
 }
 
 func (b *binaryNomsWriter) writeUint64(v uint64) {
 	b.ensureCapacity(8)
-
-	// Little-Endian: TODO: Need Big
-	b.buff[b.offset] = byte(v)
-	b.buff[b.offset+1] = byte(v >> 8)
-	b.buff[b.offset+2] = byte(v >> 16)
-	b.buff[b.offset+3] = byte(v >> 24)
-	b.buff[b.offset+4] = byte(v >> 32)
-	b.buff[b.offset+5] = byte(v >> 40)
-	b.buff[b.offset+6] = byte(v >> 48)
-	b.buff[b.offset+7] = byte(v >> 56)
+	b.buff[b.offset] = byte(v >> 56)
+	b.buff[b.offset+1] = byte(v >> 48)
+	b.buff[b.offset+2] = byte(v >> 40)
+	b.buff[b.offset+3] = byte(v >> 32)
+	b.buff[b.offset+4] = byte(v >> 24)
+	b.buff[b.offset+5] = byte(v >> 16)
+	b.buff[b.offset+6] = byte(v >> 8)
+	b.buff[b.offset+7] = byte(v)
 	b.offset += 8
 }
 
@@ -216,8 +212,8 @@ func (b *binaryNomsWriter) writeString(v string) {
 }
 
 func (b *binaryNomsWriter) writeHash(h hash.Hash) {
-	b.ensureCapacity(sha1.Size)
+	b.ensureCapacity(hash.HashSize)
 	digest := h.Digest()
 	copy(b.buff[b.offset:], digest[:])
-	b.offset += sha1.Size
+	b.offset += hash.HashSize
 }

@@ -203,7 +203,7 @@ func (bhcs *httpBatchStore) sendReadRequests(req chunks.ReadRequest, queue <-cha
 }
 
 func (bhcs *httpBatchStore) getRefs(hashes hashSet, batch chunks.ReadBatch) {
-	// POST http://<host>/getRefs/. Post body: ref=sha1---&ref=sha1---& Response will be chunk data if present, 404 if absent.
+	// POST http://<host>/getRefs/. Post body: ref=<hash>&ref=<hash>& Response will be chunk data if present, 404 if absent.
 	u := *bhcs.host
 	u.Path = httprouter.CleanPath(bhcs.host.Path + constants.GetRefsPath)
 
@@ -255,7 +255,7 @@ func (rb *readBatchChunkSink) Close() error {
 }
 
 func (bhcs *httpBatchStore) hasRefs(hashes hashSet, batch chunks.ReadBatch) {
-	// POST http://<host>/hasRefs/. Post body: ref=sha1---&ref=sha1---& Response will be text of lines containing "|ref| |bool|".
+	// POST http://<host>/hasRefs/. Post body: ref=<hash>&ref=<hash>& Response will be text of lines containing "|ref| |bool|".
 	u := *bhcs.host
 	u.Path = httprouter.CleanPath(bhcs.host.Path + constants.HasRefsPath)
 

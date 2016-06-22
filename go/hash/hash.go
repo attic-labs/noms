@@ -6,29 +6,46 @@ package hash
 
 import (
 	"bytes"
-	"crypto/sha1"
-	"encoding/hex"
+	"crypto/sha512"
 	"fmt"
-	"regexp"
 
 	"github.com/attic-labs/noms/go/d"
 )
 
+const (
+	HashSize = 32
+)
+
 var (
-	// In the future we will allow different digest types, so this will get more complicated. For now sha1 is fine.
-	pattern   = regexp.MustCompile("^sha1-([0-9a-f]{40})$")
 	emptyHash = Hash{}
 )
 
-type Sha1Digest [sha1.Size]byte
-
+// The hash of a Noms value.
+//
+// Noms serialization version 1 uses the first 32 bytes of sha512. We could use sha512/256, the
+// official standard for a half-size sha512, but it is much less commonly used, meaning that there
+// is less likelihood of having a good fast implementation on any given platform. For example, at
+// time of writing, there is no native implementation in Node.
+//
+// sha512 was chosen because:
+// - sha1 is no longer recommended
+// - blake is not commonly used, not a lot of platform support
+// - sha3 is brand new, no library support
+// - within sha2, sha512 is faster than sha256 on 64 bit
+// - we don't need 512 bit hashes - we don't really even need 256 bit, but 256 is very common and
+//   leads to a nice round number of base36 digits: 50.
+//
+// In Noms, the hash function is a component of the serialization version, which is constant over
+// the entire lifetime of a single database. So clients do not need to worry about encountering
+// multiple hash functions in the same database.
 type Hash struct {
-	// In the future, we will also store the algorithm, and digest will thus probably have to be a slice (because it can vary in size)
-	digest Sha1Digest
+	digest Digest
 }
 
+type Digest [HashSize]byte
+
 // Digest returns a *copy* of the digest that backs Hash.
-func (r Hash) Digest() Sha1Digest {
+func (r Hash) Digest() Digest {
 	return r.digest
 }
 
@@ -41,40 +58,23 @@ func (r Hash) DigestSlice() []byte {
 	return r.digest[:]
 }
 
-func (r Hash) String() string {
-	return fmt.Sprintf("sha1-%s", hex.EncodeToString(r.digest[:]))
-}
-
-func New(digest Sha1Digest) Hash {
+func New(digest Digest) Hash {
 	return Hash{digest}
 }
 
 func FromData(data []byte) Hash {
-	return New(sha1.Sum(data))
+	r := sha512.Sum512(data)
+	d := Digest{}
+	copy(d[:], r[:HashSize])
+	return New(d)
 }
 
 // FromSlice creates a new Hash backed by data, ensuring that data is an acceptable length.
 func FromSlice(data []byte) Hash {
-	d.Chk.True(len(data) == sha1.Size)
-	digest := Sha1Digest{}
+	d.Chk.True(len(data) == HashSize)
+	digest := Digest{}
 	copy(digest[:], data)
 	return New(digest)
-}
-
-func MaybeParse(s string) (r Hash, ok bool) {
-	match := pattern.FindStringSubmatch(s)
-	if match == nil {
-		return
-	}
-
-	// TODO: The new temp byte array is kinda bummer. Would be better to walk the string and decode each byte into result.digest. But can't find stdlib functions to do that.
-	n, err := hex.Decode(r.digest[:], []byte(match[1]))
-	d.Chk.NoError(err) // The regexp above should have validated the input
-
-	// If there was no error, we should have decoded exactly one digest worth of bytes.
-	d.Chk.True(sha1.Size == n)
-	ok = true
-	return
 }
 
 func Parse(s string) Hash {
