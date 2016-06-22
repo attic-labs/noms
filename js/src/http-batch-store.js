@@ -92,7 +92,7 @@ export class Delegate {
     const opts = Object.assign(this._readBatchOptions, {body: body});
     const {headers, buf} = await fetchUint8Array(this._rpc.getRefs, opts);
 
-    const versionErr = CheckVersion(headers);
+    const versionErr = checkVersion(headers);
     if (versionErr) {
       return Promise.reject(versionErr);
     }
@@ -114,7 +114,7 @@ export class Delegate {
     return serialize(hints, chunkStream)
       .then(body => fetchText(this._rpc.writeValue, {method: 'POST', body}))
       .then(({headers}) => {
-        const versionErr = CheckVersion(headers);
+        const versionErr = checkVersion(headers);
         if (versionErr) {
           return Promise.reject(versionErr);
         }
@@ -123,7 +123,7 @@ export class Delegate {
 
   async getRoot(): Promise<Hash> {
     const {headers, buf} = await fetchText(this._rpc.root, this._rootOptions);
-    const versionErr = CheckVersion(headers);
+    const versionErr = checkVersion(headers);
     if (versionErr) {
       return Promise.reject(versionErr);
     }
@@ -135,7 +135,7 @@ export class Delegate {
     const params = `${ch}current=${current}&last=${last}`;
     try {
       const {headers} = await fetchText(this._rpc.root + params, {method: 'POST'});
-      const versionErr = CheckVersion(headers);
+      const versionErr = checkVersion(headers);
       if (versionErr) {
         return Promise.reject(versionErr);
       }
@@ -149,7 +149,7 @@ export class Delegate {
   }
 }
 
-function CheckVersion(headers: {[key: string]: string}): ?Error {
+function checkVersion(headers: {[key: string]: string}): ?Error {
   const vers = headers[VersionHeader];
   if (vers !== NomsVersion) {
     return new Error(
