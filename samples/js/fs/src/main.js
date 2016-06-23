@@ -9,17 +9,20 @@ import humanize from 'humanize';
 import path from 'path';
 import argv from 'yargs';
 import {
+  Blob,
   blobType,
   BlobWriter,
   createStructClass,
   DatasetSpec,
   Database,
+  isSubtype,
+  makeMapType,
   makeRefType,
   makeStructType,
   makeUnionType,
   Map,
-  Blob,
   Ref,
+  stringType,
 } from '@attic/noms';
 
 const clearLine = '\x1b[2K\r';
@@ -38,7 +41,9 @@ const fileType = makeStructType('File', {
 const directoryType = makeStructType('Directory', {
   entries: blobType,
 });
-directoryType.desc.setField('entries', makeRefType(makeUnionType([fileType, directoryType])));
+const entriesType = makeMapType(stringType,
+    makeRefType(makeUnionType([fileType, directoryType])));
+directoryType.desc.setField('entries', entriesType);
 
 const File = createStructClass(fileType);
 const Directory = createStructClass(directoryType);
@@ -106,8 +111,11 @@ async function processDirectory(p: string, store: Database): Promise<Directory> 
   const entries = new Map(
     (await Promise.all(children))
       .filter(([, dirEntry]) => dirEntry));
+
+  // Hack - Map<string, File> not subtype of Map<string, File|Directory> ?
+  entries.sequence._type = entriesType;
   return new Directory({
-    entries: store.writeValue(entries),
+    entries: entries,
   });
 }
 
