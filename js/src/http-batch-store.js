@@ -16,7 +16,7 @@ import {notNull} from './assert.js';
 import {NomsVersion} from './version.js';
 
 const HTTP_STATUS_CONFLICT = 409;
-const VersionHeader = 'X-Noms-Vers';
+const versionHeader = 'X-Noms-Vers';
 
 type RpcStrings = {
   getRefs: string,
@@ -26,9 +26,9 @@ type RpcStrings = {
 
 const versOptions = {
   headers: {
-    VersionHeader: NomsVersion,
+    [versionHeader]: NomsVersion,
   },
-  respHeaders: [VersionHeader],
+  respHeaders: [versionHeader],
 };
 
 const readBatchOptions = {
@@ -112,7 +112,8 @@ export class Delegate {
 
   writeBatch(hints: Set<Hash>, chunkStream: ChunkStream): Promise<void> {
     return serialize(hints, chunkStream)
-      .then(body => fetchText(this._rpc.writeValue, {method: 'POST', body}))
+      .then(body => fetchText(this._rpc.writeValue,
+            mergeOptions(this._rootOptions, {method: 'POST', body})))
       .then(({headers}) => {
         const versionErr = checkVersion(headers);
         if (versionErr) {
@@ -134,7 +135,8 @@ export class Delegate {
     const ch = this._rpc.root.indexOf('?') >= 0 ? '&' : '?';
     const params = `${ch}current=${current}&last=${last}`;
     try {
-      const {headers} = await fetchText(this._rpc.root + params, {method: 'POST'});
+      const {headers} = await fetchText(this._rpc.root + params,
+          mergeOptions(this._rootOptions, {method: 'POST'}));
       const versionErr = checkVersion(headers);
       if (versionErr) {
         return Promise.reject(versionErr);
@@ -149,8 +151,8 @@ export class Delegate {
   }
 }
 
-function checkVersion(headers: {[key: string]: string}): ?Error {
-  const vers = headers[VersionHeader];
+function checkVersion(headers: Map<string, string>): ?Error {
+  const vers = headers.get(versionHeader);
   if (vers !== NomsVersion) {
     return new Error(
       `SDK version ${NomsVersion} is not compatible with data of version ${vers}.`);
