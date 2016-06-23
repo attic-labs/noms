@@ -12,7 +12,6 @@ import (
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
@@ -22,8 +21,7 @@ func newOpCache(vrw ValueReadWriter) *opCache {
 	d.Chk.NoError(err)
 	db, err := leveldb.OpenFile(dir, &opt.Options{
 		Compression:            opt.NoCompression,
-		Comparer:               nomsComparer{},
-		Filter:                 filter.NewBloomFilter(10), // 10 bits/key
+		Comparer:               opCacheComparer{},
 		OpenFilesCacheCapacity: 24,
 		NoSync:                 true,    // We don't need this data to be durable. LDB is acting as temporary storage that can be larger than main memory.
 		WriteBuffer:            1 << 28, // 256MiB

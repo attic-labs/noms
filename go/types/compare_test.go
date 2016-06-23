@@ -47,7 +47,7 @@ func TestTotalOrdering(t *testing.T) {
 
 func TestCompareEmpties(t *testing.T) {
 	assert := assert.New(t)
-	comp := nomsComparer{}
+	comp := opCacheComparer{}
 	assert.Equal(-1, comp.Compare(nil, []byte{0xff}))
 	assert.Equal(-1, comp.Compare([]byte{}, []byte{0xff}))
 
@@ -62,7 +62,7 @@ func TestCompareEmpties(t *testing.T) {
 
 func TestCompareDifferentPrimitiveTypes(t *testing.T) {
 	assert := assert.New(t)
-	comp := nomsComparer{}
+	comp := opCacheComparer{}
 
 	b := []byte{byte(BoolKind), 0x00}
 	n := []byte{byte(NumberKind), 0x00}
@@ -79,7 +79,7 @@ func TestCompareDifferentPrimitiveTypes(t *testing.T) {
 
 func TestComparePrimitives(t *testing.T) {
 	assert := assert.New(t)
-	comp := nomsComparer{}
+	comp := opCacheComparer{}
 
 	tru := encode(Bool(true))
 	fls := encode(Bool(false))
@@ -103,7 +103,7 @@ func TestComparePrimitives(t *testing.T) {
 
 func TestCompareHashes(t *testing.T) {
 	assert := assert.New(t)
-	comp := nomsComparer{}
+	comp := opCacheComparer{}
 
 	tru := encode(Bool(true))
 	one := encode(Number(1))

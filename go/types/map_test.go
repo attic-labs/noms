@@ -216,8 +216,18 @@ func newMapTestSuite(size uint, expectRefStr string, expectChunkCount int, expec
 	}
 }
 
-func newNumberStruct(i int) Value {
-	return NewStruct("", structData{"n": Number(i)})
+func (suite *mapTestSuite) TestMapMx() {
+	randomized := make(mapEntrySlice, len(suite.elems.entries))
+	for i, j := range rand.Perm(len(randomized)) {
+		randomized[j] = suite.elems.entries[i]
+	}
+	vs := NewTestValueStore()
+
+	mx := NewMap().Mx(vs)
+	for _, entry := range randomized {
+		mx = mx.Set(entry.key, entry.value)
+	}
+	suite.validate(mx.Finish())
 }
 
 func TestMapSuite1K(t *testing.T) {
@@ -237,6 +247,10 @@ func TestMapSuite4KStructs(t *testing.T) {
 
 func newNumber(i int) Value {
 	return Number(i)
+}
+
+func newNumberStruct(i int) Value {
+	return NewStruct("", structData{"n": Number(i)})
 }
 
 func getTestNativeOrderMap(scale int) testMap {
@@ -463,21 +477,6 @@ func TestMapSetGet(t *testing.T) {
 	assert.True(Number(42).Equals(m2.Get(String("foo"))))
 	assert.True(Number(43).Equals(m3.Get(String("foo"))))
 	assert.Nil(m4.Get(String("foo")))
-}
-
-func TestMapMx(t *testing.T) {
-	assert := assert.New(t)
-	vs := NewTestValueStore()
-
-	mx := NewMap().Mx(vs)
-	m := mx.Set(String("foo"), Number(42)).Set(String("foo"), Number(43)).Set(Number(1), NewList(Number(2))).Finish()
-
-	assert.False(Number(42).Equals(m.Get(String("foo"))))
-	assert.True(Number(43).Equals(m.Get(String("foo"))))
-
-	l := m.Get(Number(1))
-	assert.NotNil(l)
-	assert.True(Number(2).Equals(l.(List).Get(0)))
 }
 
 func validateMapInsertion(t *testing.T, tm testMap) {

@@ -7,11 +7,12 @@ package types
 import "github.com/attic-labs/noms/go/d"
 
 type MapMutator struct {
-	oc *opCache
+	oc  *opCache
+	vrw ValueReadWriter
 }
 
 func newMutator(vrw ValueReadWriter) *MapMutator {
-	return &MapMutator{newOpCache(vrw)}
+	return &MapMutator{newOpCache(vrw), vrw}
 }
 
 func (mx *MapMutator) Set(key Value, val Value) *MapMutator {
@@ -27,8 +28,9 @@ func (mx *MapMutator) Finish() Map {
 		mx.oc = nil
 	}()
 
-	seq := newEmptySequenceChunker(makeMapLeafChunkFn(nil), newOrderedMetaSequenceChunkFn(MapKind, nil), newMapLeafBoundaryChecker(), newOrderedMetaSequenceBoundaryChecker)
+	seq := newEmptySequenceChunker(makeMapLeafChunkFn(mx.vrw, mx.vrw), newOrderedMetaSequenceChunkFn(MapKind, mx.vrw, mx.vrw), newMapLeafBoundaryChecker(), newOrderedMetaSequenceBoundaryChecker)
 
+	// I tried splitting this up so that the iteration ran in a separate goroutine from the Append'ing, but it actually made things a bit slower when I ran a test.
 	iter := mx.oc.NewIterator()
 	defer iter.Release()
 	for iter.Next() {

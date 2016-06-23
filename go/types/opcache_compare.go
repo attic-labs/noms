@@ -5,15 +5,15 @@
 package types
 
 import (
+	"bytes"
 	"crypto/sha1"
 
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/hash"
 )
 
-type nomsComparer struct{}
+type opCacheComparer struct{}
 
-func (nomsComparer) Compare(a, b []byte) int {
+func (opCacheComparer) Compare(a, b []byte) int {
 	if compared, res := compareEmpties(a, b); compared {
 		return res
 	}
@@ -25,28 +25,31 @@ func (nomsComparer) Compare(a, b []byte) int {
 		}
 		a, b = a[1:], b[1:]
 		d.Chk.True(len(a) == sha1.Size && len(b) == sha1.Size, "Compared objects should be %d bytes long, not %d and %d", sha1.Size, len(a), len(b))
-		aHash, bHash := hash.FromSlice(a), hash.FromSlice(b)
-		if aHash == bHash {
-			d.Chk.True(aKind == bKind, "%d != %d, but Values with the same hash MUST be the same Kind", aKind, bKind)
-			return 0
-		}
-		if aHash.Less(bHash) {
-			return -1
-		}
-		return 1
-	case BoolKind, NumberKind, StringKind:
+		res := bytes.Compare(a, b)
+		d.Chk.True(res != 0 || aKind == bKind, "%d != %d, but Values with the same hash MUST be the same Kind", aKind, bKind)
+		return res
+	case BoolKind:
+		return bytes.Compare(a, b)
+	case NumberKind:
 		if res := compareKinds(aKind, bKind); res != 0 {
 			return res
 		}
-		vA := newValueDecoder(&binaryNomsReader{a, 0}, nil).readValue()
-		vB := newValueDecoder(&binaryNomsReader{b, 0}, nil).readValue()
-		if vA.Equals(vB) {
+		reader := binaryNomsReader{a[1:], 0}
+		aNum := reader.readFloat64()
+		reader.buff, reader.offset = b[1:], 0
+		bNum := reader.readFloat64()
+		if aNum == bNum {
 			return 0
 		}
-		if vA.Less(vB) {
+		if aNum < bNum {
 			return -1
 		}
 		return 1
+	case StringKind:
+		if bKind == StringKind {
+			a, b = a[1+uint32Size:], b[1+uint32Size:]
+		}
+		return bytes.Compare(a, b)
 	}
 }
 
@@ -73,14 +76,14 @@ func compareKinds(aKind, bKind NomsKind) (res int) {
 	return
 }
 
-func (nomsComparer) Name() string {
-	return "noms.ValueComparator"
+func (opCacheComparer) Name() string {
+	return "noms.OpCacheComparator"
 }
 
-func (nomsComparer) Successor(dst, b []byte) []byte {
+func (opCacheComparer) Successor(dst, b []byte) []byte {
 	return nil
 }
 
-func (nomsComparer) Separator(dst, a, b []byte) []byte {
+func (opCacheComparer) Separator(dst, a, b []byte) []byte {
 	return nil
 }
