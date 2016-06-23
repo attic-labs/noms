@@ -106,12 +106,12 @@ func (r *valueDecoder) readMetaSequence() metaSequenceData {
 	for i := uint32(0); i < count; i++ {
 		ref := r.readValue().(Ref)
 		v := r.readValue()
-		var key metaKey
+		var key orderedKey
 		if r, ok := v.(Ref); ok {
 			// See https://github.com/attic-labs/noms/issues/1688#issuecomment-227528987
-			key = metaKeyFromHash(r.TargetHash())
+			key = orderedKeyFromHash(r.TargetHash())
 		} else {
-			key = newMetaKey(v)
+			key = newOrderedKey(v)
 		}
 		numLeaves := r.readUint64()
 		data = append(data, newMetaTuple(ref, key, numLeaves, nil))

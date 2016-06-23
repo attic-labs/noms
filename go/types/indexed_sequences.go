@@ -131,16 +131,16 @@ func newIndexedMetaSequenceChunkFn(kind NomsKind, source ValueReader, sink Value
 			col = newBlob(metaSeq)
 		}
 		if sink != nil {
-			return newMetaTuple(sink.WriteValue(col), metaKeyFromSum(tuples), numLeaves, nil), metaSeq
+			return newMetaTuple(sink.WriteValue(col), orderedKeyFromSum(tuples), numLeaves, nil), metaSeq
 		}
-		return newMetaTuple(NewRef(col), metaKeyFromSum(tuples), numLeaves, col), metaSeq
+		return newMetaTuple(NewRef(col), orderedKeyFromSum(tuples), numLeaves, col), metaSeq
 	}
 }
 
-func metaKeyFromSum(msd metaSequenceData) metaKey {
+func orderedKeyFromSum(msd metaSequenceData) orderedKey {
 	sum := uint64(0)
 	for _, mt := range msd {
 		sum += mt.key.uint64Value()
 	}
-	return metaKeyFromUint64(sum)
+	return orderedKeyFromUint64(sum)
 }

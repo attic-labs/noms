@@ -10,7 +10,7 @@ import {suite, setup, teardown, test} from 'mocha';
 import Ref from './ref.js';
 import Set, {SetLeafSequence} from './set.js';
 import type {ValueReadWriter} from './value-store.js';
-import {MetaKey, MetaTuple, newSetMetaSequence} from './meta-sequence.js';
+import {OrderedKey, MetaTuple, newSetMetaSequence} from './meta-sequence.js';
 import {compare, equals} from './compare.js';
 import {
   assertChunkCountAndType,
@@ -368,7 +368,7 @@ suite('CompoundSet', () => {
     for (let i = 0; i < values.length; i += 2) {
       const s = new Set([values[i], values[i + 1]]);
       const r = vwr.writeValue(s);
-      tuples.push(new MetaTuple(r, new MetaKey(values[i + 1]), 2, null));
+      tuples.push(new MetaTuple(r, new OrderedKey(values[i + 1]), 2, null));
     }
 
     let last: ?Set = null;

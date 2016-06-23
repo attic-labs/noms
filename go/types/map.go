@@ -244,9 +244,9 @@ func makeMapLeafChunkFn(vr ValueReader) makeChunkFn {
 		seq := newMapLeafSequence(vr, mapData...)
 		m := newMap(seq)
 
-		var key metaKey
+		var key orderedKey
 		if len(mapData) > 0 {
-			key = newMetaKey(mapData[len(mapData)-1].key)
+			key = newOrderedKey(mapData[len(mapData)-1].key)
 		}
 
 		return newMetaTuple(NewRef(m), key, uint64(len(items)), m), seq

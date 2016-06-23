@@ -26,7 +26,7 @@ import {equals} from './compare.js';
 import {invariant} from './assert.js';
 import {newStruct, newStructWithType} from './struct.js';
 import {
-  MetaKey,
+  OrderedKey,
   MetaTuple,
   newBlobMetaSequence,
   newListMetaSequence,
@@ -87,8 +87,8 @@ suite('Encoding - roundtrip', () => {
   test('compound list', () => {
     const leaf = List.fromSequence(newListLeafSequence(null, [4, 5, 6, 7]));
     const mts = [
-      new MetaTuple(new Ref(leaf), new MetaKey(10), 10, null),
-      new MetaTuple(new Ref(leaf), new MetaKey(20), 20, null),
+      new MetaTuple(new Ref(leaf), new OrderedKey(10), 10, null),
+      new MetaTuple(new Ref(leaf), new OrderedKey(20), 20, null),
     ];
     assertRoundTrips(List.fromSequence(newListMetaSequence(null, mts)));
   });
@@ -340,9 +340,9 @@ suite('Encoding', () => {
         uint8(RefKind), uint8(BlobKind), r3.toString(), uint64(33), uint8(NumberKind), float64(60), uint64(60),
       ],
       Blob.fromSequence(newBlobMetaSequence(null, [
-        new MetaTuple(constructRef(refOfBlobType, r1, 11), new MetaKey(20), 20, null),
-        new MetaTuple(constructRef(refOfBlobType, r2, 22), new MetaKey(40), 40, null),
-        new MetaTuple(constructRef(refOfBlobType, r3, 33), new MetaKey(60), 60, null),
+        new MetaTuple(constructRef(refOfBlobType, r1, 11), new OrderedKey(20), 20, null),
+        new MetaTuple(constructRef(refOfBlobType, r2, 22), new OrderedKey(40), 40, null),
+        new MetaTuple(constructRef(refOfBlobType, r3, 33), new OrderedKey(60), 60, null),
       ]))
     );
   });
@@ -407,8 +407,8 @@ suite('Encoding', () => {
       uint8(RefKind), uint8(ListKind), uint8(NumberKind), list2.hash.toString(), uint64(1), uint8(NumberKind), float64(4), uint64(4),
     ],
     List.fromSequence(newListMetaSequence(null, [
-      new MetaTuple(new Ref(list1), new MetaKey(1), 1, null),
-      new MetaTuple(new Ref(list2), new MetaKey(4), 4, null),
+      new MetaTuple(new Ref(list1), new OrderedKey(1), 1, null),
+      new MetaTuple(new Ref(list2), new OrderedKey(4), 4, null),
     ]))
     );
   });
@@ -425,8 +425,8 @@ suite('Encoding', () => {
         uint8(RefKind), uint8(SetKind), uint8(NumberKind), set2.hash.toString(), uint64(1), uint8(NumberKind), float64(4), uint64(3),
       ],
       Set.fromSequence(newSetMetaSequence(null, [
-        new MetaTuple(new Ref(set1), new MetaKey(1), 2, null),
-        new MetaTuple(new Ref(set2), new MetaKey(4), 3, null),
+        new MetaTuple(new Ref(set1), new OrderedKey(1), 2, null),
+        new MetaTuple(new Ref(set2), new OrderedKey(4), 3, null),
       ]))
     );
   });
@@ -445,8 +445,8 @@ suite('Encoding', () => {
         uint8(RefKind), uint8(SetKind), uint8(BlobKind), set2.hash.toString(), uint64(1), uint8(RefKind), uint8(BoolKind), blobs[4].hash.toString(), uint64(0), uint64(3),
       ],
       Set.fromSequence(newSetMetaSequence(null, [
-        new MetaTuple(new Ref(set1), new MetaKey(blobs[1]), 2, null),
-        new MetaTuple(new Ref(set2), new MetaKey(blobs[4]), 3, null),
+        new MetaTuple(new Ref(set1), new OrderedKey(blobs[1]), 2, null),
+        new MetaTuple(new Ref(set2), new OrderedKey(blobs[4]), 3, null),
       ]))
     );
   });

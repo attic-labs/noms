@@ -31,11 +31,11 @@ export type MetaSequence = Sequence<MetaTuple>;
 
 export class MetaTuple<T: Value> {
   ref: Ref;
-  key: MetaKey<T>;
+  key: OrderedKey<T>;
   numLeaves: number;
   child: ?Collection;
 
-  constructor(ref: Ref, key: MetaKey<T>, numLeaves: number, child: ?Collection) {
+  constructor(ref: Ref, key: OrderedKey<T>, numLeaves: number, child: ?Collection) {
     this.ref = ref;
     this.key = key;
     this.numLeaves = numLeaves;
@@ -56,7 +56,7 @@ export class MetaTuple<T: Value> {
   }
 }
 
-export class MetaKey<T: Value> {
+export class OrderedKey<T: Value> {
   isOrderedByValue: boolean;
   v: ?T;
   h: ?Hash;
@@ -72,7 +72,7 @@ export class MetaKey<T: Value> {
     }
   }
 
-  static fromHash(h: Hash): MetaKey {
+  static fromHash(h: Hash): OrderedKey {
     const k = Object.create(this.prototype);
     k.isOrderedByValue = false;
     k.v = null;
@@ -89,7 +89,7 @@ export class MetaKey<T: Value> {
     return this.v;
   }
 
-  compare(other: MetaKey): number {
+  compare(other: OrderedKey): number {
     if (this.isOrderedByValue && other.isOrderedByValue) {
       return compare(notNull(this.v), notNull(other.v));
     }
@@ -266,7 +266,7 @@ export class OrderedMetaSequence<K: Value> extends OrderedSequence<K, MetaTuple>
     return mt.getSequenceSync();
   }
 
-  getKey(idx: number): MetaKey {
+  getKey(idx: number): OrderedKey {
     return this.items[idx].key;
   }
 
@@ -322,7 +322,7 @@ export function newIndexedMetaSequenceChunkFn(kind: NomsKind, vr: ?ValueReader,
       seq = newBlobMetaSequence(vr, tuples);
       col = Blob.fromSequence(seq);
     }
-    const key = new MetaKey(sum);
+    const key = new OrderedKey(sum);
     let mt;
     if (vw) {
       mt = new MetaTuple(vw.writeValue(col), key, sum, null);

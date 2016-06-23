@@ -18,7 +18,7 @@ import {sha1Size} from './hash.js';
 import {getHashOfValue} from './get-hash.js';
 import {getTypeOfValue, makeMapType, makeUnionType} from './type.js';
 import {
-  MetaKey,
+  OrderedKey,
   MetaTuple,
   newOrderedMetaSequenceBoundaryChecker,
   newOrderedMetaSequenceChunkFn,
@@ -44,7 +44,7 @@ const mapPattern = ((1 << 6) | 0) - 1;
 function newMapLeafChunkFn<K: Value, V: Value>(vr: ?ValueReader):
     makeChunkFn {
   return (items: Array<MapEntry<K, V>>) => {
-    const key = new MetaKey(items.length > 0 ? items[items.length - 1][KEY] : false);
+    const key = new OrderedKey(items.length > 0 ? items[items.length - 1][KEY] : false);
     const seq = newMapLeafSequence(vr, items);
     const nm = Map.fromSequence(seq);
     const mt = new MetaTuple(new Ref(nm), key, seq.length, nm);
@@ -196,8 +196,8 @@ export default class Map<K: Value, V: Value> extends
 
 export class MapLeafSequence<K: Value, V: Value> extends
     OrderedSequence<K, MapEntry<K, V>> {
-  getKey(idx: number): MetaKey {
-    return new MetaKey(this.items[idx][KEY]);
+  getKey(idx: number): OrderedKey {
+    return new OrderedKey(this.items[idx][KEY]);
   }
 
   getCompareFn(other: OrderedSequence): EqualsFn {

@@ -244,6 +244,6 @@ func makeListLeafChunkFn(vr ValueReader, sink ValueWriter) makeChunkFn {
 			child = list
 		}
 
-		return newMetaTuple(ref, metaKeyFromInt(len(values)), uint64(len(values)), child), seq
+		return newMetaTuple(ref, orderedKeyFromInt(len(values)), uint64(len(values)), child), seq
 	}
 }

@@ -11,7 +11,7 @@ import {invariant} from './assert.js';
 import type {ValueReader, ValueWriter, ValueReadWriter} from './value-store.js';
 import {blobType} from './type.js';
 import {
-  MetaKey,
+  OrderedKey,
   MetaTuple,
   newIndexedMetaSequenceChunkFn,
   newIndexedMetaSequenceBoundaryChecker,
@@ -154,7 +154,7 @@ function newBlobLeafChunkFn(vr: ?ValueReader, vw: ?ValueWriter): makeChunkFn {
   return (items: Array<number>) => {
     const blobLeaf = new BlobLeafSequence(vr, Bytes.fromValues(items));
     const blob = Blob.fromSequence(blobLeaf);
-    const key = new MetaKey(items.length);
+    const key = new OrderedKey(items.length);
     let mt;
     if (vw) {
       mt = new MetaTuple(vw.writeValue(blob), key, items.length, null);

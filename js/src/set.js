@@ -16,7 +16,7 @@ import {compare, equals} from './compare.js';
 import {getHashOfValue} from './get-hash.js';
 import {invariant} from './assert.js';
 import {
-  MetaKey,
+  OrderedKey,
   MetaTuple,
   newOrderedMetaSequenceBoundaryChecker,
   newOrderedMetaSequenceChunkFn,
@@ -36,7 +36,7 @@ const setPattern = ((1 << 6) | 0) - 1;
 
 function newSetLeafChunkFn<T:Value>(vr: ?ValueReader): makeChunkFn {
   return (items: Array<T>) => {
-    const key = new MetaKey(items.length > 0 ? items[items.length - 1] : false);
+    const key = new OrderedKey(items.length > 0 ? items[items.length - 1] : false);
     const seq = newSetLeafSequence(vr, items);
     const ns = Set.fromSequence(seq);
     const mt = new MetaTuple(new Ref(ns), key, items.length, ns);
@@ -165,8 +165,8 @@ export default class Set<T: Value> extends Collection<OrderedSequence> {
 }
 
 export class SetLeafSequence<K: Value> extends OrderedSequence<K, K> {
-  getKey(idx: number): MetaKey {
-    return new MetaKey(this.items[idx]);
+  getKey(idx: number): OrderedKey {
+    return new OrderedKey(this.items[idx]);
   }
 
   getCompareFn(other: OrderedSequence): EqualsFn {

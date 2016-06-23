@@ -17,7 +17,7 @@ import {diff} from './indexed-sequence-diff.js';
 import {getHashOfValue} from './get-hash.js';
 import {invariant} from './assert.js';
 import {
-  MetaKey,
+  OrderedKey,
   MetaTuple,
   newIndexedMetaSequenceBoundaryChecker,
   newIndexedMetaSequenceChunkFn,
@@ -38,7 +38,7 @@ function newListLeafChunkFn<T: Value>(vr: ?ValueReader, vw: ?ValueWriter): makeC
   return (items: Array<T>) => {
     const seq = newListLeafSequence(vr, items);
     const list = List.fromSequence(seq);
-    const key = new MetaKey(items.length);
+    const key = new OrderedKey(items.length);
     let mt;
     if (vw) {
       mt = new MetaTuple(vw.writeValue(list), key, items.length, null);

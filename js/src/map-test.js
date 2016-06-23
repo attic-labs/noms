@@ -27,7 +27,7 @@ import type Value from './value.js';
 import {invariant, notNull} from './assert.js';
 import List from './list.js';
 import Map, {MapLeafSequence} from './map.js';
-import {MetaKey, MetaTuple, newMapMetaSequence} from './meta-sequence.js';
+import {OrderedKey, MetaTuple, newMapMetaSequence} from './meta-sequence.js';
 import type {ValueReadWriter} from './value-store.js';
 import {compare, equals} from './compare.js';
 import {OrderedMetaSequence} from './meta-sequence.js';
@@ -457,19 +457,19 @@ suite('CompoundMap', () => {
     const r4 = vwr.writeValue(l4);
 
     const m1 = Map.fromSequence(newMapMetaSequence(vwr, [
-      new MetaTuple(r1, new MetaKey('b'), 2, null),
-      new MetaTuple(r2, new MetaKey('f'), 2, null),
+      new MetaTuple(r1, new OrderedKey('b'), 2, null),
+      new MetaTuple(r2, new OrderedKey('f'), 2, null),
     ]));
     const rm1 = vwr.writeValue(m1);
     const m2 = Map.fromSequence(newMapMetaSequence(vwr, [
-      new MetaTuple(r3, new MetaKey('i'), 2, null),
-      new MetaTuple(r4, new MetaKey('n'), 2, null),
+      new MetaTuple(r3, new OrderedKey('i'), 2, null),
+      new MetaTuple(r4, new OrderedKey('n'), 2, null),
     ]));
     const rm2 = vwr.writeValue(m2);
 
     const c = Map.fromSequence(newMapMetaSequence(vwr, [
-      new MetaTuple(rm1, new MetaKey('f'), 4, null),
-      new MetaTuple(rm2, new MetaKey('n'), 4, null),
+      new MetaTuple(rm1, new OrderedKey('f'), 4, null),
+      new MetaTuple(rm2, new OrderedKey('n'), 4, null),
     ]));
     return [c, m1, m2];
   }

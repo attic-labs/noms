@@ -6,7 +6,7 @@
 
 import {AsyncIterator} from './async-iterator.js';
 import type {AsyncIteratorResult} from './async-iterator.js';
-import {MetaKey} from './meta-sequence.js';
+import {OrderedKey} from './meta-sequence.js';
 import type Value from './value.js'; // eslint-disable-line no-unused-vars
 import {invariant, notNull} from './assert.js';
 import search from './binary-search.js';
@@ -19,7 +19,7 @@ export class OrderedSequence<K: Value, T> extends Sequence<T> {
       Promise<OrderedSequenceCursor> {
     let key;
     if (val !== null && val !== undefined) {
-      key = new MetaKey(val);
+      key = new OrderedKey(val);
     }
     return this.newCursorAt(key, forInsertion, last);
   }
@@ -30,7 +30,7 @@ export class OrderedSequence<K: Value, T> extends Sequence<T> {
   //   -cursor positioned at
   //      -first value, if |key| is null
   //      -first value >= |key|
-  async newCursorAt(key: ?MetaKey, forInsertion: boolean = false, last: boolean = false):
+  async newCursorAt(key: ?OrderedKey, forInsertion: boolean = false, last: boolean = false):
       Promise<OrderedSequenceCursor> {
     let cursor: ?OrderedSequenceCursor = null;
     let sequence: ?OrderedSequence = this;
@@ -53,7 +53,7 @@ export class OrderedSequence<K: Value, T> extends Sequence<T> {
   /**
    * Gets the key used for ordering the sequence at index |idx|.
    */
-  getKey(idx: number): MetaKey { // eslint-disable-line no-unused-vars
+  getKey(idx: number): OrderedKey { // eslint-disable-line no-unused-vars
     throw new Error('override');
   }
 
@@ -64,7 +64,7 @@ export class OrderedSequence<K: Value, T> extends Sequence<T> {
 
 export class OrderedSequenceCursor<T, K: Value> extends
     SequenceCursor<T, OrderedSequence> {
-  getCurrentKey(): MetaKey {
+  getCurrentKey(): OrderedKey {
     invariant(this.idx >= 0 && this.idx < this.length);
     return this.sequence.getKey(this.idx);
   }
@@ -75,7 +75,7 @@ export class OrderedSequenceCursor<T, K: Value> extends
 
   // Moves the cursor to the first value in sequence >= key and returns true.
   // If none exists, returns false.
-  _seekTo(key: MetaKey, lastPositionIfNotfound: boolean = false): boolean {
+  _seekTo(key: OrderedKey, lastPositionIfNotfound: boolean = false): boolean {
     this.idx = search(this.length, i => this.sequence.getKey(i).compare(key));
 
     if (this.idx === this.length && lastPositionIfNotfound) {

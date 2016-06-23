@@ -13,7 +13,7 @@ import (
 
 type orderedSequence interface {
 	sequence
-	getKey(idx int) metaKey
+	getKey(idx int) orderedKey
 }
 
 type orderedMetaSequence struct {
@@ -54,7 +54,7 @@ func newOrderedMetaSequence(tuples metaSequenceData, t *Type, vr ValueReader) or
 	}
 }
 
-func (oms orderedMetaSequence) getKey(idx int) metaKey {
+func (oms orderedMetaSequence) getKey(idx int) orderedKey {
 	return oms.tuples[idx].key
 }
 
@@ -66,14 +66,14 @@ func (oms orderedMetaSequence) getCompareFn(other sequence) compareFn {
 }
 
 func newCursorAtValue(seq orderedSequence, val Value, forInsertion bool, last bool) *sequenceCursor {
-	var key metaKey
+	var key orderedKey
 	if val != nil {
-		key = newMetaKey(val)
+		key = newOrderedKey(val)
 	}
 	return newCursorAt(seq, key, forInsertion, last)
 }
 
-func newCursorAt(seq orderedSequence, key metaKey, forInsertion bool, last bool) *sequenceCursor {
+func newCursorAt(seq orderedSequence, key orderedKey, forInsertion bool, last bool) *sequenceCursor {
 	var cur *sequenceCursor
 	for {
 		idx := 0
@@ -99,7 +99,7 @@ func newCursorAt(seq orderedSequence, key metaKey, forInsertion bool, last bool)
 	return cur
 }
 
-func seekTo(cur *sequenceCursor, key metaKey, lastPositionIfNotFound bool) bool {
+func seekTo(cur *sequenceCursor, key orderedKey, lastPositionIfNotFound bool) bool {
 	seq := cur.seq.(orderedSequence)
 
 	cur.idx = sort.Search(seq.seqLen(), func(i int) bool {
@@ -115,7 +115,7 @@ func seekTo(cur *sequenceCursor, key metaKey, lastPositionIfNotFound bool) bool 
 }
 
 // Gets the key used for ordering the sequence at current index.
-func getCurrentKey(cur *sequenceCursor) metaKey {
+func getCurrentKey(cur *sequenceCursor) orderedKey {
 	seq, ok := cur.seq.(orderedSequence)
 	d.Chk.True(ok, "need an ordered sequence here")
 	return seq.getKey(cur.idx)

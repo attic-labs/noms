@@ -221,9 +221,9 @@ func makeSetLeafChunkFn(vr ValueReader) makeChunkFn {
 		seq := newSetLeafSequence(vr, setData...)
 		set := newSet(seq)
 
-		var key metaKey
+		var key orderedKey
 		if len(setData) > 0 {
-			key = newMetaKey(setData[len(setData)-1])
+			key = newOrderedKey(setData[len(setData)-1])
 		}
 
 		return newMetaTuple(NewRef(set), key, uint64(len(items)), set), seq
