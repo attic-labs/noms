@@ -28,7 +28,7 @@ function fetch(url: string, options: FetchOptions = {}): Promise<BufResponse> {
   return new Promise((resolve, reject) => {
     const req = request(opts, res => {
       if (res.statusCode < 200 || res.statusCode >= 300) {
-        reject(res.statusCode);
+        reject(new Error('HTTP error ' + res.statusCode + ', url: ' + url));
         return;
       }
 
@@ -55,9 +55,9 @@ function fetch(url: string, options: FetchOptions = {}): Promise<BufResponse> {
       });
       res.on('end', () => {
         const headers = new Map();
-        if (opts.respHeaders) {
-          for (const header of opts.respHeaders) {
-            headers.set(header, res.headers[header]);
+        if (options.respHeaders) {
+          for (const header of options.respHeaders) {
+            headers.set(header, res.headers[header.toLowerCase()]);
           }
         }
         resolve({headers: headers, buf: Bytes.subarray(buf, 0, offset)});

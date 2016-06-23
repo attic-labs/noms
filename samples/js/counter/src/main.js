@@ -17,7 +17,7 @@ const args = argv
   .argv;
 
 main().catch(ex => {
-  console.error(ex.stack);
+  console.error(ex);
   process.exit(1);
 });
 
