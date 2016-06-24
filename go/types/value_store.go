@@ -38,7 +38,7 @@ type ValueStore struct {
 	bs         BatchStore
 	cache      map[hash.Hash]chunkCacheEntry
 	mu         *sync.Mutex
-	valueCache sizecache.SizeCache
+	valueCache *sizecache.SizeCache
 }
 
 type chunkCacheEntry interface {
