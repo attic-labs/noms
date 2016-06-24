@@ -57,7 +57,7 @@ func main() {
 
 	useColor = shouldUseColor()
 
-	database, value, err := spec.GetPath(flag.Arg(0))
+	database, value, err := spec.GetValue(flag.Arg(0))
 	if err != nil {
 		util.CheckErrorNoUsage(err)
 	}

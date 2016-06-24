@@ -27,6 +27,10 @@ func NewPath() Path {
 	return Path{}
 }
 
+func ParsePath(path string) (Path, error) {
+	return NewPath().AddPath(path)
+}
+
 func (p Path) AddField(name string) Path {
 	return p.appendPart(newFieldPart(name))
 }

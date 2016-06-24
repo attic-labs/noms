@@ -38,7 +38,7 @@ func main() {
 		util.CheckErrorNoUsage(errors.New("expected exactly one argument"))
 	}
 
-	database, value, err := spec.GetPath(flag.Arg(0))
+	database, value, err := spec.GetValue(flag.Arg(0))
 	util.CheckErrorNoUsage(err)
 
 	if value == nil {
