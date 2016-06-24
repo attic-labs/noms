@@ -19,7 +19,7 @@ func TestSizeCache(t *testing.T) {
 	assert := assert.New(t)
 	defSize := uint64(200)
 
-	c := New(1024).(*realSizeCache)
+	c := New(1024)
 	for i, v := range []string{"data-1", "data-2", "data-3", "data-4", "data-5", "data-6", "data-7", "data-8", "data-9"} {
 		c.Add(hashFromString(v), defSize, v)
 		maxElements := uint64(i + 1)
@@ -31,32 +31,32 @@ func TestSizeCache(t *testing.T) {
 
 	_, ok := c.Get(hashFromString("data-1"))
 	assert.False(ok)
-	assert.Equal(hashFromString("data-5").String(), c.lru.Front().Value.(string))
+	assert.Equal(hashFromString("data-5"), c.lru.Front().Value)
 
 	v, ok := c.Get(hashFromString("data-5"))
 	assert.True(ok)
 	assert.Equal("data-5", v.(string))
-	assert.Equal(hashFromString("data-5").String(), c.lru.Back().Value.(string))
-	assert.Equal(hashFromString("data-6").String(), c.lru.Front().Value.(string))
+	assert.Equal(hashFromString("data-5"), c.lru.Back().Value)
+	assert.Equal(hashFromString("data-6"), c.lru.Front().Value)
 
 	c.Add(hashFromString("data-7"), defSize, "data-7")
-	assert.Equal(hashFromString("data-7").String(), c.lru.Back().Value.(string))
+	assert.Equal(hashFromString("data-7"), c.lru.Back().Value)
 	assert.Equal(uint64(1000), c.totalSize)
 
 	c.Add(hashFromString("no-data"), 0, nil)
 	v, ok = c.Get(hashFromString("no-data"))
 	assert.True(ok)
 	assert.Nil(v)
-	assert.Equal(hashFromString("no-data").String(), c.lru.Back().Value.(string))
+	assert.Equal(hashFromString("no-data"), c.lru.Back().Value)
 	assert.Equal(uint64(1000), c.totalSize)
 	assert.Equal(6, c.lru.Len())
 	assert.Equal(6, len(c.cache))
 
 	for _, v := range []string{"data-5", "data-6", "data-7", "data-8", "data-9"} {
 		c.Get(hashFromString(v))
-		assert.Equal(hashFromString(v).String(), c.lru.Back().Value.(string))
+		assert.Equal(hashFromString(v), c.lru.Back().Value)
 	}
-	assert.Equal(hashFromString("no-data").String(), c.lru.Front().Value.(string))
+	assert.Equal(hashFromString("no-data"), c.lru.Front().Value)
 
 	c.Add(hashFromString("data-10"), 200, "data-10")
 	assert.Equal(uint64(1000), c.totalSize)
@@ -69,7 +69,16 @@ func TestSizeCache(t *testing.T) {
 	assert.False(ok)
 }
 
-func TestNoopSizeCache(t *testing.T) {
+func TestTooLargeValue(t *testing.T) {
+	assert := assert.New(t)
+
+	c := New(1024)
+	c.Add(hashFromString("big-data"), 2048, "big-data")
+	_, ok := c.Get(hashFromString("big-data"))
+	assert.False(ok)
+}
+
+func TestZeroSizeCache(t *testing.T) {
 	assert := assert.New(t)
 
 	c := New(0)
