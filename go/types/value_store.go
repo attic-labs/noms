@@ -41,6 +41,8 @@ type ValueStore struct {
 	valueCache *sizecache.SizeCache
 }
 
+const defaultValueCacheSize = 1 << 25 // 32MB
+
 type chunkCacheEntry interface {
 	Present() bool
 	Hint() hash.Hash
@@ -58,7 +60,7 @@ func newLocalValueStore(cs chunks.ChunkStore) *ValueStore {
 
 // NewValueStore returns a ValueStore instance that owns the provided BatchStore and manages its lifetime. Calling Close on the returned ValueStore will Close bs.
 func NewValueStore(bs BatchStore) *ValueStore {
-	return NewValueStoreWithCache(bs, 0)
+	return NewValueStoreWithCache(bs, defaultValueCacheSize)
 }
 
 func NewValueStoreWithCache(bs BatchStore, cacheSize uint64) *ValueStore {

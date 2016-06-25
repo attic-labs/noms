@@ -1,8 +1,10 @@
+// Copyright 2016 The Noms Authors. All rights reserved.
+// Licensed under the Apache License, version 2.0:
+// http://www.apache.org/licenses/LICENSE-2.0
+
 package sizecache
 
-// SizeCache will cache a specified amount of arbitrary data. One the maxSize limit of the cache
-// is reached, older, least recently used data will be expunged from the cache whenever necessary
-// to make room for the newly added values.
+// SizeCache implements a simple LRU cache of interface{}-typed key-value pairs. When items are added, the "size" of the item must be provided. LRU items will be expired until the total of all items is below the specified size for the SizeCache
 import (
 	"container/list"
 	"sync"
