@@ -194,13 +194,17 @@ func NewStreamingBlob(r io.Reader, vrw ValueReadWriter) Blob {
 	sc := newEmptySequenceChunker(newBlobLeafChunkFn(nil, vrw), newIndexedMetaSequenceChunkFn(BlobKind, nil, vrw), newBlobLeafBoundaryChecker(), newIndexedMetaSequenceBoundaryChecker)
 
 	// TODO: The code below is a temporary. It's basically a custom leaf-level chunker for blobs. There are substational perf gains by doing it this way as it avoids the cost of boxing every single byte which is chunked.
-	readBuff := [8192]byte{}
+	chunkBuff := [8192]byte{}
+	chunkBytes := chunkBuff[:]
 	bh := buzhash.NewBuzHash(blobWindowSize)
-	chunkBuff := [8192 * 48]byte{}
 	offset := 0
-
 	addByte := func(b byte) bool {
-		chunkBuff[offset] = b
+		if offset >= len(chunkBytes) {
+			tmp := make([]byte, len(chunkBytes)*2)
+			copy(tmp, chunkBytes)
+			chunkBytes = tmp
+		}
+		chunkBytes[offset] = b
 		offset++
 		bh.HashByte(b)
 		return bh.Sum32()&blobPattern == blobPattern
@@ -215,12 +219,13 @@ func NewStreamingBlob(r io.Reader, vrw ValueReadWriter) Blob {
 
 	makeChunk := func() {
 		cp := make([]byte, offset)
-		copy(cp, chunkBuff[0:offset])
+		copy(cp, chunkBytes[0:offset])
 		input <- cp
 		offset = 0
 	}
 
 	go func() {
+		readBuff := [8192]byte{}
 		for {
 			n, err := r.Read(readBuff[:])
 			for i := 0; i < n; i++ {
