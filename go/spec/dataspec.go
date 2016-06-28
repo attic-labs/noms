@@ -55,7 +55,7 @@ func GetDataset(str string) (dataset.Dataset, error) {
 	return sp.Dataset()
 }
 
-func GetValue(str string) (datas.Database, types.Value, error) {
+func GetPath(str string) (datas.Database, types.Value, error) {
 	sp, err := parsePathSpec(str)
 	if err != nil {
 		return nil, nil, err
@@ -212,14 +212,14 @@ func (spec datasetSpec) Value() (datas.Database, types.Value, error) {
 	return dataset.Database(), commit, nil
 }
 
-func (spec pathSpec) Value() (datas.Database, types.Value, error) {
-	db, err := spec.DbSpec.Database()
+func (spec pathSpec) Value() (db datas.Database, val types.Value, err error) {
+	db, err = spec.DbSpec.Database()
 	if err != nil {
-		return db, nil, err
+		return
 	}
 
-	val, err := spec.Path.ResolveFromRoot(specPathRootGetter{spec, db})
-	return db, val, err
+	val = spec.Path.ResolveFromRoot(specPathRootGetter{spec, db})
+	return
 }
 
 type specPathRootGetter struct {
@@ -227,19 +227,15 @@ type specPathRootGetter struct {
 	db   datas.Database
 }
 
-func (g specPathRootGetter) GetDatasetHead(id string) (types.Value, error) {
-	if h, ok := g.db.MaybeHead(id); ok {
-		return h, nil
+func (g specPathRootGetter) GetDatasetHead(id string) types.Value {
+	if head, ok := g.db.MaybeHead(id); ok {
+		return head
 	}
-	return nil, fmt.Errorf("No head for dataset: %s of %s", id, g.spec.Path.String())
+	return nil
 }
 
-func (g specPathRootGetter) GetHash(h hash.Hash) (types.Value, error) {
-	val := g.db.ReadValue(h)
-	if val == nil {
-		return nil, fmt.Errorf("Hash not found: %s of %s", h.String(), g.spec.Path.String())
-	}
-	return val, nil
+func (g specPathRootGetter) GetHash(h hash.Hash) types.Value {
+	return g.db.ReadValue(h)
 }
 
 func RegisterDatabaseFlags() {

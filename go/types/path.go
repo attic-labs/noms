@@ -27,8 +27,8 @@ type Path struct {
 }
 
 type PathRootGetter interface {
-	GetDatasetHead(id string) (Value, error)
-	GetHash(h hash.Hash) (Value, error)
+	GetDatasetHead(id string) Value
+	GetHash(h hash.Hash) Value
 }
 
 type pathPart interface {
@@ -101,18 +101,17 @@ func (p Path) addPath(str string, isRoot bool) (Path, error) {
 			return Path{}, errors.New("# operator can only be the first character")
 		}
 
-		hashlen := hash.StringLen()
-		if len(tail) < hashlen {
+		if len(tail) < hash.StringLen {
 			return Path{}, errors.New("Invalid hash: " + tail)
 		}
 
-		hashstr := tail[:hashlen]
+		hashstr := tail[:hash.StringLen]
 		h, ok := hash.MaybeParse(hashstr)
 		if !ok {
 			return Path{}, errors.New("Invalid hash: " + hashstr)
 		}
 
-		return p.SetRootHash(h).addPath(tail[hashlen:], false)
+		return p.SetRootHash(h).addPath(tail[hash.StringLen:], false)
 
 	case '.':
 		idx := fieldNameComponentRe.FindIndex([]byte(tail))
@@ -170,22 +169,19 @@ func (p Path) Resolve(v Value) (resolved Value) {
 	return
 }
 
-func (p Path) ResolveFromRoot(getter PathRootGetter) (val Value, err error) {
+func (p Path) ResolveFromRoot(getter PathRootGetter) (val Value) {
 	if len(p.rootDataset) > 0 {
-		val, err = getter.GetDatasetHead(p.rootDataset)
+		val = getter.GetDatasetHead(p.rootDataset)
 	} else if !p.rootHash.IsEmpty() {
-		val, err = getter.GetHash(p.rootHash)
+		val = getter.GetHash(p.rootHash)
 	} else {
 		d.Chk.Fail("Path does not have a root")
 	}
 
-	if err != nil {
-		d.Chk.Nil(val)
-		return
+	if val != nil {
+		val = p.Resolve(val)
 	}
-
-	d.Chk.NotNil(val)
-	return p.Resolve(val), nil
+	return
 }
 
 func (p Path) String() string {

@@ -14,6 +14,9 @@ import (
 	"github.com/attic-labs/noms/go/d"
 )
 
+// The length of a stringified hash.
+const StringLen = len("sha1-") + 2*sha1.Size
+
 var (
 	// In the future we will allow different digest types, so this will get more complicated. For now sha1 is fine.
 	pattern   = regexp.MustCompile("^sha1-([0-9a-f]{40})$")
@@ -83,11 +86,6 @@ func Parse(s string) Hash {
 		d.PanicIfError(fmt.Errorf("Cound not parse Hash: %s", s))
 	}
 	return r
-}
-
-func StringLen() int {
-	// len("sha1-") = 5 + hash size = 40.
-	return 45
 }
 
 func (r Hash) Less(other Hash) bool {

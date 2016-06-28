@@ -5,7 +5,6 @@
 package types
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
@@ -315,18 +314,12 @@ type testPathRootGetter struct {
 	hashes   map[hash.Hash]Value
 }
 
-func (g testPathRootGetter) GetDatasetHead(id string) (Value, error) {
-	if v, ok := g.datasets[id]; ok {
-		return v, nil
-	}
-	return nil, errors.New("")
+func (g testPathRootGetter) GetDatasetHead(id string) Value {
+	return g.datasets[id]
 }
 
-func (g testPathRootGetter) GetHash(h hash.Hash) (Value, error) {
-	if v, ok := g.hashes[h]; ok {
-		return v, nil
-	}
-	return nil, errors.New("")
+func (g testPathRootGetter) GetHash(h hash.Hash) Value {
+	return g.hashes[h]
 }
 
 func TestFullPaths(t *testing.T) {
@@ -348,9 +341,12 @@ func TestFullPaths(t *testing.T) {
 	resolvesTo := func(exp Value, str string) {
 		p, err := ParsePath(str)
 		assert.NoError(err)
-		act, err := p.ResolveFromRoot(g)
-		assert.NoError(err)
-		assert.True(exp.Equals(act))
+		act := p.ResolveFromRoot(g)
+		if exp == nil {
+			assert.Nil(act)
+		} else {
+			assert.True(exp.Equals(act))
+		}
 	}
 
 	resolvesTo(ds, "ds")
@@ -364,17 +360,10 @@ func TestFullPaths(t *testing.T) {
 	resolvesTo(s0, "#"+list.Hash().String()+"[0]")
 	resolvesTo(s1, "#"+list.Hash().String()+"[1]")
 
-	resolvesToErr := func(str string) {
-		p, err := ParsePath(str)
-		assert.NoError(err)
-		_, err = p.ResolveFromRoot(g)
-		assert.Error(err)
-	}
-
-	resolvesToErr("foo")
-	resolvesToErr("foo.parents")
-	resolvesToErr("foo.value")
-	resolvesToErr("foo.value[0]")
-	resolvesToErr("#" + String("baz").Hash().String())
-	resolvesToErr("#" + String("baz").Hash().String() + "[0]")
+	resolvesTo(nil, "foo")
+	resolvesTo(nil, "foo.parents")
+	resolvesTo(nil, "foo.value")
+	resolvesTo(nil, "foo.value[0]")
+	resolvesTo(nil, "#"+String("baz").Hash().String())
+	resolvesTo(nil, "#"+String("baz").Hash().String()+"[0]")
 }

@@ -41,7 +41,7 @@ func main() {
 		util.CheckError(errors.New("expected a source object and destination dataset"))
 	}
 
-	sourceStore, sourceObj, err := spec.GetValue(flag.Arg(0))
+	sourceStore, sourceObj, err := spec.GetPath(flag.Arg(0))
 	util.CheckError(err)
 	defer sourceStore.Close()
 
