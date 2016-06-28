@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/attic-labs/noms/go/d"
+	humanize "github.com/dustin/go-humanize"
 )
 
 // Human Readable Serialization
@@ -90,12 +91,14 @@ func (w *hrsWriter) Write(v Value) {
 
 	case BlobKind:
 		w.maybeWriteIndentation()
+		w.writeSize(v)
 		blob := v.(Blob)
 		encoder := &hexWriter{hrs: w}
 		_, w.err = io.Copy(encoder, blob.Reader())
 
 	case ListKind:
 		w.write("[")
+		w.writeSize(v)
 		w.indent()
 		v.(List).Iter(func(v Value, i uint64) bool {
 			if i == 0 {
@@ -111,6 +114,7 @@ func (w *hrsWriter) Write(v Value) {
 
 	case MapKind:
 		w.write("{")
+		w.writeSize(v)
 		w.indent()
 		first := true
 		v.(Map).Iter(func(key, val Value) bool {
@@ -133,6 +137,7 @@ func (w *hrsWriter) Write(v Value) {
 
 	case SetKind:
 		w.write("{")
+		w.writeSize(v)
 		w.indent()
 		first := true
 		v.(Set).Iter(func(v Value) bool {
@@ -206,6 +211,24 @@ func (w *hrsWriter) WriteTagged(v Value) {
 	case ValueKind:
 	default:
 		panic("unreachable")
+	}
+}
+
+type lenable interface {
+	Len() uint64
+}
+
+func (w *hrsWriter) writeSize(v Value) {
+	t := v.Type()
+	switch t.Kind() {
+	case ListKind, MapKind, SetKind:
+		l := v.(lenable).Len()
+		if l < 4 {
+			return
+		}
+		w.write(fmt.Sprintf(" // %s items", humanize.Comma(int64(l))))
+	case BlobKind:
+		w.write(fmt.Sprintf("/* %s */", humanize.Bytes(v.(Blob).Len())))
 	}
 }
 
