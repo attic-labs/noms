@@ -60,20 +60,18 @@ type hexWriter struct {
 	count uint
 }
 
-const hextable = "0123456789abcdef"
-
 func (w *hexWriter) Write(p []byte) (n int, err error) {
-	tmp := []byte("00")
 	for _, v := range p {
-		tmp[0] = hextable[v>>4]
-		tmp[1] = hextable[v&0x0f]
 		if w.count == 16 {
 			w.hrs.newLine()
 			w.count = 0
 		} else if w.count != 0 {
 			w.hrs.write(" ")
 		}
-		w.hrs.write(string(tmp))
+		if v < 0x10 {
+			w.hrs.write("0")
+		}
+		w.hrs.write(strconv.FormatUint(uint64(v), 16))
 		n++
 		w.count++
 	}
