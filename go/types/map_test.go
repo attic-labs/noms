@@ -216,8 +216,21 @@ func newMapTestSuite(size uint, expectRefStr string, expectChunkCount int, expec
 	}
 }
 
-func newNumberStruct(i int) Value {
-	return NewStruct("", structData{"n": Number(i)})
+func (suite *mapTestSuite) TestStreamingMap() {
+	randomized := make(mapEntrySlice, len(suite.elems.entries))
+	for i, j := range rand.Perm(len(randomized)) {
+		randomized[j] = suite.elems.entries[i]
+	}
+	vs := NewTestValueStore()
+
+	kvChan := make(chan Value)
+	mapChan := NewStreamingMap(vs, kvChan)
+	for _, entry := range randomized {
+		kvChan <- entry.key
+		kvChan <- entry.value
+	}
+	close(kvChan)
+	suite.validate(<-mapChan)
 }
 
 func TestMapSuite1K(t *testing.T) {
@@ -237,6 +250,10 @@ func TestMapSuite4KStructs(t *testing.T) {
 
 func newNumber(i int) Value {
 	return Number(i)
+}
+
+func newNumberStruct(i int) Value {
+	return NewStruct("", structData{"n": Number(i)})
 }
 
 func getTestNativeOrderMap(scale int) testMap {

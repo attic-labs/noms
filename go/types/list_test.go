@@ -628,7 +628,7 @@ func TestListModifyAfterRead(t *testing.T) {
 func accumulateDiffSplices(l1, l2 List) []Splice {
 	var diff []Splice
 	diffChan := make(chan Splice)
-	l1.Diff(l2, diffChan)
+	l1.Diff(l2, diffChan, nil)
 	for splice := range diffChan {
 		diff = append(diff, splice)
 	}
@@ -638,7 +638,7 @@ func accumulateDiffSplices(l1, l2 List) []Splice {
 func accumulateDiffSplicesWithLimit(l1, l2 List, maxSpliceMatrixSize uint64) []Splice {
 	var diff []Splice
 	diffChan := make(chan Splice)
-	l1.DiffWithLimit(l2, diffChan, maxSpliceMatrixSize)
+	l1.DiffWithLimit(l2, diffChan, nil, maxSpliceMatrixSize)
 	for splice := range diffChan {
 		diff = append(diff, splice)
 	}
@@ -691,8 +691,7 @@ func TestListDiffReverse(t *testing.T) {
 	diff2 := accumulateDiffSplices(l2, l1)
 
 	diffExpected := []Splice{
-		Splice{0, 2499, 2500, 0},
-		Splice{2500, 2500, 2499, 2501},
+		Splice{0, 5000, 5000, 0},
 	}
 	assert.Equal(diffExpected, diff1, "expected diff is wrong")
 	assert.Equal(diffExpected, diff2, "expected diff is wrong")
@@ -884,9 +883,9 @@ func TestListDiffLargeWithSameMiddle(t *testing.T) {
 
 	// should only read/write a "small & reasonably sized portion of the total"
 	assert.Equal(95, cs1.Writes)
-	assert.Equal(18, cs1.Reads)
+	assert.Equal(16, cs1.Reads)
 	assert.Equal(85, cs2.Writes)
-	assert.Equal(8, cs2.Reads)
+	assert.Equal(6, cs2.Reads)
 }
 
 func TestListTypeAfterMutations(t *testing.T) {
