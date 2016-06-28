@@ -7,12 +7,13 @@ package dataset
 import (
 	"regexp"
 
+	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/types"
 )
 
-var idRe = regexp.MustCompile(`^[a-zA-Z0-9\-_/]+$`)
+var idRe = regexp.MustCompile("^" + constants.DatasetRe.String() + "$")
 
 type Dataset struct {
 	store datas.Database

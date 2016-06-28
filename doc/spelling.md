@@ -53,7 +53,7 @@ The `value-name` part can be either a ref or a dataset name. If  `value-name` ma
 http://api.noms.io/-/aa::foo
 
 # value sha1-e7219f3603e1a20a9fabaa43b3f3a7c443ae1041 at http://localhost:8000
-http://localhost:8000/monkey::sha1-e7219f3603e1a20a9fabaa43b3f3a7c443ae1041
+http://localhost:8000/monkey::#sha1-e7219f3603e1a20a9fabaa43b3f3a7c443ae1041
 
 # “bonk” dataset at ldb:/foo/bar
 ldb:/foo/bar::bonk

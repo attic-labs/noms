@@ -85,6 +85,11 @@ func Parse(s string) Hash {
 	return r
 }
 
+func StringLen() int {
+	// len("sha1-") = 5 + hash size = 40.
+	return 45
+}
+
 func (r Hash) Less(other Hash) bool {
 	return bytes.Compare(r.digest[:], other.digest[:]) < 0
 }

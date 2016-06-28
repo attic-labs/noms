@@ -257,7 +257,6 @@ func TestPathParseErrors(t *testing.T) {
 	}
 
 	test("", "Empty path")
-	test("foo", "f is not a valid operator")
 	test(".", "Invalid field ")
 	test("[", "Path ends in [")
 	test(".#", "Invalid field #")
