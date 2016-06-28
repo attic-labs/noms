@@ -21,14 +21,14 @@ import (
 var datasetCapturePrefixRe = regexp.MustCompile("^(" + constants.DatasetRe.String() + ")")
 
 type Path struct {
-	rootDatasetId string
-	rootHash      hash.Hash
-	parts         []pathPart
+	rootDataset string
+	rootHash    hash.Hash
+	parts       []pathPart
 }
 
-type RootGetter interface {
-	GetDatasetHead(id string) Value
-	GetHash(h hash.Hash) Value
+type PathRootGetter interface {
+	GetDatasetHead(id string) (Value, error)
+	GetHash(h hash.Hash) (Value, error)
 }
 
 type pathPart interface {
@@ -44,11 +44,11 @@ func ParsePath(path string) (Path, error) {
 	return NewPath().AddPath(path)
 }
 
-func (p Path) SetRootDatasetId(id string) Path {
+func (p Path) SetRootDataset(id string) Path {
 	d.Chk.False(p.HasRoot(), "Path already has a root")
 	parts := make([]pathPart, len(p.parts))
 	copy(parts, p.parts)
-	return Path{rootDatasetId: id, parts: parts}
+	return Path{rootDataset: id, parts: parts}
 }
 
 func (p Path) SetRootHash(h hash.Hash) Path {
@@ -59,7 +59,7 @@ func (p Path) SetRootHash(h hash.Hash) Path {
 }
 
 func (p Path) HasRoot() bool {
-	return len(p.rootDatasetId) > 0 || !p.rootHash.IsEmpty()
+	return len(p.rootDataset) > 0 || !p.rootHash.IsEmpty()
 }
 
 func (p Path) AddField(name string) Path {
@@ -77,7 +77,7 @@ func (p Path) AddHashIndex(h hash.Hash) Path {
 func (p Path) appendPart(part pathPart) Path {
 	parts := make([]pathPart, len(p.parts), len(p.parts)+1)
 	copy(parts, p.parts)
-	return Path{p.rootDatasetId, p.rootHash, parts}
+	return Path{p.rootDataset, p.rootHash, append(parts, part)}
 }
 
 func (p Path) AddPath(str string) (Path, error) {
@@ -101,19 +101,24 @@ func (p Path) addPath(str string, isRoot bool) (Path, error) {
 			return Path{}, errors.New("# operator can only be the first character")
 		}
 
-		hashstr := tail[:hash.StringLen()]
-		h, ok := hash.MaybeParse(hashstr)
-		if !ok {
-			return Path{}, errors.New("Invalid hash " + hashstr)
+		hashlen := hash.StringLen()
+		if len(tail) < hashlen {
+			return Path{}, errors.New("Invalid hash: " + tail)
 		}
 
-		tail = tail[hash.StringLen():]
+		hashstr := tail[:hashlen]
+		h, ok := hash.MaybeParse(hashstr)
+		if !ok {
+			return Path{}, errors.New("Invalid hash: " + hashstr)
+		}
+
+		tail = tail[hashlen:]
 		return p.SetRootHash(h).addPath(tail, false)
 
 	case '.':
 		idx := fieldNameComponentRe.FindIndex([]byte(tail))
 		if idx == nil {
-			return Path{}, errors.New("Invalid field " + tail)
+			return Path{}, errors.New("Invalid field: " + tail)
 		}
 
 		return p.AddField(tail[:idx[1]]).addPath(tail[idx[1]:], false)
@@ -141,17 +146,17 @@ func (p Path) addPath(str string, isRoot bool) (Path, error) {
 	default:
 		// Operator isn't recognised, try to parse the whole string as a dataset root.
 		if !isRoot {
-			return Path{}, fmt.Errorf("%c is not a valid operator", op)
+			return Path{}, fmt.Errorf("Invalid operator: %c", op)
 		}
 
 		datasetIdParts := datasetCapturePrefixRe.FindStringSubmatch(str)
 		if datasetIdParts == nil {
-			return Path{}, fmt.Errorf("invalid dataset name: %s", str)
+			return Path{}, fmt.Errorf("Invalid dataset name: %s", str)
 		}
 
 		datasetId := datasetIdParts[1]
 		tail := str[len(datasetId):]
-		return p.SetRootDatasetId(datasetId).addPath(tail, false)
+		return p.SetRootDataset(datasetId).addPath(tail, false)
 	}
 }
 
@@ -167,25 +172,38 @@ func (p Path) Resolve(v Value) (resolved Value) {
 	return
 }
 
-func (p Path) ResolveInRoot(getter RootGetter) (resolved Value) {
-	var root Value
+func (p Path) ResolveFromRoot(getter PathRootGetter) (val Value, err error) {
 	if !p.HasRoot() {
 		d.Chk.Fail("Path does not have a root")
-	} else if len(p.rootDatasetId) > 0 {
-		root = getter.GetDatasetHead(p.rootDatasetId)
+	} else if len(p.rootDataset) > 0 {
+		val, err = getter.GetDatasetHead(p.rootDataset)
 	} else if !p.rootHash.IsEmpty() {
-		root = getter.GetHash(p.rootHash)
+		val, err = getter.GetHash(p.rootHash)
 	}
 
-	if root == nil {
-		return nil
+	if err != nil {
+		d.Chk.Nil(val)
+		return
 	}
 
-	return p.Resolve(root)
+	d.Chk.NotNil(val)
+	return p.Resolve(val), nil
 }
 
 func (p Path) String() string {
-	strs := make([]string, len(p.parts))
+	nparts := len(p.parts)
+	if p.HasRoot() {
+		nparts++
+	}
+
+	strs := make([]string, 0, nparts)
+
+	if len(p.rootDataset) > 0 {
+		strs = append(strs, p.rootDataset)
+	} else if !p.rootHash.IsEmpty() {
+		strs = append(strs, "#"+p.rootHash.String())
+	}
+
 	for _, part := range p.parts {
 		strs = append(strs, part.String())
 	}
@@ -335,7 +353,7 @@ Switch:
 			hashStr := idxStr[1:]
 			h, _ = hash.MaybeParse(hashStr)
 			if h.IsEmpty() {
-				err = errors.New("Invalid hash " + hashStr)
+				err = errors.New("Invalid hash: " + hashStr)
 			}
 		} else if idxStr == "true" {
 			idx = Bool(true)
@@ -345,7 +363,7 @@ Switch:
 			// Should we be more strict here? ParseFloat allows leading and trailing dots, and exponents.
 			idx = Number(i)
 		} else {
-			err = errors.New("Invalid index " + idxStr)
+			err = errors.New("Invalid index: " + idxStr)
 		}
 	}
 

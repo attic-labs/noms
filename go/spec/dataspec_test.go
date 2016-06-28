@@ -14,7 +14,6 @@ import (
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/dataset"
-	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/testify/assert"
 )
@@ -63,8 +62,7 @@ func TestMemDataset(t *testing.T) {
 	assert := assert.New(t)
 
 	spec := "mem::datasetTest"
-	sp1, rem, err := parseDatasetSpec(spec)
-	assert.Equal("", rem)
+	sp1, err := parseDatasetSpec(spec)
 	assert.NoError(err)
 	dataset1, err := sp1.Dataset()
 	assert.NoError(err)
@@ -91,8 +89,7 @@ func TestLDBDataset(t *testing.T) {
 	ds.Close()
 
 	spec := fmt.Sprintf("ldb:%s::%s", ldbPath, id)
-	sp, rem, err := parseDatasetSpec(spec)
-	assert.Equal("", rem)
+	sp, err := parseDatasetSpec(spec)
 	assert.NoError(err)
 	dataset, err := sp.Dataset()
 	assert.NoError(err)
@@ -119,8 +116,7 @@ func TestLDBObject(t *testing.T) {
 
 	spec2 := fmt.Sprintf("ldb:%s::%s", ldbpath, dsId)
 	assert.NoError(err)
-	sp1, rem, err := parseDatasetSpec(spec2)
-	assert.Equal("", rem)
+	sp1, err := parseDatasetSpec(spec2)
 	assert.NoError(err)
 	dataset2, err := sp1.Dataset()
 	assert.NoError(err)
@@ -130,7 +126,7 @@ func TestLDBObject(t *testing.T) {
 	dataset2.Database().Close()
 
 	spec3 := fmt.Sprintf("ldb:%s::#%s", ldbpath, s1.Hash().String())
-	sp3, err := parseValueSpec(spec3)
+	sp3, err := parsePathSpec(spec3)
 	assert.NoError(err)
 	database, v3, err := sp3.Value()
 	assert.NoError(err)
@@ -156,7 +152,7 @@ func TestReadHash(t *testing.T) {
 	dataset1.Database().Close()
 
 	spec2 := fmt.Sprintf("ldb:%s::#%s", ldbPath, r1.String())
-	sp2, err := parseValueSpec(spec2)
+	sp2, err := parsePathSpec(spec2)
 	assert.NoError(err)
 	database, v2, err := sp2.Value()
 	assert.NoError(err)
@@ -203,19 +199,19 @@ func TestdatasetSpecs(t *testing.T) {
 	badSpecs := []string{"mem", "mem:", "mem:::ds", "http", "http:", "http://foo", "monkey", "monkey:balls", "http::dsname", "mem:/a/bogus/path:dsname", "http://localhost:8000/one"}
 
 	for _, spec := range badSpecs {
-		_, _, err := parseDatasetSpec(spec)
+		_, err := parseDatasetSpec(spec)
 		assert.Error(err)
 	}
 
 	invalidDatasetNames := []string{" ", "", "$", "#", ":", "\n", "💩"}
 	for _, s := range invalidDatasetNames {
-		_, _, err := parseDatasetSpec("mem::" + s)
+		_, err := parseDatasetSpec("mem::" + s)
 		assert.Error(err)
 	}
 
 	validDatasetNames := []string{"a", "Z", "0", "/", "-", "_"}
 	for _, s := range validDatasetNames {
-		_, _, err := parseDatasetSpec("mem::" + s)
+		_, err := parseDatasetSpec("mem::" + s)
 		assert.NoError(err)
 	}
 
@@ -234,114 +230,41 @@ func TestdatasetSpecs(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		dsSpec, rem, err := parseDatasetSpec(tc.spec)
-		assert.Equal("", rem)
+		dsSpec, err := parseDatasetSpec(tc.spec)
 		assert.NoError(err)
 		dbSpec1 := databaseSpec{Protocol: tc.scheme, Path: tc.path, accessToken: tc.accessToken}
 		assert.Equal(datasetSpec{DbSpec: dbSpec1, DatasetName: tc.ds}, dsSpec)
 	}
 }
 
-func TesthashSpec(t *testing.T) {
+func TestPathSpec(t *testing.T) {
 	assert := assert.New(t)
 
 	badSpecs := []string{"mem::#", "mem::#s", "mem::#sha1-foobarbaz", "mem::#sha1-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"}
 	for _, bs := range badSpecs {
-		_, _, err := parseHashSpec(bs)
+		_, err := parsePathSpec(bs)
 		assert.Error(err)
 	}
 
 	type testCase struct {
-		spec, scheme, path, hash string
+		spec, scheme, dbPath, pathStr string
 	}
 
 	testCases := []testCase{
-		testCase{"http://local.attic.io/john/doe::#sha1-0123456789012345678901234567890123456789", "http", "//local.attic.io/john/doe", "sha1-0123456789012345678901234567890123456789"},
-		testCase{"ldb:/filesys/john/doe::#sha1-0123456789012345678901234567890123456789", "ldb", "/filesys/john/doe", "sha1-0123456789012345678901234567890123456789"},
-		testCase{"mem::#sha1-0123456789012345678901234567890123456789", "mem", "", "sha1-0123456789012345678901234567890123456789"},
+		testCase{"http://local.attic.io/john/doe::#sha1-0123456789012345678901234567890123456789", "http", "//local.attic.io/john/doe", "#sha1-0123456789012345678901234567890123456789"},
+		testCase{"ldb:/filesys/john/doe::#sha1-0123456789012345678901234567890123456789", "ldb", "/filesys/john/doe", "#sha1-0123456789012345678901234567890123456789"},
+		testCase{"mem::#sha1-0123456789012345678901234567890123456789", "mem", "", "#sha1-0123456789012345678901234567890123456789"},
+		testCase{"http://local.attic.io/john/doe::#sha1-0123456789012345678901234567890123456789", "http", "//local.attic.io/john/doe", "#sha1-0123456789012345678901234567890123456789"},
+		testCase{"http://localhost:8000/john/doe/::ds1", "http", "//localhost:8000/john/doe/", "ds1"},
 	}
 
 	for _, tc := range testCases {
-		spec, rem, err := parseHashSpec(tc.spec)
-		assert.Equal("", rem)
+		dbSpec := databaseSpec{Protocol: tc.scheme, Path: tc.dbPath, accessToken: ""}
+		path, err := types.ParsePath(tc.pathStr)
 		assert.NoError(err)
-		dbSpec1 := databaseSpec{Protocol: tc.scheme, Path: tc.path, accessToken: ""}
-		assert.Equal(hashSpec{DbSpec: dbSpec1, Hash: hash.Parse(tc.hash)}, spec)
-	}
-}
-
-func TestpathSpec(t *testing.T) {
-	assert := assert.New(t)
-
-	type testCase struct {
-		spec, scheme, path, ds, hash string
-	}
-
-	testCases := []testCase{
-		testCase{"http://local.attic.io/john/doe::#sha1-0123456789012345678901234567890123456789", "http", "//local.attic.io/john/doe", "", "sha1-0123456789012345678901234567890123456789"},
-		testCase{"http://localhost:8000/john/doe/::ds1", "http", "//localhost:8000/john/doe/", "ds1", ""},
-	}
-
-	for _, tc := range testCases {
-		pathSpec, err := parseValueSpec(tc.spec)
+		expected := pathSpec{dbSpec, path}
+		actual, err := parsePathSpec(tc.spec)
 		assert.NoError(err)
-		dbSpec1 := databaseSpec{Protocol: tc.scheme, Path: tc.path, accessToken: ""}
-		if tc.hash != "" {
-			assert.Equal(hashSpec{DbSpec: dbSpec1, Hash: hash.Parse(tc.hash)}, pathSpec.(hashSpec))
-		} else {
-			assert.Equal(datasetSpec{DbSpec: dbSpec1, DatasetName: tc.ds}, pathSpec.(datasetSpec))
-		}
+		assert.Equal(expected, actual)
 	}
-
-	_, err := parseValueSpec("http://local.attic.io")
-	assert.Error(err)
-}
-
-func TestFullPaths(t *testing.T) {
-	assert := assert.New(t)
-
-	dir, err := ioutil.TempDir(os.TempDir(), "")
-	assert.NoError(err)
-	ldbPath := path.Join(dir, "TestFullPaths")
-	cs := chunks.NewLevelDBStoreUseFlags(ldbPath, "")
-	db := datas.NewDatabase(cs)
-	ds := dataset.NewDataset(db, "ds")
-
-	s0, s1 := types.String("foo"), types.String("bar")
-	list := types.NewList(s0, s1)
-
-	// Make values addressable.
-	db.WriteValue(s0)
-	db.WriteValue(s1)
-	db.WriteValue(list)
-
-	_, err = ds.Commit(list)
-	assert.NoError(err)
-	db.Close()
-
-	getPath := func(path string, a ...interface{}) types.Value {
-		db, val, _ := GetValue(fmt.Sprintf("ldb:%s::%s", ldbPath, fmt.Sprintf(path, a...)))
-		if db != nil {
-			db.Close()
-		}
-		return val
-	}
-
-	assert.NotNil(list, getPath("ds"))
-	assert.Equal(uint64(0), getPath("ds.parents").(types.Set).Len())
-	assert.True(list.Equals(getPath("ds.value")))
-	assert.True(s0.Equals(getPath("ds.value[0]")))
-	assert.True(s1.Equals(getPath("ds.value[1]")))
-	assert.True(list.Equals(getPath("#%s", list.Hash().String())))
-	assert.True(s0.Equals(getPath("#%s", s0.Hash().String())))
-	assert.True(s1.Equals(getPath("#%s", s1.Hash().String())))
-	assert.True(s0.Equals(getPath("#%s[0]", list.Hash().String())))
-	assert.True(s1.Equals(getPath("#%s[1]", list.Hash().String())))
-
-	assert.Nil(getPath("foo"))
-	assert.Nil(getPath("foo.parents"))
-	assert.Nil(getPath("foo.value"))
-	assert.Nil(getPath("foo.value[0]"))
-	assert.Nil(getPath("#%s", types.String("baz").Hash()))
-	assert.Nil(getPath("#%s[0]", types.String("baz").Hash()))
 }
