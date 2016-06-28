@@ -161,13 +161,13 @@ func TestReadHash(t *testing.T) {
 	database.Close()
 }
 
-func TestdatabaseSpecs(t *testing.T) {
+func TestDatabaseSpecs(t *testing.T) {
 	assert := assert.New(t)
 
-	badSpecs := []string{"mem:stuff", "mem:", "http:", "https:", "random:", "random:random", "http://some.com/wi::rd/path", "/file/ba:d"}
+	badSpecs := []string{"mem:stuff", "mem:", "http:", "https:", "random:", "random:random", "/file/ba:d"}
 	for _, spec := range badSpecs {
 		_, err := parseDatabaseSpec(spec)
-		assert.Error(err)
+		assert.Error(err, spec)
 	}
 
 	type testCase struct {
@@ -194,13 +194,13 @@ func TestdatabaseSpecs(t *testing.T) {
 	}
 }
 
-func TestdatasetSpecs(t *testing.T) {
+func TestDatasetSpecs(t *testing.T) {
 	assert := assert.New(t)
-	badSpecs := []string{"mem", "mem:", "mem:::ds", "http", "http:", "http://foo", "monkey", "monkey:balls", "http::dsname", "mem:/a/bogus/path:dsname", "http://localhost:8000/one"}
+	badSpecs := []string{"mem", "mem:", "mem:::ds", "http", "http:", "http://foo", "monkey", "monkey:balls", "mem:/a/bogus/path:dsname", "http://localhost:8000/one"}
 
 	for _, spec := range badSpecs {
 		_, err := parseDatasetSpec(spec)
-		assert.Error(err)
+		assert.Error(err, spec)
 	}
 
 	invalidDatasetNames := []string{" ", "", "$", "#", ":", "\n", "💩"}

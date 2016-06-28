@@ -104,7 +104,7 @@ func parseDatabaseSpec(spec string) (databaseSpec, error) {
 	switch protocol {
 	case "http", "https":
 		u, err := url.Parse(spec)
-		if err != nil {
+		if err != nil || len(u.Host) == 0 {
 			return databaseSpec{}, fmt.Errorf("Invalid URL: %s", spec)
 		}
 		token := u.Query().Get("access_token")

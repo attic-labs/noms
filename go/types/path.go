@@ -46,16 +46,12 @@ func ParsePath(path string) (Path, error) {
 
 func (p Path) SetRootDataset(id string) Path {
 	d.Chk.False(p.HasRoot(), "Path already has a root")
-	parts := make([]pathPart, len(p.parts))
-	copy(parts, p.parts)
-	return Path{rootDataset: id, parts: parts}
+	return Path{rootDataset: id, parts: p.copyParts(0)}
 }
 
 func (p Path) SetRootHash(h hash.Hash) Path {
 	d.Chk.False(p.HasRoot(), "Path already has a root")
-	parts := make([]pathPart, len(p.parts))
-	copy(parts, p.parts)
-	return Path{rootHash: h, parts: parts}
+	return Path{rootHash: h, parts: p.copyParts(0)}
 }
 
 func (p Path) HasRoot() bool {
@@ -75,9 +71,13 @@ func (p Path) AddHashIndex(h hash.Hash) Path {
 }
 
 func (p Path) appendPart(part pathPart) Path {
-	parts := make([]pathPart, len(p.parts), len(p.parts)+1)
+	return Path{p.rootDataset, p.rootHash, append(p.copyParts(1), part)}
+}
+
+func (p Path) copyParts(n int) []pathPart {
+	parts := make([]pathPart, len(p.parts), len(p.parts)+n)
 	copy(parts, p.parts)
-	return Path{p.rootDataset, p.rootHash, append(parts, part)}
+	return parts
 }
 
 func (p Path) AddPath(str string) (Path, error) {
@@ -112,8 +112,7 @@ func (p Path) addPath(str string, isRoot bool) (Path, error) {
 			return Path{}, errors.New("Invalid hash: " + hashstr)
 		}
 
-		tail = tail[hashlen:]
-		return p.SetRootHash(h).addPath(tail, false)
+		return p.SetRootHash(h).addPath(tail[hashlen:], false)
 
 	case '.':
 		idx := fieldNameComponentRe.FindIndex([]byte(tail))
@@ -155,8 +154,7 @@ func (p Path) addPath(str string, isRoot bool) (Path, error) {
 		}
 
 		datasetId := datasetIdParts[1]
-		tail := str[len(datasetId):]
-		return p.SetRootDataset(datasetId).addPath(tail, false)
+		return p.SetRootDataset(datasetId).addPath(str[len(datasetId):], false)
 	}
 }
 
@@ -173,12 +171,12 @@ func (p Path) Resolve(v Value) (resolved Value) {
 }
 
 func (p Path) ResolveFromRoot(getter PathRootGetter) (val Value, err error) {
-	if !p.HasRoot() {
-		d.Chk.Fail("Path does not have a root")
-	} else if len(p.rootDataset) > 0 {
+	if len(p.rootDataset) > 0 {
 		val, err = getter.GetDatasetHead(p.rootDataset)
 	} else if !p.rootHash.IsEmpty() {
 		val, err = getter.GetHash(p.rootHash)
+	} else {
+		d.Chk.Fail("Path does not have a root")
 	}
 
 	if err != nil {
