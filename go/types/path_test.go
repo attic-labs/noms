@@ -110,24 +110,20 @@ func TestPathHashIndex(t *testing.T) {
 		return fmt.Sprintf("[#%s]", v.Hash())
 	}
 
-	// Primitives are only addressable by their values.
-	resolvesToNil := func(col, val Value) {
-		assertPathResolvesTo(assert, nil, col, NewPath().AddHashIndex(val.Hash()))
-		assertPathStringResolvesTo(assert, nil, col, hashStr(val))
-	}
-
-	resolvesToNil(m, b)
-	resolvesToNil(m, i)
-	resolvesToNil(m, str)
-	resolvesToNil(s, b)
-	resolvesToNil(s, i)
-	resolvesToNil(s, str)
-
-	// Other values are only addressable by their hashes.
 	resolvesTo := func(col, exp, val Value) {
 		assertPathResolvesTo(assert, exp, col, NewPath().AddHashIndex(val.Hash()))
 		assertPathStringResolvesTo(assert, exp, col, hashStr(val))
 	}
+
+	// Primitives are only addressable by their values.
+	resolvesTo(m, nil, b)
+	resolvesTo(m, nil, i)
+	resolvesTo(m, nil, str)
+	resolvesTo(s, nil, b)
+	resolvesTo(s, nil, i)
+	resolvesTo(s, nil, str)
+
+	// Other values are only addressable by their hashes.
 
 	resolvesTo(m, i, br)
 	resolvesTo(m, lr, l)
@@ -137,7 +133,7 @@ func TestPathHashIndex(t *testing.T) {
 	resolvesTo(s, lr, lr)
 
 	// Lists cannot be addressed by hashes, obviously.
-	resolvesToNil(l, i)
+	resolvesTo(l, nil, i)
 }
 
 func TestPathHashIndexOfSingletonCollection(t *testing.T) {
