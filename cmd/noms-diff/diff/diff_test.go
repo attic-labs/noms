@@ -82,14 +82,14 @@ func TestNomsMapdiff(t *testing.T) {
 func TestNomsSetDiff(t *testing.T) {
 	assert := assert.New(t)
 
-	expected := "-   \"five\"\n./ {\n+   \"five-diff\"\n  }\n"
+	expected := "./ {\n-   \"five\"\n+   \"five-diff\"\n  }\n"
 	s1 := createSet("one", "three", "five", "seven", "nine")
 	s2 := createSet("one", "three", "five-diff", "seven", "nine")
 	buf := util.NewBuffer(nil)
 	Diff(buf, s1, s2)
 	assert.Equal(expected, buf.String())
 
-	expected = "-   {\n-     \"m1\": \"m-one\",\n-     \"m3\": \"m-three\",\n-     \"m4\": {\n-       \"a1\": \"a-one\",\n-       \"a2\": \"a-two\",\n-       \"a3\": \"a-three\",\n-       \"a4\": \"a-four\",\n-     },\n-     \"v2\": \"m-two\",\n-   }\n./ {\n+   {\n+     \"m1\": \"m-one\",\n+     \"m3\": \"m-three-diff\",\n+     \"m4\": {\n+       \"a1\": \"a-one-diff\",\n+       \"a2\": \"a-two\",\n+       \"a3\": \"a-three\",\n+       \"a4\": \"a-four\",\n+     },\n+     \"v2\": \"m-two\",\n+   }\n  }\n"
+	expected = "./ {\n-   {\n-     \"m1\": \"m-one\",\n-     \"m3\": \"m-three\",\n-     \"m4\": {\n-       \"a1\": \"a-one\",\n-       \"a2\": \"a-two\",\n-       \"a3\": \"a-three\",\n-       \"a4\": \"a-four\",\n-     },\n-     \"v2\": \"m-two\",\n-   }\n+   {\n+     \"m1\": \"m-one\",\n+     \"m3\": \"m-three-diff\",\n+     \"m4\": {\n+       \"a1\": \"a-one-diff\",\n+       \"a2\": \"a-two\",\n+       \"a3\": \"a-three\",\n+       \"a4\": \"a-four\",\n+     },\n+     \"v2\": \"m-two\",\n+   }\n  }\n"
 	s1 = createSet(mm1, mm2, mm3, mm4)
 	s2 = createSet(mm1, mm2, mm3x, mm4)
 	buf = util.NewBuffer(nil)

@@ -121,6 +121,7 @@ func diffMaps(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.Map) {
 				wroteHeader = writeHeader(w, wroteHeader, p)
 				line(w, addPrefix, change.V, v2.Get(change.V))
 			case types.DiffChangeRemoved:
+				wroteHeader = writeHeader(w, wroteHeader, p)
 				line(w, subPrefix, change.V, v1.Get(change.V))
 			case types.DiffChangeModified:
 				c1, c2 := v1.Get(change.V), v2.Get(change.V)
@@ -176,6 +177,7 @@ func diffSets(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.Set) {
 				wroteHeader = writeHeader(w, wroteHeader, p)
 				line(w, addPrefix, nil, change.V)
 			case types.DiffChangeRemoved:
+				wroteHeader = writeHeader(w, wroteHeader, p)
 				line(w, subPrefix, nil, change.V)
 			default:
 				// sets should not have any DiffChangeModified or unknown change types
