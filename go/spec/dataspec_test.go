@@ -260,7 +260,7 @@ func TestPathSpec(t *testing.T) {
 
 	for _, tc := range testCases {
 		dbSpec := databaseSpec{Protocol: tc.scheme, Path: tc.dbPath, accessToken: ""}
-		path, err := types.ParsePath(tc.pathStr)
+		path, err := NewAbsolutePath(tc.pathStr)
 		assert.NoError(err)
 		expected := pathSpec{dbSpec, path}
 		actual, err := parsePathSpec(tc.spec)

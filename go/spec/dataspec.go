@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/dataset"
@@ -20,7 +19,7 @@ import (
 )
 
 var (
-	datasetRe = regexp.MustCompile("^" + constants.DatasetRe.String() + "$")
+	datasetRe = regexp.MustCompile("^" + dataset.DatasetRe.String() + "$")
 )
 
 func GetDatabase(str string) (datas.Database, error) {
@@ -76,7 +75,7 @@ type datasetSpec struct {
 
 type pathSpec struct {
 	DbSpec databaseSpec
-	Path   types.Path
+	Path   AbsolutePath
 }
 
 func parseDatabaseSpec(spec string) (databaseSpec, error) {
@@ -142,7 +141,7 @@ func parseDatasetSpec(spec string) (datasetSpec, error) {
 	}
 
 	if !datasetRe.MatchString(dsName) {
-		return datasetSpec{}, fmt.Errorf("Invalid dataset, must match %s: %s", constants.DatasetRe.String(), dsName)
+		return datasetSpec{}, fmt.Errorf("Invalid dataset, must match %s: %s", dataset.DatasetRe.String(), dsName)
 	}
 
 	return datasetSpec{dbSpec, dsName}, nil
@@ -154,7 +153,7 @@ func parsePathSpec(spec string) (pathSpec, error) {
 		return pathSpec{}, err
 	}
 
-	path, err := types.ParsePath(pathStr)
+	path, err := NewAbsolutePath(pathStr)
 	if err != nil {
 		return pathSpec{}, err
 	}
@@ -218,24 +217,8 @@ func (spec pathSpec) Value() (db datas.Database, val types.Value, err error) {
 		return
 	}
 
-	val = spec.Path.ResolveFromRoot(specPathRootGetter{spec, db})
+	val = spec.Path.Resolve(db)
 	return
-}
-
-type specPathRootGetter struct {
-	spec pathSpec
-	db   datas.Database
-}
-
-func (g specPathRootGetter) GetDatasetHead(id string) types.Value {
-	if head, ok := g.db.MaybeHead(id); ok {
-		return head
-	}
-	return nil
-}
-
-func (g specPathRootGetter) GetHash(h hash.Hash) types.Value {
-	return g.db.ReadValue(h)
 }
 
 func RegisterDatabaseFlags() {

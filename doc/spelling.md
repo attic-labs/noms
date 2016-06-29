@@ -39,12 +39,14 @@ https://demo.noms.io/aa::music
 Value specifications take the form:
 
 ```
-<database>::<value-name>
+<database>::<value-name>::<path>
 ```
 
 See [spelling databases](#spelling-databases) for how to build the database part of the name.
 
-The `value-name` part can be either a ref or a dataset name. If  `value-name` matches the pattern `^sha1-[0-9a-fA-F]{40}$`, it will be interpreted as a ref. Otherwise it will be interpreted as a dataset name.
+The `value-name` part can be either a hash or a dataset name. If  `value-name` matches the pattern `^#sha1-[0-9a-fA-F]{40}$`, it will be interpreted as a hash. Otherwise it will be interpreted as a dataset name.
+
+The `path` part is relative to the value at `value-name`. See [#1399](https://github.com/attic-labs/noms/issues/1399) for spelling.
 
 ### Examples
 

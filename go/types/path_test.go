@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/testify/assert"
 )
 
@@ -213,8 +212,6 @@ func TestPathToAndFromString(t *testing.T) {
 	test(".foo[0].bar[4.5][false]", NewPath().AddField("foo").AddIndex(Number(0)).AddField("bar").AddIndex(Number(4.5)).AddIndex(Bool(false)))
 	h := Number(42).Hash() // arbitrary hash
 	test(fmt.Sprintf(".foo[#%s]", h.String()), NewPath().AddField("foo").AddHashIndex(h))
-	test(fmt.Sprintf("foo.bar[#%s]", h.String()), NewPath().SetRootDataset("foo").AddField("bar").AddHashIndex(h))
-	test(fmt.Sprintf("#%s.bar[42]", h.String()), NewPath().SetRootHash(h).AddField("bar").AddIndex(Number(42)))
 }
 
 func TestPathImmutability(t *testing.T) {
@@ -281,8 +278,8 @@ func TestPathParseErrors(t *testing.T) {
 	test(".foo.#invalid.field", "Invalid field: #invalid.field")
 	test(".foo!", "Invalid operator: !")
 	test(".foo!bar", "Invalid operator: !")
-	test(".foo#", "# operator can only be the first character")
-	test(".foo#bar", "# operator can only be the first character")
+	test(".foo#", "Invalid operator: #")
+	test(".foo#bar", "Invalid operator: #")
 	test(".foo[", "Path ends in [")
 	test(".foo[.bar", "[ is missing closing ]")
 	test(".foo]", "] is missing opening [")
@@ -305,65 +302,6 @@ func TestPathParseErrors(t *testing.T) {
 	test(".foo[#sha1-invalid]", "Invalid hash: sha1-invalid")
 	test(`.foo["hello\nworld"]`, `Only " and \ can be escaped`)
 	test(".foo[42]bar", "Invalid operator: b")
-	test("#foo", "Invalid hash: foo")
-	test("!foo", "Invalid dataset name: !foo")
-}
-
-type testPathRootGetter struct {
-	datasets map[string]Value
-	hashes   map[hash.Hash]Value
-}
-
-func (g testPathRootGetter) GetDatasetHead(id string) Value {
-	return g.datasets[id]
-}
-
-func (g testPathRootGetter) GetHash(h hash.Hash) Value {
-	return g.hashes[h]
-}
-
-func TestFullPaths(t *testing.T) {
-	assert := assert.New(t)
-
-	s0, s1 := String("foo"), String("bar")
-	list := NewList(s0, s1)
-	emptySet := NewSet()
-	ds := NewStruct("Commit", structData{
-		"parents": emptySet,
-		"value":   list,
-	})
-
-	g := testPathRootGetter{
-		map[string]Value{"ds": ds},
-		map[hash.Hash]Value{s0.Hash(): s0, s1.Hash(): s1, list.Hash(): list},
-	}
-
-	resolvesTo := func(exp Value, str string) {
-		p, err := ParsePath(str)
-		assert.NoError(err)
-		act := p.ResolveFromRoot(g)
-		if exp == nil {
-			assert.Nil(act)
-		} else {
-			assert.True(exp.Equals(act))
-		}
-	}
-
-	resolvesTo(ds, "ds")
-	resolvesTo(emptySet, "ds.parents")
-	resolvesTo(list, "ds.value")
-	resolvesTo(s0, "ds.value[0]")
-	resolvesTo(s1, "ds.value[1]")
-	resolvesTo(list, "#"+list.Hash().String())
-	resolvesTo(s0, "#"+s0.Hash().String())
-	resolvesTo(s1, "#"+s1.Hash().String())
-	resolvesTo(s0, "#"+list.Hash().String()+"[0]")
-	resolvesTo(s1, "#"+list.Hash().String()+"[1]")
-
-	resolvesTo(nil, "foo")
-	resolvesTo(nil, "foo.parents")
-	resolvesTo(nil, "foo.value")
-	resolvesTo(nil, "foo.value[0]")
-	resolvesTo(nil, "#"+String("baz").Hash().String())
-	resolvesTo(nil, "#"+String("baz").Hash().String()+"[0]")
+	test("#foo", "Invalid operator: #")
+	test("!foo", "Invalid operator: !")
 }

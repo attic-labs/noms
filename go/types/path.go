@@ -9,27 +9,14 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 )
 
-var datasetCapturePrefixRe = regexp.MustCompile("^(" + constants.DatasetRe.String() + ")")
-
-type Path struct {
-	rootDataset string
-	rootHash    hash.Hash
-	parts       []pathPart
-}
-
-type PathRootGetter interface {
-	GetDatasetHead(id string) Value
-	GetHash(h hash.Hash) Value
-}
+type Path []pathPart
 
 type pathPart interface {
 	Resolve(v Value) Value
@@ -42,20 +29,6 @@ func NewPath() Path {
 
 func ParsePath(path string) (Path, error) {
 	return NewPath().AddPath(path)
-}
-
-func (p Path) SetRootDataset(id string) Path {
-	d.Chk.False(p.HasRoot(), "Path already has a root")
-	return Path{rootDataset: id, parts: p.copyParts(0)}
-}
-
-func (p Path) SetRootHash(h hash.Hash) Path {
-	d.Chk.False(p.HasRoot(), "Path already has a root")
-	return Path{rootHash: h, parts: p.copyParts(0)}
-}
-
-func (p Path) HasRoot() bool {
-	return len(p.rootDataset) > 0 || !p.rootHash.IsEmpty()
 }
 
 func (p Path) AddField(name string) Path {
@@ -71,13 +44,9 @@ func (p Path) AddHashIndex(h hash.Hash) Path {
 }
 
 func (p Path) appendPart(part pathPart) Path {
-	return Path{p.rootDataset, p.rootHash, append(p.copyParts(1), part)}
-}
-
-func (p Path) copyParts(n int) []pathPart {
-	parts := make([]pathPart, len(p.parts), len(p.parts)+n)
-	copy(parts, p.parts)
-	return parts
+	p2 := make([]pathPart, len(p), len(p)+1)
+	copy(p2, p)
+	return append(p2, part)
 }
 
 func (p Path) AddPath(str string) (Path, error) {
@@ -85,10 +54,10 @@ func (p Path) AddPath(str string) (Path, error) {
 		return Path{}, errors.New("Empty path")
 	}
 
-	return p.addPath(str, true)
+	return p.addPath(str)
 }
 
-func (p Path) addPath(str string, isRoot bool) (Path, error) {
+func (p Path) addPath(str string) (Path, error) {
 	if len(str) == 0 {
 		return p, nil
 	}
@@ -96,30 +65,13 @@ func (p Path) addPath(str string, isRoot bool) (Path, error) {
 	op, tail := str[0], str[1:]
 
 	switch op {
-	case '#':
-		if !isRoot {
-			return Path{}, errors.New("# operator can only be the first character")
-		}
-
-		if len(tail) < hash.StringLen {
-			return Path{}, errors.New("Invalid hash: " + tail)
-		}
-
-		hashstr := tail[:hash.StringLen]
-		h, ok := hash.MaybeParse(hashstr)
-		if !ok {
-			return Path{}, errors.New("Invalid hash: " + hashstr)
-		}
-
-		return p.SetRootHash(h).addPath(tail[hash.StringLen:], false)
-
 	case '.':
 		idx := fieldNameComponentRe.FindIndex([]byte(tail))
 		if idx == nil {
 			return Path{}, errors.New("Invalid field: " + tail)
 		}
 
-		return p.AddField(tail[:idx[1]]).addPath(tail[idx[1]:], false)
+		return p.AddField(tail[:idx[1]]).addPath(tail[idx[1]:])
 
 	case '[':
 		if len(tail) == 0 {
@@ -133,33 +85,22 @@ func (p Path) addPath(str string, isRoot bool) (Path, error) {
 
 		d.Chk.NotEqual(idx == nil, h.IsEmpty())
 		if idx != nil {
-			return p.AddIndex(idx).addPath(rem, false)
+			return p.AddIndex(idx).addPath(rem)
 		} else {
-			return p.AddHashIndex(h).addPath(rem, false)
+			return p.AddHashIndex(h).addPath(rem)
 		}
 
 	case ']':
 		return Path{}, errors.New("] is missing opening [")
 
 	default:
-		// Operator isn't recognised, try to parse the whole string as a dataset root.
-		if !isRoot {
-			return Path{}, fmt.Errorf("Invalid operator: %c", op)
-		}
-
-		datasetIdParts := datasetCapturePrefixRe.FindStringSubmatch(str)
-		if datasetIdParts == nil {
-			return Path{}, fmt.Errorf("Invalid dataset name: %s", str)
-		}
-
-		datasetId := datasetIdParts[1]
-		return p.SetRootDataset(datasetId).addPath(str[len(datasetId):], false)
+		return Path{}, fmt.Errorf("Invalid operator: %c", op)
 	}
 }
 
 func (p Path) Resolve(v Value) (resolved Value) {
 	resolved = v
-	for _, part := range p.parts {
+	for _, part := range p {
 		if resolved == nil {
 			break
 		}
@@ -169,39 +110,11 @@ func (p Path) Resolve(v Value) (resolved Value) {
 	return
 }
 
-func (p Path) ResolveFromRoot(getter PathRootGetter) (val Value) {
-	if len(p.rootDataset) > 0 {
-		val = getter.GetDatasetHead(p.rootDataset)
-	} else if !p.rootHash.IsEmpty() {
-		val = getter.GetHash(p.rootHash)
-	} else {
-		d.Chk.Fail("Path does not have a root")
-	}
-
-	if val != nil {
-		val = p.Resolve(val)
-	}
-	return
-}
-
 func (p Path) String() string {
-	nparts := len(p.parts)
-	if p.HasRoot() {
-		nparts++
-	}
-
-	strs := make([]string, 0, nparts)
-
-	if len(p.rootDataset) > 0 {
-		strs = append(strs, p.rootDataset)
-	} else if !p.rootHash.IsEmpty() {
-		strs = append(strs, "#"+p.rootHash.String())
-	}
-
-	for _, part := range p.parts {
+	strs := make([]string, 0, len(p))
+	for _, part := range p {
 		strs = append(strs, part.String())
 	}
-
 	return strings.Join(strs, "")
 }
 
