@@ -83,7 +83,6 @@ Model metadata non-destructively, as verioned, revertable assertions from source
 
 Noms is a natural fit for moving structured data around widely distributed or decentralized applications. Rather than moving raw data files, e.g., with rsync, and then rebuilding the database at each node, just move the database itself.
 
-
 ## Get Involved
 
 Noms is developed in the open. Come say hi.
