@@ -94,10 +94,10 @@ func TestTypeCacheUnion(t *testing.T) {
 	assert.NotNil(ut.serialization)
 
 	ut = MakeUnionType(NumberType, StringType)
-	ut2 = MakeUnionType(NumberType, StringType)
+	ut2 = MakeUnionType(StringType, NumberType)
 	assert.True(ut == ut2)
 
-	ut = MakeUnionType(NumberType, StringType, BoolType)
+	ut = MakeUnionType(StringType, BoolType, NumberType)
 	ut2 = MakeUnionType(NumberType, StringType, BoolType)
 	assert.True(ut == ut2)
 }

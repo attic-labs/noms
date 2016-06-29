@@ -162,7 +162,7 @@ func (c CycleDesc) Kind() NomsKind {
 }
 
 func (c CycleDesc) Equals(other TypeDesc) bool {
-	return uint32(c) == uint32(other.(CycleDesc))
+	return c == other.(CycleDesc)
 }
 
 func (c CycleDesc) HasUnresolvedCycle(visited []*Type) bool {
@@ -172,5 +172,5 @@ func (c CycleDesc) HasUnresolvedCycle(visited []*Type) bool {
 type typeSlice []*Type
 
 func (ts typeSlice) Len() int           { return len(ts) }
-func (ts typeSlice) Less(i, j int) bool { return ts[i].Hash().Less(ts[j].Hash()) } // Cant this just be Type.Less()?
+func (ts typeSlice) Less(i, j int) bool { return ts[i].Hash().Less(ts[j].Hash()) }
 func (ts typeSlice) Swap(i, j int)      { ts[i], ts[j] = ts[j], ts[i] }

@@ -355,6 +355,27 @@ func TestRecursiveStruct(t *testing.T) {
 })`, d)
 }
 
+func TestUnserolvedRecursiveStruct(t *testing.T) {
+	// struct A {
+	//   a: A
+	//   b: Cycle<1> (unresolved)
+	// }
+
+	a := MakeStructType("A", TypeMap{
+		"a": MakeCycleType(0),
+		"b": MakeCycleType(1),
+	})
+
+	assertWriteHRSEqual(t, `struct A {
+  a: Cycle<0>,
+  b: Cycle<1>,
+}`, a)
+	assertWriteTaggedHRSEqual(t, `Type(struct A {
+  a: Cycle<0>,
+  b: Cycle<1>,
+})`, a)
+}
+
 type errorWriter struct {
 	err error
 }

@@ -27,7 +27,7 @@ type Type struct {
 	serialization []byte
 }
 
-var initialTypeBufferSize = 128
+const initialTypeBufferSize = 128
 
 func newType(desc TypeDesc, id uint32) *Type {
 	t := &Type{desc, &hash.Hash{}, id, nil}
@@ -38,7 +38,7 @@ func newType(desc TypeDesc, id uint32) *Type {
 }
 
 func serializeType(t *Type) {
-	w := &binaryNomsWriter{make([]byte, initialTypeBufferSize, initialTypeBufferSize), 0}
+	w := &binaryNomsWriter{make([]byte, initialTypeBufferSize), 0}
 	enc := newValueEncoder(w, nil)
 	enc.writeType(t, nil)
 	t.serialization = w.data()
@@ -55,7 +55,6 @@ func (t *Type) Kind() NomsKind {
 
 func (t *Type) Name() string {
 	// TODO: Remove from Type
-	d.Chk.IsType(StructDesc{}, t.Desc, "Name only works on Struct types")
 	return t.Desc.(StructDesc).Name
 }
 

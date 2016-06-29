@@ -62,10 +62,9 @@ func (tc *TypeCache) nextTypeId() uint32 {
 }
 
 func (tc *TypeCache) getCompoundType(kind NomsKind, elemTypes ...*Type) *Type {
-	d.Chk.NotNil(tc)
 	trie := tc.trieRoots[kind]
-	for i := 0; i < len(elemTypes); i++ {
-		trie = trie.Traverse(elemTypes[i].id)
+	for _, t := range elemTypes {
+		trie = trie.Traverse(t.id)
 	}
 
 	if trie.t == nil {
@@ -88,9 +87,9 @@ func (tc *TypeCache) makeStructType(name string, fields map[string]*Type) *Type 
 	sort.Sort(fs)
 
 	trie := tc.trieRoots[StructKind].Traverse(tc.identTable.GetId(name))
-	for i := 0; i < len(fs); i++ {
-		trie = trie.Traverse(tc.identTable.GetId(fs[i].name))
-		trie = trie.Traverse(fs[i].t.id)
+	for _, f := range fs {
+		trie = trie.Traverse(tc.identTable.GetId(f.name))
+		trie = trie.Traverse(f.t.id)
 	}
 
 	if trie.t == nil {
@@ -179,9 +178,9 @@ func resolveStructCycles(t *Type, parentStructTypes []*Type) *Type {
 		}
 
 	case CycleDesc:
-		idx := int(desc)
-		if idx < len(parentStructTypes) {
-			return parentStructTypes[len(parentStructTypes)-1-int(desc)]
+		idx := uint32(desc)
+		if idx < uint32(len(parentStructTypes)) {
+			return parentStructTypes[uint32(len(parentStructTypes))-1-idx]
 		}
 	}
 
@@ -190,12 +189,12 @@ func resolveStructCycles(t *Type, parentStructTypes []*Type) *Type {
 
 // Traverses a fully resolved cyclic type and ensures all types have serializations
 func ensureSerialization(t *Type, parentStructTypes []*Type) {
-	_, found := indexOfType(t, parentStructTypes)
+	idx, found := indexOfType(t, parentStructTypes)
 	if found {
+		d.Chk.True(parentStructTypes[idx].serialization != nil)
 		return
 	}
 
-	d.Chk.True(t.id != 0)
 	if t.serialization == nil {
 		serializeType(t)
 	}
@@ -296,7 +295,7 @@ func MakeCycleType(level uint32) *Type {
 	return staticTypeCache.getCyclicType(level)
 }
 
-// typeTrie is node is a "type trie". All types in noms are created in a deterministic order. A typeTrie stores types within a typeCache and allows construction of a prexisting type to return the already existing one rather than allocate a new one.
+// All types in noms are created in a deterministic order. A typeTrie stores types within a typeCache and allows construction of a prexisting type to return the already existing one rather than allocate a new one.
 type typeTrie struct {
 	t       *Type
 	entries map[uint32]*typeTrie
