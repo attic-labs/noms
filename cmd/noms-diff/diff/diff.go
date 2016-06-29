@@ -114,25 +114,33 @@ func diffMaps(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.Map) {
 	closeChan := make(chan struct{})
 	v2.Diff(v1, changes, closeChan)
 
-	for change := range changes {
-		if change.ChangeType == types.DiffChangeAdded {
-			wroteHeader = writeHeader(w, wroteHeader, p)
-			line(w, addPrefix, change.V, v2.Get(change.V))
-		} else if change.ChangeType == types.DiffChangeRemoved {
-			line(w, subPrefix, change.V, v1.Get(change.V))
-		} else {
-			c1, c2 := v1.Get(change.V), v2.Get(change.V)
-			if canCompare(c1, c2) {
-				buf := bytes.NewBuffer(nil)
-				d.PanicIfError(types.WriteEncodedValueWithTags(buf, change.V))
-				p1 := p.AddField(buf.String())
-				dq.PushBack(diffInfo{path: p1, key: change.V, v1: c1, v2: c2})
-			} else {
+	err := d.Try(func() {
+		for change := range changes {
+			switch change.ChangeType {
+			case types.DiffChangeAdded:
 				wroteHeader = writeHeader(w, wroteHeader, p)
-				line(w, subPrefix, change.V, v1.Get(change.V))
 				line(w, addPrefix, change.V, v2.Get(change.V))
+			case types.DiffChangeRemoved:
+				line(w, subPrefix, change.V, v1.Get(change.V))
+			case types.DiffChangeModified:
+				c1, c2 := v1.Get(change.V), v2.Get(change.V)
+				if canCompare(c1, c2) {
+					buf := bytes.NewBuffer(nil)
+					d.PanicIfError(types.WriteEncodedValueWithTags(buf, change.V))
+					p1 := p.AddField(buf.String())
+					dq.PushBack(diffInfo{path: p1, key: change.V, v1: c1, v2: c2})
+				} else {
+					wroteHeader = writeHeader(w, wroteHeader, p)
+					line(w, subPrefix, change.V, v1.Get(change.V))
+					line(w, addPrefix, change.V, v2.Get(change.V))
+				}
+			default:
+				panic("unknown change type")
 			}
 		}
+	})
+	if err != nil {
+		closeChan <- struct{}{}
 	}
 	writeFooter(w, wroteHeader)
 }
@@ -157,57 +165,26 @@ func diffStructs(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.Struct) 
 func diffSets(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.Set) {
 	wroteHeader := false
 
-	numAdded := 0
-	numRemoved := 0
-	var firstAdded, firstRemoved types.Value
-
 	changes := make(chan types.ValueChanged)
 	closeChan := make(chan struct{})
 	v2.Diff(v1, changes, closeChan)
 
-	for change := range changes {
-		if change.ChangeType == types.DiffChangeAdded {
-
-			// special case: detect only 1 added/1 removed for later
-			numAdded++
-			if firstAdded == nil && numAdded == 1 {
-				firstAdded = change.V
-				continue
-			} else if numAdded == 2 {
+	err := d.Try(func() {
+		for change := range changes {
+			switch change.ChangeType {
+			case types.DiffChangeAdded:
 				wroteHeader = writeHeader(w, wroteHeader, p)
-				line(w, addPrefix, nil, firstAdded)
-				firstAdded = nil
+				line(w, addPrefix, nil, change.V)
+			case types.DiffChangeRemoved:
+				line(w, subPrefix, nil, change.V)
+			default:
+				// sets should not have any DiffChangeModified or unknown change types
+				panic("unknown change type")
 			}
-
-			wroteHeader = writeHeader(w, wroteHeader, p)
-			line(w, addPrefix, nil, change.V)
-		} else if change.ChangeType == types.DiffChangeRemoved {
-
-			// special case: detect only 1 added/1 removed for later
-			numRemoved++
-			if firstRemoved == nil && numRemoved == 1 {
-				firstRemoved = change.V
-				continue
-			} else if numRemoved == 2 {
-				line(w, subPrefix, nil, firstRemoved)
-				firstRemoved = nil
-			}
-
-			line(w, subPrefix, nil, change.V)
 		}
-	}
-
-	// special case: if only 1 added/1 removed && canCompare go further with diff
-	if numAdded == 1 && numRemoved == 1 {
-		if canCompare(firstAdded, firstRemoved) {
-			p1 := p.AddField(firstAdded.Hash().String())
-			dq.PushBack(diffInfo{path: p1, key: types.String(""), v1: firstRemoved, v2: firstAdded})
-		} else {
-			// can't compare so output the add/remove as above would have done
-			wroteHeader = writeHeader(w, wroteHeader, p)
-			line(w, subPrefix, nil, firstRemoved)
-			line(w, addPrefix, nil, firstAdded)
-		}
+	})
+	if err != nil {
+		closeChan <- struct{}{}
 	}
 	writeFooter(w, wroteHeader)
 }
