@@ -110,26 +110,28 @@ func diffLists(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.List) {
 func diffMaps(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.Map) {
 	wroteHeader := false
 
-	added, removed, modified := v2.Diff(v1)
-	for _, k := range added {
-		wroteHeader = writeHeader(w, wroteHeader, p)
-		line(w, addPrefix, k, v2.Get(k))
-	}
-	for _, k := range removed {
-		wroteHeader = writeHeader(w, wroteHeader, p)
-		line(w, subPrefix, k, v1.Get(k))
-	}
-	for _, k := range modified {
-		c1, c2 := v1.Get(k), v2.Get(k)
-		if canCompare(c1, c2) {
-			buf := bytes.NewBuffer(nil)
-			d.PanicIfError(types.WriteEncodedValueWithTags(buf, k))
-			p1 := p.AddField(buf.String())
-			dq.PushBack(diffInfo{path: p1, key: k, v1: c1, v2: c2})
-		} else {
+	changes := make(chan types.ValueChanged)
+	closeChan := make(chan struct{})
+	v2.Diff(v1, changes, closeChan)
+
+	for change := range changes {
+		if change.ChangeType == types.DiffChangeAdded {
 			wroteHeader = writeHeader(w, wroteHeader, p)
-			line(w, subPrefix, k, v1.Get(k))
-			line(w, addPrefix, k, v2.Get(k))
+			line(w, addPrefix, change.V, v2.Get(change.V))
+		} else if change.ChangeType == types.DiffChangeRemoved {
+			line(w, subPrefix, change.V, v1.Get(change.V))
+		} else {
+			c1, c2 := v1.Get(change.V), v2.Get(change.V)
+			if canCompare(c1, c2) {
+				buf := bytes.NewBuffer(nil)
+				d.PanicIfError(types.WriteEncodedValueWithTags(buf, change.V))
+				p1 := p.AddField(buf.String())
+				dq.PushBack(diffInfo{path: p1, key: change.V, v1: c1, v2: c2})
+			} else {
+				wroteHeader = writeHeader(w, wroteHeader, p)
+				line(w, subPrefix, change.V, v1.Get(change.V))
+				line(w, addPrefix, change.V, v2.Get(change.V))
+			}
 		}
 	}
 	writeFooter(w, wroteHeader)
@@ -154,22 +156,60 @@ func diffStructs(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.Struct) 
 
 func diffSets(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.Set) {
 	wroteHeader := false
-	added, removed := v2.Diff(v1)
-	if len(added) == 1 && len(removed) == 1 && canCompare(added[0], removed[0]) {
-		p1 := p.AddField(added[0].Hash().String())
-		dq.PushBack(diffInfo{path: p1, key: types.String(""), v1: removed[0], v2: added[0]})
-	} else {
-		for _, value := range removed {
+
+	numAdded := 0
+	numRemoved := 0
+	var firstAdded, firstRemoved types.Value
+
+	changes := make(chan types.ValueChanged)
+	closeChan := make(chan struct{})
+	v2.Diff(v1, changes, closeChan)
+
+	for change := range changes {
+		if change.ChangeType == types.DiffChangeAdded {
+
+			// special case: detect only 1 added/1 removed for later
+			numAdded++
+			if firstAdded == nil && numAdded == 1 {
+				firstAdded = change.V
+				continue
+			} else if numAdded == 2 {
+				wroteHeader = writeHeader(w, wroteHeader, p)
+				line(w, addPrefix, nil, firstAdded)
+				firstAdded = nil
+			}
+
 			wroteHeader = writeHeader(w, wroteHeader, p)
-			line(w, subPrefix, nil, value)
+			line(w, addPrefix, nil, change.V)
+		} else if change.ChangeType == types.DiffChangeRemoved {
+
+			// special case: detect only 1 added/1 removed for later
+			numRemoved++
+			if firstRemoved == nil && numRemoved == 1 {
+				firstRemoved = change.V
+				continue
+			} else if numRemoved == 2 {
+				line(w, subPrefix, nil, firstRemoved)
+				firstRemoved = nil
+			}
+
+			line(w, subPrefix, nil, change.V)
 		}
-		for _, value := range added {
+	}
+
+	// special case: if only 1 added/1 removed && canCompare go further with diff
+	if numAdded == 1 && numRemoved == 1 {
+		if canCompare(firstAdded, firstRemoved) {
+			p1 := p.AddField(firstAdded.Hash().String())
+			dq.PushBack(diffInfo{path: p1, key: types.String(""), v1: firstRemoved, v2: firstAdded})
+		} else {
+			// can't compare so output the add/remove as above would have done
 			wroteHeader = writeHeader(w, wroteHeader, p)
-			line(w, addPrefix, nil, value)
+			line(w, subPrefix, nil, firstRemoved)
+			line(w, addPrefix, nil, firstAdded)
 		}
 	}
 	writeFooter(w, wroteHeader)
-	return
 }
 
 type prefixWriter struct {
