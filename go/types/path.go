@@ -39,7 +39,11 @@ func (p Path) AddField(name string) Path {
 }
 
 func (p Path) AddIndex(idx Value) Path {
-	return p.appendPart(newIndexPart(idx))
+	return p.appendPart(newIndexPart(idx, false))
+}
+
+func (p Path) AddKeyIndex(idx Value) Path {
+	return p.appendPart(newIndexPart(idx, true))
 }
 
 func (p Path) AddHashIndex(h hash.Hash) Path {
@@ -85,7 +89,7 @@ func (p Path) addPath(str string) (Path, error) {
 			return Path{}, errors.New("Path ends in [")
 		}
 
-		idx, h, idxStr, rem, err := parsePathIndex(tail)
+		idx, h, rem, err := parsePathIndex(tail)
 		if err != nil {
 			return Path{}, err
 		}
@@ -104,7 +108,7 @@ func (p Path) addPath(str string) (Path, error) {
 
 		switch {
 		case idx != nil && key:
-			return Path{}, fmt.Errorf("@key is only supported on # indices, not: [%s]", idxStr)
+			return p.AddKeyIndex(idx).addPath(rem)
 		case idx != nil:
 			return p.AddIndex(idx).addPath(rem)
 		case key:
@@ -165,36 +169,49 @@ func (fp fieldPart) String() string {
 
 type indexPart struct {
 	idx Value
+	key bool
 }
 
-func newIndexPart(idx Value) indexPart {
+func newIndexPart(idx Value, key bool) indexPart {
 	k := idx.Type().Kind()
 	d.Chk.True(k == StringKind || k == BoolKind || k == NumberKind)
-	return indexPart{idx}
+	return indexPart{idx, key}
 }
 
 func (ip indexPart) Resolve(v Value) Value {
-	if l, ok := v.(List); ok {
+	switch v := v.(type) {
+	case List:
 		if n, ok := ip.idx.(Number); ok {
 			f := float64(n)
 			if f == math.Trunc(f) && f >= 0 {
 				u := uint64(f)
-				if u < l.Len() {
-					return l.Get(u)
+				if u < v.Len() {
+					if ip.key {
+						return ip.idx
+					}
+					return v.Get(u)
 				}
 			}
 		}
-	}
 
-	if m, ok := v.(Map); ok {
-		return m.Get(ip.idx)
+	case Map:
+		if ip.key && v.Has(ip.idx) {
+			return ip.idx
+		}
+		if !ip.key {
+			return v.Get(ip.idx)
+		}
 	}
 
 	return nil
 }
 
-func (ip indexPart) String() string {
-	return fmt.Sprintf("[%s]", EncodedValue(ip.idx))
+func (ip indexPart) String() (str string) {
+	ann := ""
+	if ip.key {
+		ann = "@key"
+	}
+	return fmt.Sprintf("[%s]%s", EncodedValue(ip.idx), ann)
 }
 
 type hashIndexPart struct {
@@ -246,7 +263,7 @@ func (hip hashIndexPart) String() string {
 	return fmt.Sprintf("[#%s]%s", hip.h.String(), ann)
 }
 
-func parsePathIndex(str string) (idx Value, h hash.Hash, idxStr, rem string, err error) {
+func parsePathIndex(str string) (idx Value, h hash.Hash, rem string, err error) {
 Switch:
 	switch str[0] {
 	case '"':
@@ -273,9 +290,7 @@ Switch:
 		if i == len(str) {
 			err = errors.New("[ is missing closing ]")
 		} else {
-			bufStr := stringBuf.String()
-			idx = String(bufStr)
-			idxStr = fmt.Sprintf(`"%s"`, bufStr)
+			idx = String(stringBuf.String())
 			rem = str[i+2:]
 		}
 
@@ -286,7 +301,7 @@ Switch:
 			break Switch
 		}
 
-		idxStr = split[0]
+		idxStr := split[0]
 		rem = split[1]
 
 		if len(idxStr) == 0 {
