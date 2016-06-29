@@ -9,12 +9,15 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 )
+
+var annotationRe = regexp.MustCompile("^@([a-z]+)")
 
 type Path []pathPart
 
@@ -40,7 +43,11 @@ func (p Path) AddIndex(idx Value) Path {
 }
 
 func (p Path) AddHashIndex(h hash.Hash) Path {
-	return p.appendPart(newHashIndexPart(h))
+	return p.appendPart(newHashIndexPart(h, false))
+}
+
+func (p Path) AddHashKeyIndex(h hash.Hash) Path {
+	return p.appendPart(newHashIndexPart(h, true))
 }
 
 func (p Path) appendPart(part pathPart) Path {
@@ -78,15 +85,31 @@ func (p Path) addPath(str string) (Path, error) {
 			return Path{}, errors.New("Path ends in [")
 		}
 
-		idx, h, rem, err := parsePathIndex(tail)
+		idx, h, idxStr, rem, err := parsePathIndex(tail)
 		if err != nil {
 			return Path{}, err
 		}
 
+		key := false
+		if annParts := annotationRe.FindStringSubmatch(rem); annParts != nil {
+			ann := annParts[1]
+			if ann != "key" {
+				return Path{}, fmt.Errorf("Unsupported annotation: @%s", ann)
+			}
+			key = true
+			rem = rem[len(annParts[0]):]
+		}
+
 		d.Chk.NotEqual(idx == nil, h.IsEmpty())
-		if idx != nil {
+
+		switch {
+		case idx != nil && key:
+			return Path{}, fmt.Errorf("@key is only supported on # indices, not: [%s]", idxStr)
+		case idx != nil:
 			return p.AddIndex(idx).addPath(rem)
-		} else {
+		case key:
+			return p.AddHashKeyIndex(h).addPath(rem)
+		default:
 			return p.AddHashIndex(h).addPath(rem)
 		}
 
@@ -175,11 +198,12 @@ func (ip indexPart) String() string {
 }
 
 type hashIndexPart struct {
-	h hash.Hash
+	h   hash.Hash
+	key bool
 }
 
-func newHashIndexPart(h hash.Hash) hashIndexPart {
-	return hashIndexPart{h}
+func newHashIndexPart(h hash.Hash, key bool) hashIndexPart {
+	return hashIndexPart{h, key}
 }
 
 func (hip hashIndexPart) Resolve(v Value) (res Value) {
@@ -188,11 +212,16 @@ func (hip hashIndexPart) Resolve(v Value) (res Value) {
 
 	switch v := v.(type) {
 	case Set:
+		// Unclear what the behavior should be if |hip.key| is true, but ignoring it for sets is arguably correct.
 		seq = v.seq
 		getCurrentValue = func(cur *sequenceCursor) Value { return cur.current().(Value) }
 	case Map:
 		seq = v.seq
-		getCurrentValue = func(cur *sequenceCursor) Value { return cur.current().(mapEntry).value }
+		if hip.key {
+			getCurrentValue = func(cur *sequenceCursor) Value { return cur.current().(mapEntry).key }
+		} else {
+			getCurrentValue = func(cur *sequenceCursor) Value { return cur.current().(mapEntry).value }
+		}
 	default:
 		return nil
 	}
@@ -210,10 +239,14 @@ func (hip hashIndexPart) Resolve(v Value) (res Value) {
 }
 
 func (hip hashIndexPart) String() string {
-	return fmt.Sprintf("[#%s]", hip.h.String())
+	ann := ""
+	if hip.key {
+		ann = "@key"
+	}
+	return fmt.Sprintf("[#%s]%s", hip.h.String(), ann)
 }
 
-func parsePathIndex(str string) (idx Value, h hash.Hash, rem string, err error) {
+func parsePathIndex(str string) (idx Value, h hash.Hash, idxStr, rem string, err error) {
 Switch:
 	switch str[0] {
 	case '"':
@@ -240,7 +273,9 @@ Switch:
 		if i == len(str) {
 			err = errors.New("[ is missing closing ]")
 		} else {
-			idx = String(stringBuf.String())
+			bufStr := stringBuf.String()
+			idx = String(bufStr)
+			idxStr = fmt.Sprintf(`"%s"`, bufStr)
 			rem = str[i+2:]
 		}
 
@@ -251,7 +286,7 @@ Switch:
 			break Switch
 		}
 
-		idxStr := split[0]
+		idxStr = split[0]
 		rem = split[1]
 
 		if len(idxStr) == 0 {
