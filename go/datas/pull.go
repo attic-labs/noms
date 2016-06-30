@@ -76,7 +76,7 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 
 	// hc and reachableChunks aren't goroutine-safe, so only write them here.
 	hc := hintCache{}
-	reachableChunks := hashSet{}
+	reachableChunks := hash.HashSet{}
 	for !srcQ.Empty() {
 		srcRefs, sinkRefs, comRefs := planWork(&srcQ, &sinkQ)
 		srcWork, sinkWork, comWork := len(srcRefs), len(sinkRefs), len(comRefs)

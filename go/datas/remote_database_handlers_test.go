@@ -105,7 +105,11 @@ func TestBuildWriteValueRequest(t *testing.T) {
 		hash.Parse("sha1-0000000000000000000000000000000000000002"): struct{}{},
 		hash.Parse("sha1-0000000000000000000000000000000000000003"): struct{}{},
 	}
-	compressed := buildWriteValueRequest(serializeChunks(chnx, assert), hints)
+	chunkChan := make(chan chunks.Chunk, 2)
+	chunkChan <- chnx[0]
+	chunkChan <- chnx[1]
+	compressed := buildWriteValueRequest(chunkChan, hints)
+	close(chunkChan)
 	gr := snappy.NewReader(compressed)
 
 	count := 0
@@ -116,12 +120,13 @@ func TestBuildWriteValueRequest(t *testing.T) {
 	}
 	assert.Equal(len(hints), count)
 
-	chunkChan := make(chan *chunks.Chunk, 16)
-	go chunks.DeserializeToChan(gr, chunkChan)
-	for c := range chunkChan {
+	chunkChan2 := make(chan *chunks.Chunk, 16)
+	go chunks.DeserializeToChan(gr, chunkChan2)
+	for c := range chunkChan2 {
 		assert.Equal(chnx[0].Hash(), c.Hash())
 		chnx = chnx[1:]
 	}
+
 	assert.Empty(chnx)
 }
 

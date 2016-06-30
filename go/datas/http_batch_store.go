@@ -46,7 +46,7 @@ type httpBatchStore struct {
 	rateLimit     chan struct{}
 	requestWg     *sync.WaitGroup
 	workerWg      *sync.WaitGroup
-	unwrittenPuts *orderedChunkCache
+	unwrittenPuts *chunks.OrderedChunkCache
 }
 
 func newHTTPBatchStore(baseURL, auth string) *httpBatchStore {
@@ -65,7 +65,7 @@ func newHTTPBatchStore(baseURL, auth string) *httpBatchStore {
 		rateLimit:     make(chan struct{}, httpChunkSinkConcurrency),
 		requestWg:     &sync.WaitGroup{},
 		workerWg:      &sync.WaitGroup{},
-		unwrittenPuts: newOrderedChunkCache(),
+		unwrittenPuts: chunks.NewOrderedChunkCache(),
 	}
 	buffSink.batchGetRequests()
 	buffSink.batchHasRequests()
@@ -129,7 +129,7 @@ func (bhcs *httpBatchStore) batchGetRequests() {
 }
 
 func (bhcs *httpBatchStore) Has(h hash.Hash) bool {
-	if bhcs.unwrittenPuts.has(h) {
+	if bhcs.unwrittenPuts.Has(h) {
 		return true
 	}
 
@@ -143,7 +143,7 @@ func (bhcs *httpBatchStore) batchHasRequests() {
 	bhcs.batchReadRequests(bhcs.hasQueue, bhcs.hasRefs)
 }
 
-type batchGetter func(hashes hashSet, batch chunks.ReadBatch)
+type batchGetter func(hashes hash.HashSet, batch chunks.ReadBatch)
 
 func (bhcs *httpBatchStore) batchReadRequests(queue <-chan chunks.ReadRequest, getter batchGetter) {
 	bhcs.workerWg.Add(1)
@@ -170,7 +170,7 @@ func (bhcs *httpBatchStore) batchReadRequests(queue <-chan chunks.ReadRequest, g
 
 func (bhcs *httpBatchStore) sendReadRequests(req chunks.ReadRequest, queue <-chan chunks.ReadRequest, getter batchGetter) {
 	batch := chunks.ReadBatch{}
-	hashes := hashSet{}
+	hashes := hash.HashSet{}
 
 	count := 0
 	addReq := func(req chunks.ReadRequest) {
@@ -202,7 +202,7 @@ func (bhcs *httpBatchStore) sendReadRequests(req chunks.ReadRequest, queue <-cha
 	}()
 }
 
-func (bhcs *httpBatchStore) getRefs(hashes hashSet, batch chunks.ReadBatch) {
+func (bhcs *httpBatchStore) getRefs(hashes hash.HashSet, batch chunks.ReadBatch) {
 	// POST http://<host>/getRefs/. Post body: ref=sha1---&ref=sha1---& Response will be chunk data if present, 404 if absent.
 	u := *bhcs.host
 	u.Path = httprouter.CleanPath(bhcs.host.Path + constants.GetRefsPath)
@@ -254,7 +254,7 @@ func (rb *readBatchChunkSink) Close() error {
 	return rb.batch.Close()
 }
 
-func (bhcs *httpBatchStore) hasRefs(hashes hashSet, batch chunks.ReadBatch) {
+func (bhcs *httpBatchStore) hasRefs(hashes hash.HashSet, batch chunks.ReadBatch) {
 	// POST http://<host>/hasRefs/. Post body: ref=sha1---&ref=sha1---& Response will be text of lines containing "|ref| |bool|".
 	u := *bhcs.host
 	u.Path = httprouter.CleanPath(bhcs.host.Path + constants.HasRefsPath)
@@ -323,7 +323,7 @@ func (bhcs *httpBatchStore) batchPutRequests() {
 		defer bhcs.workerWg.Done()
 
 		hints := types.Hints{}
-		hashes := hashSet{}
+		hashes := hash.HashSet{}
 		handleRequest := func(wr writeRequest) {
 			if !wr.justHints {
 				if hashes.Has(wr.hash) {
@@ -357,7 +357,7 @@ func (bhcs *httpBatchStore) batchPutRequests() {
 						drained = true
 						bhcs.sendWriteRequests(hashes, hints) // Takes ownership of hashes, hints
 						hints = types.Hints{}
-						hashes = hashSet{}
+						hashes = hash.HashSet{}
 					}
 				}
 			}
@@ -365,7 +365,7 @@ func (bhcs *httpBatchStore) batchPutRequests() {
 	}()
 }
 
-func (bhcs *httpBatchStore) sendWriteRequests(hashes hashSet, hints types.Hints) {
+func (bhcs *httpBatchStore) sendWriteRequests(hashes hash.HashSet, hints types.Hints) {
 	if len(hashes) == 0 {
 		return
 	}
@@ -380,17 +380,9 @@ func (bhcs *httpBatchStore) sendWriteRequests(hashes hashSet, hints types.Hints)
 		var res *http.Response
 		var err error
 		for tryAgain := true; tryAgain; {
-			serializedChunks, pw := io.Pipe()
-			errChan := make(chan error)
-			go func() {
-				err := bhcs.unwrittenPuts.ExtractChunks(hashes, pw)
-				// The ordering of these is important. Close the pipe so that the HTTP stack which is reading from serializedChunks knows it has everything, and only THEN block on errChan.
-				pw.Close()
-				errChan <- err
-				close(errChan)
-			}()
-			body := buildWriteValueRequest(serializedChunks, hints)
-
+			chunkChan := make(chan *chunks.Chunk, 1024)
+			bhcs.unwrittenPuts.ExtractChunks(hashes, chunkChan)
+			body := buildWriteValueRequest(chunkChan, hints)
 			url := *bhcs.host
 			url.Path = httprouter.CleanPath(bhcs.host.Path + constants.WriteValuePath)
 			// TODO: Make this accept snappy encoding
@@ -402,7 +394,6 @@ func (bhcs *httpBatchStore) sendWriteRequests(hashes hashSet, hints types.Hints)
 
 			res, err = bhcs.httpClient.Do(req)
 			d.PanicIfError(err)
-			d.PanicIfError(<-errChan)
 			expectVersion(res)
 			defer closeResponse(res.Body)
 

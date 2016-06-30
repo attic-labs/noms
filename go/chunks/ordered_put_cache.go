@@ -2,17 +2,15 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package datas
+package chunks
 
 import (
 	"bytes"
 	"encoding/binary"
-	"io"
 	"io/ioutil"
 	"os"
 	"sync"
 
-	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/golang/snappy"
@@ -21,7 +19,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-func newOrderedChunkCache() *orderedChunkCache {
+func NewOrderedChunkCache() *OrderedChunkCache {
 	dir, err := ioutil.TempDir("", "")
 	d.PanicIfError(err)
 	db, err := leveldb.OpenFile(dir, &opt.Options{
@@ -32,7 +30,7 @@ func newOrderedChunkCache() *orderedChunkCache {
 		WriteBuffer:            1 << 27, // 128MiB
 	})
 	d.Chk.NoError(err, "opening put cache in %s", dir)
-	return &orderedChunkCache{
+	return &OrderedChunkCache{
 		orderedChunks: db,
 		chunkIndex:    map[hash.Hash][]byte{},
 		dbDir:         dir,
@@ -40,31 +38,16 @@ func newOrderedChunkCache() *orderedChunkCache {
 	}
 }
 
-// orderedChunkCache holds Chunks, allowing them to be retrieved by hash or enumerated in ref-height order.
-type orderedChunkCache struct {
+// OrderedChunkCache holds Chunks, allowing them to be retrieved by hash or enumerated in ref-height order.
+type OrderedChunkCache struct {
 	orderedChunks *leveldb.DB
 	chunkIndex    map[hash.Hash][]byte
 	dbDir         string
 	mu            *sync.RWMutex
 }
 
-type hashSet map[hash.Hash]struct{}
-
-func (hs hashSet) Insert(hash hash.Hash) {
-	hs[hash] = struct{}{}
-}
-
-func (hs hashSet) Has(hash hash.Hash) (has bool) {
-	_, has = hs[hash]
-	return
-}
-
-func (hs hashSet) Remove(hash hash.Hash) {
-	delete(hs, hash)
-}
-
 // Insert can be called from any goroutine to store c in the cache. If c is successfully added to the cache, Insert returns true. If c was already in the cache, Insert returns false.
-func (p *orderedChunkCache) Insert(c chunks.Chunk, refHeight uint64) bool {
+func (p *OrderedChunkCache) Insert(c Chunk, refHeight uint64) bool {
 	hash := c.Hash()
 	dbKey, present := func() (dbKey []byte, present bool) {
 		p.mu.Lock()
@@ -77,17 +60,14 @@ func (p *orderedChunkCache) Insert(c chunks.Chunk, refHeight uint64) bool {
 	}()
 
 	if !present {
-		buf := &bytes.Buffer{}
-		gw := snappy.NewBufferedWriter(buf)
-		chunks.Serialize(c, gw)
-		gw.Close()
-		d.Chk.NoError(p.orderedChunks.Put(dbKey, buf.Bytes(), nil))
+		compressed := snappy.Encode(nil, c.Data())
+		d.Chk.NoError(p.orderedChunks.Put(dbKey, compressed, nil))
 		return true
 	}
 	return false
 }
 
-func (p *orderedChunkCache) has(hash hash.Hash) (has bool) {
+func (p *OrderedChunkCache) Has(hash hash.Hash) (has bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	_, has = p.chunkIndex[hash]
@@ -95,25 +75,24 @@ func (p *orderedChunkCache) has(hash hash.Hash) (has bool) {
 }
 
 // Get can be called from any goroutine to retrieve the chunk referenced by hash. If the chunk is not present, Get returns the empty Chunk.
-func (p *orderedChunkCache) Get(hash hash.Hash) chunks.Chunk {
+func (p *OrderedChunkCache) Get(hash hash.Hash) Chunk {
 	// Don't use defer p.mu.RUnlock() here, because I want reading from orderedChunks NOT to be guarded by the lock. LevelDB handles its own goroutine-safety.
 	p.mu.RLock()
 	dbKey, ok := p.chunkIndex[hash]
 	p.mu.RUnlock()
 
 	if !ok {
-		return chunks.EmptyChunk
+		return EmptyChunk
 	}
-	data, err := p.orderedChunks.Get(dbKey, nil)
+	compressed, err := p.orderedChunks.Get(dbKey, nil)
 	d.Chk.NoError(err)
-	reader := snappy.NewReader(bytes.NewReader(data))
-	chunkChan := make(chan *chunks.Chunk)
-	go chunks.DeserializeToChan(reader, chunkChan)
-	return *(<-chunkChan)
+	data, err := snappy.Decode(nil, compressed)
+	d.Chk.NoError(err)
+	return NewChunkWithHash(hash, data)
 }
 
 // Clear can be called from any goroutine to remove chunks referenced by the given hashes from the cache.
-func (p *orderedChunkCache) Clear(hashes hashSet) {
+func (p *OrderedChunkCache) Clear(hashes hash.HashSet) {
 	deleteBatch := &leveldb.Batch{}
 	p.mu.Lock()
 	for hash := range hashes {
@@ -149,24 +128,27 @@ func fromDbKey(key []byte) (uint64, hash.Hash) {
 	return refHeight, hash.New(digest)
 }
 
-// ExtractChunks can be called from any goroutine to write Chunks referenced by the given hashes to w. The chunks are ordered by ref-height. Chunks of the same height are written in an unspecified order, relative to one another.
-func (p *orderedChunkCache) ExtractChunks(hashes hashSet, w io.Writer) error {
-	iter := p.orderedChunks.NewIterator(nil, nil)
-	defer iter.Release()
-	for iter.Next() {
-		_, hash := fromDbKey(iter.Key())
-		if !hashes.Has(hash) {
-			continue
+// ExtractChunks can be called from any goroutine to write Chunks referenced by the given hashes to chunkChan. The chunks are ordered by ref-height. Chunks of the same height are written in an unspecified order, relative to one another.
+func (p *OrderedChunkCache) ExtractChunks(hashes hash.HashSet, chunkChan chan<- *Chunk) {
+	go func() {
+		iter := p.orderedChunks.NewIterator(nil, nil)
+		defer iter.Release()
+		for iter.Next() {
+			_, hash := fromDbKey(iter.Key())
+			if !hashes.Has(hash) {
+				continue
+			}
+			compressed := iter.Value()
+			data, err := snappy.Decode(nil, compressed)
+			d.Chk.NoError(err)
+			c := NewChunkWithHash(hash, data)
+			chunkChan <- &c
 		}
-		_, err := w.Write(iter.Value())
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+		close(chunkChan)
+	}()
 }
 
-func (p *orderedChunkCache) Destroy() error {
+func (p *OrderedChunkCache) Destroy() error {
 	d.Chk.NoError(p.orderedChunks.Close())
 	return os.RemoveAll(p.dbDir)
 }
