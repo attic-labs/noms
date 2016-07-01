@@ -56,11 +56,11 @@ func main() {
 		flag.Parse()
 
 		if flag.NArg() != 2 {
-			util.CheckError(errors.New("Expected dataset followed by directory path"))
+			d.CheckError(errors.New("Expected dataset followed by directory path"))
 		}
 		dir := flag.Arg(1)
 		ds, err := spec.GetDataset(flag.Arg(0))
-		util.CheckError(err)
+		d.CheckError(err)
 
 		defer profile.MaybeStartProfile().Stop()
 

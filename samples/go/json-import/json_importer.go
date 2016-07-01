@@ -28,11 +28,11 @@ func main() {
 	flag.Parse()
 
 	if len(flag.Args()) != 2 {
-		util.CheckError(errors.New("expected url and dataset flags"))
+		d.CheckError(errors.New("expected url and dataset flags"))
 	}
 
 	ds, err := spec.GetDataset(flag.Arg(1))
-	util.CheckError(err)
+	d.CheckError(err)
 
 	url := flag.Arg(0)
 	if url == "" {
