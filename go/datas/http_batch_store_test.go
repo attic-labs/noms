@@ -21,7 +21,7 @@ import (
 
 const testAuthToken = "aToken123"
 
-func TestHTTPBatchStore(t *testing.T) {
+func TestHttpBatchStore(t *testing.T) {
 	suite.Run(t, &HTTPBatchStoreSuite{})
 }
 

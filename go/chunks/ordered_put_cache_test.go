@@ -159,7 +159,7 @@ func (suite *LevelDBPutCacheSuite) TestExtractChunksOrder() {
 	suite.Len(orderedHashes, 0)
 }
 
-func (suite *LevelDBPutCacheSuite) extractChunks(hashes hash.HashSet) <-chan Chunk {
+func (suite *LevelDBPutCacheSuite) extractChunks(hashes hash.HashSet) <-chan *Chunk {
 	chunkChan := make(chan *Chunk)
 	suite.cache.ExtractChunks(hashes, chunkChan)
 	return chunkChan

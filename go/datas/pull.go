@@ -6,6 +6,7 @@ package datas
 
 import (
 	"container/heap"
+	"fmt"
 	"sync"
 
 	"github.com/attic-labs/noms/go/d"
@@ -123,7 +124,7 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 			hints[hint] = struct{}{}
 		}
 	}
-	sinkDB.batchStore().AddHints(hints)
+	sinkDB.ValidatingBatchStore().AddHints(hints)
 }
 
 type traverseResult struct {
@@ -191,11 +192,11 @@ type hintCache map[hash.Hash]hash.Hash
 func traverseSource(srcRef types.Ref, srcDB, sinkDB Database) traverseResult {
 	h := srcRef.TargetHash()
 	if !sinkDB.has(h) {
-		srcBS := srcDB.batchStore()
+		srcBS := srcDB.ValidatingBatchStore()
 		c := srcBS.Get(h)
 		v := types.DecodeValue(c, srcDB)
 		d.Chk.True(v != nil, "Expected decoded chunk to be non-nil.")
-		sinkDB.batchStore().SchedulePut(c, srcRef.Height(), types.Hints{})
+		sinkDB.ValidatingBatchStore().SchedulePut(c, srcRef.Height(), types.Hints{})
 		return traverseResult{h, v.Chunks()}
 	}
 	return traverseResult{}
@@ -210,6 +211,10 @@ func traverseSink(sinkRef types.Ref, db Database) traverseResult {
 
 func traverseCommon(comRef, sinkHead types.Ref, db Database) traverseResult {
 	if comRef.Height() > 1 && comRef.Type().Equals(refOfCommitType) {
+		res := comRef.TargetValue(db)
+		if res == nil {
+			fmt.Println("NOT FOUND", comRef.TargetHash().String())
+		}
 		commit := comRef.TargetValue(db).(types.Struct)
 		// We don't want to traverse the parents of sinkHead, but we still want to traverse its Value on the sinkDB side. We also still want to traverse all children, in both the srcDB and sinkDB, of any common Commit that is not at the Head of sinkDB.
 		exclusionSet := types.NewSet()

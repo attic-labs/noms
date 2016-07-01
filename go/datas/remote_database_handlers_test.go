@@ -105,9 +105,9 @@ func TestBuildWriteValueRequest(t *testing.T) {
 		hash.Parse("sha1-0000000000000000000000000000000000000002"): struct{}{},
 		hash.Parse("sha1-0000000000000000000000000000000000000003"): struct{}{},
 	}
-	chunkChan := make(chan chunks.Chunk, 2)
-	chunkChan <- chnx[0]
-	chunkChan <- chnx[1]
+	chunkChan := make(chan *chunks.Chunk, 2)
+	chunkChan <- &chnx[0]
+	chunkChan <- &chnx[1]
 	compressed := buildWriteValueRequest(chunkChan, hints)
 	close(chunkChan)
 	gr := snappy.NewReader(compressed)

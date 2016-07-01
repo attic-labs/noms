@@ -19,8 +19,12 @@ type ValidatingBatchingSink struct {
 	tc    *TypeCache
 }
 
-func NewValidatingBatchingSink(cs chunks.ChunkStore, tc *TypeCache) *ValidatingBatchingSink {
-	return &ValidatingBatchingSink{vs: newLocalValueStore(cs), cs: cs, tc: tc}
+func NewValidatingBatchingSink(vs *ValueStore, cs chunks.ChunkStore, tc *TypeCache) *ValidatingBatchingSink {
+	return &ValidatingBatchingSink{
+		vs: vs,
+		cs: cs,
+		tc: tc,
+	}
 }
 
 // Prepare primes the type info cache used to validate Enqueued Chunks by reading the Chunks referenced by the provided hints.

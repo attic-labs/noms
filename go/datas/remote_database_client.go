@@ -19,8 +19,8 @@ func NewRemoteDatabase(baseURL, auth string) *RemoteDatabaseClient {
 	return &RemoteDatabaseClient{newDatabaseCommon(newCachingChunkHaver(httpBS), types.NewValueStore(httpBS), httpBS)}
 }
 
-func (rds *RemoteDatabaseClient) batchStore() types.BatchStore {
-	return rds.vs.BatchStore()
+func (rds *RemoteDatabaseClient) ValidatingBatchStore() types.BatchStore {
+	return rds.vs.ValidatingBatchStore()
 }
 
 func (rds *RemoteDatabaseClient) Commit(datasetID string, commit types.Struct) (Database, error) {

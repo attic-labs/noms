@@ -18,6 +18,7 @@ import (
 )
 
 var (
+	root     = flag.Bool("root", false, "show the root hash of the repository")
 	showHelp = flag.Bool("help", false, "show help text")
 )
 
@@ -37,6 +38,13 @@ func main() {
 
 	if len(flag.Args()) != 1 {
 		d.CheckErrorNoUsage(errors.New("expected exactly one argument"))
+	}
+
+	if *root {
+		cs, err := spec.GetChunkStore(flag.Arg(0))
+		util.CheckErrorNoUsage(err)
+		fmt.Printf("root hash: %s\n", cs.Root().String())
+		return
 	}
 
 	database, value, err := spec.GetPath(flag.Arg(0))

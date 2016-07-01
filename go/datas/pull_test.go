@@ -111,7 +111,7 @@ func (suite *PullSuite) TestPullEverything() {
 	Pull(suite.source, suite.sink, sourceRef, types.Ref{}, 2)
 	suite.Equal(0, suite.sinkCS.Reads)
 
-	suite.sink.batchStore().Flush()
+	suite.sink.ValidatingBatchStore().Flush()
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
 	suite.True(l.Equals(v.Get(ValueField)))
@@ -155,7 +155,7 @@ func (suite *PullSuite) TestPullMultiGeneration() {
 	}
 	suite.Equal(expectedReads, suite.sinkCS.Reads)
 
-	suite.sink.batchStore().Flush()
+	suite.sink.ValidatingBatchStore().Flush()
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
 	suite.True(srcL.Equals(v.Get(ValueField)))
@@ -200,7 +200,7 @@ func (suite *PullSuite) TestPullDivergentHistory() {
 	// No objects read from sink, since sink Head is not an ancestor of source HEAD.
 	suite.Equal(preReads, suite.sinkCS.Reads)
 
-	suite.sink.batchStore().Flush()
+	suite.sink.ValidatingBatchStore().Flush()
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
 	suite.True(srcL.Equals(v.Get(ValueField)))
@@ -244,7 +244,7 @@ func (suite *PullSuite) TestPullUpdates() {
 	}
 	suite.Equal(expectedReads, suite.sinkCS.Reads)
 
-	suite.sink.batchStore().Flush()
+	suite.sink.ValidatingBatchStore().Flush()
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
 	suite.True(srcL.Equals(v.Get(ValueField)))

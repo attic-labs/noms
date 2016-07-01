@@ -55,7 +55,7 @@ func NewTestValueStore() *ValueStore {
 }
 
 func newLocalValueStore(cs chunks.ChunkStore) *ValueStore {
-	return NewValueStore(NewBatchStoreAdaptor(cs))
+	return NewValueStore(NewBatchStoreAdapter(cs))
 }
 
 // NewValueStore returns a ValueStore instance that owns the provided BatchStore and manages its lifetime. Calling Close on the returned ValueStore will Close bs.
@@ -67,7 +67,11 @@ func NewValueStoreWithCache(bs BatchStore, cacheSize uint64) *ValueStore {
 	return &ValueStore{bs, map[hash.Hash]chunkCacheEntry{}, &sync.Mutex{}, sizecache.New(cacheSize)}
 }
 
-func (lvs *ValueStore) BatchStore() BatchStore {
+func (lvs *ValueStore) ValidatingBatchStore() BatchStore {
+	if !lvs.bs.IsValidating() {
+		bsa := lvs.bs.(*BatchStoreAdapter)
+		lvs.bs = NewValidatingBatchStoreAdapter(NewValueStore(NewBatchStoreAdapter(bsa.cs)), bsa.cs)
+	}
 	return lvs.bs
 }
 
