@@ -14,11 +14,10 @@ const (
 )
 
 func Clear() {
-	fmt.Print(clearLine)
+	Printf("")
 }
 
 func Printf(format string, args ...interface{}) {
-	// Can't call Clear() here because it causes flicker
 	fmt.Printf(clearLine+format, args...)
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
+	"github.com/attic-labs/noms/go/util/status"
 )
 
 var (
@@ -44,15 +45,30 @@ func main() {
 	d.CheckError(err)
 	defer sinkDataset.Database().Close()
 
+	hasStatus := false
+	printProgress := func(doneCount, knownCount uint64) {
+		if knownCount == 1 {
+			// It's better to print "up to date" than "0% (0/1); 100% (1/1)".
+			return
+		}
+		pct := 100.0 * (float64(doneCount) / float64(knownCount))
+		status.Printf("Preparing Commit: %.2f%% (%d/%d chunks)", pct, doneCount, knownCount)
+		hasStatus = true
+	}
+
 	err = d.Try(func() {
 		defer profile.MaybeStartProfile().Stop()
 
 		var err error
-		sinkDataset, err = sinkDataset.Pull(sourceStore, types.NewRef(sourceObj), int(*p))
+		sinkDataset, err = sinkDataset.Pull(sourceStore, types.NewRef(sourceObj), int(*p), printProgress)
 		d.PanicIfError(err)
 	})
 
 	if err != nil {
 		log.Fatal(err)
+	} else if hasStatus {
+		status.Done()
+	} else {
+		fmt.Println(flag.Arg(1), "is up to date.")
 	}
 }
