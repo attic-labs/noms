@@ -5,6 +5,7 @@
 package spec
 
 import (
+	"flag"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -220,6 +221,6 @@ func (spec pathSpec) Value() (db datas.Database, val types.Value, err error) {
 	return
 }
 
-func RegisterDatabaseFlags() {
-	chunks.RegisterLevelDBFlags()
+func RegisterDatabaseFlags(flags *flag.FlagSet) {
+	chunks.RegisterLevelDBFlags(flags)
 }

@@ -25,7 +25,7 @@ var (
 )
 
 func main() {
-	spec.RegisterDatabaseFlags()
+	spec.RegisterDatabaseFlags(flag.CommandLine)
 	cpuCount := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpuCount)
 

@@ -17,14 +17,14 @@ import (
 )
 
 func TestSync(t *testing.T) {
-	suite.Run(t, &testSuite{})
+	suite.Run(t, &nomsSyncTestSuite{})
 }
 
-type testSuite struct {
+type nomsSyncTestSuite struct {
 	test_util.ClientTestSuite
 }
 
-func (s *testSuite) TestSync() {
+func (s *nomsSyncTestSuite) TestSync() {
 	source1 := dataset.NewDataset(datas.NewDatabase(chunks.NewLevelDBStore(s.LdbDir, "", 1, false)), "foo")
 	source1, err := source1.Commit(types.Number(42))
 	s.NoError(err)
@@ -36,7 +36,7 @@ func (s *testSuite) TestSync() {
 	sourceSpec := test_util.CreateValueSpecString("ldb", s.LdbDir, "#"+source1HeadRef.String())
 	ldb2dir := path.Join(s.TempDir, "ldb2")
 	sinkDatasetSpec := test_util.CreateValueSpecString("ldb", ldb2dir, "bar")
-	out := s.Run(main, []string{sourceSpec, sinkDatasetSpec})
+	out := s.Run(main, []string{"sync", sourceSpec, sinkDatasetSpec})
 	s.Equal("", out)
 
 	dest := dataset.NewDataset(datas.NewDatabase(chunks.NewLevelDBStore(ldb2dir, "", 1, false)), "bar")
@@ -44,7 +44,7 @@ func (s *testSuite) TestSync() {
 	dest.Database().Close()
 
 	sourceDataset := test_util.CreateValueSpecString("ldb", s.LdbDir, "foo")
-	out = s.Run(main, []string{sourceDataset, sinkDatasetSpec})
+	out = s.Run(main, []string{"sync", sourceDataset, sinkDatasetSpec})
 	s.Equal("", out)
 
 	dest = dataset.NewDataset(datas.NewDatabase(chunks.NewLevelDBStore(ldb2dir, "", 1, false)), "bar")

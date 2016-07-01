@@ -19,7 +19,7 @@ func usage() {
 }
 
 func main() {
-	chunks.RegisterLevelDBFlags()
+	chunks.RegisterLevelDBFlags(flag.CommandLine)
 	dynFlags := chunks.DynamoFlags("")
 
 	flag.Usage = usage

@@ -45,7 +45,7 @@ func main() {
 		destTypePattern = regexp.MustCompile("^(list|map):(\\d+)$")
 	)
 
-	spec.RegisterDatabaseFlags()
+	spec.RegisterDatabaseFlags(flag.CommandLine)
 	cpuCount := runtime.NumCPU()
 	runtime.GOMAXPROCS(cpuCount)
 

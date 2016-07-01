@@ -7,24 +7,29 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/samples/go/util"
 )
 
-func main() {
-	toDelete := flag.String("d", "", "dataset to delete")
+var (
+	dsFlagSet = flag.NewFlagSet("serve", flag.ExitOnError)
+	toDelete  = dsFlagSet.String("d", "", "dataset to delete")
+)
 
-	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Noms dataset management\n")
-		fmt.Fprintln(os.Stderr, "Usage: noms ds [<database> | -d <dataset>]")
-		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nFor detailed information on spelling datastores and datasets, see: at https://github.com/attic-labs/noms/blob/master/doc/spelling.md.\n\n")
-	}
+var nomsDs = &NomsCommand{
+	Run:       runDs,
+	UsageLine: "ds [<database> | -d <dataset>]",
+	Short:     "Noms dataset management",
+	Long: `
+		See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object argument. 
+	`,
+	Flag:    dsFlagSet,
+	NumArgs: 1,
+}
 
-	flag.Parse()
+func runDs(args []string) int {
 
 	if *toDelete != "" {
 		set, err := spec.GetDataset(*toDelete)
@@ -41,12 +46,11 @@ func main() {
 
 		fmt.Printf("Deleted dataset %v (was %v)\n\n", set.ID(), oldCommitRef.TargetHash().String())
 	} else {
-		if flag.NArg() != 1 {
-			flag.Usage()
-			return
+		if len(args) != 1 {
+			return 0
 		}
 
-		store, err := spec.GetDatabase(flag.Arg(0))
+		store, err := spec.GetDatabase(args[0])
 		util.CheckError(err)
 		defer store.Close()
 
@@ -54,5 +58,5 @@ func main() {
 			fmt.Println(k)
 		})
 	}
-
+	return 0
 }

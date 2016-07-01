@@ -6,7 +6,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,26 +18,28 @@ import (
 )
 
 var (
-	port = flag.Int("port", 8000, "")
+	serveFlagSet = flag.NewFlagSet("serve", flag.ExitOnError)
+	port         = serveFlagSet.Int("port", 8000, "")
 )
 
-func main() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Serves a Noms database over HTTP\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: noms serve <database>\n")
-		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nFor detailed information on spelling databases, see: at https://github.com/attic-labs/noms/blob/master/doc/spelling.md.\n\n")
-	}
+var nomsServe = &NomsCommand{
+	Run:       runServe,
+	UsageLine: "serve <database>",
+	Short:     "Serves a Noms database over HTTP",
+	Long: `
+		See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object argument. 
+	`,
+	Flag:    serveFlagSet,
+	NumArgs: 1,
+}
 
-	spec.RegisterDatabaseFlags()
-	flag.Parse()
+func init() {
+	spec.RegisterDatabaseFlags(serveFlagSet)
+}
 
-	if len(flag.Args()) != 1 {
-		flag.Usage()
-		return
-	}
+func runServe(args []string) int {
 
-	cs, err := spec.GetChunkStore(flag.Arg(0))
+	cs, err := spec.GetChunkStore(args[0])
 	util.CheckError(err)
 	server := datas.NewRemoteDatabaseServer(cs, *port)
 
@@ -55,4 +56,5 @@ func main() {
 		defer profile.MaybeStartProfile().Stop()
 		server.Run()
 	})
+	return 0
 }
