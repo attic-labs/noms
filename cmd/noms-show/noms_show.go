@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -48,8 +49,9 @@ func main() {
 
 	waitChan := outputpager.PageOutput(!*outputpager.NoPager)
 
-	types.WriteEncodedValueWithTags(os.Stdout, value)
-	fmt.Fprintf(os.Stdout, "\n")
+	w := bufio.NewWriter(os.Stdout)
+	types.WriteEncodedValueWithTags(w, value)
+	fmt.Fprintf(w, "\n")
 	database.Close()
 
 	if waitChan != nil {
