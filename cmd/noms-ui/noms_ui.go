@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -27,18 +28,8 @@ const (
 )
 
 var (
-	uiFlagSet = flag.NewFlagSet("ui", flag.ExitOnError)
-	portFlag  = uiFlagSet.Int("port", 0, "Port to listen on")
+	portFlag = flag.Int("port", 0, "Port to listen on")
 )
-
-var nomsUi = &nomsCommand{
-	Run:       runUi,
-	UsageLine: "ui [options] directory [args...]",
-	Short:     "Serves Noms browser UIs from its own web and Noms database server.",
-	Long:      "args are of the form arg1=val1, arg2=val2, etc. \"ldb:\" values are automatically translated into paths to an HTTP noms database server",
-	Flag:      uiFlagSet,
-	Nargs:     1,
-}
 
 type chunkStoreRecord struct {
 	cs    chunks.ChunkStore
@@ -47,9 +38,23 @@ type chunkStoreRecord struct {
 
 type chunkStoreRecords map[string]chunkStoreRecord
 
-func runUi(args []string) int {
-	uiDir := args[0]
-	qsValues, stores := constructQueryString(args[1:])
+func main() {
+	usage := func() {
+		fmt.Fprintln(os.Stderr, "Usage: noms ui [-host HOST] directory [args...]\n")
+		fmt.Fprintln(os.Stderr, "  args are of the form arg1=val1, arg2=val2, etc. \"ldb:\" values are automatically translated into paths to an HTTP noms database server.\n")
+		flag.PrintDefaults()
+	}
+
+	flag.Parse()
+	flag.Usage = usage
+
+	if len(flag.Args()) == 0 {
+		usage()
+		os.Exit(1)
+	}
+
+	uiDir := flag.Arg(0)
+	qsValues, stores := constructQueryString(flag.Args()[1:])
 
 	router := &httprouter.Router{
 		HandleMethodNotAllowed: true,
@@ -64,8 +69,7 @@ func runUi(args []string) int {
 	router.POST(prefix+constants.RootPath, routeToStore(stores, datas.HandleRootPost))
 	router.OPTIONS(prefix+constants.RootPath, routeToStore(stores, datas.HandleRootGet))
 
-	// l, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *portFlag))
-	l, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 0))
+	l, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *portFlag))
 	d.Chk.NoError(err)
 
 	srv := &http.Server{
@@ -81,7 +85,6 @@ func runUi(args []string) int {
 
 	fmt.Printf("Starting UI %s at http://%s%s\n", uiDir, l.Addr().String(), qs)
 	log.Fatal(srv.Serve(l))
-	return 0
 }
 
 func constructQueryString(args []string) (url.Values, chunkStoreRecords) {
