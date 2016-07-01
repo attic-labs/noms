@@ -104,6 +104,7 @@ func main() {
 	for commitBuff := range outChan {
 		io.Copy(w, bytes.NewReader(commitBuff.([]byte)))
 	}
+	w.Flush()
 
 	if waitChan != nil {
 		os.Stdout.Close()

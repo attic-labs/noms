@@ -52,6 +52,7 @@ func main() {
 	w := bufio.NewWriter(os.Stdout)
 	types.WriteEncodedValueWithTags(w, value)
 	fmt.Fprintf(w, "\n")
+	w.Flush()
 	database.Close()
 
 	if waitChan != nil {
