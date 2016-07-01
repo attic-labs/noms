@@ -23,10 +23,9 @@ var nomsDs = &NomsCommand{
 	UsageLine: "ds [<database> | -d <dataset>]",
 	Short:     "Noms dataset management",
 	Long: `
-		See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object argument. 
+		See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database and dataset arguments. 
 	`,
-	Flag:    dsFlagSet,
-	NumArgs: 1,
+	Flag: dsFlagSet,
 }
 
 func runDs(args []string) int {

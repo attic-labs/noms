@@ -33,7 +33,7 @@ var (
 
 var nomsUi = &NomsCommand{
 	Run:       runUi,
-	UsageLine: "ui [-port portNumber] directory [args...]",
+	UsageLine: "ui [options] directory [args...]",
 	Short:     "Serves Noms browser UIs from its own web and Noms database server.",
 	Long: `
 		args are of the form arg1=val1, arg2=val2, etc. "ldb:" values are automatically translated into paths to an HTTP noms database server

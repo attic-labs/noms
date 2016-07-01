@@ -42,11 +42,23 @@ func (nc *NomsCommand) Name() string {
 	return name
 }
 
+func countFlags(flags *flag.FlagSet) int {
+	if flags == nil {
+		return 0
+	} else {
+		n := 0
+		flags.VisitAll(func(f *flag.Flag) {
+			n++
+		})
+		return n
+	}
+}
+
 func (nc *NomsCommand) Usage() {
 	fmt.Fprintf(os.Stderr, "usage: %s\n\n", nc.UsageLine)
 	fmt.Fprintf(os.Stderr, "%s\n", strings.TrimSpace(nc.Long))
-	if nc.Flag != nil {
-		fmt.Fprintf(os.Stderr, "\nflags:\n")
+	if countFlags(nc.Flag) > 0 {
+		fmt.Fprintf(os.Stderr, "\noptions:\n")
 		nc.Flag.PrintDefaults()
 	}
 	os.Exit(2)

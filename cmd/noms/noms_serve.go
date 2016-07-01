@@ -24,10 +24,10 @@ var (
 
 var nomsServe = &NomsCommand{
 	Run:       runServe,
-	UsageLine: "serve <database>",
+	UsageLine: "serve [options] <database>",
 	Short:     "Serves a Noms database over HTTP",
 	Long: `
-		See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object argument. 
+		See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument. 
 	`,
 	Flag:    serveFlagSet,
 	NumArgs: 1,
