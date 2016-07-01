@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-type NomsCommand struct {
+type nomsCommand struct {
 	// Run runs the command.
 	// The args are the arguments after the command name.
 	Run func(args []string) int
@@ -20,20 +20,21 @@ type NomsCommand struct {
 	// The first word in the line is taken to be the command name.
 	UsageLine string
 
-	// Short is the short description shown in the 'n help' output.
+	// Short is the short description shown in the 'noms help' output.
 	Short string
 
-	// Long is the long message shown in the 'n help <this-command>' output.
+	// Long is the long message shown in the 'noms help <this-command>' output.
 	Long string
 
 	// Flag is a set of flags specific to this command.
 	Flag *flag.FlagSet
 
-	NumArgs int
+	// Nargs is the minimum number of arguments expected after flags, specific to this command.
+	Nargs int
 }
 
 // Name returns the command's name: the first word in the usage line.
-func (nc *NomsCommand) Name() string {
+func (nc *nomsCommand) Name() string {
 	name := nc.UsageLine
 	i := strings.Index(name, " ")
 	if i >= 0 {
@@ -54,7 +55,7 @@ func countFlags(flags *flag.FlagSet) int {
 	}
 }
 
-func (nc *NomsCommand) Usage() {
+func (nc *nomsCommand) Usage() {
 	fmt.Fprintf(os.Stderr, "usage: %s\n\n", nc.UsageLine)
 	fmt.Fprintf(os.Stderr, "%s\n", strings.TrimSpace(nc.Long))
 	if countFlags(nc.Flag) > 0 {

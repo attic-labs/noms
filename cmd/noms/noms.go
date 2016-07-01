@@ -7,26 +7,22 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
-	"runtime"
 )
 
-var commands = []*NomsCommand{
+var commands = []*nomsCommand{
 	nomsDiff,
 	nomsDs,
 	nomsLog,
 	nomsServe,
 	nomsShow,
 	nomsSync,
-	nomsUi,
 	nomsVersion,
 }
 
 func main() {
 	flag.Usage = usage
 	flag.Parse()
-	log.SetFlags(0)
 
 	args := flag.Args()
 	if len(args) < 1 {
@@ -38,16 +34,13 @@ func main() {
 		return
 	}
 
-	cpuCount := runtime.NumCPU()
-	runtime.GOMAXPROCS(cpuCount)
-
 	for _, cmd := range commands {
 		if cmd.Name() == args[0] {
 			cmd.Flag.Usage = func() { cmd.Usage() }
 
 			cmd.Flag.Parse(args[1:])
 			args = cmd.Flag.Args()
-			if cmd.NumArgs != 0 && len(args) < cmd.NumArgs {
+			if cmd.Nargs != 0 && len(args) < cmd.Nargs {
 				cmd.Usage()
 			}
 			os.Exit(cmd.Run(args))

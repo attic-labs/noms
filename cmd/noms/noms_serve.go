@@ -22,15 +22,13 @@ var (
 	port         = serveFlagSet.Int("port", 8000, "")
 )
 
-var nomsServe = &NomsCommand{
+var nomsServe = &nomsCommand{
 	Run:       runServe,
 	UsageLine: "serve [options] <database>",
 	Short:     "Serves a Noms database over HTTP",
-	Long: `
-		See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument. 
-	`,
-	Flag:    serveFlagSet,
-	NumArgs: 1,
+	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.",
+	Flag:      serveFlagSet,
+	Nargs:     1,
 }
 
 func init() {
@@ -38,7 +36,6 @@ func init() {
 }
 
 func runServe(args []string) int {
-
 	cs, err := spec.GetChunkStore(args[0])
 	util.CheckError(err)
 	server := datas.NewRemoteDatabaseServer(cs, *port)

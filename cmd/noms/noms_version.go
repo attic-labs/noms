@@ -12,15 +12,13 @@ import (
 	"github.com/attic-labs/noms/go/constants"
 )
 
-var nomsVersion = &NomsCommand{
+var nomsVersion = &nomsCommand{
 	Run:       runVersion,
 	UsageLine: "version ",
 	Short:     "Display noms version",
-	Long: `
-		version prints the noms data version and build identifier 
-	`,
-	Flag:    flag.NewFlagSet("version", flag.ExitOnError),
-	NumArgs: 0,
+	Long:      "version prints the Noms data version and build identifier",
+	Flag:      flag.NewFlagSet("version", flag.ExitOnError),
+	Nargs:     0,
 }
 
 func runVersion(args []string) int {

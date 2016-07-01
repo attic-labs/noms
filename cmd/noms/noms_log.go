@@ -37,19 +37,16 @@ var (
 
 const parallelism = 16
 
-var nomsLog = &NomsCommand{
+var nomsLog = &nomsCommand{
 	Run:       runLog,
 	UsageLine: "log [options] <commitObject>",
 	Short:     "Displays the history of a Noms dataset",
-	Long: `
-		commitObject must be a dataset or object spec that refers to a commit. See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details.
-	`,
-	Flag:    logFlagSet,
-	NumArgs: 1,
+	Long:      "commitObject must be a dataset or object spec that refers to a commit. See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details.",
+	Flag:      logFlagSet,
+	Nargs:     1,
 }
 
 func runLog(args []string) int {
-
 	useColor = shouldUseColor()
 
 	database, value, err := spec.GetPath(args[0])

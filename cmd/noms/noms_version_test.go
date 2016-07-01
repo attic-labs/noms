@@ -7,6 +7,7 @@ package main
 import (
 	"testing"
 
+	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/samples/go/test_util"
 	"github.com/attic-labs/testify/suite"
 )
@@ -21,5 +22,6 @@ type nomsVersionTestSuite struct {
 
 func (s *nomsVersionTestSuite) TestVersion() {
 	val := s.Run(main, []string{"version"})
-	s.Equal(val, "format version: 2\nbuilt from Developer Mode\n")
+	expectedVal := fmt.Sprintf("format version: %v\nbuilt from Developer Mode\n", constants.NomsVersion)
+	s.Equal(val, expectedVal)
 }

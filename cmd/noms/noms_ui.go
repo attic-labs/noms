@@ -31,15 +31,13 @@ var (
 	portFlag  = uiFlagSet.Int("port", 0, "Port to listen on")
 )
 
-var nomsUi = &NomsCommand{
+var nomsUi = &nomsCommand{
 	Run:       runUi,
 	UsageLine: "ui [options] directory [args...]",
 	Short:     "Serves Noms browser UIs from its own web and Noms database server.",
-	Long: `
-		args are of the form arg1=val1, arg2=val2, etc. "ldb:" values are automatically translated into paths to an HTTP noms database server
-	`,
-	Flag:    uiFlagSet,
-	NumArgs: 1,
+	Long:      "args are of the form arg1=val1, arg2=val2, etc. \"ldb:\" values are automatically translated into paths to an HTTP noms database server",
+	Flag:      uiFlagSet,
+	Nargs:     1,
 }
 
 type chunkStoreRecord struct {

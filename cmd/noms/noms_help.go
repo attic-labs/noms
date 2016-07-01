@@ -13,7 +13,7 @@ import (
 	"text/template"
 )
 
-var usageTemplate = `noms is a tool for interating with Noms data
+var usageTemplate = `Noms is a tool for interating with Noms data
 
 Usage:
 

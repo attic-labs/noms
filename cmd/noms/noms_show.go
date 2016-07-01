@@ -16,19 +16,16 @@ import (
 	"github.com/attic-labs/noms/samples/go/util"
 )
 
-var nomsShow = &NomsCommand{
+var nomsShow = &nomsCommand{
 	Run:       runShow,
 	UsageLine: "show <object>",
 	Short:     "Shows a serialization of a Noms object",
-	Long: `
-		See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object argument. 
-	`,
-	Flag:    flag.NewFlagSet("show", flag.ExitOnError),
-	NumArgs: 1,
+	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object argument.",
+	Flag:      flag.NewFlagSet("show", flag.ExitOnError),
+	Nargs:     1,
 }
 
 func runShow(args []string) int {
-
 	database, value, err := spec.GetPath(args[0])
 	util.CheckErrorNoUsage(err)
 

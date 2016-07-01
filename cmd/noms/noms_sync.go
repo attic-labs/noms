@@ -20,15 +20,13 @@ var (
 	p           = syncFlagSet.Uint("p", 512, "parallelism")
 )
 
-var nomsSync = &NomsCommand{
+var nomsSync = &nomsCommand{
 	Run:       runSync,
 	UsageLine: "sync [options] <source-object> <dest-dataset>",
 	Short:     "Moves datasets between or within databases",
-	Long: `
-		See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object and dataset arguments. 
-	`,
-	Flag:    syncFlagSet,
-	NumArgs: 2,
+	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object and dataset arguments.",
+	Flag:      syncFlagSet,
+	Nargs:     2,
 }
 
 func init() {

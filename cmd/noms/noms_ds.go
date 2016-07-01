@@ -18,18 +18,15 @@ var (
 	toDelete  = dsFlagSet.String("d", "", "dataset to delete")
 )
 
-var nomsDs = &NomsCommand{
+var nomsDs = &nomsCommand{
 	Run:       runDs,
 	UsageLine: "ds [<database> | -d <dataset>]",
 	Short:     "Noms dataset management",
-	Long: `
-		See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database and dataset arguments. 
-	`,
-	Flag: dsFlagSet,
+	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database and dataset arguments.",
+	Flag:      dsFlagSet,
 }
 
 func runDs(args []string) int {
-
 	if *toDelete != "" {
 		set, err := spec.GetDataset(*toDelete)
 		util.CheckError(err)
