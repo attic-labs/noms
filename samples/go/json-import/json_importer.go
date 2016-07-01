@@ -15,7 +15,7 @@ import (
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/spec"
-	"github.com/attic-labs/noms/samples/go/util"
+	"github.com/attic-labs/noms/go/util/jsontonoms"
 )
 
 func main() {
@@ -53,7 +53,7 @@ func main() {
 		log.Fatalln("Error decoding JSON: ", err)
 	}
 
-	_, err = ds.Commit(util.NomsValueFromDecodedJSON(jsonObject, true))
+	_, err = ds.Commit(jsontonoms.NomsValueFromDecodedJSON(jsonObject, true))
 	d.PanicIfError(err)
 	ds.Database().Close()
 }
