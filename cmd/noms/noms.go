@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -59,6 +61,9 @@ func hasDefinedFlags(fs *flag.FlagSet) (hasFlags bool) {
 
 func findCmd(name string) (cmd string) {
 	nomsName := cmdPrefix + name
+	if runtime.GOOS == "windows" {
+		nomsName += ".exe" // ugh...
+	}
 	forEachDir(func(dir *os.File) (stop bool) {
 		if isNomsExecutable(dir, nomsName) {
 			cmd = path.Join(dir.Name(), nomsName)
@@ -69,15 +74,25 @@ func findCmd(name string) (cmd string) {
 	return
 }
 
+func stripFileExtension(cmd string) string {
+	return strings.TrimSuffix(cmd, filepath.Ext(cmd))
+}
+
 func listCmds() []string {
 	cmds := []string{}
 
+	encountered := map[string]bool{}
 	forEachDir(func(dir *os.File) (stop bool) {
 		// dir.Readdirnames may return an error, but |names| may still contain valid files.
 		names, _ := dir.Readdirnames(0)
 		for _, n := range names {
 			if isNomsExecutable(dir, n) {
-				cmds = append(cmds, n[len(cmdPrefix):])
+				cmd := stripFileExtension(n[len(cmdPrefix):])
+				if (!encountered[cmd]) {
+					cmds = append(cmds, cmd)
+					encountered[cmd] = true
+				}
+				
 			}
 		}
 		return
@@ -150,5 +165,5 @@ func isNomsExecutable(dir *os.File, name string) bool {
 	}
 
 	fi, err := os.Stat(path.Join(dir.Name(), name))
-	return err == nil && !fi.IsDir() && fi.Mode()&0111 != 0
+	return err == nil && !fi.IsDir()
 }
