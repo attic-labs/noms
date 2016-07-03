@@ -3,7 +3,7 @@
   "license": "Apache-2.0",
   "main": "dist/main.js",
   "dependencies": {
-    "@attic/noms": "file:../../../js/",
+    "@attic/noms": "file:../../",
     "babel-regenerator-runtime": "6.5.0",
     "humanize": "0.0.9",
     "yargs": "4.4.0"
