@@ -13,10 +13,12 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
-type ProgressFn func(doneCount, knownCount uint64)
+type PullProgress struct {
+	DoneCount, KnownCount uint64
+}
 
 // Pull objects that descends from sourceRef from srcDB to sinkDB. sinkHeadRef should point to a Commit (in sinkDB) that's an ancestor of sourceRef. This allows the algorithm to figure out which portions of data are already present in sinkDB and skip copying them.
-func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency int, progressFn ProgressFn) {
+func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency int, progressCh chan PullProgress) {
 	srcQ, sinkQ := types.RefHeap{sourceRef}, types.RefHeap{sinkHeadRef}
 	heap.Init(&srcQ)
 	heap.Init(&sinkQ)
@@ -77,11 +79,11 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 
 	var doneCount, knownCount uint64
 	updateProgress := func(moreDone, moreKnown uint64) {
-		if progressFn == nil {
+		if progressCh == nil {
 			return
 		}
 		doneCount, knownCount = doneCount+moreDone, knownCount+moreKnown
-		progressFn(doneCount, knownCount+uint64(len(srcQ)))
+		progressCh <- PullProgress{doneCount, knownCount + uint64(len(srcQ))}
 	}
 
 	// hc and reachableChunks aren't goroutine-safe, so only write them here.
@@ -90,7 +92,9 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 	for !srcQ.Empty() {
 		srcRefs, sinkRefs, comRefs := planWork(&srcQ, &sinkQ)
 		srcWork, sinkWork, comWork := len(srcRefs), len(sinkRefs), len(comRefs)
-		updateProgress(0, uint64(srcWork+comWork))
+		if srcWork+comWork > 0 {
+			updateProgress(0, uint64(srcWork+comWork))
+		}
 
 		// These goroutines send work to traverseWorkers, blocking when all are busy. They self-terminate when they've sent all they have.
 		go sendWork(srcChan, srcRefs)

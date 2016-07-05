@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
@@ -45,28 +47,44 @@ func main() {
 	d.CheckError(err)
 	defer sinkDataset.Database().Close()
 
-	hasStatus := false
-	printProgress := func(doneCount, knownCount uint64) {
-		if knownCount == 1 {
-			// It's better to print "up to date" than "0% (0/1); 100% (1/1)".
-			return
-		}
-		pct := 100.0 * (float64(doneCount) / float64(knownCount))
-		status.Printf("Preparing Commit: %.2f%% (%d/%d chunks)", pct, doneCount, knownCount)
-		hasStatus = true
-	}
+	progressCh := make(chan datas.PullProgress)
+	lastProgressCh := make(chan datas.PullProgress)
 
+	go func() {
+		var last datas.PullProgress
+
+		for info := range progressCh {
+			if info.KnownCount == 1 {
+				// It's better to print "up to date" than "0% (0/1); 100% (1/1)".
+				continue
+			}
+
+			last = info
+			if status.WillPrint() {
+				pct := 100.0 * float64(info.DoneCount) / float64(info.KnownCount)
+				status.Printf("Syncing - %.2f%% (%d/%d chunks)", pct, info.DoneCount, info.KnownCount)
+			}
+		}
+
+		lastProgressCh <- last
+	}()
+
+	start := time.Now()
 	err = d.Try(func() {
 		defer profile.MaybeStartProfile().Stop()
 
 		var err error
-		sinkDataset, err = sinkDataset.Pull(sourceStore, types.NewRef(sourceObj), int(*p), printProgress)
+		sinkDataset, err = sinkDataset.Pull(sourceStore, types.NewRef(sourceObj), int(*p), progressCh)
 		d.PanicIfError(err)
 	})
 
 	if err != nil {
 		log.Fatal(err)
-	} else if hasStatus {
+	}
+
+	close(progressCh)
+	if last := <-lastProgressCh; last.DoneCount > 0 {
+		status.Printf("Done - Synced %d chunks in %s", last.DoneCount, time.Since(start).String())
 		status.Done()
 	} else {
 		fmt.Println(flag.Arg(1), "is up to date.")
