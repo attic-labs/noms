@@ -5,10 +5,11 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/attic-labs/noms/go/constants"
-	"github.com/attic-labs/noms/samples/go/test_util"
+	"github.com/attic-labs/noms/go/util/clienttest"
 	"github.com/attic-labs/testify/suite"
 )
 
@@ -17,7 +18,7 @@ func TestVersion(t *testing.T) {
 }
 
 type nomsVersionTestSuite struct {
-	test_util.ClientTestSuite
+	clienttest.ClientTestSuite
 }
 
 func (s *nomsVersionTestSuite) TestVersion() {

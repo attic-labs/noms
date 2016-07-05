@@ -9,13 +9,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/samples/go/csv"
-	"github.com/attic-labs/noms/samples/go/util"
 )
 
 var (
@@ -26,8 +24,6 @@ var (
 
 func main() {
 	spec.RegisterDatabaseFlags(flag.CommandLine)
-	cpuCount := runtime.NumCPU()
-	runtime.GOMAXPROCS(cpuCount)
 
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: csv-export [options] dataset > filename")
@@ -37,16 +33,16 @@ func main() {
 	flag.Parse()
 
 	if flag.NArg() != 1 {
-		util.CheckError(errors.New("expected dataset arg"))
+		d.CheckError(errors.New("expected dataset arg"))
 	}
 
 	ds, err := spec.GetDataset(flag.Arg(0))
-	util.CheckError(err)
+	d.CheckError(err)
 
 	defer ds.Database().Close()
 
 	comma, err := csv.StringToRune(*delimiter)
-	util.CheckError(err)
+	d.CheckError(err)
 
 	err = d.Try(func() {
 		defer profile.MaybeStartProfile().Stop()

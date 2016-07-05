@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/attic-labs/noms/samples/go/test_util"
+	"github.com/attic-labs/noms/go/util/clienttest"
 	"github.com/attic-labs/testify/suite"
 )
 
@@ -21,7 +21,7 @@ func TestBasics(t *testing.T) {
 }
 
 type testSuite struct {
-	test_util.ClientTestSuite
+	clienttest.ClientTestSuite
 }
 
 func (s *testSuite) TestRoundTrip() {
@@ -53,4 +53,9 @@ func (s *testSuite) TestReadCanned() {
 	s.Equal(`Aaron Boodman (id: 7, title: Chief Evangelism Officer)
 Samuel Boodman (id: 13, title: VP, Culture)
 `, out)
+}
+
+func (s *testSuite) TestInvalidDatasetSpec() {
+	// Should not crash
+	_ = s.Run(main, []string{"-ds", "invalid-dataset", "list-persons"})
 }

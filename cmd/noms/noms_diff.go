@@ -11,9 +11,9 @@ import (
 	"os"
 
 	"github.com/attic-labs/noms/cmd/noms/diff"
+	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/util/outputpager"
-	"github.com/attic-labs/noms/samples/go/util"
 )
 
 const (
@@ -32,16 +32,16 @@ var nomsDiff = &nomsCommand{
 
 func runDiff(args []string) int {
 	db1, value1, err := spec.GetPath(args[0])
-	util.CheckErrorNoUsage(err)
+	d.CheckErrorNoUsage(err)
 	if value1 == nil {
-		util.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[0]))
+		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[0]))
 	}
 	defer db1.Close()
 
 	db2, value2, err := spec.GetPath(args[1])
-	util.CheckErrorNoUsage(err)
+	d.CheckErrorNoUsage(err)
 	if value2 == nil {
-		util.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[1]))
+		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[1]))
 	}
 	defer db2.Close()
 

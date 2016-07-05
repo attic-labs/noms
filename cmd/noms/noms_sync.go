@@ -12,7 +12,6 @@ import (
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
-	"github.com/attic-labs/noms/samples/go/util"
 )
 
 var (
@@ -36,11 +35,11 @@ func init() {
 func runSync(args []string) int {
 
 	sourceStore, sourceObj, err := spec.GetPath(args[0])
-	util.CheckError(err)
+	d.CheckError(err)
 	defer sourceStore.Close()
 
 	sinkDataset, err := spec.GetDataset(args[1])
-	util.CheckError(err)
+	d.CheckError(err)
 	defer sinkDataset.Database().Close()
 
 	err = d.Try(func() {
