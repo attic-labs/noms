@@ -54,7 +54,9 @@ main().catch(ex => {
   process.exit(1);
 });
 
-var authToken, authSecret, authURL: string;  // eslint-disable-line no-var
+var authToken: ?string;  // eslint-disable-line no-var
+var authSecret: ?string;  // eslint-disable-line no-var
+var authURL: ?string;  // eslint-disable-line no-var
 var out: Dataset;  // eslint-disable-line no-var
 
 async function main(): Promise<void> {
@@ -131,6 +133,7 @@ function getAuthToken(): Promise<[string, string]> {
 function promptForAuth(url: string): Promise<void> {
   return new Promise((res) => {
     process.stdout.write(`Go to ${url} to grant permissions to access Flickr...\n`);
+    // $FlowIssue: Flow does not know about createInterface.
     const rl = readline.createInterface({input: process.stdin, output: process.stdout});
     rl.question('Press enter when done\n', () => {
       process.stdout.write('Authenticated. Next time run:\n' +

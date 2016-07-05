@@ -36,5 +36,8 @@
     "request": "^2.72.0",
     "varint": "^4.0.0",
     "yargs": "^4.7.1"
+  },
+  "scripts": {
+    "test": "exit 0"
   }
 }

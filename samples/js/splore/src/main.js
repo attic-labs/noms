@@ -34,7 +34,7 @@ let rootHash: Hash;
 let database: Database;
 
 let renderNode: ?HTMLElement;
-let params;
+let params = {};
 
 window.onload = load;
 window.onpopstate = load;
@@ -237,7 +237,7 @@ function handleNodeClick(e: MouseEvent, id: string) {
   }
 }
 
-class Prompt extends React.Component<void, {}, void> {
+class Prompt extends React.Component<{}, {}, void> {
   render(): React.Element {
     const fontStyle: {[key: string]: any} = {
       fontFamily: 'Menlo',

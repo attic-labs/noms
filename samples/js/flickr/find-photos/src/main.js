@@ -31,8 +31,11 @@ const sizes = ['t', 's', 'm', 'l', 'o'];
 const flickrNum = makeUnionType([stringType, numberType]);
 const sizeTypes = sizes.map(s =>
   makeStructType('', {
+    // $FlowIssue: computed property keys not supported
     ['url_' + s]: stringType,
+    // $FlowIssue: computed property keys not supported
     ['width_' + s]: flickrNum,
+    // $FlowIssue: computed property keys not supported
     ['height_' + s]: flickrNum,
   }));
 
@@ -117,7 +120,6 @@ function getSizes(input: Object): Map<Struct, string> {
   return new Map(
     sizes.map((s, i) => {
       if (!isSubtype(sizeTypes[i], input.type)) {
-        // $FlowIssue - Flow doesn't realize that filter will return only non-nulls.
         return null;
       }
       const url = input['url_' + s];
