@@ -23,6 +23,6 @@ type nomsVersionTestSuite struct {
 
 func (s *nomsVersionTestSuite) TestVersion() {
 	val := s.Run(main, []string{"version"})
-	expectedVal := fmt.Sprintf("format version: %v\nbuilt from Developer Mode\n", constants.NomsVersion)
+	expectedVal := fmt.Sprintf("version: %v\nbuilt from %v\n", constants.NomsVersion, constants.NomsGitSHA)
 	s.Equal(val, expectedVal)
 }

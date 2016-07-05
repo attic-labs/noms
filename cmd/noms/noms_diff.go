@@ -26,8 +26,12 @@ var nomsDiff = &nomsCommand{
 	UsageLine: "diff <object1> <object2>",
 	Short:     "Shows the difference between two objects",
 	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object arguments.",
-	Flag:      flag.NewFlagSet("diff", flag.ExitOnError),
+	Flag:      setupDiffFlags,
 	Nargs:     2,
+}
+
+func setupDiffFlags() *flag.FlagSet {
+	return flag.NewFlagSet("diff", flag.ExitOnError)
 }
 
 func runDiff(args []string) int {

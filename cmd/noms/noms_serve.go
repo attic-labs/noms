@@ -17,8 +17,7 @@ import (
 )
 
 var (
-	serveFlagSet = flag.NewFlagSet("serve", flag.ExitOnError)
-	port         = serveFlagSet.Int("port", 8000, "")
+	port int
 )
 
 var nomsServe = &nomsCommand{
@@ -26,18 +25,21 @@ var nomsServe = &nomsCommand{
 	UsageLine: "serve [options] <database>",
 	Short:     "Serves a Noms database over HTTP",
 	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.",
-	Flag:      serveFlagSet,
+	Flag:      setupServeFlags,
 	Nargs:     1,
 }
 
-func init() {
+func setupServeFlags() *flag.FlagSet {
+	serveFlagSet := flag.NewFlagSet("serve", flag.ExitOnError)
+	serveFlagSet.IntVar(&port, "port", 8000, "port to listen on for HTTP requests")
 	spec.RegisterDatabaseFlags(serveFlagSet)
+	return serveFlagSet
 }
 
 func runServe(args []string) int {
 	cs, err := spec.GetChunkStore(args[0])
 	d.CheckError(err)
-	server := datas.NewRemoteDatabaseServer(cs, *port)
+	server := datas.NewRemoteDatabaseServer(cs, port)
 
 	// Shutdown server gracefully so that profile may be written
 	c := make(chan os.Signal, 1)

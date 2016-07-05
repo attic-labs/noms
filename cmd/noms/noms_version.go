@@ -17,8 +17,12 @@ var nomsVersion = &nomsCommand{
 	UsageLine: "version ",
 	Short:     "Display noms version",
 	Long:      "version prints the Noms data version and build identifier",
-	Flag:      flag.NewFlagSet("version", flag.ExitOnError),
+	Flag:      setupVersionFlags,
 	Nargs:     0,
+}
+
+func setupVersionFlags() *flag.FlagSet {
+	return flag.NewFlagSet("version", flag.ExitOnError)
 }
 
 func runVersion(args []string) int {

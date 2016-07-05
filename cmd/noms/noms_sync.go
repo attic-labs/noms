@@ -15,8 +15,7 @@ import (
 )
 
 var (
-	syncFlagSet = flag.NewFlagSet("sync", flag.ExitOnError)
-	p           = syncFlagSet.Uint("p", 512, "parallelism")
+	p int
 )
 
 var nomsSync = &nomsCommand{
@@ -24,12 +23,15 @@ var nomsSync = &nomsCommand{
 	UsageLine: "sync [options] <source-object> <dest-dataset>",
 	Short:     "Moves datasets between or within databases",
 	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object and dataset arguments.",
-	Flag:      syncFlagSet,
+	Flag:      setupSyncFlags,
 	Nargs:     2,
 }
 
-func init() {
+func setupSyncFlags() *flag.FlagSet {
+	syncFlagSet := flag.NewFlagSet("sync", flag.ExitOnError)
+	syncFlagSet.IntVar(&p, "p", 512, "parallelism")
 	spec.RegisterDatabaseFlags(syncFlagSet)
+	return syncFlagSet
 }
 
 func runSync(args []string) int {
@@ -46,7 +48,7 @@ func runSync(args []string) int {
 		defer profile.MaybeStartProfile().Stop()
 
 		var err error
-		sinkDataset, err = sinkDataset.Pull(sourceStore, types.NewRef(sourceObj), int(*p))
+		sinkDataset, err = sinkDataset.Pull(sourceStore, types.NewRef(sourceObj), p)
 		d.PanicIfError(err)
 	})
 

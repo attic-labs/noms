@@ -27,7 +27,7 @@ type nomsCommand struct {
 	Long string
 
 	// Flag is a set of flags specific to this command.
-	Flag *flag.FlagSet
+	Flag func() *flag.FlagSet
 
 	// Nargs is the minimum number of arguments expected after flags, specific to this command.
 	Nargs int
@@ -58,9 +58,10 @@ func countFlags(flags *flag.FlagSet) int {
 func (nc *nomsCommand) Usage() {
 	fmt.Fprintf(os.Stderr, "usage: %s\n\n", nc.UsageLine)
 	fmt.Fprintf(os.Stderr, "%s\n", strings.TrimSpace(nc.Long))
-	if countFlags(nc.Flag) > 0 {
+	flags := nc.Flag()
+	if countFlags(flags) > 0 {
 		fmt.Fprintf(os.Stderr, "\noptions:\n")
-		nc.Flag.PrintDefaults()
+		flags.PrintDefaults()
 	}
 	os.Exit(2)
 }

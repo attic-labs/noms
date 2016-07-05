@@ -21,8 +21,12 @@ var nomsShow = &nomsCommand{
 	UsageLine: "show <object>",
 	Short:     "Shows a serialization of a Noms object",
 	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object argument.",
-	Flag:      flag.NewFlagSet("show", flag.ExitOnError),
+	Flag:      setupShowFlags,
 	Nargs:     1,
+}
+
+func setupShowFlags() *flag.FlagSet {
+	return flag.NewFlagSet("show", flag.ExitOnError)
 }
 
 func runShow(args []string) int {

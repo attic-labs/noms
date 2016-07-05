@@ -32,7 +32,7 @@ func (testExiter) Exit(code int) {
 
 func TestNomsLog(t *testing.T) {
 	d.UtilExiter = testExiter{}
-	suite.Run(t, &nomsShowTestSuite{})
+	suite.Run(t, &nomsLogTestSuite{})
 }
 
 type nomsLogTestSuite struct {

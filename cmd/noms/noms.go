@@ -36,14 +36,20 @@ func main() {
 
 	for _, cmd := range commands {
 		if cmd.Name() == args[0] {
-			cmd.Flag.Usage = func() { cmd.Usage() }
+			flags := cmd.Flag()
+			flags.Usage = func() { cmd.Usage() }
 
-			cmd.Flag.Parse(args[1:])
-			args = cmd.Flag.Args()
+			flags.Parse(args[1:])
+			args = flags.Args()
 			if cmd.Nargs != 0 && len(args) < cmd.Nargs {
 				cmd.Usage()
 			}
-			os.Exit(cmd.Run(args))
+			exitCode := cmd.Run(args)
+			if exitCode != 0 {
+				os.Exit(cmd.Run(args))
+			} else {
+				return
+			}
 		}
 	}
 

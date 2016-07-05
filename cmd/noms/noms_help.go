@@ -70,9 +70,10 @@ func help(args []string) {
 	for _, cmd := range commands {
 		if cmd.Name() == arg {
 			tmpl(os.Stdout, helpTemplate, cmd)
-			if countFlags(cmd.Flag) > 0 {
+			flags := cmd.Flag()
+			if countFlags(flags) > 0 {
 				fmt.Fprintf(os.Stdout, "\noptions:\n")
-				cmd.Flag.PrintDefaults()
+				flags.PrintDefaults()
 			}
 			// not exit 2: succeeded at 'noms help cmd'.
 			return
