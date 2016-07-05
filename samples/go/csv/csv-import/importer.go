@@ -44,6 +44,7 @@ func main() {
 	)
 
 	spec.RegisterDatabaseFlags(flag.CommandLine)
+	profile.RegisterProfileFlags(flag.CommandLine)
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: csv-import [options] <dataset> <csvfile>\n\n")

@@ -31,6 +31,7 @@ func setupSyncFlags() *flag.FlagSet {
 	syncFlagSet := flag.NewFlagSet("sync", flag.ExitOnError)
 	syncFlagSet.IntVar(&p, "p", 512, "parallelism")
 	spec.RegisterDatabaseFlags(syncFlagSet)
+	profile.RegisterProfileFlags(syncFlagSet)
 	return syncFlagSet
 }
 

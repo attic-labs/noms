@@ -26,7 +26,9 @@ var nomsShow = &nomsCommand{
 }
 
 func setupShowFlags() *flag.FlagSet {
-	return flag.NewFlagSet("show", flag.ExitOnError)
+	showFlagSet := flag.NewFlagSet("show", flag.ExitOnError)
+	outputpager.RegisterOutputpagerFlags(showFlagSet)
+	return showFlagSet
 }
 
 func runShow(args []string) int {
@@ -38,7 +40,7 @@ func runShow(args []string) int {
 		return 0
 	}
 
-	waitChan := outputpager.PageOutput(!*outputpager.NoPager)
+	waitChan := outputpager.PageOutput(!outputpager.NoPager)
 
 	w := bufio.NewWriter(os.Stdout)
 	types.WriteEncodedValueWithTags(w, value)

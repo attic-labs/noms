@@ -31,7 +31,9 @@ var nomsDiff = &nomsCommand{
 }
 
 func setupDiffFlags() *flag.FlagSet {
-	return flag.NewFlagSet("diff", flag.ExitOnError)
+	diffFlagSet := flag.NewFlagSet("diff", flag.ExitOnError)
+	outputpager.RegisterOutputpagerFlags(diffFlagSet)
+	return diffFlagSet
 }
 
 func runDiff(args []string) int {
@@ -49,7 +51,7 @@ func runDiff(args []string) int {
 	}
 	defer db2.Close()
 
-	waitChan := outputpager.PageOutput(!*outputpager.NoPager)
+	waitChan := outputpager.PageOutput(!outputpager.NoPager)
 
 	w := bufio.NewWriter(os.Stdout)
 	diff.Diff(w, value1, value2)

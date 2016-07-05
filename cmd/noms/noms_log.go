@@ -51,6 +51,7 @@ func setupLogFlags() *flag.FlagSet {
 	logFlagSet.IntVar(&maxCommits, "n", 0, "max number of commits to display (0 for all commits)")
 	logFlagSet.BoolVar(&showGraph, "graph", false, "show ascii-based commit hierarcy on left side of output")
 	logFlagSet.BoolVar(&showValue, "show-value", false, "show commit value rather than diff information -- this is temporary")
+	outputpager.RegisterOutputpagerFlags(logFlagSet)
 	return logFlagSet
 }
 
@@ -67,7 +68,7 @@ func runLog(args []string) int {
 		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[0]))
 	}
 
-	waitChan := outputpager.PageOutput(!*outputpager.NoPager)
+	waitChan := outputpager.PageOutput(!outputpager.NoPager)
 
 	origCommit, ok := value.(types.Struct)
 	if !ok || !origCommit.Type().Equals(datas.CommitType()) {
