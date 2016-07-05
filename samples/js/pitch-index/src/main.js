@@ -43,8 +43,8 @@ async function main(): Promise<void> {
   const playerPs = [];
   invariant(hv instanceof NomsMap);
   await hv.forEach((ref: Ref<XMLElement>) => {
-    // XXX e force elemP to be 'any' here because the 'inning' entry and the 'Player' entry have
-    // XXX different types that involve multiple levels of nested maps OR strings.
+    // We force elemP to be 'any' here because the 'inning' entry and the 'Player' entry have
+    // different types that involve multiple levels of nested maps OR strings.
     const elemP = ref.targetValue(input.database);
     inningPs.push(maybeProcessInning(elemP));
     playerPs.push(maybeProcessPitcher(elemP, pitchers));
