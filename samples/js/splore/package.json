@@ -5,6 +5,7 @@
     "@attic/webpack-config": "^2.1.0"
   },
   "scripts": {
+    "prepublish": "npm run build",
     "start": "PATH=../node_modules/.bin/:$PATH python node_modules/@attic/webpack-config/run.py --src src/main.js --out out.js development",
     "build": "PATH=../node_modules/.bin/:$PATH python node_modules/@attic/webpack-config/run.py --src src/main.js --out out.js production",
     "test": "PATH=../node_modules/.bin/:$PATH eslint src/ && flow src/"
