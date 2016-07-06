@@ -1,4 +1,4 @@
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -67,10 +67,11 @@ func (s *testSuite) TestCSVExporter() {
 
 	// Run exporter
 	dataspec := spec.CreateValueSpecString("ldb", s.LdbDir, setName)
-	out := s.Run(main, []string{dataspec})
+	stdout, stderr := s.Run(main, []string{dataspec})
+	s.Equal("", stderr)
 
 	// Verify output
-	csvReader := csv.NewReader(strings.NewReader(out))
+	csvReader := csv.NewReader(strings.NewReader(stdout))
 
 	row, err := csvReader.Read()
 	d.Chk.NoError(err)

@@ -1,4 +1,4 @@
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -14,8 +14,16 @@ import (
 )
 
 var (
-	NoPager = flag.Bool("no-pager", false, "suppress paging functionality")
+	NoPager         bool
+	flagsRegistered = false
 )
+
+func RegisterOutputpagerFlags(flags *flag.FlagSet) {
+	if !flagsRegistered {
+		flagsRegistered = true
+		flags.BoolVar(&NoPager, "no-pager", false, "suppress paging functionality")
+	}
+}
 
 func PageOutput(usePager bool) <-chan struct{} {
 	if !usePager || !IsStdoutTty() {

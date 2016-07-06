@@ -1,6 +1,6 @@
 // @flow
 
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -34,7 +34,7 @@ let rootHash: Hash;
 let database: Database;
 
 let renderNode: ?HTMLElement;
-let params;
+let params = {};
 
 window.onload = load;
 window.onpopstate = load;
@@ -97,7 +97,7 @@ function handleChunkLoad(hash: Hash, val: any, fromHash: ?string) {
                                name: string) {
     data.nodes[id] = {name: name};
     sequence.items.forEach(tuple => {
-      const kid = process(hash, formatKeyString(tuple.value), id);
+      const kid = process(hash, formatKeyString(tuple.child), id);
       if (kid) {
         data.nodes[kid].isOpen = true;
 

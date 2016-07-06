@@ -1,4 +1,4 @@
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -23,7 +23,13 @@ type counterTestSuite struct {
 func (s *counterTestSuite) TestCounter() {
 	spec := spec.CreateValueSpecString("ldb", s.LdbDir, "counter")
 	args := []string{spec}
-	s.Equal("1\n", s.Run(main, args))
-	s.Equal("2\n", s.Run(main, args))
-	s.Equal("3\n", s.Run(main, args))
+	stdout, stderr := s.Run(main, args)
+	s.Equal("1\n", stdout)
+	s.Equal("", stderr)
+	stdout, stderr = s.Run(main, args)
+	s.Equal("2\n", stdout)
+	s.Equal("", stderr)
+	stdout, stderr = s.Run(main, args)
+	s.Equal("3\n", stdout)
+	s.Equal("", stderr)
 }

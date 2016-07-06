@@ -1,4 +1,4 @@
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -23,7 +23,8 @@ var (
 )
 
 func main() {
-	spec.RegisterDatabaseFlags()
+	spec.RegisterDatabaseFlags(flag.CommandLine)
+	profile.RegisterProfileFlags(flag.CommandLine)
 
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: csv-export [options] dataset > filename")
