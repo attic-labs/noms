@@ -38,7 +38,7 @@ func GetChunkStore(str string) (chunks.ChunkStore, error) {
 
 	switch sp.Protocol {
 	case "ldb":
-		return acquireLevelDBStore(sp.Path), nil
+		return getLDBStore(sp.Path), nil
 	case "mem":
 		return chunks.NewMemoryStore(), nil
 	default:
@@ -173,7 +173,7 @@ func (spec databaseSpec) Database() (ds datas.Database, err error) {
 		}))
 	case "ldb":
 		err = d.Unwrap(d.Try(func() {
-			ds = datas.NewDatabase(acquireLevelDBStore(spec.Path))
+			ds = datas.NewDatabase(getLDBStore(spec.Path))
 		}))
 	case "mem":
 		ds = datas.NewDatabase(chunks.NewMemoryStore())
@@ -233,7 +233,7 @@ func CreateValueSpecString(protocol, path, value string) string {
 	return fmt.Sprintf("%s:%s::%s", protocol, path, value)
 }
 
-func acquireLevelDBStore(path string) chunks.ChunkStore {
+func getLDBStore(path string) chunks.ChunkStore {
 	if store, ok := ldbStores[path]; ok {
 		store.AddRef()
 		return store
