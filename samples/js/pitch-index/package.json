@@ -8,7 +8,7 @@
     "prepublish": "npm run build",
     "start": "PATH=../node_modules/.bin/:$PATH babel -d dist -w src",
     "build": "PATH=../node_modules/.bin/:$PATH BABEL_ENV=production babel -d dist src",
-    "test": "PATH=../node_modules/.bin/:$PATH eslint src/ && flow src/"
+    "test": "PATH=../node_modules/.bin/:$PATH (eslint src/ && flow src/)"
   },
   "keywords": [
     "noms",
