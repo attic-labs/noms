@@ -27,6 +27,7 @@ func main() {
 	args := flag.Args()
 	if len(args) < 1 {
 		usage()
+		return
 	}
 
 	if args[0] == "help" {
@@ -36,8 +37,8 @@ func main() {
 
 	for _, cmd := range commands {
 		if cmd.Name() == args[0] {
-			flags := cmd.Flag()
-			flags.Usage = func() { cmd.Usage() }
+			flags := cmd.Flags()
+			flags.Usage = cmd.Usage
 
 			flags.Parse(args[1:])
 			args = flags.Args()
@@ -46,10 +47,9 @@ func main() {
 			}
 			exitCode := cmd.Run(args)
 			if exitCode != 0 {
-				os.Exit(cmd.Run(args))
-			} else {
-				return
+				os.Exit(exitCode)
 			}
+			return
 		}
 	}
 

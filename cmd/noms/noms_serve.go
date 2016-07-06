@@ -25,7 +25,7 @@ var nomsServe = &nomsCommand{
 	UsageLine: "serve [options] <database>",
 	Short:     "Serves a Noms database over HTTP",
 	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.",
-	Flag:      setupServeFlags,
+	Flags:     setupServeFlags,
 	Nargs:     1,
 }
 

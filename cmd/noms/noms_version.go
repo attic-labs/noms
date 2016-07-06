@@ -17,7 +17,7 @@ var nomsVersion = &nomsCommand{
 	UsageLine: "version ",
 	Short:     "Display noms version",
 	Long:      "version prints the Noms data version and build identifier",
-	Flag:      setupVersionFlags,
+	Flags:     setupVersionFlags,
 	Nargs:     0,
 }
 

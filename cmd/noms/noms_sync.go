@@ -23,7 +23,7 @@ var nomsSync = &nomsCommand{
 	UsageLine: "sync [options] <source-object> <dest-dataset>",
 	Short:     "Moves datasets between or within databases",
 	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object and dataset arguments.",
-	Flag:      setupSyncFlags,
+	Flags:     setupSyncFlags,
 	Nargs:     2,
 }
 

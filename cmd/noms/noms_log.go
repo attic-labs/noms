@@ -40,7 +40,7 @@ var nomsLog = &nomsCommand{
 	UsageLine: "log [options] <commitObject>",
 	Short:     "Displays the history of a Noms dataset",
 	Long:      "commitObject must be a dataset or object spec that refers to a commit. See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details.",
-	Flag:      setupLogFlags,
+	Flags:     setupLogFlags,
 	Nargs:     1,
 }
 

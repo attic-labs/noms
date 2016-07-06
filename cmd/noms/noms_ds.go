@@ -20,7 +20,7 @@ var nomsDs = &nomsCommand{
 	UsageLine: "ds [<database> | -d <dataset>]",
 	Short:     "Noms dataset management",
 	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database and dataset arguments.",
-	Flag:      setupDsFlags,
+	Flags:     setupDsFlags,
 }
 
 func setupDsFlags() *flag.FlagSet {

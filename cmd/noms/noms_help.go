@@ -13,7 +13,7 @@ import (
 	"text/template"
 )
 
-var usageTemplate = `Noms is a tool for interating with Noms data
+var usageTemplate = `Noms is a tool for iterating with Noms data.
 
 Usage:
 
@@ -50,7 +50,7 @@ func printUsage(w io.Writer) {
 
 func usage() {
 	printUsage(os.Stderr)
-	os.Exit(2)
+	os.Exit(1)
 }
 
 // help implements the 'help' command.
@@ -62,7 +62,7 @@ func help(args []string) {
 	}
 	if len(args) != 1 {
 		fmt.Fprintf(os.Stderr, "usage: noms help command\n\nToo many arguments given.\n")
-		os.Exit(2) // failed at 'noms help'
+		os.Exit(1) // failed at 'noms help'
 	}
 
 	arg := args[0]
@@ -70,7 +70,7 @@ func help(args []string) {
 	for _, cmd := range commands {
 		if cmd.Name() == arg {
 			tmpl(os.Stdout, helpTemplate, cmd)
-			flags := cmd.Flag()
+			flags := cmd.Flags()
 			if countFlags(flags) > 0 {
 				fmt.Fprintf(os.Stdout, "\noptions:\n")
 				flags.PrintDefaults()
