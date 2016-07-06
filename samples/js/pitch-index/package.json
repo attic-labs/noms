@@ -5,7 +5,7 @@
   "version": "1.0.1",
   "description": "noms example javascript thing",
   "scripts": {
-    "preinstall": "mkdir -p node_modules/.bin && for n in babel eslint flow; do ln -sf ../../../node_modules/.bin/${n} node_modules/.bin/${n}; done",
+    "preinstall": "rm -rf node_modules && ln -sf ../node_modules/",
     "prepublish": "npm run build",
     "start": "babel -d dist -w src",
     "build": "BABEL_ENV=production babel -d dist src",
