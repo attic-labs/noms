@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright 2016 The Noms Authors. All rights reserved.
+# Copyright 2016 Attic Labs, Inc. All rights reserved.
 # Licensed under the Apache License, version 2.0:
 # http://www.apache.org/licenses/LICENSE-2.0
 
@@ -19,6 +19,7 @@ def pushd(path):
 
 def main():
   lsfiles = subprocess.check_output(['git', 'ls-files']).split('\n')
+  lsfiles.sort(key = len) # Sort by shortest first to make sure we deal with parents first
   for f in lsfiles:
     path, name = os.path.split(f)
     if name == 'package.json':

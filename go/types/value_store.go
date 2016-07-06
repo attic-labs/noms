@@ -1,4 +1,4 @@
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -186,7 +186,9 @@ func (lvs *ValueStore) checkChunksInCache(v Value, readValues bool) Hints {
 				reachableV = lvs.ReadValue(targetHash)
 				entry = lvs.check(targetHash)
 			}
-			d.PanicIfTrue(reachableV == nil, "Attempted to write Value containing Ref to non-existent object.", "%s\n, contains ref %s, which points to a non-existent Value.", EncodedValueWithTags(v), reachable.TargetHash())
+			if reachableV == nil {
+				d.Chk.Fail("Attempted to write Value containing Ref to non-existent object.", "%s\n, contains ref %s, which points to a non-existent Value.", v.Hash(), reachable.TargetHash())
+			}
 		}
 		if hint := entry.Hint(); !hint.IsEmpty() {
 			hints[hint] = struct{}{}
