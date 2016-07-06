@@ -22,3 +22,6 @@ Then to run the sample:
 ```
 node .
 ```
+
+You only need to do the `npm install` calls once. After that you can use `npm run build` or
+`npm run start` for dev mode.
