@@ -90,7 +90,11 @@ func (lvbs *ValidatingBatchStoreAdapter) IsValidating() bool {
 
 func (lvbs *ValidatingBatchStoreAdapter) Get(h hash.Hash) chunks.Chunk {
 	lvbs.once.Do(lvbs.expectVersion)
-	return lvbs.pc.Get(h)
+	c := lvbs.pc.Get(h)
+	if c.IsEmpty() {
+		c = lvbs.cs.Get(h)
+	}
+	return c
 }
 
 func (lvbs *ValidatingBatchStoreAdapter) SchedulePut(c chunks.Chunk, refHeight uint64, hints Hints) {
