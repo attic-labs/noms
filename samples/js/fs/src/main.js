@@ -1,6 +1,6 @@
 // @flow
 
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -89,7 +89,7 @@ async function main(): Promise<void> {
 
 }
 
-async function processPath(p: string, store: Database): Promise<null|Directory|File> {
+async function processPath(p: string, store: Database): Promise<void|Directory|File> {
   numFilesFound++;
   const st = await fs.stat(p);
   sizeFilesFound += st.size;

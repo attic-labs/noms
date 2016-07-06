@@ -1,3 +1,7 @@
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
+// Licensed under the Apache License, version 2.0:
+// http://www.apache.org/licenses/LICENSE-2.0
+
 package main
 
 import (
@@ -19,7 +23,7 @@ func usage() {
 }
 
 func main() {
-	chunks.RegisterLevelDBFlags()
+	chunks.RegisterLevelDBFlags(flag.CommandLine)
 	dynFlags := chunks.DynamoFlags("")
 
 	flag.Usage = usage

@@ -1,6 +1,6 @@
 // @flow
 
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -49,13 +49,19 @@ const sizeTypes = sizes.map(s =>
 //   } |
 //   ... for all the image size suffixes ...
 // }
-const imageType = makeUnionType(sizeTypes.map(st =>
-    makeStructType('', Object.assign(({
-      title: stringType,
-      tags: stringType,
-      latitude: flickrNum,
-      longitude: flickrNum,
-    }:Object), st.desc.fields))));
+const imageType = makeUnionType(sizeTypes.map(st => {
+  const newFields = {
+    title: stringType,
+    tags: stringType,
+    latitude: flickrNum,
+    longitude: flickrNum,
+  };
+  st.desc.forEachField((name, type) => {
+    newFields[name] = type;
+  });
+
+  return makeStructType('', newFields);
+}));
 
 main().catch(ex => {
   console.error(ex);
@@ -91,7 +97,7 @@ async function main(): Promise<void> {
         photo.geoposition = geo;
       }
 
-      result = result.then(r => r.insert(newStruct('Photo', photo)));
+      result = result.then(r => r.add(newStruct('Photo', photo)));
       return true;
     }
     return false;
@@ -108,15 +114,15 @@ function getGeo(input: Object): Struct {
 }
 
 function getSizes(input: Object): Map<Struct, string> {
-  return new Map(
-    sizes.map((s, i) => {
-      if (!isSubtype(sizeTypes[i], input.type)) {
-        // $FlowIssue - Flow doesn't realize that filter will return only non-nulls.
-        return null;
-      }
-      const url = input['url_' + s];
-      const width = Number(input['width_' + s]);
-      const height = Number(input['height_' + s]);
-      return [newStruct('', {width, height}), url];
-    }).filter(kv => kv));
+  const a = sizes.map((s, i) => {
+    if (!isSubtype(sizeTypes[i], input.type)) {
+      return null;
+    }
+    const url = input['url_' + s];
+    const width = Number(input['width_' + s]);
+    const height = Number(input['height_' + s]);
+    return [newStruct('', {width, height}), url];
+  });
+  // $FlowIssue: Does not understand that filter removes all null values.
+  return new Map(a.filter(kv => kv));
 }

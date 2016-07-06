@@ -4,8 +4,6 @@
 
 In other words, Noms is Git for data.
 
-In *other*, other words, Noms is Programmable Git.
-
 This repository contains two reference implementations of the database—one in Go, and one in JavaScript. It also includes a number of tools and sample applications.
 
 
@@ -18,7 +16,7 @@ Noms is supported on Mac OS X and Linux. Windows is not currently supported.
 3. Type type type:
 ```
 git clone https://github.com/attic-labs/noms $GOPATH/src/github.com/attic-labs/noms
-go install github.com/attic-labs/noms/cmd/...
+go install github.com/attic-labs/noms/cmd/noms
 
 noms log http://demo.noms.io/cli-tour::film-locations
 ```
@@ -35,7 +33,7 @@ Noms gives you the entire Git workflow, but for large-scale structured (or unstr
 *[`noms diff` and `noms log` on large datasets](https://www.youtube.com/watch?v=ONByMptWa2A)*
 
 
-#### A Versioned Database
+#### An Application Database with History
 
 A database where every change is automatically and efficiently preserved. Instantly revert to, fork, or work from any historical commit.
 

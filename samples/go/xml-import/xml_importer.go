@@ -1,4 +1,4 @@
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -51,7 +51,8 @@ func (a refIndexList) Less(i, j int) bool { return a[i].index < a[j].index }
 
 func main() {
 	err := d.Try(func() {
-		spec.RegisterDatabaseFlags()
+		spec.RegisterDatabaseFlags(flag.CommandLine)
+		profile.RegisterProfileFlags(flag.CommandLine)
 		flag.Usage = customUsage
 		flag.Parse()
 

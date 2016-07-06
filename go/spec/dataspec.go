@@ -1,10 +1,11 @@
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package spec
 
 import (
+	"flag"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -221,8 +222,8 @@ func (spec pathSpec) Value() (db datas.Database, val types.Value, err error) {
 	return
 }
 
-func RegisterDatabaseFlags() {
-	chunks.RegisterLevelDBFlags()
+func RegisterDatabaseFlags(flags *flag.FlagSet) {
+	chunks.RegisterLevelDBFlags(flags)
 }
 
 func CreateDatabaseSpecString(protocol, path string) string {

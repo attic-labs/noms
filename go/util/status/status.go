@@ -1,4 +1,4 @@
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -24,6 +24,10 @@ var (
 func Clear() {
 	fmt.Print(clearLine)
 	reset(time.Time{})
+}
+
+func WillPrint() bool {
+	return time.Now().Sub(lastTime) >= rate
 }
 
 func Printf(format string, args ...interface{}) {

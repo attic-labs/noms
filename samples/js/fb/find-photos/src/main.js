@@ -1,6 +1,6 @@
 // @flow
 
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -77,7 +77,7 @@ async function main(): Promise<void> {
       if (isSubtype(placeType, v.type)) {
         photo.geoposition = getGeo(v);
       }
-      result = result.then(r => r.insert(newStruct('Photo', photo)));
+      result = result.then(r => r.add(newStruct('Photo', photo)));
       return true;
     }
   });

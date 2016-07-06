@@ -1,6 +1,6 @@
 // @flow
 
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -21,7 +21,7 @@ type Props = {
   spaceX: number,
   hash: ?Hash,
   nomsStore: string,
-  onClick: (e: Event, s: String) => void,
+  onClick: (e: MouseEvent, s: String) => void,
 };
 
 type State = {

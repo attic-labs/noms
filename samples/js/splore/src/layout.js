@@ -1,6 +1,6 @@
 // @flow
 
-// Copyright 2016 The Noms Authors. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -11,7 +11,7 @@ import {TreeNode} from './buchheim.js';
 
 type Props = {
   data: NodeGraph,
-  onNodeClick: (e: Event, s: string) => void,
+  onNodeClick: (e: MouseEvent, s: string) => void,
   tree: TreeNode,
   nomsStore: string,
 }
