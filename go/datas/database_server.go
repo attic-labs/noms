@@ -27,7 +27,8 @@ type remoteDatabaseServer struct {
 	l       *net.Listener
 	csChan  chan *connectionState
 	closing bool
-	Ready   func()
+	// Called just before the server is started.
+	Ready func()
 }
 
 func NewRemoteDatabaseServer(cs chunks.ChunkStore, port int) *remoteDatabaseServer {

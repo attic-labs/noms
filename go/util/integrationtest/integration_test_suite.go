@@ -12,25 +12,32 @@ import (
 	"github.com/attic-labs/testify/suite"
 )
 
+// IntegrationSuiteInterface is the interface that IntegrationSuite implements.
 type IntegrationSuiteInterface interface {
 	suite.TestingSuite
 	// DatabaseSpecString returns the spec for the test database.
 	DatabaseSpecString() string
 	// ValueSpecString returns the spec for the value in the test database.
 	ValueSpecString(value string) string
+	// Database is the underlying db that is bing changed.
+	Database() datas.Database
+	// NodeOutput is the result (stdout) of running the node program.
+	NodeOutput() string
 
 	setPort(port int)
+	setCs(cs chunks.ChunkStore)
+	setNodeOut(out string)
 	npmInstall()
 }
 
-// SetupDataSuite is the interface to implement if you need to initialize some data in the ChunkStore.
-type SetupDataSuite interface {
-	SetupData(cs chunks.ChunkStore)
+// SetupSuite is the interface to implement if you need to run some code before the server is started.
+type SetupSuite interface {
+	Setup()
 }
 
-// CheckDataSuite is the interface to implement if you want to check the data in the store after the node command has finished.
-type CheckDataSuite interface {
-	CheckData(cs chunks.ChunkStore)
+// TeardownSuite is the interface to implement if you want to run some code after the server is stopped.
+type TeardownSuite interface {
+	Teardown()
 }
 
 // NodeArgsSuite is the interface to implement if you want to provide extra arguments to node. If this is not implemented we call `node .`
@@ -38,34 +45,32 @@ type NodeArgsSuite interface {
 	NodeArgs() []string
 }
 
-// CheckNodeSuite is the interface to implement if you want to validate the output of the node command.
-type CheckNodeSuite interface {
-	CheckNode(out string)
-}
-
 // IntegrationSuite is used to create a single node js integration test.
 type IntegrationSuite struct {
 	suite.Suite
+	cs   chunks.ChunkStore
 	port int
+	out  string
 }
 
-// RunIntegrationSuite runs a single integration test.
-func RunIntegrationSuite(t *testing.T, s IntegrationSuiteInterface) {
+func Run(t *testing.T, s IntegrationSuiteInterface) {
 	s.SetT(t)
 	s.npmInstall()
 	cs := chunks.NewMemoryStore()
-	if s, ok := s.(SetupDataSuite); ok {
-		s.SetupData(cs)
+	s.setCs(cs)
+
+	if s, ok := s.(SetupSuite); ok {
+		s.Setup()
 	}
 
-	runServer(cs, s)
+	runServer(s, cs)
 
-	if s, ok := s.(CheckDataSuite); ok {
-		s.CheckData(cs)
+	if s, ok := s.(TeardownSuite); ok {
+		s.Teardown()
 	}
 }
 
-func runServer(cs chunks.ChunkStore, s IntegrationSuiteInterface) {
+func runServer(s IntegrationSuiteInterface, cs chunks.ChunkStore) {
 	server := datas.NewRemoteDatabaseServer(cs, 0)
 	server.Ready = func() {
 		s.setPort(server.Port())
@@ -77,18 +82,32 @@ func runServer(cs chunks.ChunkStore, s IntegrationSuiteInterface) {
 
 func runNode(s IntegrationSuiteInterface) {
 	args := []string{"."}
-	if nas, ok := s.(NodeArgsSuite); ok {
-		args = append(args, nas.NodeArgs()...)
+	if ns, ok := s.(NodeArgsSuite); ok {
+		args = append(args, ns.NodeArgs()...)
 	}
 	out, err := exec.Command("node", args...).Output()
 	assert.NoError(s.T(), err)
-	if cns, ok := s.(CheckNodeSuite); ok {
-		cns.CheckNode(string(out))
-	}
+	s.setNodeOut(string(out))
 }
 
 func (s *IntegrationSuite) setPort(port int) {
 	s.port = port
+}
+
+func (s *IntegrationSuite) setCs(cs chunks.ChunkStore) {
+	s.cs = cs
+}
+
+func (s *IntegrationSuite) Database() datas.Database {
+	return datas.NewDatabase(s.cs)
+}
+
+func (s *IntegrationSuite) setNodeOut(out string) {
+	s.out = out
+}
+
+func (s *IntegrationSuite) NodeOutput() string {
+	return s.out
 }
 
 func (s *IntegrationSuite) npmInstall() {
