@@ -101,6 +101,7 @@ func bytesPerSec(prog datas.PullProgress, start time.Time) string {
 }
 
 func since(start time.Time) string {
-	now := time.Now().Round(time.Millisecond)
-	return now.Sub(start.Round(time.Millisecond)).String()
+	round := time.Second / 100
+	now := time.Now().Round(round)
+	return now.Sub(start.Round(round)).String()
 }
