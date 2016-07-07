@@ -61,9 +61,9 @@ const placeType = makeStructType('',
             numberType,
             numberType,
           ]
-        )
+        ),
       ]
-    )
+    ),
   ]
 );
 
