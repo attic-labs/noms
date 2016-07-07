@@ -77,11 +77,11 @@ func main() {
 		db, val, err := spec.GetPath(*path)
 		d.CheckError(err)
 		if val == nil {
-			d.CheckError(fmt.Errorf("Path %s not found", *path))
+			d.CheckError(fmt.Errorf("Path %s not found\n", *path))
 		}
 		blob, ok := val.(types.Blob)
 		if !ok {
-			d.CheckError(fmt.Errorf("Path %s not a blob: %s", *path, types.EncodedValue(val)))
+			d.CheckError(fmt.Errorf("Path %s not a Blob: %s\n", *path, types.EncodedValue(val.Type())))
 		}
 		defer db.Close()
 		r = blob.Reader()
