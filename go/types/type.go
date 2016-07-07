@@ -169,7 +169,9 @@ func verifyFieldNames(names []string) {
 
 	for i := 1; i < len(names); i++ {
 		verifyFieldName(names[i])
-		d.Chk.True(names[i] >= last)
+		if names[i] <= last {
+			d.Chk.Fail("Field names must be unique and ordered alphabetically")
+		}
 		last = names[i]
 	}
 }

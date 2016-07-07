@@ -249,7 +249,7 @@ function verifyFieldNames(names: string[]) {
   for (let i = 1; i < names.length; i++) {
     verifyFieldName(names[i]);
     if (last >= names[i]) {
-      throw new Error(`Field names must be sorted: ${last} cannot appear before ${names[i]}`);
+      throw new Error('Field names must be unique and ordered alphabetically');
     }
     last = names[i];
   }
