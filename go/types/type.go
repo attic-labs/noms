@@ -159,6 +159,21 @@ func MakePrimitiveTypeByString(p string) *Type {
 var fieldNameComponentRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_]*`)
 var fieldNameRe = regexp.MustCompile(fieldNameComponentRe.String() + "$")
 
+func verifyFieldNames(names []string) {
+	if len(names) == 0 {
+		return
+	}
+
+	last := names[0]
+	verifyFieldName(last)
+
+	for i := 1; i < len(names); i++ {
+		verifyFieldName(names[i])
+		d.Chk.True(names[i] >= last)
+		last = names[i]
+	}
+}
+
 func verifyName(name, kind string) {
 	d.PanicIfTrue(!fieldNameRe.MatchString(name), `Invalid struct%s name: "%s"`, kind, name)
 }
