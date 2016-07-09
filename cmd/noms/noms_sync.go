@@ -89,7 +89,7 @@ func runSync(args []string) int {
 		status.Printf("Done - Synced %s in %s (%s/s)", humanize.Bytes(last.DoneBytes), since(start), bytesPerSec(last, start))
 		status.Done()
 	} else {
-		fmt.Println(flag.Arg(1), "is up to date.")
+		fmt.Println(args[1], "is up to date.")
 	}
 
 	return 0
