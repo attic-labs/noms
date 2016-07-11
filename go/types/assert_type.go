@@ -55,12 +55,15 @@ func isSubtype(requiredType, concreteType *Type, parentStructTypes []*Type) bool
 		if requiredDesc.Name != "" && requiredDesc.Name != concreteDesc.Name {
 			return false
 		}
+
+		// We may already be computing the subtype for this type if we have a cycle. In that case we exit the recursive check. We may still find that the type is not a subtype but that will be handled at a higher level in the callstack.
+		_, found := indexOfType(requiredType, parentStructTypes)
+		if found {
+			return true
+		}
+
 		j := 0
 		for _, field := range requiredDesc.fields {
-			_, found := indexOfType(requiredType, parentStructTypes)
-			if found {
-				return true
-			}
 			for ; j < concreteDesc.Len() && concreteDesc.fields[j].name != field.name; j++ {
 			}
 			if j == concreteDesc.Len() {

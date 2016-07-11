@@ -241,16 +241,16 @@ func TestAssertTypeStructSubtype(tt *testing.T) {
 
 func TestAssertTypeCycleUnion(tt *testing.T) {
 	// struct {
-	//   x: Cycle<0>
-	//   y: Number
+	//   x: Cycle<0>,
+	//   y: Number,
 	// }
 	t1 := MakeStructType("", []string{"x", "y"}, []*Type{
 		MakeCycleType(0),
 		NumberType,
 	})
 	// struct {
-	//   x: Cycle<0>
-	//   y: Number | String
+	//   x: Cycle<0>,
+	//   y: Number | String,
 	// }
 	t2 := MakeStructType("", []string{"x", "y"}, []*Type{
 		MakeCycleType(0),
@@ -261,8 +261,8 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 	assert.False(tt, isSubtype(t1, t2, nil))
 
 	// struct {
-	//   x: Cycle<0> | Number
-	//   y: Number | String
+	//   x: Cycle<0> | Number,
+	//   y: Number | String,
 	// }
 	t3 := MakeStructType("", []string{"x", "y"}, []*Type{
 		MakeUnionType(MakeCycleType(0), NumberType),
@@ -276,8 +276,8 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 	assert.False(tt, isSubtype(t2, t3, nil))
 
 	// struct {
-	//   x: Cycle<0> | Number
-	//   y: Number
+	//   x: Cycle<0> | Number,
+	//   y: Number,
 	// }
 	t4 := MakeStructType("", []string{"x", "y"}, []*Type{
 		MakeUnionType(MakeCycleType(0), NumberType),
@@ -292,4 +292,30 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 
 	assert.True(tt, isSubtype(t3, t4, nil))
 	assert.False(tt, isSubtype(t4, t3, nil))
+
+	// struct B {
+	//   b: struct C {
+	//     c: Cycle<1>,
+	//   },
+	// }
+
+	// struct C {
+	//   c: struct B {
+	//     b: Cycle<1>,
+	//   },
+	// }
+
+	tb := MakeStructType("", []string{"b"}, []*Type{
+		MakeStructType("", []string{"c"}, []*Type{
+			MakeCycleType(1),
+		}),
+	})
+	tc := MakeStructType("", []string{"c"}, []*Type{
+		MakeStructType("", []string{"b"}, []*Type{
+			MakeCycleType(1),
+		}),
+	})
+
+	assert.False(tt, isSubtype(tb, tc, nil))
+	assert.False(tt, isSubtype(tc, tb, nil))
 }
