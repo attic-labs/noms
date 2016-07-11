@@ -138,13 +138,7 @@ func (ms metaSequenceObject) getChildSequence(idx int) sequence {
 	return mt.ref.TargetValue(ms.vr).(Collection).sequence()
 }
 
-// Returns the sequences pointed to by all items[i], s.t. start <= i < end, and returns the
-// concatentation as one long composite sequence
-func (ms metaSequenceObject) getCompositeChildSequence(start uint64, length uint64) indexedSequence {
-	childIsMeta := false
-	metaItems := []metaTuple{}
-	valueItems := []Value{}
-
+func (ms metaSequenceObject) startGetCompositeChildSequence(start, length uint64) chan interface{} {
 	input := make(chan interface{})
 	output := orderedparallel.New(input, func(item interface{}) interface{} {
 		i := item.(int)
@@ -158,7 +152,17 @@ func (ms metaSequenceObject) getCompositeChildSequence(start uint64, length uint
 
 		close(input)
 	}()
+	return output
+}
 
+// Returns the sequences pointed to by all items[i], s.t. start <= i < end, and returns the
+// concatentation as one long composite sequence
+func (ms metaSequenceObject) getCompositeChildIndexedSequence(start uint64, length uint64) indexedSequence {
+	childIsMeta := false
+	metaItems := []metaTuple{}
+	valueItems := []Value{}
+
+	output := ms.startGetCompositeChildSequence(start, length)
 	i := uint64(start)
 	for item := range output {
 		seq := item.(sequence)
@@ -184,6 +188,45 @@ func (ms metaSequenceObject) getCompositeChildSequence(start uint64, length uint
 		return newIndexedMetaSequence(metaItems, ms.Type(), ms.vr)
 	} else {
 		return newListLeafSequence(ms.vr, valueItems...)
+	}
+}
+
+func (ms metaSequenceObject) getCompositeChildOrderedSequence(start uint64, length uint64) orderedSequence {
+	childIsMeta := false
+	metaItems := []metaTuple{}
+	mapItems := []mapEntry{}
+	setItems := []Value{}
+
+	output := ms.startGetCompositeChildSequence(start, length)
+	i := uint64(start)
+	for item := range output {
+		seq := item.(sequence)
+		if i == start {
+			if oSeq, ok := seq.(orderedSequence); ok {
+				childIsMeta = isMetaSequence(oSeq)
+			}
+		}
+		if childIsMeta {
+			childMs, _ := seq.(orderedMetaSequence)
+			metaItems = append(metaItems, childMs.metaSequenceObject.tuples...)
+			continue
+		} else if ml, ok := seq.(mapLeafSequence); ok {
+			mapItems = append(mapItems, ml.data...)
+		} else if sl, ok := seq.(setLeafSequence); ok {
+			setItems = append(setItems, sl.data...)
+		}
+
+		i++
+	}
+
+	if childIsMeta {
+		return newOrderedMetaSequence(metaItems, ms.Type(), ms.vr)
+	} else {
+		if len(mapItems) > 0 {
+			return newMapLeafSequence(ms.vr, mapItems...)
+		} else {
+			return newSetLeafSequence(ms.vr, setItems...)
+		}
 	}
 }
 

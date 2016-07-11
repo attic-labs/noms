@@ -39,7 +39,10 @@ func NewSet(v ...Value) Set {
 
 func (s Set) Diff(last Set, changes chan<- ValueChanged, closeChan <-chan struct{}) {
 	go func() {
-		orderedSequenceDiff(last.sequence().(orderedSequence), s.sequence().(orderedSequence), changes, closeChan)
+		err := orderedSequenceDiffOld(last.sequence().(orderedSequence), s.sequence().(orderedSequence), changes, closeChan)
+		if err == nil {
+			close(changes)
+		}
 	}()
 }
 

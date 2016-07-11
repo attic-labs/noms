@@ -34,6 +34,42 @@ func sendChange(changes chan<- ValueChanged, closeChan <-chan struct{}, change V
 func orderedSequenceDiff(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) error {
 	lastCur := newCursorAt(last, emptyKey, false, false)
 	currentCur := newCursorAt(current, emptyKey, false, false)
+	lastHeight := lastCur.depth()
+	currentHeight := currentCur.depth()
+
+	if lastHeight > currentHeight {
+		lastChild := last.(orderedMetaSequence).getCompositeChildOrderedSequence(0, uint64(last.seqLen()))
+		return orderedSequenceDiff(lastChild, current, changes, closeChan)
+	}
+
+	if currentHeight > lastHeight {
+		currentChild := current.(orderedMetaSequence).getCompositeChildOrderedSequence(0, uint64(current.seqLen()))
+		return orderedSequenceDiff(last, currentChild, changes, closeChan)
+	}
+
+	if !isMetaSequence(last) && !isMetaSequence(current) {
+		return orderedSequenceDiffOld(last, current, changes, closeChan)
+	} else {
+		compareFn := last.getCompareFn(current)
+		initialSplices := calcSplices(uint64(last.seqLen()), uint64(current.seqLen()), DEFAULT_MAX_SPLICE_MATRIX_SIZE,
+			func(i uint64, j uint64) bool { return compareFn(int(i), int(j)) })
+
+		for _, splice := range initialSplices {
+			lastChild := last.(orderedMetaSequence).getCompositeChildOrderedSequence(splice.SpAt, splice.SpRemoved)
+			currentChild := current.(orderedMetaSequence).getCompositeChildOrderedSequence(splice.SpFrom, splice.SpAdded)
+			err := orderedSequenceDiff(lastChild, currentChild, changes, closeChan)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func orderedSequenceDiffOld(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) error {
+	lastCur := newCursorAt(last, emptyKey, false, false)
+	currentCur := newCursorAt(current, emptyKey, false, false)
 
 	for lastCur.valid() && currentCur.valid() {
 		fastForward(lastCur, currentCur)
@@ -74,7 +110,6 @@ func orderedSequenceDiff(last orderedSequence, current orderedSequence, changes 
 		}
 		currentCur.advance()
 	}
-	close(changes)
 	return nil
 }
 
