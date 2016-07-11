@@ -101,7 +101,8 @@ func ReadToList(r *csv.Reader, structName string, headers []string, kinds KindSl
 		fields := make(types.ValueSlice, len(headers))
 		for i, v := range row {
 			if i < len(headers) {
-				fields[fieldOrder[i]] = StringToType(v, kindMap[i])
+				fieldOrigIndex := fieldOrder[i]
+				fields[fieldOrigIndex] = StringToType(v, kindMap[fieldOrigIndex])
 			}
 		}
 		valueChan <- types.NewStructWithType(t, fields)
