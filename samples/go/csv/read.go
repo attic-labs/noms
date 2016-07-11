@@ -145,7 +145,8 @@ func ReadToMap(r *csv.Reader, headersRaw []string, pkIdx int, kinds KindSlice, v
 			if x == pkIdx {
 				pk = StringToType(v, pkKind)
 			} else if fieldIndex < len(headers) {
-				fields[fieldOrder[fieldIndex]] = StringToType(v, kindMap[fieldIndex])
+				fieldOrigIndex := fieldOrder[fieldIndex]
+				fields[fieldOrigIndex] = StringToType(v, kindMap[fieldOrigIndex])
 				fieldIndex++
 			}
 		}
