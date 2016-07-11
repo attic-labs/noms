@@ -272,6 +272,9 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 	assert.True(tt, isSubtype(t3, t1, nil))
 	assert.False(tt, isSubtype(t1, t3, nil))
 
+	assert.True(tt, isSubtype(t3, t2, nil))
+	assert.False(tt, isSubtype(t2, t3, nil))
+
 	// struct {
 	//   x: Cycle<0> | Number
 	//   y: Number
@@ -280,6 +283,12 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 		MakeUnionType(MakeCycleType(0), NumberType),
 		NumberType,
 	})
+
+	assert.True(tt, isSubtype(t4, t1, nil))
+	assert.False(tt, isSubtype(t1, t4, nil))
+
+	assert.False(tt, isSubtype(t4, t2, nil))
+	assert.False(tt, isSubtype(t2, t4, nil))
 
 	assert.True(tt, isSubtype(t3, t4, nil))
 	assert.False(tt, isSubtype(t4, t3, nil))
