@@ -42,7 +42,7 @@ export default class ValueEncoder {
     this._w.writeUint64(r.height);
   }
 
-  writeType(t: Type, parentStructTypes: Type<StructDesc>[]) {
+  writeType(t: Type, parentStructTypes: Type<StructDesc>[] = []) {
     const k = t.kind;
     switch (k) {
       case Kind.List:
@@ -131,7 +131,7 @@ export default class ValueEncoder {
 
   writeValue(v: Value) {
     const t = getTypeOfValue(v);
-    this.writeType(t, []);
+    this._w.appendType(t);
     switch (t.kind) {
       case Kind.Blob: {
         invariant(v instanceof Blob,
@@ -205,7 +205,7 @@ export default class ValueEncoder {
       case Kind.Type:
         invariant(v instanceof Type,
                   () => `Failed to write Type. Invalid type: ${describeTypeOfValue(v)}`);
-        this.writeType(v, []);
+        this._w.appendType(v);
         break;
       case Kind.Struct:
         invariant(v instanceof Struct,
