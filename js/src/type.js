@@ -203,7 +203,7 @@ export class Type<T: TypeDesc> extends ValueBase {
     return this._desc.name;
   }
 
-  hasUnresolvedCycle(visited: Type[] = []): boolean {
+  hasUnresolvedCycle(visited: Type[]): boolean {
     if (visited.indexOf(this) >= 0) {
       return false;
     }

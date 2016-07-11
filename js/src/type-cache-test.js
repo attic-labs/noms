@@ -110,7 +110,7 @@ suite('TypeCache', () => {
       [
         makeRefType(makeCycleType(0)),
       ]);
-    assert.isFalse(st.hasUnresolvedCycle());
+    assert.isFalse(st.hasUnresolvedCycle([]));
     assert.strictEqual(st, st.desc.fields[0].type.desc.elemTypes[0]);
 
     const st2 = makeStructType('Foo',
@@ -118,7 +118,7 @@ suite('TypeCache', () => {
       [
         makeRefType(makeCycleType(0)),
       ]);
-    assert.isFalse(st2.hasUnresolvedCycle());
+    assert.isFalse(st2.hasUnresolvedCycle([]));
     assert.strictEqual(st, st2);
   });
 });

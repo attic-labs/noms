@@ -104,7 +104,7 @@ export default class TypeCache {
       });
 
       let t = new Type(new StructDesc(name, fs), 0);
-      if (t.hasUnresolvedCycle()) {
+      if (t.hasUnresolvedCycle([])) {
         t = notNull(this._toUnresolvedType(t, -1));
         t = this._resolveStructCycles(t);
       }
@@ -177,10 +177,8 @@ export default class TypeCache {
     return t;
   }
 
-  /**
-  * makeUnionType creates a new union type unless the elemTypes can be folded into a single non
-  * union type.
-  */
+
+  // Creates a new union type unless the elemTypes can be folded into a single non union type.
   makeUnionType(types: Type[]): Type {
     types = flattenUnionTypes(types, Object.create(null));
     if (types.length === 1) {

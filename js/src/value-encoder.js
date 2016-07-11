@@ -42,7 +42,7 @@ export default class ValueEncoder {
     this._w.writeUint64(r.height);
   }
 
-  writeType(t: Type, parentStructTypes: Type<StructDesc>[] = []) {
+  writeType(t: Type, parentStructTypes: Type<StructDesc>[]) {
     const k = t.kind;
     switch (k) {
       case Kind.List:

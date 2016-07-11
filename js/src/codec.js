@@ -49,7 +49,7 @@ function ensureTypeSerialization(t: Type) {
   if (!t.serialization) {
     const w = new BinaryNomsWriter();
     const enc = new ValueEncoder(w, null);
-    enc.writeType(t);
+    enc.writeType(t, []);
     t.serialization = w.data;
   }
 }
@@ -260,7 +260,7 @@ export class BinaryNomsWriter {
 
   appendType(t: Type): void {
     // Note: The JS & Go impls differ here. The Go impl eagerly serializes types as they are
-    // constructed. The JS go does it lazily so as to avoid cyclic package dependencies.
+    // constructed. The JS does it lazily so as to avoid cyclic package dependencies.
     ensureTypeSerialization(t);
     const data = notNull(t.serialization);
     const size = data.byteLength;

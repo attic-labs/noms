@@ -243,7 +243,7 @@ suite('Encoding', () => {
 
     appendType(t: Type): void {
       const enc = new ValueEncoder(this, null);
-      enc.writeType(t);
+      enc.writeType(t, []);
     }
 
     toArray(): any[] {
