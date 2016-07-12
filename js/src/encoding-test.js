@@ -394,7 +394,7 @@ suite('Encoding', () => {
     const data = c.data;
     const buff = Bytes.alloc(data.byteLength + 1);
     Bytes.copy(data, buff);
-    buff[data.byteLength] = 5;
+    buff[data.byteLength] = 5; // Add a bogus extra byte
     const c2 = new Chunk(buff);
     assert.throws(() => decodeValue(c2, null));
   });
