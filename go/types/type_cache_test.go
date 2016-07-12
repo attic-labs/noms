@@ -218,5 +218,6 @@ func TestTypeCacheCyclicUnions(t *testing.T) {
 	assert.True(st2 == st2.Desc.(StructDesc).fields[0].t.Desc.(CompoundDesc).ElemTypes[5])
 	assert.False(ut2.Equals(st2.Desc.(StructDesc).fields[0].t))
 
+	assert.True(ut == ut2)
 	assert.True(st == st2)
 }
