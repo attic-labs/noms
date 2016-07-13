@@ -226,7 +226,7 @@ func writeDiffLines(node LogNode, db datas.Database, maxLines, lineno int, w io.
 	}
 
 	parentCommit := parent.(types.Ref).TargetValue(db).(types.Struct)
-	err = diff.Diff(mlw, parentCommit.Get(datas.ValueField), node.commit.Get(datas.ValueField))
+	err = diff.Diff(mlw, parentCommit.Get(datas.ValueField), node.commit.Get(datas.ValueField), false)
 	d.PanicIfNotType(err, MaxLinesErr)
 	if err != nil {
 		mlw.forceWrite([]byte("...\n"))
