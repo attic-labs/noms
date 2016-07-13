@@ -47,7 +47,7 @@ const fileType = makeStructType('File', ['content'], [makeRefType(blobType)]);
 const directoryType = makeStructType('Directory',
   ['entries'],
   [
-    makeMapType(stringType, makeUnionType([fileType, makeCycleType(0)]))
+    makeMapType(stringType, makeUnionType([fileType, makeCycleType(0)])),
   ]);
 
 const File = createStructClass(fileType);
