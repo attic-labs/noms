@@ -186,7 +186,7 @@ func (ms metaSequenceObject) getCompositeChildSequence(start uint64, length uint
 		case listLeafSequence:
 			valueItems = append(valueItems, t.values...)
 		default:
-			panic("no!")
+			panic("unreachable")
 		}
 	}
 
