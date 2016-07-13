@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-// The hash of a Noms value.
+// Package hash implements the hash function used throughout Noms.
 //
 // Noms serialization from version 5-onward uses the first 20 bytes of sha-512 for hashes.
 //
