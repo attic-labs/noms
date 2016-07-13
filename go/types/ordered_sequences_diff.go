@@ -31,8 +31,7 @@ func sendChange(changes chan<- ValueChanged, closeChan <-chan struct{}, change V
 	return nil
 }
 
-// TODO - something other than the literal edit-distance, which is way too much cpu work for this case
-// https://github.com/attic-labs/noms/issues/2027
+// TODO - something other than the literal edit-distance, which is way too much cpu work for this case - https://github.com/attic-labs/noms/issues/2027
 func orderedSequenceDiff(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) error {
 	lastCur := newCursorAt(last, emptyKey, false, false)
 	currentCur := newCursorAt(current, emptyKey, false, false)
