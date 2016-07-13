@@ -18,6 +18,7 @@ import Set, {newSetLeafSequence} from './set.js';
 import ValueDecoder from './value-decoder.js';
 import ValueEncoder from './value-encoder.js';
 import type Value from './value.js';
+import {ValueBase} from './value.js';
 import type {NomsKind} from './noms-kind.js';
 import {Kind} from './noms-kind.js';
 import {TestDatabase} from './test-util.js';
@@ -52,6 +53,16 @@ function assertRoundTrips(v: Value) {
   const c = encodeValue(v, db);
   const out = decodeValue(c, db);
   assert.isTrue(equals(v, out));
+}
+
+class Bogus extends ValueBase {
+  constructor() {
+    super();
+  }
+
+  get type(): Type {
+    return makeCycleType(0);
+  }
 }
 
 suite('Encoding - roundtrip', () => {
@@ -550,5 +561,13 @@ suite('Encoding', () => {
       uint8(ListKind), uint8(UnionKind), uint32(0) /* len */, false, uint32(0), /* len */
     ],
     new List());
+  });
+
+  test('bogus value with unresolved cycle', () => {
+    const g = new Bogus();
+
+    assert.throws(() => {
+      encodeValue(g, null);
+    });
   });
 });

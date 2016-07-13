@@ -6,7 +6,10 @@
 
 import {assert} from 'chai';
 import {suite, test} from 'mocha';
+import {Kind} from './noms-kind.js';
+import {equals} from './compare.js';
 import {
+  blobType,
   boolType,
   makeCycleType,
   makeListType,
@@ -16,6 +19,8 @@ import {
   makeUnionType,
   numberType,
   stringType,
+  typeType,
+  valueType,
 } from './type.js';
 
 suite('TypeCache', () => {
@@ -119,6 +124,29 @@ suite('TypeCache', () => {
         makeRefType(makeCycleType(0)),
       ]);
     assert.isFalse(st2.hasUnresolvedCycle([]));
+    assert.strictEqual(st, st2);
+  });
+
+  test('Cyclic Unions', () => {
+    const ut = makeUnionType([makeCycleType(0), numberType, stringType, boolType, blobType,
+                              valueType, typeType]);
+    const st = makeStructType('Foo', ['foo'], [ut]);
+
+    assert.strictEqual(ut.desc.elemTypes[5].kind, Kind.Cycle);
+    assert.strictEqual(st, st.desc.fields[0].type.desc.elemTypes[5]);
+    assert.isFalse(equals(ut, st.desc.fields[0].type));
+
+    // Note that the union in this second case has a different provided ordering of it's element
+    // types.
+    const ut2 = makeUnionType([numberType, stringType, boolType, blobType, valueType, typeType,
+                               makeCycleType(0)]);
+    const st2 = makeStructType('Foo', ['foo'], [ut]);
+
+    assert.strictEqual(ut2.desc.elemTypes[5].kind, Kind.Cycle);
+    assert.strictEqual(st2, st2.desc.fields[0].type.desc.elemTypes[5]);
+    assert.isFalse(equals(ut2, st2.desc.fields[0].type));
+
+    assert.strictEqual(ut, ut2);
     assert.strictEqual(st, st2);
   });
 });

@@ -106,7 +106,7 @@ export default class TypeCache {
       let t = new Type(new StructDesc(name, fs), 0);
       if (t.hasUnresolvedCycle([])) {
         t = notNull(this._toUnresolvedType(t, -1));
-        t = this._resolveStructCycles(t);
+        t = this._normalize(t);
       }
       t.id = this.nextTypeId();
       trie.t = t;
@@ -155,16 +155,20 @@ export default class TypeCache {
     }
   }
 
-  _resolveStructCycles(t: Type, parentStructTypes: Type[] = []): Type {
+  _normalize(t: Type, parentStructTypes: Type[] = []): Type {
     const desc = t.desc;
     if (desc instanceof CompoundDesc) {
       for (let i = 0; i < desc.elemTypes.length; i++) {
-        desc.elemTypes[i] = this._resolveStructCycles(desc.elemTypes[i], parentStructTypes);
+        desc.elemTypes[i] = this._normalize(desc.elemTypes[i], parentStructTypes);
       }
+      if (t.kind === Kind.Union) {
+        desc.elemTypes.sort(compare);
+      }
+
     } else if (desc instanceof StructDesc) {
       for (let i = 0; i < desc.fields.length; i++) {
         parentStructTypes.push(t);
-        desc.fields[i].type = this._resolveStructCycles(desc.fields[i].type, parentStructTypes);
+        desc.fields[i].type = this._normalize(desc.fields[i].type, parentStructTypes);
         parentStructTypes.pop();
       }
     } else if (desc instanceof CycleDesc) {
