@@ -31,6 +31,8 @@ func sendChange(changes chan<- ValueChanged, closeChan <-chan struct{}, change V
 	return nil
 }
 
+// TODO - something other than the literal edit-distance, which is way too much cpu work for this case
+// https://github.com/attic-labs/noms/issues/2027
 func orderedSequenceDiff(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) error {
 	lastCur := newCursorAt(last, emptyKey, false, false)
 	currentCur := newCursorAt(current, emptyKey, false, false)
@@ -38,25 +40,25 @@ func orderedSequenceDiff(last orderedSequence, current orderedSequence, changes 
 	currentHeight := currentCur.depth()
 
 	if lastHeight > currentHeight {
-		lastChild := last.(orderedMetaSequence).getCompositeChildOrderedSequence(0, uint64(last.seqLen()))
+		lastChild := last.(orderedMetaSequence).getCompositeChildSequence(0, uint64(last.seqLen())).(orderedSequence)
 		return orderedSequenceDiff(lastChild, current, changes, closeChan)
 	}
 
 	if currentHeight > lastHeight {
-		currentChild := current.(orderedMetaSequence).getCompositeChildOrderedSequence(0, uint64(current.seqLen()))
+		currentChild := current.(orderedMetaSequence).getCompositeChildSequence(0, uint64(current.seqLen())).(orderedSequence)
 		return orderedSequenceDiff(last, currentChild, changes, closeChan)
 	}
 
 	if !isMetaSequence(last) && !isMetaSequence(current) {
-		return orderedSequenceDiffOld(last, current, changes, closeChan)
+		return orderedSequenceDiffLeafItems(last, current, changes, closeChan)
 	} else {
 		compareFn := last.getCompareFn(current)
 		initialSplices := calcSplices(uint64(last.seqLen()), uint64(current.seqLen()), DEFAULT_MAX_SPLICE_MATRIX_SIZE,
 			func(i uint64, j uint64) bool { return compareFn(int(i), int(j)) })
 
 		for _, splice := range initialSplices {
-			lastChild := last.(orderedMetaSequence).getCompositeChildOrderedSequence(splice.SpAt, splice.SpRemoved)
-			currentChild := current.(orderedMetaSequence).getCompositeChildOrderedSequence(splice.SpFrom, splice.SpAdded)
+			lastChild := last.(orderedMetaSequence).getCompositeChildSequence(splice.SpAt, splice.SpRemoved).(orderedSequence)
+			currentChild := current.(orderedMetaSequence).getCompositeChildSequence(splice.SpFrom, splice.SpAdded).(orderedSequence)
 			err := orderedSequenceDiff(lastChild, currentChild, changes, closeChan)
 			if err != nil {
 				return err
@@ -67,7 +69,7 @@ func orderedSequenceDiff(last orderedSequence, current orderedSequence, changes 
 	return nil
 }
 
-func orderedSequenceDiffOld(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) error {
+func orderedSequenceDiffLeafItems(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) error {
 	lastCur := newCursorAt(last, emptyKey, false, false)
 	currentCur := newCursorAt(current, emptyKey, false, false)
 

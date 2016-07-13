@@ -33,38 +33,35 @@ func Diff(w io.Writer, v1, v2 types.Value) (err error) {
 
 	err = d.Try(func() {
 		for di, ok := dq.PopFront(); ok; di, ok = dq.PopFront() {
-			performDiff(dq, w, di.path, di.key, di.v1, di.v2)
+			p, key, v1, v2 := di.path, di.key, di.v1, di.v2
+			if v1 == nil && v2 != nil {
+				line(w, addPrefix, key, v2)
+			}
+			if v1 != nil && v2 == nil {
+				line(w, subPrefix, key, v1)
+			}
+			if !v1.Equals(v2) {
+				if !canCompare(v1, v2) {
+					line(w, subPrefix, key, v1)
+					line(w, addPrefix, key, v2)
+				} else {
+					switch v1.Type().Kind() {
+					case types.ListKind:
+						diffLists(dq, w, p, v1.(types.List), v2.(types.List))
+					case types.MapKind:
+						diffMaps(dq, w, p, v1.(types.Map), v2.(types.Map))
+					case types.SetKind:
+						diffSets(dq, w, p, v1.(types.Set), v2.(types.Set))
+					case types.StructKind:
+						diffStructs(dq, w, p, v1.(types.Struct), v2.(types.Struct))
+					default:
+						panic("Unrecognized type in diff function")
+					}
+				}
+			}
 		}
 	})
 	return
-}
-
-func performDiff(dq *diffQueue, w io.Writer, p types.Path, key, v1, v2 types.Value) {
-	if v1 == nil && v2 != nil {
-		line(w, addPrefix, key, v2)
-	}
-	if v1 != nil && v2 == nil {
-		line(w, subPrefix, key, v1)
-	}
-	if !v1.Equals(v2) {
-		if !canCompare(v1, v2) {
-			line(w, subPrefix, key, v1)
-			line(w, addPrefix, key, v2)
-		} else {
-			switch v1.Type().Kind() {
-			case types.ListKind:
-				diffLists(dq, w, p, v1.(types.List), v2.(types.List))
-			case types.MapKind:
-				diffMaps(dq, w, p, v1.(types.Map), v2.(types.Map))
-			case types.SetKind:
-				diffSets(dq, w, p, v1.(types.Set), v2.(types.Set))
-			case types.StructKind:
-				diffStructs(dq, w, p, v1.(types.Struct), v2.(types.Struct))
-			default:
-				panic("Unrecognized type in diff function")
-			}
-		}
-	}
 }
 
 func diffLists(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.List) {
@@ -131,7 +128,6 @@ func diffMaps(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.Map) {
 					d.PanicIfError(types.WriteEncodedValueWithTags(buf, change.V))
 					p1 := p.AddField(buf.String())
 					dq.PushBack(diffInfo{path: p1, key: change.V, v1: c1, v2: c2})
-					//performDiff(dq, buf, p1, change.V, c1, c2)
 				} else {
 					wroteHeader = writeHeader(w, wroteHeader, p)
 					line(w, subPrefix, change.V, c1)
