@@ -51,15 +51,15 @@ func runDiff(args []string) int {
 	}
 	defer db2.Close()
 
+	waitChan := outputpager.PageOutput()
 	w := bufio.NewWriter(os.Stdout)
 	flush := func() {
-		fmt.Fprintln(w)
 		w.Flush()
 	}
 
-	if wc := outputpager.PageOutput(); wc != nil {
+	if waitChan != nil {
 		go func() {
-			<-wc
+			<-waitChan
 			flush()
 			os.Exit(0)
 		}()
