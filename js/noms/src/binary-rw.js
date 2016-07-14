@@ -172,7 +172,7 @@ export class BinaryWriter {
 
   writeString(v: string): void {
     // TODO: This is a bummer. Ensure even the largest UTF8 string will fit.
-    this.ensureCapacity(4 + v.length * 4);
+    this.ensureCapacity(4 + Bytes.utf8ByteLength(v));
     this.offset = Bytes.encodeUtf8(v, this.buff, this.dv, this.offset);
   }
 

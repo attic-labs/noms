@@ -6,6 +6,7 @@
 
 import {TextEncoder, TextDecoder} from './text-encoding.js';
 import {SHA512} from 'asmcrypto.js-sha512';
+import {byteLength} from './utf8.js';
 
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
@@ -85,6 +86,10 @@ export function encodeUtf8(str: string, buff: Uint8Array, dv: DataView, offset: 
   return offset;
 }
 
+export function utf8ByteLength(str: string): number {
+  return byteLength(str);
+}
+
 export function compare(b1: Uint8Array, b2: Uint8Array): number {
   const b1Len = b1.byteLength;
   const b2Len = b2.byteLength;
@@ -110,12 +115,12 @@ export function compare(b1: Uint8Array, b2: Uint8Array): number {
 }
 
 // This should be imported but this prevents the cyclic dependency.
-const byteLength = 20;
+const hashByteLength = 20;
 
 export function sha512(data: Uint8Array): Uint8Array {
   const full: Uint8Array = SHA512.bytes(data);
   // Safari does not have slice on Uint8Array yet.
-  return new Uint8Array(full.buffer, full.byteOffset, byteLength);
+  return new Uint8Array(full.buffer, full.byteOffset, hashByteLength);
 }
 
 function asciiToBinary(cc: number): number {
