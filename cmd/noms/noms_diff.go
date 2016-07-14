@@ -54,7 +54,7 @@ func runDiff(args []string) int {
 	waitChan := outputpager.PageOutput(!outputpager.NoPager)
 
 	w := bufio.NewWriter(os.Stdout)
-	diff.Diff(w, value1, value2)
+	diff.Diff(w, value1, value2, true)
 	fmt.Fprintf(w, "\n")
 	w.Flush()
 

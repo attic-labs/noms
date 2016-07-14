@@ -26,7 +26,7 @@ func canCompare(v1, v2 types.Value) bool {
 	return !isPrimitiveOrRef(v1) && v1.Type().Kind() == v2.Type().Kind()
 }
 
-func Diff(w io.Writer, v1, v2 types.Value) (err error) {
+func Diff(w io.Writer, v1, v2 types.Value, usePushback bool) (err error) {
 	dq := NewDiffQueue()
 	di := diffInfo{path: types.NewPath().AddField("/"), v1: v1, v2: v2}
 	dq.PushBack(di)
@@ -49,7 +49,7 @@ func Diff(w io.Writer, v1, v2 types.Value) (err error) {
 					case types.ListKind:
 						diffLists(dq, w, p, v1.(types.List), v2.(types.List))
 					case types.MapKind:
-						diffMaps(dq, w, p, v1.(types.Map), v2.(types.Map))
+						diffMaps(dq, w, p, v1.(types.Map), v2.(types.Map), usePushback)
 					case types.SetKind:
 						diffSets(dq, w, p, v1.(types.Set), v2.(types.Set))
 					case types.StructKind:
@@ -105,7 +105,7 @@ func diffLists(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.List) {
 	writeFooter(w, wroteHeader)
 }
 
-func diffMaps(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.Map) {
+func diffMaps(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.Map, usePushback bool) {
 	wroteHeader := false
 
 	changes := make(chan types.ValueChanged)
@@ -123,7 +123,7 @@ func diffMaps(dq *diffQueue, w io.Writer, p types.Path, v1, v2 types.Map) {
 				line(w, subPrefix, change.V, v1.Get(change.V))
 			case types.DiffChangeModified:
 				c1, c2 := v1.Get(change.V), v2.Get(change.V)
-				if canCompare(c1, c2) {
+				if canCompare(c1, c2) && usePushback {
 					buf := bytes.NewBuffer(nil)
 					d.PanicIfError(types.WriteEncodedValueWithTags(buf, change.V))
 					p1 := p.AddField(buf.String())
