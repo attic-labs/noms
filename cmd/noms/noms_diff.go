@@ -57,12 +57,10 @@ func runDiff(args []string) int {
 	if waitChan != nil {
 		go func() {
 			<-waitChan
-			w.Flush()
 			os.Exit(0)
 		}()
 	}
 
 	diff.Diff(w, value1, value2)
-	w.Flush()
 	return 0
 }
