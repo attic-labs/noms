@@ -53,19 +53,16 @@ func runDiff(args []string) int {
 
 	waitChan := outputpager.PageOutput()
 	w := bufio.NewWriter(os.Stdout)
-	flush := func() {
-		w.Flush()
-	}
 
 	if waitChan != nil {
 		go func() {
 			<-waitChan
-			flush()
+			w.Flush()
 			os.Exit(0)
 		}()
 	}
 
 	diff.Diff(w, value1, value2)
-	flush()
+	w.Flush()
 	return 0
 }
