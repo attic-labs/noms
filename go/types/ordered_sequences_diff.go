@@ -56,33 +56,11 @@ func orderedSequenceDiff(last orderedSequence, current orderedSequence, changes 
 			func(i uint64, j uint64) bool { return compareFn(int(i), int(j)) })
 
 		for _, splice := range initialSplices {
-			if splice.SpRemoved == 0 && splice.SpAdded == 0 {
-				panic("Unreachable")
-			} else if splice.SpRemoved == 0 { // nothing removed, send the added items
-				currentChild := current.(orderedMetaSequence).getCompositeChildSequence(splice.SpFrom, splice.SpAdded).(orderedSequence)
-				cur := newCursorAt(currentChild, emptyKey, false, false)
-				for cur.valid() {
-					if err := sendChange(changes, closeChan, ValueChanged{DiffChangeAdded, getCurrentKey(cur).v}); err != nil {
-						return err
-					}
-					cur.advance()
-				}
-			} else if splice.SpAdded == 0 { // nothing added, send the removed items
-				lastChild := last.(orderedMetaSequence).getCompositeChildSequence(splice.SpAt, splice.SpRemoved).(orderedSequence)
-				cur := newCursorAt(lastChild, emptyKey, false, false)
-				for cur.valid() {
-					if err := sendChange(changes, closeChan, ValueChanged{DiffChangeRemoved, getCurrentKey(cur).v}); err != nil {
-						return err
-					}
-					cur.advance()
-				}
-			} else {
-				lastChild := last.(orderedMetaSequence).getCompositeChildSequence(splice.SpAt, splice.SpRemoved).(orderedSequence)
-				currentChild := current.(orderedMetaSequence).getCompositeChildSequence(splice.SpFrom, splice.SpAdded).(orderedSequence)
-				err := orderedSequenceDiff(lastChild, currentChild, changes, closeChan)
-				if err != nil {
-					return err
-				}
+			lastChild := last.(orderedMetaSequence).getCompositeChildSequence(splice.SpAt, splice.SpRemoved).(orderedSequence)
+			currentChild := current.(orderedMetaSequence).getCompositeChildSequence(splice.SpFrom, splice.SpAdded).(orderedSequence)
+			err := orderedSequenceDiff(lastChild, currentChild, changes, closeChan)
+			if err != nil {
+				return err
 			}
 		}
 	}
