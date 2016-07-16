@@ -21,7 +21,7 @@ var actions = []string{
 	"goofing with",
 	"dancing with",
 	"playing with",
-	"contemplating of",
+	"contemplation of",
 	"showing off",
 	"jiggerypokery of",
 	"singing to",
