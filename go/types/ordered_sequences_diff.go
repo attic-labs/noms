@@ -5,6 +5,8 @@
 package types
 
 import (
+	"sync"
+
 	"github.com/attic-labs/noms/go/d"
 )
 
@@ -37,15 +39,18 @@ func orderedSequenceDiff(last orderedSequence, current orderedSequence, changes 
 	currentCur := newCursorAt(current, emptyKey, false, false)
 	lastHeight := lastCur.depth()
 	currentHeight := currentCur.depth()
+	return orderedSequenceDiffH(last, current, changes, closeChan, lastHeight, currentHeight)
+}
 
+func orderedSequenceDiffH(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}, lastHeight, currentHeight int) error {
 	if lastHeight > currentHeight {
 		lastChild := last.(orderedMetaSequence).getCompositeChildSequence(0, uint64(last.seqLen())).(orderedSequence)
-		return orderedSequenceDiff(lastChild, current, changes, closeChan)
+		return orderedSequenceDiffH(lastChild, current, changes, closeChan, lastHeight-1, currentHeight)
 	}
 
 	if currentHeight > lastHeight {
 		currentChild := current.(orderedMetaSequence).getCompositeChildSequence(0, uint64(current.seqLen())).(orderedSequence)
-		return orderedSequenceDiff(last, currentChild, changes, closeChan)
+		return orderedSequenceDiffH(last, currentChild, changes, closeChan, lastHeight, currentHeight-1)
 	}
 
 	if !isMetaSequence(last) && !isMetaSequence(current) {
@@ -56,9 +61,19 @@ func orderedSequenceDiff(last orderedSequence, current orderedSequence, changes 
 			func(i uint64, j uint64) bool { return compareFn(int(i), int(j)) })
 
 		for _, splice := range initialSplices {
-			lastChild := last.(orderedMetaSequence).getCompositeChildSequence(splice.SpAt, splice.SpRemoved).(orderedSequence)
-			currentChild := current.(orderedMetaSequence).getCompositeChildSequence(splice.SpFrom, splice.SpAdded).(orderedSequence)
-			err := orderedSequenceDiff(lastChild, currentChild, changes, closeChan)
+			var lastChild, currentChild orderedSequence
+			wg := &sync.WaitGroup{}
+			wg.Add(2)
+			go func() {
+				lastChild = last.(orderedMetaSequence).getCompositeChildSequence(splice.SpAt, splice.SpRemoved).(orderedSequence)
+				wg.Done()
+			}()
+			go func() {
+				currentChild = current.(orderedMetaSequence).getCompositeChildSequence(splice.SpFrom, splice.SpAdded).(orderedSequence)
+				wg.Done()
+			}()
+			wg.Wait()
+			err := orderedSequenceDiffH(lastChild, currentChild, changes, closeChan, lastHeight-1, currentHeight-1)
 			if err != nil {
 				return err
 			}
