@@ -51,7 +51,7 @@ func main() {
 	for ds := range streamDs(db) {
 		start := time.Now()
 		r := rs[rand.Intn(len(rs))]
-		fmt.Println(r.name, db, ds)
+		fmt.Println(time.Now().Format(time.Stamp), r.name, db, ds)
 		r.fn(db, fmt.Sprintf("%s::%s", db, ds))
 		fmt.Println("  took", time.Since(start).String())
 	}
@@ -116,7 +116,7 @@ func getParent(db, ds string) string {
 
 func call(stdout io.Writer, name string, arg ...string) error {
 	cmd := exec.Command(name, arg...)
-	fmt.Println("    > ", name, strings.Join(arg, " "))
+	fmt.Println("    >", name, strings.Join(arg, " "))
 	cmd.Stdout = stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
