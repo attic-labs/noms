@@ -53,7 +53,7 @@ func main() {
 		r := rs[rand.Intn(len(rs))]
 		fmt.Println(r.name, db, ds)
 		r.fn(db, fmt.Sprintf("%s::%s", db, ds))
-		fmt.Println("  took %s\n", time.Since(start).String())
+		fmt.Println("  took", time.Since(start).String())
 	}
 }
 
@@ -135,6 +135,11 @@ func streamDs(db string) <-chan string {
 	}
 
 	out := strings.Trim(buf.String(), " \n")
+	if out == "" {
+		fmt.Fprintln(os.Stderr, "    ERROR: no datasets at", db)
+		os.Exit(-1)
+	}
+
 	datasets := strings.Split(out, "\n")
 
 	ch := make(chan string)
