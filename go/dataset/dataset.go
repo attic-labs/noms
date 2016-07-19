@@ -75,13 +75,13 @@ func (ds *Dataset) MaybeHeadValue() (types.Value, bool) {
 // CommitValue updates the commit that a dataset points at. The new Commit struct is constructed using v and the current Head.
 // If the update cannot be performed, e.g., because of a conflict, Commit returns an 'ErrMergeNeeded' error and the current snapshot of the dataset so that the client can merge the changes and try again.
 func (ds *Dataset) CommitValue(v types.Value) (Dataset, error) {
-	return ds.Commit(v, datas.CommitOptions{})
+	return ds.Commit(v, CommitOptions{})
 }
 
 // Commit updates the commit that a dataset points at. The new Commit struct is constructed using `v` and `opts.Parents`.
 // If `opts.Parents` is the zero value (`types.Set{}`) then the current head is used.
 // If the update cannot be performed, e.g., because of a conflict, CommitWith returns an 'ErrMergeNeeded' error and the current snapshot of the dataset so that the client can merge the changes and try again.
-func (ds *Dataset) Commit(v types.Value, opts datas.CommitOptions) (Dataset, error) {
+func (ds *Dataset) Commit(v types.Value, opts CommitOptions) (Dataset, error) {
 	parents := opts.Parents
 	if (parents == types.Set{}) {
 		parents = types.NewSet()
@@ -136,5 +136,5 @@ func (ds *Dataset) validateRefAsCommit(r types.Ref) types.Struct {
 func (ds *Dataset) setNewHead(newHeadRef types.Ref) (Dataset, error) {
 	commit := ds.validateRefAsCommit(newHeadRef)
 	p := commit.Get(datas.ParentsField).(types.Set)
-	return ds.Commit(commit.Get(datas.ValueField), datas.CommitOptions{Parents: p})
+	return ds.Commit(commit.Get(datas.ValueField), CommitOptions{Parents: p})
 }

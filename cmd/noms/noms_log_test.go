@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
@@ -74,12 +73,12 @@ func addCommitWithValue(ds dataset.Dataset, v types.Value) (dataset.Dataset, err
 
 func addBranchedDataset(newDs, parentDs dataset.Dataset, v string) (dataset.Dataset, error) {
 	p := types.NewSet(parentDs.HeadRef())
-	return newDs.Commit(types.String(v), datas.CommitOptions{Parents: p})
+	return newDs.Commit(types.String(v), dataset.CommitOptions{Parents: p})
 }
 
 func mergeDatasets(ds1, ds2 dataset.Dataset, v string) (dataset.Dataset, error) {
 	p := types.NewSet(ds1.HeadRef(), ds2.HeadRef())
-	return ds1.Commit(types.String(v), datas.CommitOptions{Parents: p})
+	return ds1.Commit(types.String(v), dataset.CommitOptions{Parents: p})
 }
 
 func (s *nomsLogTestSuite) TestNArg() {
