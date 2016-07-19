@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
@@ -42,7 +43,7 @@ type nomsLogTestSuite struct {
 func testCommitInResults(s *nomsLogTestSuite, str string, i int) {
 	ds, err := spec.GetDataset(str)
 	s.NoError(err)
-	ds, err = ds.Commit(types.Number(i))
+	ds, err = ds.CommitValue(types.Number(i))
 	s.NoError(err)
 	commit := ds.Head()
 	ds.Database().Close()
@@ -64,21 +65,21 @@ func (s *nomsLogTestSuite) TestNomsLog() {
 }
 
 func addCommit(ds dataset.Dataset, v string) (dataset.Dataset, error) {
-	return ds.Commit(types.String(v))
+	return ds.CommitValue(types.String(v))
 }
 
 func addCommitWithValue(ds dataset.Dataset, v types.Value) (dataset.Dataset, error) {
-	return ds.Commit(v)
+	return ds.CommitValue(v)
 }
 
 func addBranchedDataset(newDs, parentDs dataset.Dataset, v string) (dataset.Dataset, error) {
 	p := types.NewSet(parentDs.HeadRef())
-	return newDs.CommitWith(types.String(v), dataset.CommitOptions{Parents: p})
+	return newDs.Commit(types.String(v), datas.CommitOptions{Parents: p})
 }
 
 func mergeDatasets(ds1, ds2 dataset.Dataset, v string) (dataset.Dataset, error) {
 	p := types.NewSet(ds1.HeadRef(), ds2.HeadRef())
-	return ds1.CommitWith(types.String(v), dataset.CommitOptions{Parents: p})
+	return ds1.Commit(types.String(v), datas.CommitOptions{Parents: p})
 }
 
 func (s *nomsLogTestSuite) TestNArg() {
