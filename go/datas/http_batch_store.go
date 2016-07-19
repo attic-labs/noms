@@ -6,6 +6,7 @@ package datas
 
 import (
 	"bufio"
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -384,16 +385,17 @@ func (bhcs *httpBatchStore) sendWriteRequests(hashes hash.HashSet, hints types.H
 		var res *http.Response
 		var err error
 		for tryAgain := true; tryAgain; {
-			serializedChunks, pw := io.Pipe()
-			errChan := make(chan error)
+			chunkChan := make(chan *chunks.Chunk, 1024)
 			go func() {
-				err := bhcs.unwrittenPuts.ExtractChunks(hashes, pw)
-				// The ordering of these is important. Close the pipe so that the HTTP stack which is reading from serializedChunks knows it has everything, and only THEN block on errChan.
-				pw.Close()
-				errChan <- err
-				close(errChan)
+				bhcs.unwrittenPuts.ExtractChunks(hashes, chunkChan)
+				close(chunkChan)
 			}()
-			body := buildWriteValueRequest(serializedChunks, hints)
+
+			body := buildWriteValueRequest(chunkChan, hints)
+			buff := &bytes.Buffer{}
+			io.Copy(buff, body)
+			fmt.Println("Len", len(buff.Bytes()))
+			body = bytes.NewReader(buff.Bytes())
 
 			url := *bhcs.host
 			url.Path = httprouter.CleanPath(bhcs.host.Path + constants.WriteValuePath)
@@ -406,7 +408,6 @@ func (bhcs *httpBatchStore) sendWriteRequests(hashes hash.HashSet, hints types.H
 
 			res, err = bhcs.httpClient.Do(req)
 			d.PanicIfError(err)
-			d.PanicIfError(<-errChan)
 			expectVersion(res)
 			defer closeResponse(res.Body)
 

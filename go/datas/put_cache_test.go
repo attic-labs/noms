@@ -5,7 +5,6 @@
 package datas
 
 import (
-	"bytes"
 	"math/rand"
 	"sync"
 	"testing"
@@ -14,7 +13,6 @@ import (
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/testify/suite"
-	"github.com/golang/snappy"
 )
 
 func TestLevelDBPutCacheSuite(t *testing.T) {
@@ -181,11 +179,11 @@ func (suite *LevelDBPutCacheSuite) TestExtractChunksOrder() {
 }
 
 func (suite *LevelDBPutCacheSuite) extractChunks(hashes hash.HashSet) <-chan *chunks.Chunk {
-	buf := &bytes.Buffer{}
-	err := suite.cache.ExtractChunks(hashes, buf)
-	suite.NoError(err)
-
 	chunkChan := make(chan *chunks.Chunk)
-	go chunks.DeserializeToChan(snappy.NewReader(buf), chunkChan)
+	go func() {
+		err := suite.cache.ExtractChunks(hashes, chunkChan)
+		suite.NoError(err)
+		close(chunkChan)
+	}()
 	return chunkChan
 }
