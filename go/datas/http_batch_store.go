@@ -6,7 +6,6 @@ package datas
 
 import (
 	"bufio"
-	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -392,11 +391,6 @@ func (bhcs *httpBatchStore) sendWriteRequests(hashes hash.HashSet, hints types.H
 			}()
 
 			body := buildWriteValueRequest(chunkChan, hints)
-			buff := &bytes.Buffer{}
-			io.Copy(buff, body)
-			fmt.Println("Len", len(buff.Bytes()))
-			body = bytes.NewReader(buff.Bytes())
-
 			url := *bhcs.host
 			url.Path = httprouter.CleanPath(bhcs.host.Path + constants.WriteValuePath)
 			// TODO: Make this accept snappy encoding
