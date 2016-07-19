@@ -14,15 +14,20 @@ type ChangeChannelClosedError struct {
 
 func (e ChangeChannelClosedError) Error() string { return e.msg }
 
-func indexedSequenceDiff(last indexedSequence, lastHeight int, lastOffset uint64, current indexedSequence, currentHeight int, currentOffset uint64, changes chan<- Splice, closeChan <-chan struct{}, maxSpliceMatrixSize uint64) error {
+func indexedSequenceDiff(last indexedSequence, lastHeight int, lastOffset uint64, current indexedSequence, currentHeight int, currentOffset uint64, changes chan<- Splice, closeChan <-chan struct{}, maxSpliceMatrixSize uint64) {
+	indexedSequenceDiffWithErr(last, lastHeight, lastOffset, current, currentHeight, currentOffset, changes, closeChan, maxSpliceMatrixSize)
+	close(changes)
+}
+
+func indexedSequenceDiffWithErr(last indexedSequence, lastHeight int, lastOffset uint64, current indexedSequence, currentHeight int, currentOffset uint64, changes chan<- Splice, closeChan <-chan struct{}, maxSpliceMatrixSize uint64) error {
 	if lastHeight > currentHeight {
 		lastChild := last.(indexedMetaSequence).getCompositeChildSequence(0, uint64(last.seqLen())).(indexedSequence)
-		return indexedSequenceDiff(lastChild, lastHeight-1, lastOffset, current, currentHeight, currentOffset, changes, closeChan, maxSpliceMatrixSize)
+		return indexedSequenceDiffWithErr(lastChild, lastHeight-1, lastOffset, current, currentHeight, currentOffset, changes, closeChan, maxSpliceMatrixSize)
 	}
 
 	if currentHeight > lastHeight {
 		currentChild := current.(indexedMetaSequence).getCompositeChildSequence(0, uint64(current.seqLen())).(indexedSequence)
-		return indexedSequenceDiff(last, lastHeight, lastOffset, currentChild, currentHeight-1, currentOffset, changes, closeChan, maxSpliceMatrixSize)
+		return indexedSequenceDiffWithErr(last, lastHeight, lastOffset, currentChild, currentHeight-1, currentOffset, changes, closeChan, maxSpliceMatrixSize)
 	}
 
 	compareFn := last.getCompareFn(current)
@@ -53,7 +58,7 @@ func indexedSequenceDiff(last indexedSequence, lastHeight int, lastOffset uint64
 			if splice.SpFrom > 0 {
 				currentChildOffset += current.getOffset(int(splice.SpFrom)-1) + 1
 			}
-			err := indexedSequenceDiff(lastChild, lastHeight-1, lastChildOffset, currentChild, currentHeight-1, currentChildOffset, changes, closeChan, maxSpliceMatrixSize)
+			err := indexedSequenceDiffWithErr(lastChild, lastHeight-1, lastChildOffset, currentChild, currentHeight-1, currentChildOffset, changes, closeChan, maxSpliceMatrixSize)
 			if err != nil {
 				return err
 			}
