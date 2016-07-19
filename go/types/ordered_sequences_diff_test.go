@@ -83,9 +83,8 @@ func (suite *diffTestSuite) TestDiff() {
 	}
 
 	runTest := func(name string, vf valFn, cf colFn) {
-		runTestDf(name, vf, cf, orderedSequenceDiff)
+		runTestDf(name, vf, cf, orderedSequenceDiffTopDown)
 		runTestDf(name, vf, cf, orderedSequenceDiffLeftRight)
-		//runTestDf(name, vf, cf, orderedSequenceDiffZ)
 	}
 
 	newSetAsCol := func(vs []Value) Collection { return NewSet(vs...) }
