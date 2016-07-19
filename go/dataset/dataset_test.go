@@ -80,11 +80,11 @@ func TestExplicitBranchUsingDatasets(t *testing.T) {
 	//        \ds2 <- |c| <--/
 	mergeParents := types.NewSet(types.NewRef(ds1.Head()), types.NewRef(ds2.Head()))
 	d := types.String("d")
-	ds2, err = ds2.CommitWithParents(d, mergeParents)
+	ds2, err = ds2.CommitWith(d, CommitOptions{Parents: mergeParents})
 	assert.NoError(err)
 	assert.True(ds2.Head().Get(datas.ValueField).Equals(d))
 
-	ds1, err = ds1.CommitWithParents(d, mergeParents)
+	ds1, err = ds1.CommitWith(d, CommitOptions{Parents: mergeParents})
 	assert.NoError(err)
 	assert.True(ds1.Head().Get(datas.ValueField).Equals(d))
 }
