@@ -35,22 +35,29 @@ func sendChange(changes chan<- ValueChanged, closeChan <-chan struct{}, change V
 
 // TODO - something other than the literal edit-distance, which is way too much cpu work for this case - https://github.com/attic-labs/noms/issues/2027
 func orderedSequenceDiff(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) error {
-	lastCur := newCursorAt(last, emptyKey, false, false)
-	currentCur := newCursorAt(current, emptyKey, false, false)
-	lastHeight := lastCur.depth()
-	currentHeight := currentCur.depth()
-	return orderedSequenceDiffH(last, current, changes, closeChan, lastHeight, currentHeight)
+	var lastHeight, currentHeight int
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	getHeight := func(seq orderedSequence, out *int) {
+		cur := newCursorAt(seq, emptyKey, false, false)
+		*out = cur.depth()
+		wg.Done()
+	}
+	go getHeight(last, &lastHeight)
+	go getHeight(current, &currentHeight)
+	wg.Wait()
+	return orderedSequenceDiffInternalNodes(last, current, changes, closeChan, lastHeight, currentHeight)
 }
 
-func orderedSequenceDiffH(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}, lastHeight, currentHeight int) error {
+func orderedSequenceDiffInternalNodes(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}, lastHeight, currentHeight int) error {
 	if lastHeight > currentHeight {
 		lastChild := last.(orderedMetaSequence).getCompositeChildSequence(0, uint64(last.seqLen())).(orderedSequence)
-		return orderedSequenceDiffH(lastChild, current, changes, closeChan, lastHeight-1, currentHeight)
+		return orderedSequenceDiffInternalNodes(lastChild, current, changes, closeChan, lastHeight-1, currentHeight)
 	}
 
 	if currentHeight > lastHeight {
 		currentChild := current.(orderedMetaSequence).getCompositeChildSequence(0, uint64(current.seqLen())).(orderedSequence)
-		return orderedSequenceDiffH(last, currentChild, changes, closeChan, lastHeight, currentHeight-1)
+		return orderedSequenceDiffInternalNodes(last, currentChild, changes, closeChan, lastHeight, currentHeight-1)
 	}
 
 	if !isMetaSequence(last) && !isMetaSequence(current) {
@@ -73,7 +80,7 @@ func orderedSequenceDiffH(last orderedSequence, current orderedSequence, changes
 				wg.Done()
 			}()
 			wg.Wait()
-			err := orderedSequenceDiffH(lastChild, currentChild, changes, closeChan, lastHeight-1, currentHeight-1)
+			err := orderedSequenceDiffInternalNodes(lastChild, currentChild, changes, closeChan, lastHeight-1, currentHeight-1)
 			if err != nil {
 				return err
 			}
