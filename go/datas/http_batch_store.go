@@ -21,6 +21,7 @@ import (
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/noms/go/util/progressreader"
 	"github.com/golang/snappy"
 	"github.com/julienschmidt/httprouter"
 )
@@ -47,6 +48,7 @@ type httpBatchStore struct {
 	requestWg     *sync.WaitGroup
 	workerWg      *sync.WaitGroup
 	unwrittenPuts *orderedChunkCache
+	progressChan  chan CommitProgress
 }
 
 func newHTTPBatchStore(baseURL, auth string) *httpBatchStore {
@@ -359,7 +361,7 @@ func (bhcs *httpBatchStore) batchPutRequests() {
 						handleRequest(wr)
 					default:
 						drained = true
-						bhcs.sendWriteRequests(hashes, hints) // Takes ownership of hashes, hints
+						bhcs.sendWriteRequests(hashes, hints, bhcs.progressChan) // Takes ownership of hashes, hints
 						hints = types.Hints{}
 						hashes = hash.HashSet{}
 					}
@@ -369,7 +371,7 @@ func (bhcs *httpBatchStore) batchPutRequests() {
 	}()
 }
 
-func (bhcs *httpBatchStore) sendWriteRequests(hashes hash.HashSet, hints types.Hints) {
+func (bhcs *httpBatchStore) sendWriteRequests(hashes hash.HashSet, hints types.Hints, progressCh chan CommitProgress) {
 	if len(hashes) == 0 {
 		return
 	}
@@ -387,13 +389,18 @@ func (bhcs *httpBatchStore) sendWriteRequests(hashes hash.HashSet, hints types.H
 			serializedChunks, pw := io.Pipe()
 			errChan := make(chan error)
 			go func() {
-				err := bhcs.unwrittenPuts.ExtractChunks(hashes, pw)
+				extractErr := bhcs.unwrittenPuts.ExtractChunks(hashes, pw)
 				// The ordering of these is important. Close the pipe so that the HTTP stack which is reading from serializedChunks knows it has everything, and only THEN block on errChan.
 				pw.Close()
-				errChan <- err
+				errChan <- extractErr
 				close(errChan)
 			}()
 			body := buildWriteValueRequest(serializedChunks, hints)
+			if progressCh != nil {
+				body = progressreader.New(body, func(seen uint64) {
+					progressCh <- CommitProgress{DoneBytes: seen, KnownBytes: bhcs.unwrittenPuts.size}
+				})
+			}
 
 			url := *bhcs.host
 			url.Path = httprouter.CleanPath(bhcs.host.Path + constants.WriteValuePath)

@@ -86,7 +86,10 @@ func (suite *RemoteToRemoteSuite) SetupTest() {
 
 func makeRemoteDb(cs chunks.ChunkStore) Database {
 	hbs := newHTTPBatchStoreForTest(cs)
-	return &RemoteDatabaseClient{newDatabaseCommon(newCachingChunkHaver(hbs), types.NewValueStore(hbs), hbs)}
+	return &RemoteDatabaseClient{
+		newDatabaseCommon(newCachingChunkHaver(hbs), types.NewValueStore(hbs), hbs),
+		hbs,
+	}
 }
 
 func (suite *PullSuite) sinkIsLocal() bool {
@@ -310,14 +313,14 @@ func (suite *PullSuite) TestPullUpdates() {
 
 func (suite *PullSuite) commitToSource(v types.Value, p types.Set) types.Ref {
 	var err error
-	suite.source, err = suite.source.Commit(dsID, NewCommit(v, p))
+	suite.source, err = suite.source.Commit(dsID, NewCommit(v, p), nil)
 	suite.NoError(err)
 	return suite.source.HeadRef(dsID)
 }
 
 func (suite *PullSuite) commitToSink(v types.Value, p types.Set) types.Ref {
 	var err error
-	suite.sink, err = suite.sink.Commit(dsID, NewCommit(v, p))
+	suite.sink, err = suite.sink.Commit(dsID, NewCommit(v, p), nil)
 	suite.NoError(err)
 	return suite.sink.HeadRef(dsID)
 }

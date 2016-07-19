@@ -5,9 +5,7 @@
 // Package progressreader provides an io.Reader that reports progress to a callback
 package progressreader
 
-import (
-	"io"
-)
+import "io"
 
 type Callback func(seen uint64)
 
@@ -17,6 +15,7 @@ func New(inner io.Reader, cb Callback) io.Reader {
 		uint64(0),
 		uint64(0),
 		cb,
+		true,
 	}
 }
 
@@ -25,13 +24,15 @@ type reader struct {
 	seen     uint64
 	lastMult uint64
 	cb       Callback
+	first    bool
 }
 
 const reportFreq = 2 << 19 // 1 MB
 
 func (r *reader) Read(p []byte) (n int, err error) {
 	mult := uint64(r.seen / reportFreq)
-	if mult > r.lastMult {
+	if r.first || mult > r.lastMult {
+		r.first = false
 		r.cb(r.seen)
 		r.lastMult = mult
 	}

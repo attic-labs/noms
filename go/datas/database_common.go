@@ -14,11 +14,12 @@ import (
 )
 
 type databaseCommon struct {
-	cch      *cachingChunkHaver
-	vs       *types.ValueStore
-	rt       chunks.RootTracker
-	rootRef  hash.Hash
-	datasets *types.Map
+	cch          *cachingChunkHaver
+	vs           *types.ValueStore
+	rt           chunks.RootTracker
+	rootRef      hash.Hash
+	datasets     *types.Map
+	progressChan chan CommitProgress
 }
 
 var (

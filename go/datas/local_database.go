@@ -24,22 +24,22 @@ func newLocalDatabase(cs chunks.ChunkStore) *LocalDatabase {
 	}
 }
 
-func (lds *LocalDatabase) Commit(datasetID string, commit types.Struct) (Database, error) {
-	err := lds.commit(datasetID, commit)
-	return &LocalDatabase{newDatabaseCommon(lds.cch, lds.vs, lds.rt), lds.cs}, err
+func (ldb *LocalDatabase) Commit(datasetID string, commit types.Struct, progressCh chan CommitProgress) (Database, error) {
+	err := ldb.commit(datasetID, commit)
+	return &LocalDatabase{newDatabaseCommon(ldb.cch, ldb.vs, ldb.rt), ldb.cs}, err
 }
 
-func (lds *LocalDatabase) Delete(datasetID string) (Database, error) {
-	err := lds.doDelete(datasetID)
-	return &LocalDatabase{newDatabaseCommon(lds.cch, lds.vs, lds.rt), lds.cs}, err
+func (ldb *LocalDatabase) Delete(datasetID string) (Database, error) {
+	err := ldb.doDelete(datasetID)
+	return &LocalDatabase{newDatabaseCommon(ldb.cch, ldb.vs, ldb.rt), ldb.cs}, err
 }
 
-func (lds *LocalDatabase) validatingBatchStore() (bs types.BatchStore) {
-	bs = lds.vs.BatchStore()
+func (ldb *LocalDatabase) validatingBatchStore() (bs types.BatchStore) {
+	bs = ldb.vs.BatchStore()
 	if !bs.IsValidating() {
-		bs = newLocalBatchStore(lds.cs)
-		lds.vs = types.NewValueStore(bs)
-		lds.rt = bs
+		bs = newLocalBatchStore(ldb.cs)
+		ldb.vs = types.NewValueStore(bs)
+		ldb.rt = bs
 	}
 	d.Chk.True(bs.IsValidating())
 	return bs
