@@ -14,7 +14,7 @@ const (
 	lengthOfNumbersTest = 1000
 )
 
-type diffFn func(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) error
+type diffFn func(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) bool
 
 type diffTestSuite struct {
 	suite.Suite
