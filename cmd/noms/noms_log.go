@@ -7,7 +7,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -22,6 +21,7 @@ import (
 	"github.com/attic-labs/noms/go/util/orderedparallel"
 	"github.com/attic-labs/noms/go/util/outputpager"
 	"github.com/mgutz/ansi"
+	flag "github.com/ogier/pflag"
 )
 
 var (

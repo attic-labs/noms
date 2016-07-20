@@ -6,13 +6,13 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"math/big"
 	"os"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
+	flag "github.com/ogier/pflag"
 )
 
 // used to ensure all of the big.Floats end up with the same precision

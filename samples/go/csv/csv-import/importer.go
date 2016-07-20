@@ -6,7 +6,6 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -22,8 +21,8 @@ import (
 	"github.com/attic-labs/noms/go/util/progressreader"
 	"github.com/attic-labs/noms/go/util/status"
 	"github.com/attic-labs/noms/samples/go/csv"
-
 	humanize "github.com/dustin/go-humanize"
+	flag "github.com/ogier/pflag"
 )
 
 const (
@@ -39,7 +38,7 @@ func main() {
 		header          = flag.String("header", "", "header row. If empty, we'll use the first row of the file")
 		name            = flag.String("name", "Row", "struct name. The user-visible name to give to the struct type that will hold each row of data.")
 		columnTypes     = flag.String("column-types", "", "a comma-separated list of types representing the desired type of each column. if absent all types default to be String")
-		path            = flag.String("p", "", "noms path to blob to import")
+		path            = flag.StringP("path", "p", "", "noms path to blob to import")
 		noProgress      = flag.Bool("no-progress", false, "prevents progress from being output if true")
 		destType        = flag.String("dest-type", "list", "the destination type to import to. can be 'list' or 'map:<pk>', where <pk> is the index position (0-based) of the column that is a the unique identifier for the column")
 		skipRecords     = flag.Uint("skip-records", 0, "number of records to skip at beginning of file")
@@ -61,9 +60,9 @@ func main() {
 	case flag.NArg() == 0:
 		err = errors.New("Maybe you put options after the dataset?")
 	case flag.NArg() == 1 && *path == "":
-		err = errors.New("If <csvfile> isn't specified, you must specify a noms path with -p")
+		err = errors.New("If <csvfile> isn't specified, you must specify a noms path with --path")
 	case flag.NArg() == 2 && *path != "":
-		err = errors.New("Cannot specify both <csvfile> and a noms path with -p")
+		err = errors.New("Cannot specify both <csvfile> and a noms path with --path")
 	case flag.NArg() > 2:
 		err = errors.New("Too many arguments")
 	}

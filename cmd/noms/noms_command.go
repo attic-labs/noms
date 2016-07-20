@@ -5,10 +5,11 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strings"
+
+	flag "github.com/ogier/pflag"
 )
 
 type nomsCommand struct {

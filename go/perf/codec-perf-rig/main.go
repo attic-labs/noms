@@ -7,7 +7,6 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
+	flag "github.com/ogier/pflag"
 )
 
 var (

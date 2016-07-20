@@ -5,12 +5,12 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
+	flag "github.com/ogier/pflag"
 )
 
 var toDelete string
@@ -25,7 +25,7 @@ var nomsDs = &nomsCommand{
 
 func setupDsFlags() *flag.FlagSet {
 	dsFlagSet := flag.NewFlagSet("ds", flag.ExitOnError)
-	dsFlagSet.StringVar(&toDelete, "d", "", "dataset to delete")
+	dsFlagSet.StringVarP(&toDelete, "delete", "d", "", "dataset to delete")
 	return dsFlagSet
 }
 

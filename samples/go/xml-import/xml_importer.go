@@ -6,7 +6,6 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -21,6 +20,7 @@ import (
 	"github.com/attic-labs/noms/go/util/jsontonoms"
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/clbanning/mxj"
+	flag "github.com/ogier/pflag"
 )
 
 var (

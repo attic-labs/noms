@@ -8,7 +8,6 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
-	"flag"
 	"fmt"
 	"hash"
 	"io"
@@ -18,6 +17,7 @@ import (
 	"github.com/codahale/blake2"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/kch42/buzhash"
+	flag "github.com/ogier/pflag"
 )
 
 func main() {
