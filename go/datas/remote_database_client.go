@@ -13,27 +13,41 @@ import (
 // Database provides versioned storage for noms values. Each Database instance represents one moment in history. Heads() returns the Commit from each active fork at that moment. The Commit() method returns a new Database, representing a new moment in history.
 type RemoteDatabaseClient struct {
 	databaseCommon
+	httpBS *httpBatchStore
 }
 
 func NewRemoteDatabase(baseURL, auth string) *RemoteDatabaseClient {
 	httpBS := newHTTPBatchStore(baseURL, auth)
-	return &RemoteDatabaseClient{newDatabaseCommon(newCachingChunkHaver(httpBS), types.NewValueStore(httpBS), httpBS)}
+	return &RemoteDatabaseClient{
+		newDatabaseCommon(newCachingChunkHaver(httpBS), types.NewValueStore(httpBS), httpBS),
+		httpBS,
+	}
 }
 
-func (rds *RemoteDatabaseClient) validatingBatchStore() (bs types.BatchStore) {
-	bs = rds.vs.BatchStore()
+func (rdb *RemoteDatabaseClient) validatingBatchStore() (bs types.BatchStore) {
+	bs = rdb.vs.BatchStore()
 	d.Chk.True(bs.IsValidating())
 	return
 }
 
-func (rds *RemoteDatabaseClient) Commit(datasetID string, commit types.Struct) (Database, error) {
-	err := rds.commit(datasetID, commit)
-	return &RemoteDatabaseClient{newDatabaseCommon(rds.cch, rds.vs, rds.rt)}, err
+func (rdb *RemoteDatabaseClient) Commit(datasetID string, commit types.Struct, progressChan chan CommitProgress) (Database, error) {
+	rdb.httpBS.progressChan = progressChan
+	defer func() {
+		rdb.httpBS.progressChan = nil
+	}()
+	err := rdb.commit(datasetID, commit)
+	return &RemoteDatabaseClient{
+		newDatabaseCommon(rdb.cch, rdb.vs, rdb.rt),
+		rdb.httpBS,
+	}, err
 }
 
-func (rds *RemoteDatabaseClient) Delete(datasetID string) (Database, error) {
-	err := rds.doDelete(datasetID)
-	return &RemoteDatabaseClient{newDatabaseCommon(rds.cch, rds.vs, rds.rt)}, err
+func (rdb *RemoteDatabaseClient) Delete(datasetID string) (Database, error) {
+	err := rdb.doDelete(datasetID)
+	return &RemoteDatabaseClient{
+		newDatabaseCommon(rdb.cch, rdb.vs, rdb.rt),
+		rdb.httpBS,
+	}, err
 }
 
 func (f RemoteStoreFactory) CreateStore(ns string) Database {

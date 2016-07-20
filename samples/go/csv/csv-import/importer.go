@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/datas"
+	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
@@ -98,7 +100,7 @@ func main() {
 	}
 
 	if !*noProgress {
-		r = progressreader.New(r, getStatusPrinter(size))
+		r = progressreader.New(r, getImportStatusPrinter(size))
 	}
 
 	comma, err := csv.StringToRune(*delimiter)
@@ -145,23 +147,39 @@ func main() {
 	} else {
 		value = csv.ReadToMap(cr, headers, pk, kinds, ds.Database())
 	}
-	_, err = ds.CommitValue(value)
+
+	var progressCh chan datas.CommitProgress
+	if !*noProgress {
+		startTime := time.Now()
+		progressCh = make(chan datas.CommitProgress)
+		go func() {
+			for p := range progressCh {
+				printStatus("Committing ", startTime, p.DoneBytes, p.KnownBytes)
+			}
+		}()
+	}
+	_, err = ds.Commit(value, dataset.CommitOptions{Progress: progressCh})
 	if !*noProgress {
 		status.Clear()
 	}
 	d.PanicIfError(err)
 }
 
-func getStatusPrinter(expected uint64) progressreader.Callback {
+func getImportStatusPrinter(expected uint64) progressreader.Callback {
 	startTime := time.Now()
 	return func(seen uint64) {
-		percent := float64(seen) / float64(expected) * 100
-		elapsed := time.Since(startTime)
-		rate := float64(seen) / elapsed.Seconds()
-
-		status.Printf("%.2f%% of %s (%s/s)...",
-			percent,
-			humanize.Bytes(expected),
-			humanize.Bytes(uint64(rate)))
+		printStatus("Importing ", startTime, seen, expected)
 	}
+}
+
+func printStatus(prefix string, startTime time.Time, seen, expected uint64) {
+	percent := float64(seen) / float64(expected) * 100
+	elapsed := time.Since(startTime)
+	rate := float64(seen) / elapsed.Seconds()
+
+	status.Printf("%s%.2f%% of %s (%s/s)...",
+		prefix,
+		percent,
+		humanize.Bytes(expected),
+		humanize.Bytes(uint64(rate)))
 }

@@ -91,7 +91,7 @@ func (ds *Dataset) Commit(v types.Value, opts CommitOptions) (Dataset, error) {
 		}
 	}
 	newCommit := datas.NewCommit(v, parents)
-	store, err := ds.Database().Commit(ds.id, newCommit)
+	store, err := ds.Database().Commit(ds.id, newCommit, opts.Progress)
 	return Dataset{store, ds.id}, err
 }
 
