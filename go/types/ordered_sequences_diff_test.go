@@ -14,7 +14,7 @@ const (
 	lengthOfNumbersTest = 1000
 )
 
-type diffFn func(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{})
+type diffFn func(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) error
 
 type diffTestSuite struct {
 	suite.Suite
@@ -41,7 +41,10 @@ func newDiffTestSuite(from1, to1, by1, from2, to2, by2, numAddsExpected, numRemo
 func accumulateOrderedSequenceDiffChanges(o1, o2 orderedSequence, df diffFn) (added []Value, removed []Value, modified []Value) {
 	changes := make(chan ValueChanged)
 	closeChan := make(chan struct{})
-	go df(o1, o2, changes, closeChan)
+	go func() {
+		df(o1, o2, changes, closeChan)
+		close(changes)
+	}()
 	for change := range changes {
 		if change.ChangeType == DiffChangeAdded {
 			added = append(added, change.V)

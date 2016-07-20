@@ -31,14 +31,13 @@ func sendChange(changes chan<- ValueChanged, closeChan <-chan struct{}, change V
 	return nil
 }
 
-func orderedSequenceDiffTopDown(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) {
+func orderedSequenceDiffTopDown(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) error {
 	var lastHeight, currentHeight int
 	functions.All(
 		func() { lastHeight = newCursorAt(last, emptyKey, false, false).depth() },
 		func() { currentHeight = newCursorAt(current, emptyKey, false, false).depth() },
 	)
-	orderedSequenceDiffInternalNodes(last, current, changes, closeChan, lastHeight, currentHeight)
-	close(changes)
+	return orderedSequenceDiffInternalNodes(last, current, changes, closeChan, lastHeight, currentHeight)
 }
 
 // TODO - something other than the literal edit-distance, which is way too much cpu work for this case - https://github.com/attic-labs/noms/issues/2027
@@ -54,7 +53,7 @@ func orderedSequenceDiffInternalNodes(last orderedSequence, current orderedSeque
 	}
 
 	if !isMetaSequence(last) && !isMetaSequence(current) {
-		return orderedSequenceDiffLeafItems(last, current, changes, closeChan)
+		return orderedSequenceDiffLeftRight(last, current, changes, closeChan)
 	}
 
 	compareFn := last.getCompareFn(current)
@@ -80,12 +79,7 @@ func orderedSequenceDiffInternalNodes(last orderedSequence, current orderedSeque
 	return nil
 }
 
-func orderedSequenceDiffLeftRight(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) {
-	orderedSequenceDiffLeafItems(last, current, changes, closeChan)
-	close(changes)
-}
-
-func orderedSequenceDiffLeafItems(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) error {
+func orderedSequenceDiffLeftRight(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) error {
 	lastCur := newCursorAt(last, emptyKey, false, false)
 	currentCur := newCursorAt(current, emptyKey, false, false)
 
