@@ -10,8 +10,8 @@ import "sync"
 func All(fs ...func()) {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(fs))
-	for _, f := range fs {
-		f := f
+	for _, f_ := range fs {
+		f := f_
 		go func() {
 			f()
 			wg.Done()
