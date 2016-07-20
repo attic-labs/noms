@@ -315,6 +315,16 @@ func (w *hrsWriter) writeCycle(i uint8) {
 	_, w.err = fmt.Fprintf(w.w, "Cycle<%d>", i)
 }
 
+func EncodedIndexValue(v Value) string {
+	var buf bytes.Buffer
+	w := &hrsWriter{w: &buf}
+	if v.Type().Kind() == NumberKind {
+		w.write(strconv.FormatFloat(float64(v.(Number)), 'f', -1, 64))
+		return buf.String()
+	}
+	return EncodedValue(v)
+}
+
 func EncodedValue(v Value) string {
 	var buf bytes.Buffer
 	w := &hrsWriter{w: &buf}
