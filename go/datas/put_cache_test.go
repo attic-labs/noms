@@ -162,7 +162,7 @@ func (suite *LevelDBPutCacheSuite) TestExtractChunksOrder() {
 }
 
 func (suite *LevelDBPutCacheSuite) extractChunks(hashes hash.HashSet) <-chan *chunks.Chunk {
-	chunkChan := make(chan *chunks.Chunk, 16)
+	chunkChan := make(chan *chunks.Chunk)
 	go func() {
 		err := suite.cache.ExtractChunks(hashes, chunkChan)
 		suite.NoError(err)
