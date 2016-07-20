@@ -5,9 +5,14 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 import type Sequence from './sequence.js'; // eslint-disable-line no-unused-vars
-import {invariant, notNull} from './assert.js';
-import type {MetaSequence, MetaTuple} from './meta-sequence.js';
+import type {MetaSequence, OrderedKey} from './meta-sequence.js';
+import {MetaTuple} from './meta-sequence.js';
 import type {SequenceCursor} from './sequence.js';
+import type {ValueReader, ValueWriter} from './value-store.js';
+import {invariant, notNull} from './assert.js';
+import type Collection from './collection.js';
+
+import Ref from './ref.js';
 
 export type BoundaryChecker<T> = {
   write: (item: T) => boolean;
@@ -16,7 +21,7 @@ export type BoundaryChecker<T> = {
 
 export type NewBoundaryCheckerFn = () => BoundaryChecker<MetaTuple>;
 
-export type makeChunkFn<T, S: Sequence> = (items: Array<T>) => [MetaTuple, S];
+export type makeChunkFn<T, S: Sequence> = (items: Array<T>) => [Collection<S>, OrderedKey, number];
 
 export async function chunkSequence<T, S: Sequence<T>>(
     cursor: SequenceCursor,
@@ -27,7 +32,7 @@ export async function chunkSequence<T, S: Sequence<T>>(
     boundaryChecker: BoundaryChecker<T>,
     newBoundaryChecker: NewBoundaryCheckerFn): Promise<Sequence> {
 
-  const chunker = new SequenceChunker(cursor, makeChunk, parentMakeChunk, boundaryChecker,
+  const chunker = new SequenceChunker(cursor, null, makeChunk, parentMakeChunk, boundaryChecker,
                                       newBoundaryChecker);
   if (cursor) {
     await chunker.resume();
@@ -42,7 +47,7 @@ export async function chunkSequence<T, S: Sequence<T>>(
 
   insert.forEach(i => chunker.append(i));
 
-  return chunker.done();
+  return chunker.done(null);
 }
 
 // Like |chunkSequence|, but without an existing cursor (implying this is a new collection), so it
@@ -55,7 +60,7 @@ export function chunkSequenceSync<T, S: Sequence<T>>(
     boundaryChecker: BoundaryChecker<T>,
     newBoundaryChecker: NewBoundaryCheckerFn): Sequence {
 
-  const chunker = new SequenceChunker(null, makeChunk, parentMakeChunk, boundaryChecker,
+  const chunker = new SequenceChunker(null, null, makeChunk, parentMakeChunk, boundaryChecker,
                                       newBoundaryChecker);
 
   insert.forEach(i => chunker.append(i));
@@ -65,8 +70,10 @@ export function chunkSequenceSync<T, S: Sequence<T>>(
 
 export default class SequenceChunker<T, S: Sequence<T>> {
   _cursor: ?SequenceCursor<T, S>;
+  _vw: ?ValueWriter;
   _parent: ?SequenceChunker<MetaTuple, MetaSequence>;
   _current: Array<T>;
+  _isLeaf: boolean;
   _lastSeq: ?S;
   _makeChunk: makeChunkFn<T, S>;
   _parentMakeChunk: makeChunkFn<MetaTuple, MetaSequence>;
@@ -74,13 +81,15 @@ export default class SequenceChunker<T, S: Sequence<T>> {
   _newBoundaryChecker: NewBoundaryCheckerFn;
   _done: boolean;
 
-  constructor(cursor: ?SequenceCursor, makeChunk: makeChunkFn,
+  constructor(cursor: ?SequenceCursor, vw: ?ValueWriter, makeChunk: makeChunkFn,
               parentMakeChunk: makeChunkFn,
               boundaryChecker: BoundaryChecker<T>,
               newBoundaryChecker: NewBoundaryCheckerFn) {
     this._cursor = cursor;
+    this._vw = vw;
     this._parent = null;
     this._current = [];
+    this._isLeaf = true;
     this._lastSeq = null;
     this._makeChunk = makeChunk;
     this._parentMakeChunk = parentMakeChunk;
@@ -97,45 +106,69 @@ export default class SequenceChunker<T, S: Sequence<T>> {
     }
 
     // Number of previous items which must be hashed into the boundary checker.
-    let primeHashCount = this._boundaryChecker.windowSize - 1;
+    let primeHashWindow = this._boundaryChecker.windowSize - 1;
 
-    // If the cursor is beyond the final position in the sequence, the preceeding
-    // item may have been a chunk boundary. In that case, we must test at least the preceeding item.
+    const retreater = cursor.clone();
+    let appendCount = 0;
+    let primeHashCount = 0;
+
+    // If the cursor is beyond the final position in the sequence, the preceeding item may have been
+    // a chunk boundary. In that case, we must test at least the preceeding item.
     const appendPenultimate = cursor.idx === cursor.length;
-    if (appendPenultimate) {
+    if (appendPenultimate && await retreater._retreatMaybeAllowBeforeStart(false)) {
       // In that case, we prime enough items *prior* to the penultimate item to be correct.
+      appendCount++;
       primeHashCount++;
     }
 
-    // Number of items preceeding initial cursor in present chunk.
-    const primeCurrentCount = cursor.indexInChunk;
-
-    // Number of items to fetch prior to cursor position
-    const prevCount = Math.max(primeHashCount, primeCurrentCount);
-
-    const prev = await cursor.maxNPrevItems(prevCount);
-    for (let i = 0; i < prev.length; i++) {
-      const item = prev[i];
-      const backIdx = prev.length - i;
-      if (appendPenultimate && backIdx === 1) {
-        // Test the penultimate item for a boundary.
-        this.append(item);
-        continue;
+    // Walk backwards to the start of the existing chunk
+    while (retreater.indexInChunk > 0 && await retreater._retreatMaybeAllowBeforeStart(false)) {
+      appendCount++;
+      if (primeHashWindow > 0) {
+        primeHashCount++;
+        primeHashWindow--;
       }
+    }
 
-      if (backIdx <= primeHashCount) {
+    // If the hash window won't be filled by the preceeding items in the current chunk, walk further
+    // back until they will.
+    while (primeHashWindow > 0 && await retreater._retreatMaybeAllowBeforeStart(false)) {
+      primeHashCount++;
+      primeHashWindow--;
+    }
+
+    while (primeHashCount > 0 || appendCount > 0) {
+      const item = retreater.getCurrent();
+      if (primeHashCount > appendCount) {
+        // Before the start of the current chunk: just hash value bytes into window
         this._boundaryChecker.write(item);
-      }
-      if (backIdx <= primeCurrentCount) {
+        primeHashCount--;
+      } else if (appendCount > primeHashCount) {
+        // In current chunk, but before window: just append item
         this._current.push(item);
+        appendCount--;
+      } else {
+        // Within current chunk and hash window: append item & hash value bytes into window.
+        if (appendPenultimate && appendCount === 1) {
+          // It's ONLY correct Append immediately preceeding the cursor position because only after
+          // its insertion into the hash will the window be filled.
+          this.append(item);
+        } else {
+          this._boundaryChecker.write(item);
+          this._current.push(item);
+        }
+        appendCount--;
+        primeHashCount--;
       }
+
+      await retreater.advance();
     }
   }
 
   append(item: T) {
     this._current.push(item);
     if (this._boundaryChecker.write(item)) {
-      this.handleChunkBoundary(true);
+      this.handleChunkBoundary();
     }
   }
 
@@ -157,132 +190,166 @@ export default class SequenceChunker<T, S: Sequence<T>> {
     invariant(!this._parent);
     this._parent = new SequenceChunker(
         this._cursor && this._cursor.parent ? this._cursor.parent.clone() : null,
+        this._vw,
         this._parentMakeChunk,
         this._parentMakeChunk,
         this._newBoundaryChecker(),
         this._newBoundaryChecker);
+    this._parent._isLeaf = false;
   }
 
-  handleChunkBoundary(createParentIfNil: boolean) {
-    invariant(this._current.length > 0);
-    const [chunk, seq] = this._makeChunk(this._current);
+  createSequence(): [Sequence, MetaTuple] {
+    let [col, key, numLeaves] = this._makeChunk(this._current); // eslint-disable-line prefer-const
+    const seq = col.sequence;
+    let ref: Ref;
+    if (this._vw) {
+      ref = this._vw.writeValue(col);
+      col = null;
+    } else {
+      ref = new Ref(col);
+    }
+    const mt = new MetaTuple(ref, key, numLeaves, col);
     this._current = [];
-    this._lastSeq = seq;
-    if (!this._parent && createParentIfNil) {
+    return [seq, mt];
+  }
+
+  handleChunkBoundary() {
+    invariant(this._current.length > 0);
+    const mt = this.createSequence()[1];
+    if (!this._parent) {
       this.createParent();
     }
-    if (this._parent) {
-      this._parent.append(chunk);
-    }
+
+    notNull(this._parent).append(mt);
   }
 
-  async done(): Promise<Sequence> {
+  anyPending(): boolean {
+    if (this._current.length > 0) {
+      return true;
+    }
+
+    if (this._parent) {
+      return this._parent.anyPending();
+    }
+
+    return false;
+  }
+
+  // Returns the root sequence of the resulting tree.
+  async done(vr: ?ValueReader): Promise<Sequence> {
+    invariant(!vr === !this._vw);
     invariant(!this._done);
     this._done = true;
 
-    for (let s = this; s; s = s._parent) {
-      if (s._cursor) {
-        await s.finalizeCursor();
+    if (this._cursor) {
+      await this.finalizeCursor();
+    }
+
+    if (!this._parent || !this._parent.anyPending()) {
+      if (this._isLeaf) {
+        // Return the (possibly empty) sequence which never chunked
+        return this.createSequence()[0];
+      }
+
+      if (this._current.length === 1) {
+        // Walk down until we find either a leaf sequence or meta sequence with more than one
+        // metaTuple.
+        const mt = this._current[0];
+        invariant(mt instanceof MetaTuple);
+        let seq = await mt.getChildSequence(vr);
+
+        while (seq.isMeta && seq.length === 1) {
+          seq = await seq.getChildSequence(0);
+        }
+
+        return seq;
       }
     }
 
-    // Chunkers will probably have current items which didn't hit a chunk boundary. Pretend they end
-    // on chunk boundaries for now.
-    this.finalizeChunkBoundaries();
-
-    // The rest of this code figures out which sequence in the parent chain is canonical. That is:
-    // * It's empty, or
-    // * It never chunked, so it's not a prollytree, or
-    // * It chunked, so it's a prollytree, but it must have at least 2 children (or it could have
-    //   been represented as that 1 child).
-    //
-    // Examples of when we may have constructed non-canonical sequences:
-    // * If the previous tree (i.e. its cursor) was deeper, we will have created empty parents.
-    // * If the last appended item was on a chunk boundary, there may be a sequence with a single
-    //   chunk.
-
-    // Firstly, follow up the parent chain to find the highest chunker which did chunk.
-    let seq = this.findRoot();
-    if (!seq) {
-      seq = this._makeChunk([])[1];
-      return seq;
+    if (this._current.length > 0) {
+      this.handleChunkBoundary();
     }
 
-    // Lastly, step back down to find a meta sequence with more than 1 child.
-    while (seq.length <= 1) {
-      invariant(seq.length !== 0);
-      if (!seq.isMeta) {
-        break;
-      }
-      seq = notNull(await seq.getChildSequence(0));
-    }
-
-    return notNull(seq); // flow should not need this notNull
+    return notNull(this._parent).done(vr);
   }
 
   // Like |done|, but assumes there is no cursor, so it can be synchronous. Necessary for
   // constructing collections without Promises or async/await. There is no equivalent in the Go
   // code because Go is already synchronous.
   doneSync(): Sequence {
+    invariant(!this._vw);
     invariant(!this._cursor);
     invariant(!this._done);
     this._done = true;
 
-    this.finalizeChunkBoundaries();
-
-    let seq = this.findRoot();
-    if (!seq) {
-      seq = this._makeChunk([])[1];
-      return seq;
-    }
-
-    while (seq.length <= 1) {
-      invariant(seq.length !== 0);
-      if (!seq.isMeta) {
-        break;
+    if (!this._parent || !this._parent.anyPending()) {
+      if (this._isLeaf) {
+        // Return the (possibly empty) sequence which never chunked
+        return this.createSequence()[0];
       }
-      seq = notNull(seq.getChildSequenceSync(0));
+
+      if (this._current.length === 1) {
+        // Walk down until we find either a leaf sequence or meta sequence with more than one
+        // metaTuple.
+        const mt = this._current[0];
+        invariant(mt instanceof MetaTuple);
+        let seq = mt.getChildSequenceSync();
+
+        while (seq.isMeta && seq.length === 1) {
+          seq = seq.getChildSequenceSync(0);
+        }
+
+        return seq;
+      }
     }
 
-    return notNull(seq); // flow should not need this notNull
+    if (this._current.length > 0) {
+      this.handleChunkBoundary();
+    }
+
+    return notNull(this._parent).doneSync();
   }
 
   async finalizeCursor(): Promise<void> {
     const cursor = notNull(this._cursor);
     if (!cursor.valid) {
+      // The cursor is past the end, and due to the way cursors work, the parent cursor will
+      // actually point to its last chunk. We need to force it to point past the end so that our
+      // parent's Done() method doesn't add the last chunk twice.
       await this.skipParentIfExists();
       return;
     }
 
+    // Append the rest of the values in the sequence, up to the window size, plus the rest of that
+    // chunk. It needs to be the full window size because anything that was appended/skipped between
+    // chunker construction and finalization will have changed the hash state.
+    let hashWindow = this._boundaryChecker.windowSize;
     const fzr = cursor.clone();
+
     let i = 0;
-    for (; i < this._boundaryChecker.windowSize || fzr.indexInChunk > 0; i++) {
+    for (; hashWindow > 0 || fzr.indexInChunk > 0; i++) {
       if (i === 0 || fzr.indexInChunk === 0) {
         await this.skipParentIfExists();
       }
-      this.append(fzr.getCurrent());
-      if (!await fzr.advance()) {
+      const item = fzr.getCurrent();
+      const didAdvance = await fzr.advance();
+
+      if (hashWindow > 0) {
+        // While we are within the hash window, append items (which explicit checks the hash value
+        // for chunk boundaries)
+        this.append(item);
+        hashWindow--;
+      } else {
+        // Once we are beyond the hash window, we know that boundaries can only occur in the same
+        // place they did within the existing sequence
+        this._current.push(item);
+        if (didAdvance && fzr.indexInChunk === 0) {
+          this.handleChunkBoundary();
+        }
+      }
+      if (!didAdvance) {
         break;
       }
     }
-  }
-
-  finalizeChunkBoundaries() {
-    for (let s = this; s; s = s._parent) {
-      if (s._current.length > 0) {
-        // Don't create a new parent if we haven't chunked.
-        s.handleChunkBoundary(Boolean(s._lastSeq));
-      }
-    }
-  }
-
-  findRoot(): ?Sequence {
-    let root = null;
-    for (let s = this; s; s = s._parent) {
-      if (s._lastSeq) {
-        root = s._lastSeq;
-      }
-    }
-    return root;
   }
 }
