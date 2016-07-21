@@ -16,10 +16,11 @@ import (
 
 // Human Readable Serialization
 type hrsWriter struct {
-	ind        int
-	w          io.Writer
-	lineLength int
-	err        error
+	ind         int
+	w           io.Writer
+	lineLength  int
+	floatFormat byte
+	err         error
 }
 
 func (w *hrsWriter) maybeWriteIndentation() {
@@ -29,6 +30,12 @@ func (w *hrsWriter) maybeWriteIndentation() {
 		}
 		w.lineLength = 2 * w.ind
 	}
+}
+func (w *hrsWriter) getFloatFormat() byte {
+	if w.floatFormat == 0 {
+		return 'g'
+	}
+	return w.floatFormat
 }
 
 func (w *hrsWriter) write(s string) {
@@ -95,7 +102,7 @@ func (w *hrsWriter) Write(v Value) {
 	case BoolKind:
 		w.write(strconv.FormatBool(bool(v.(Bool))))
 	case NumberKind:
-		w.write(strconv.FormatFloat(float64(v.(Number)), 'g', -1, 64))
+		w.write(strconv.FormatFloat(float64(v.(Number)), w.getFloatFormat(), -1, 64))
 
 	case StringKind:
 		w.write(strconv.Quote(string(v.(String))))
@@ -317,12 +324,10 @@ func (w *hrsWriter) writeCycle(i uint8) {
 
 func EncodedIndexValue(v Value) string {
 	var buf bytes.Buffer
-	w := &hrsWriter{w: &buf}
-	if v.Type().Kind() == NumberKind {
-		w.write(strconv.FormatFloat(float64(v.(Number)), 'f', -1, 64))
-		return buf.String()
-	}
-	return EncodedValue(v)
+	w := &hrsWriter{w: &buf, floatFormat: 'f'}
+	w.Write(v)
+	d.Chk.NoError(w.err)
+	return buf.String()
 }
 
 func EncodedValue(v Value) string {
