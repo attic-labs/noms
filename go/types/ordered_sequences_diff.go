@@ -58,8 +58,7 @@ func orderedSequenceDiffBest(last orderedSequence, current orderedSequence, chan
 	// Stream left-right changes while the top-down diff algorithm catches up.
 	var lrChangeCount, tdChangeCount int
 
-For:
-	for {
+	for multiplexing := true; multiplexing; {
 		select {
 		case c, ok := <-lrChanges:
 			if !ok {
@@ -76,7 +75,7 @@ For:
 				// Top-down changes have overtaken left-right changes.
 				changes <- c
 				lrCloseChan <- struct{}{}
-				break For
+				multiplexing = false
 			}
 		}
 	}
