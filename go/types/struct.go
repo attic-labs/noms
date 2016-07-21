@@ -14,6 +14,9 @@ import (
 	"github.com/attic-labs/noms/go/hash"
 )
 
+var EmptyStructType = MakeStructType("", []string{}, []*Type{})
+var EmptyStruct = Struct{ValueSlice{}, EmptyStructType, &hash.Hash{}}
+
 type structData map[string]Value
 
 type Struct struct {
@@ -139,7 +142,7 @@ func StructDiff(s1, s2 Struct) (changed []string) {
 
 var escapeChar = "Q"
 var headPattern = regexp.MustCompile("[a-zA-PR-Z]")
-var tailPattern = regexp.MustCompile("[a-zA-PR-Z1-9_]")
+var tailPattern = regexp.MustCompile("[a-zA-PR-Z0-9_]")
 var completePattern = regexp.MustCompile("^" + headPattern.String() + tailPattern.String() + "*$")
 
 // Escapes names for use as noms structs. Disallowed characters are encoded as
