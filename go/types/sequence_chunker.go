@@ -75,12 +75,12 @@ func (sc *sequenceChunker) resume() {
 	// If the cursor is beyond the final position in the sequence, then we can't tell the difference between it having been an explicit and implicit boundary. Since the caller may be about to append another value, we need to know whether the existing final item is an explicit chunk boundary.
 	cursorBeyondFinal := sc.cur.idx == sc.cur.length()
 	if cursorBeyondFinal && retreater.retreatMaybeAllowBeforeStart(false) {
-		// In that case, we prime enough items *prior* to the penultimate item to be correct.
+		// In that case, we prime enough items *prior* to the final item to be correct.
 		appendCount++
 		primeHashCount++
 	}
 
-	// Walk backwards to the start of the existing chunk
+	// Walk backwards to the start of the existing chunk.
 	for retreater.indexInChunk() > 0 && retreater.retreatMaybeAllowBeforeStart(false) {
 		appendCount++
 		if primeHashWindow > 0 {
@@ -100,14 +100,14 @@ func (sc *sequenceChunker) resume() {
 		retreater.advance()
 
 		if primeHashCount > appendCount {
-			// Before the start of the current chunk: just hash value bytes into window
+			// Before the start of the current chunk: just hash value bytes into window.
 			sc.boundaryChk.Write(item)
 			primeHashCount--
 			continue
 		}
 
 		if appendCount > primeHashCount {
-			// In current chunk, but before window: just append item
+			// In current chunk, but before window: just append item.
 			sc.current = append(sc.current, item)
 			appendCount--
 			continue
@@ -160,7 +160,7 @@ func (sc *sequenceChunker) createParent() {
 }
 
 func (sc *sequenceChunker) createSequence() (sequence, metaTuple) {
-	// If the sequence chunker has a ValueWriter, eagerly write sequences
+	// If the sequence chunker has a ValueWriter, eagerly write sequences.
 	col, key, numLeaves := sc.makeChunk(sc.current)
 	seq := col.sequence()
 	var ref Ref
@@ -219,11 +219,11 @@ func (sc *sequenceChunker) Done(vr ValueReader) sequence {
 		return sc.parent.Done(vr)
 	}
 
-	// At this point, we know this chunker contains, in |current| every item at this level of the resulting tree. To see this, consider that there are two ways a chunker can enter items into its |current|, (1) as the result of resume(), which will have happened somewhere above us if the logical mutation did not begin within the first existing chunk at this level. (2) as a result of hitting an explicit chunk boundary. If neither of these have happened, it means that this level of the tree resume()'d from the first existing chunk (and thus the first item in the sequence), and continued (through finalize()) to the end of input without hitting a single chunk boundary.
+	// At this point, we know this chunker contains, in |current| every item at this level of the resulting tree. To see this, consider that there are two ways a chunker can enter items into its |current|: (1) as the result of resume() with the cursor on anything other than the first item in the sequence, and (2) as a result of a child chunker hitting an explicit chunk boundary during either Append() or finalize(). The only way there can be no items in some parent chunker's |current| is if this chunker began with cursor within its first existing chunk (and thus all parents resume()'d with a cursor on their first item) and continued through all sebsequent items without creating any explicit chunk boundaries (and thus never sent any items up to a parent as a result of chunking). Therefore, this chunker's current must contain all items within the current sequence.
 
 	// This level must represent *a* root of the tree, but it is possibly non-canonical. There are three cases to consider:
 
-	// (1) This is "leaf" chunker and thus produced tree of depth 1 which contains exactly one chunk (never hit a boundary), or (2) This in an internal node of the tree which contains multiple references to child nodes. In either case, this is the canonical root of the tree
+	// (1) This is "leaf" chunker and thus produced tree of depth 1 which contains exactly one chunk (never hit a boundary), or (2) This in an internal node of the tree which contains multiple references to child nodes. In either case, this is the canonical root of the tree.
 	if sc.isLeaf || len(sc.current) > 1 {
 		seq, _ := sc.createSequence()
 		return seq
@@ -232,16 +232,13 @@ func (sc *sequenceChunker) Done(vr ValueReader) sequence {
 	// (3) This is an internal node of the tree which contains a single reference to a child node. This can occur if a non-leaf chunker happens to chunk on the first item (metaTuple) appended. In this case, this is the root of the tree, but it is *not* canonical and we must walk down until we find cases (1) or (2), above.
 	d.Chk.True(!sc.isLeaf && len(sc.current) == 1)
 	seq := sc.current[0].(metaTuple).getChildSequence(vr)
-
-	ms, isMeta := seq.(metaSequence)
-	for isMeta && seq.seqLen() == 1 {
+	for ms, ok := seq.(metaSequence); ok && seq.seqLen() == 1; {
 		seq = ms.getChildSequence(0)
-		ms, isMeta = seq.(metaSequence)
 	}
 	return seq
 }
 
-// If we are mutating an existing sequence, appending subsequent items in the sequence until we reach a pre-existing chunk boundary or the end of the sequence
+// If we are mutating an existing sequence, appending subsequent items in the sequence until we reach a pre-existing chunk boundary or the end of the sequence.
 func (sc *sequenceChunker) finalizeCursor() {
 	if !sc.cur.valid() {
 		// The cursor is past the end, and due to the way cursors work, the parent cursor will actually point to its last chunk. We need to force it to point past the end so that our parent's Done() method doesn't add the last chunk twice.
@@ -269,7 +266,7 @@ func (sc *sequenceChunker) finalizeCursor() {
 			isBoundary = sc.boundaryChk.Write(item)
 			hashWindow--
 		} else if fzr.indexInChunk() == 0 {
-			// Once we are beyond the hash window, we know that boundaries can only occur in the same place they did within the existing sequence
+			// Once we are beyond the hash window, we know that boundaries can only occur in the same place they did within the existing sequence.
 			isBoundary = true
 		}
 

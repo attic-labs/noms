@@ -118,12 +118,12 @@ export default class SequenceChunker<T, S: Sequence<T>> {
     // boundary.
     const cursorBeyondFinal = cursor.idx === cursor.length;
     if (cursorBeyondFinal && await retreater._retreatMaybeAllowBeforeStart(false)) {
-      // In that case, we prime enough items *prior* to the penultimate item to be correct.
+      // In that case, we prime enough items *prior* to the final item to be correct.
       appendCount++;
       primeHashCount++;
     }
 
-    // Walk backwards to the start of the existing chunk
+    // Walk backwards to the start of the existing chunk.
     while (retreater.indexInChunk > 0 && await retreater._retreatMaybeAllowBeforeStart(false)) {
       appendCount++;
       if (primeHashWindow > 0) {
@@ -132,8 +132,8 @@ export default class SequenceChunker<T, S: Sequence<T>> {
       }
     }
 
-    // If the hash window won't be filled by the preceeding items in the current chunk, walk further
-    // back until they will.
+    // If the hash window won't be filled by the preceeding items in the current chunk, walk
+    // further back until they will.
     while (primeHashWindow > 0 && await retreater._retreatMaybeAllowBeforeStart(false)) {
       primeHashCount++;
       primeHashWindow--;
@@ -144,14 +144,14 @@ export default class SequenceChunker<T, S: Sequence<T>> {
       await retreater.advance();
 
       if (primeHashCount > appendCount) {
-        // Before the start of the current chunk: just hash value bytes into window
+        // Before the start of the current chunk: just hash value bytes into window.
         this._boundaryChecker.write(item);
         primeHashCount--;
         continue;
       }
 
       if (appendCount > primeHashCount) {
-        // In current chunk, but before window: just append item
+        // In current chunk, but before window: just append item.
         this._current.push(item);
         appendCount--;
         continue;
@@ -206,7 +206,7 @@ export default class SequenceChunker<T, S: Sequence<T>> {
   }
 
   createSequence(): [Sequence, MetaTuple] {
-    // If the sequence chunker has a ValueWriter, eagerly write sequences
+    // If the sequence chunker has a ValueWriter, eagerly write sequences.
     let [col, key, numLeaves] = this._makeChunk(this._current); // eslint-disable-line prefer-const
     const seq = col.sequence;
     let ref: Ref;
@@ -271,12 +271,14 @@ export default class SequenceChunker<T, S: Sequence<T>> {
 
     // At this point, we know this chunker contains, in |current| every item at this level of the
     // resulting tree. To see this, consider that there are two ways a chunker can enter items into
-    // its |current|, (1) as the result of resume(), which will have happened somewhere above us if
-    // the logical mutation did not begin within the first existing chunk at this level. (2) as a
-    // result of hitting an explicit chunk boundary. If neither of these have happened, it means
-    // that this level of the tree resume()'d from the first existing chunk (and thus the first
-    // item in the sequence), and continued (through finalize()) to the end of input without
-    // hitting a single chunk boundary.
+    // its |current|: (1) as the result of resume() with the cursor on anything other than the
+    //  first item in the sequence, and (2) as a result of a child chunker hitting an explicit
+    // chunk boundary during either Append() or finalize(). The only way there can be no items in
+    // some parent chunker's |current| is if this chunker began with cursor within its first
+    // existing chunk (and thus all parents resume()'d with a cursor on their first item) and
+    // continued through all sebsequent items without creating any explicit chunk boundaries (and
+    // thus never sent any items up to a parent as a result of chunking). Therefore, this chunker's
+    // current must contain all items within the current sequence.
 
     // This level must represent *a* root of the tree, but it is possibly non-canonical. There are
     // three cases to consider:
@@ -322,7 +324,7 @@ export default class SequenceChunker<T, S: Sequence<T>> {
     }
 
     if (this._isLeaf || this._current.length > 1) {
-      // Return the (possibly empty) sequence which never chunked
+      // Return the (possibly empty) sequence which never chunked.
       return this.createSequence()[0];
     }
 
@@ -371,12 +373,12 @@ export default class SequenceChunker<T, S: Sequence<T>> {
 
       if (hashWindow > 0) {
         // While we are within the hash window, append items (which explicit checks the hash value
-        // for chunk boundaries)
+        // for chunk boundaries).
         isBoundary = this._boundaryChecker.write(item);
         hashWindow--;
       } else if (fzr.indexInChunk === 0) {
         // Once we are beyond the hash window, we know that boundaries can only occur in the same
-        // place they did within the existing sequence
+        // place they did within the existing sequence.
         isBoundary = true;
       }
 
