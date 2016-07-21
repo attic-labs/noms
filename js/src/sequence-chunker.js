@@ -112,10 +112,12 @@ export default class SequenceChunker<T, S: Sequence<T>> {
     let appendCount = 0;
     let primeHashCount = 0;
 
-    // If the cursor is beyond the final position in the sequence, the preceeding item may have been
-    // a chunk boundary. In that case, we must test at least the preceeding item.
-    const appendPenultimate = cursor.idx === cursor.length;
-    if (appendPenultimate && await retreater._retreatMaybeAllowBeforeStart(false)) {
+    // If the cursor is beyond the final position in the sequence, then we can't tell the difference
+    // between it having been an explicit and implicit boundary. Since the caller may be about to
+    // append another value, we need to know whether the existing final item is an explicit chunk
+    // boundary.
+    const cursorBeyondFinal = cursor.idx === cursor.length;
+    if (cursorBeyondFinal && await retreater._retreatMaybeAllowBeforeStart(false)) {
       // In that case, we prime enough items *prior* to the penultimate item to be correct.
       appendCount++;
       primeHashCount++;
@@ -139,29 +141,34 @@ export default class SequenceChunker<T, S: Sequence<T>> {
 
     while (primeHashCount > 0 || appendCount > 0) {
       const item = retreater.getCurrent();
+      await retreater.advance();
+
       if (primeHashCount > appendCount) {
         // Before the start of the current chunk: just hash value bytes into window
         this._boundaryChecker.write(item);
         primeHashCount--;
-      } else if (appendCount > primeHashCount) {
+        continue;
+      }
+
+      if (appendCount > primeHashCount) {
         // In current chunk, but before window: just append item
         this._current.push(item);
         appendCount--;
-      } else {
-        // Within current chunk and hash window: append item & hash value bytes into window.
-        if (appendPenultimate && appendCount === 1) {
-          // It's ONLY correct Append immediately preceeding the cursor position because only after
-          // its insertion into the hash will the window be filled.
-          this.append(item);
-        } else {
-          this._boundaryChecker.write(item);
-          this._current.push(item);
-        }
-        appendCount--;
-        primeHashCount--;
+        continue;
       }
 
-      await retreater.advance();
+      // Within current chunk and hash window: append item & hash value bytes into window.
+      const isBoundary = this._boundaryChecker.write(item);
+      this._current.push(item);
+
+      if (isBoundary && cursorBeyondFinal && appendCount === 1) {
+        // It's ONLY correct Append immediately preceeding the cursor position because only after
+        // its insertion into the hash will the window be filled.
+        this.handleChunkBoundary();
+      }
+
+      appendCount--;
+      primeHashCount--;
     }
   }
 
@@ -199,6 +206,7 @@ export default class SequenceChunker<T, S: Sequence<T>> {
   }
 
   createSequence(): [Sequence, MetaTuple] {
+    // If the sequence chunker has a ValueWriter, eagerly write sequences
     let [col, key, numLeaves] = this._makeChunk(this._current); // eslint-disable-line prefer-const
     const seq = col.sequence;
     let ref: Ref;
@@ -223,6 +231,8 @@ export default class SequenceChunker<T, S: Sequence<T>> {
     notNull(this._parent).append(mt);
   }
 
+  // Returns true if this chunker or any of its parents have any pending items in their |current|
+  // array.
   anyPending(): boolean {
     if (this._current.length > 0) {
       return true;
@@ -235,7 +245,8 @@ export default class SequenceChunker<T, S: Sequence<T>> {
     return false;
   }
 
-  // Returns the root sequence of the resulting tree.
+  // Returns the root sequence of the resulting tree. The logic here is subtle, but hopefully
+  // correct and understandable. See comments inline.
   async done(vr: ?ValueReader): Promise<Sequence> {
     invariant(!vr === !this._vw);
     invariant(!this._done);
@@ -245,32 +256,52 @@ export default class SequenceChunker<T, S: Sequence<T>> {
       await this.finalizeCursor();
     }
 
-    if (!this._parent || !this._parent.anyPending()) {
-      if (this._isLeaf) {
-        // Return the (possibly empty) sequence which never chunked
-        return this.createSequence()[0];
+    // There is pending content above us, so we must push any remaining items from this level up
+    // and allow some parent to find the root of the resulting tree.
+    if (this._parent && this._parent.anyPending()) {
+      if (this._current.length > 0) {
+        // If there are items in |current| at this point, they represent the final items of the
+        // sequence which occurred beyond the previous *explicit* chunk boundary. The end of input
+        // of a sequence is considered an *implicit* boundary.
+        this.handleChunkBoundary();
       }
 
-      if (this._current.length === 1) {
-        // Walk down until we find either a leaf sequence or meta sequence with more than one
-        // metaTuple.
-        const mt = this._current[0];
-        invariant(mt instanceof MetaTuple);
-        let seq = await mt.getChildSequence(vr);
-
-        while (seq.isMeta && seq.length === 1) {
-          seq = await seq.getChildSequence(0);
-        }
-
-        return seq;
-      }
+      return notNull(this._parent).done(vr);
     }
 
-    if (this._current.length > 0) {
-      this.handleChunkBoundary();
+    // At this point, we know this chunker contains, in |current| every item at this level of the
+    // resulting tree. To see this, consider that there are two ways a chunker can enter items into
+    // its |current|, (1) as the result of resume(), which will have happened somewhere above us if
+    // the logical mutation did not begin within the first existing chunk at this level. (2) as a
+    // result of hitting an explicit chunk boundary. If neither of these have happened, it means
+    // that this level of the tree resume()'d from the first existing chunk (and thus the first
+    // item in the sequence), and continued (through finalize()) to the end of input without
+    // hitting a single chunk boundary.
+
+    // This level must represent *a* root of the tree, but it is possibly non-canonical. There are
+    // three cases to consider:
+
+    // (1) This is "leaf" chunker and thus produced tree of depth 1 which contains exactly one
+    // chunk (never hit a boundary), or (2) This in an internal node of the tree which contains
+    // multiple references to child nodes. In either case, this is the canonical root of the tree.
+    if (this._isLeaf || this._current.length > 1) {
+      return this.createSequence()[0];
     }
 
-    return notNull(this._parent).done(vr);
+    // (3) This is an internal node of the tree which contains a single reference to a child node.
+    // This can occur if a non-leaf chunker happens to chunk on the first item (metaTuple)
+    // appended. In this case, this is the root of the tree, but it is *not* canonical and we must
+    // walk down until we find cases (1) or (2), above.
+    invariant(!this._isLeaf && this._current.length === 1);
+    const mt = this._current[0];
+    invariant(mt instanceof MetaTuple);
+    let seq = await mt.getChildSequence(vr);
+
+    while (seq.isMeta && seq.length === 1) {
+      seq = await seq.getChildSequence(0);
+    }
+
+    return seq;
   }
 
   // Like |done|, but assumes there is no cursor, so it can be synchronous. Necessary for
@@ -282,34 +313,33 @@ export default class SequenceChunker<T, S: Sequence<T>> {
     invariant(!this._done);
     this._done = true;
 
-    if (!this._parent || !this._parent.anyPending()) {
-      if (this._isLeaf) {
-        // Return the (possibly empty) sequence which never chunked
-        return this.createSequence()[0];
+    if (this._parent && this._parent.anyPending()) {
+      if (this._current.length > 0) {
+        this.handleChunkBoundary();
       }
 
-      if (this._current.length === 1) {
-        // Walk down until we find either a leaf sequence or meta sequence with more than one
-        // metaTuple.
-        const mt = this._current[0];
-        invariant(mt instanceof MetaTuple);
-        let seq = mt.getChildSequenceSync();
-
-        while (seq.isMeta && seq.length === 1) {
-          seq = seq.getChildSequenceSync(0);
-        }
-
-        return seq;
-      }
+      return notNull(this._parent).doneSync();
     }
 
-    if (this._current.length > 0) {
-      this.handleChunkBoundary();
+    if (this._isLeaf || this._current.length > 1) {
+      // Return the (possibly empty) sequence which never chunked
+      return this.createSequence()[0];
     }
 
-    return notNull(this._parent).doneSync();
+    invariant(!this._isLeaf && this._current.length === 1);
+    const mt = this._current[0];
+    invariant(mt instanceof MetaTuple);
+    let seq = mt.getChildSequenceSync();
+
+    while (seq.isMeta && seq.length === 1) {
+      seq = seq.getChildSequenceSync(0);
+    }
+
+    return seq;
   }
 
+  // If we are mutating an existing sequence, appending subsequent items in the sequence until we
+  // reach a pre-existing chunk boundary or the end of the sequence.
   async finalizeCursor(): Promise<void> {
     const cursor = notNull(this._cursor);
     if (!cursor.valid) {
@@ -321,32 +351,39 @@ export default class SequenceChunker<T, S: Sequence<T>> {
     }
 
     // Append the rest of the values in the sequence, up to the window size, plus the rest of that
-    // chunk. It needs to be the full window size because anything that was appended/skipped between
-    // chunker construction and finalization will have changed the hash state.
+    // chunk. It needs to be the full window size because anything that was appended/skipped
+    // between chunker construction and finalization will have changed the hash state.
     let hashWindow = this._boundaryChecker.windowSize;
     const fzr = cursor.clone();
 
     let i = 0;
     for (; hashWindow > 0 || fzr.indexInChunk > 0; i++) {
       if (i === 0 || fzr.indexInChunk === 0) {
+        // Every time we step into a chunk from the original sequence, that chunk will no longer
+        // exist in the new sequence. The parent must be instructed to skip it.
         await this.skipParentIfExists();
       }
+
       const item = fzr.getCurrent();
       const didAdvance = await fzr.advance();
+      this._current.push(item);
+      let isBoundary = false;
 
       if (hashWindow > 0) {
         // While we are within the hash window, append items (which explicit checks the hash value
         // for chunk boundaries)
-        this.append(item);
+        isBoundary = this._boundaryChecker.write(item);
         hashWindow--;
-      } else {
+      } else if (fzr.indexInChunk === 0) {
         // Once we are beyond the hash window, we know that boundaries can only occur in the same
         // place they did within the existing sequence
-        this._current.push(item);
-        if (didAdvance && fzr.indexInChunk === 0) {
-          this.handleChunkBoundary();
-        }
+        isBoundary = true;
       }
+
+      if (isBoundary) {
+        this.handleChunkBoundary();
+      }
+
       if (!didAdvance) {
         break;
       }
