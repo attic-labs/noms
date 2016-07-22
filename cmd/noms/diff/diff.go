@@ -65,15 +65,7 @@ func diffLists(w io.Writer, p types.Path, v1, v2 types.List) {
 		close(spliceChan)
 		doneChan <- struct{}{}
 	}()
-
-	defer func() {
-		// Stop the diff (if there was a panic), or wait for it to signal success.
-		select {
-		case closeChan <- struct{}{}:
-			<-doneChan // panic - but let the goroutine exit
-		case <-doneChan:
-		}
-	}()
+	defer waitForCloseOrDone(closeChan, doneChan)
 
 	wroteHeader := false
 
@@ -116,15 +108,7 @@ func diffMaps(w io.Writer, p types.Path, v1, v2 types.Map) {
 		close(changeChan)
 		doneChan <- struct{}{}
 	}()
-
-	defer func() {
-		// Stop the diff (if there was a panic), or wait for it to signal success.
-		select {
-		case closeChan <- struct{}{}:
-			<-doneChan // panic - but let the goroutine exit
-		case <-doneChan:
-		}
-	}()
+	defer waitForCloseOrDone(closeChan, doneChan)
 
 	wroteHeader := false
 
@@ -181,15 +165,7 @@ func diffSets(w io.Writer, p types.Path, v1, v2 types.Set) {
 		close(changeChan)
 		doneChan <- struct{}{}
 	}()
-
-	defer func() {
-		// Stop the diff (if there was a panic), or wait for it to signal success.
-		select {
-		case closeChan <- struct{}{}:
-			<-doneChan // panic - but let the goroutine exit
-		case <-doneChan:
-		}
-	}()
+	defer waitForCloseOrDone(closeChan, doneChan)
 
 	wroteHeader := false
 
@@ -267,4 +243,15 @@ func writeEncodedValue(w io.Writer, v types.Value) {
 
 func writeEncodedValueWithTags(w io.Writer, v types.Value) {
 	d.PanicIfError(types.WriteEncodedValueWithTags(w, v))
+}
+
+func waitForCloseOrDone(closeChan, doneChan chan struct{}) {
+	select {
+	case closeChan <- struct{}{}:
+		// A message was successfully sent to |closeChan|, meaning the diff was in the middle of running - otherwise it would have already finished, and no longer accepting messages on |closeChan|.
+		// We still need to wait for |doneChan|, since that channel is *always* sent to.
+		<-doneChan
+	case <-doneChan:
+		// A message arrived on |doneChan| before |closeChan| managed to send - the diff probably finished before this function ran, so it's no longer accepting messages on |closeChan|.
+	}
 }
