@@ -5,12 +5,12 @@
 package outputpager
 
 import (
-	"flag"
 	"os"
 	"os/exec"
 
 	"github.com/attic-labs/noms/go/d"
 	goisatty "github.com/mattn/go-isatty"
+	flag "github.com/ogier/pflag"
 )
 
 var (

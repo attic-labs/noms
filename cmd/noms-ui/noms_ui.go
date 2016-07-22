@@ -7,7 +7,6 @@ package main
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -21,6 +20,7 @@ import (
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/julienschmidt/httprouter"
+	flag "github.com/ogier/pflag"
 )
 
 const (

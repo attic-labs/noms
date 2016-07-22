@@ -5,13 +5,13 @@
 package clienttest
 
 import (
-	"flag"
 	"io/ioutil"
 	"os"
 	"path"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/testify/suite"
+	flag "github.com/ogier/pflag"
 )
 
 type ClientTestSuite struct {

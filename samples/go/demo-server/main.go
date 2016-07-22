@@ -5,10 +5,10 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 
 	"github.com/attic-labs/noms/go/chunks"
+	flag "github.com/ogier/pflag"
 )
 
 var (

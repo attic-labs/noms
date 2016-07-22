@@ -5,7 +5,6 @@
 package spec
 
 import (
-	"flag"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -16,6 +15,7 @@ import (
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/types"
+	flag "github.com/ogier/pflag"
 )
 
 var (

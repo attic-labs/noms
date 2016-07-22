@@ -5,9 +5,10 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
+
+	flag "github.com/ogier/pflag"
 )
 
 var commands = []*nomsCommand{

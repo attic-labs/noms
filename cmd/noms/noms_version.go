@@ -5,11 +5,11 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
 	"github.com/attic-labs/noms/go/constants"
+	flag "github.com/ogier/pflag"
 )
 
 var nomsVersion = &nomsCommand{

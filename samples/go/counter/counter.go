@@ -5,12 +5,12 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
+	flag "github.com/ogier/pflag"
 )
 
 func main() {
