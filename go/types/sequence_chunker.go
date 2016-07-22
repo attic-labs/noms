@@ -6,7 +6,7 @@ package types
 
 import "github.com/attic-labs/noms/go/d"
 
-type hashValueBytesFn func(item sequenceItem, rv *rollingValueHasher) // returns the number of bytes hashed into |h|
+type hashValueBytesFn func(item sequenceItem, rv *rollingValueHasher)
 
 type sequenceChunker struct {
 	cur                        *sequenceCursor
@@ -78,18 +78,20 @@ func (sc *sequenceChunker) resume() {
 		appendCount++
 		if primeHashBytes > 0 {
 			primeHashCount++
-			sc.rv.Reset()
+			sc.rv.ClearLastBoundary()
 			sc.hashValueBytes(retreater.current(), sc.rv)
-			primeHashBytes -= int64(sc.rv.length)
+			_, bytesHashed := sc.rv.State()
+			primeHashBytes -= int64(bytesHashed)
 		}
 	}
 
 	// If the hash window won't be filled by the preceeding items in the current chunk, walk further back until they will.
 	for primeHashBytes > 0 && retreater.retreatMaybeAllowBeforeStart(false) {
 		primeHashCount++
-		sc.rv.Reset()
+		sc.rv.ClearLastBoundary()
 		sc.hashValueBytes(retreater.current(), sc.rv)
-		primeHashBytes -= int64(sc.rv.length)
+		_, bytesHashed := sc.rv.State()
+		primeHashBytes -= int64(bytesHashed)
 	}
 	sc.rv.lengthOnly = false
 
@@ -111,7 +113,7 @@ func (sc *sequenceChunker) resume() {
 			continue
 		}
 
-		sc.rv.Reset()
+		sc.rv.ClearLastBoundary()
 		sc.hashValueBytes(item, sc.rv)
 		sc.current = append(sc.current, item)
 
@@ -129,11 +131,10 @@ func (sc *sequenceChunker) resume() {
 func (sc *sequenceChunker) Append(item sequenceItem) {
 	d.Chk.True(item != nil)
 	sc.current = append(sc.current, item)
-	sc.rv.Reset()
+	sc.rv.ClearLastBoundary()
 	sc.hashValueBytes(item, sc.rv)
 	if sc.rv.onBoundary {
 		sc.handleChunkBoundary()
-		return
 	}
 }
 
@@ -261,7 +262,7 @@ func (sc *sequenceChunker) finalizeCursor() {
 	isBoundary := len(sc.current) == 0
 
 	// We can terminate when: (1) we hit the end input in this sequence or (2) we process beyond the hash window and encounter an item which is boundary in both the old and new state of the sequence.
-	for i := 0; fzr.valid() && !(hashWindow <= 0 && fzr.indexInChunk() == 0 && isBoundary); i++ {
+	for i := 0; fzr.valid() && (hashWindow > 0 || fzr.indexInChunk() > 0 || !isBoundary); i++ {
 		if i == 0 || fzr.indexInChunk() == 0 {
 			// Every time we step into a chunk from the original sequence, that chunk will no longer exist in the new sequence. The parent must be instructed to skip it.
 			sc.skipParentIfExists()
@@ -275,10 +276,10 @@ func (sc *sequenceChunker) finalizeCursor() {
 
 		if hashWindow > 0 {
 			// While we are within the hash window, we need to continue to hash items into the rolling hash and explicitly check for resulting boundaries.
-			sc.rv.Reset()
+			sc.rv.ClearLastBoundary()
 			sc.hashValueBytes(item, sc.rv)
-			isBoundary = sc.rv.onBoundary
-			hashWindow -= int64(sc.rv.length)
+			isBoundary, bytesHashed := sc.rv.State()
+			hashWindow -= int64(bytesHashed)
 		} else if fzr.indexInChunk() == 0 {
 			// Once we are beyond the hash window, we know that boundaries can only occur in the same place they did within the existing sequence.
 			isBoundary = true

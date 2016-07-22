@@ -20,9 +20,11 @@ const (
 )
 
 // Only set by tests
-var chunkPattern = defaultChunkPattern
-var chunkWindow = defaultChunkWindow
-var chunkConfigMu = &sync.Mutex{}
+var (
+	chunkPattern  = defaultChunkPattern
+	chunkWindow   = defaultChunkWindow
+	chunkConfigMu = &sync.Mutex{}
+)
 
 func chunkingConfig() (pattern, window uint32) {
 	chunkConfigMu.Lock()
@@ -57,9 +59,13 @@ func hashValueBytes(item sequenceItem, rv *rollingValueHasher) {
 }
 
 func newRollingValueHasher() *rollingValueHasher {
-	rv := &rollingValueHasher{bz: buzhash.NewBuzHash(chunkWindow)}
+	pattern, window := chunkingConfig()
+	rv := &rollingValueHasher{
+		bz:      buzhash.NewBuzHash(window),
+		pattern: pattern,
+		window:  window,
+	}
 	rv.enc = newValueEncoder(rv, nil)
-	rv.pattern, rv.window = chunkingConfig()
 	return rv
 }
 
@@ -73,9 +79,13 @@ func (rv *rollingValueHasher) HashByte(b byte) {
 	rv.onBoundary = rv.onBoundary || (rv.bz.Sum32()&chunkPattern == chunkPattern)
 }
 
-func (rv *rollingValueHasher) Reset() {
+func (rv *rollingValueHasher) ClearLastBoundary() {
 	rv.onBoundary = false
 	rv.length = 0
+}
+
+func (rv *rollingValueHasher) State() (onBoundary bool, bytesHashed uint32) {
+	return rv.onBoundary, rv.length
 }
 
 func (rv *rollingValueHasher) HashValue(v Value) {

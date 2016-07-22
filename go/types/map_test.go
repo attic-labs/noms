@@ -254,21 +254,21 @@ func newNumberStruct(i int) Value {
 }
 
 func getTestNativeOrderMap(scale int) testMap {
-	return newRandomTestMap(int(64)*scale, newNumber)
+	return newRandomTestMap(64*scale, newNumber)
 }
 
 func getTestRefValueOrderMap(scale int) testMap {
-	return newRandomTestMap(int(64)*scale, newNumber)
+	return newRandomTestMap(64*scale, newNumber)
 }
 
 func getTestRefToNativeOrderMap(scale int, vw ValueWriter) testMap {
-	return newRandomTestMap(int(64)*scale, func(i int) Value {
+	return newRandomTestMap(64*scale, func(i int) Value {
 		return vw.WriteValue(Number(i))
 	})
 }
 
 func getTestRefToValueOrderMap(scale int, vw ValueWriter) testMap {
-	return newRandomTestMap(int(64)*scale, func(i int) Value {
+	return newRandomTestMap(64*scale, func(i int) Value {
 		return vw.WriteValue(NewSet(Number(i)))
 	})
 }
@@ -314,8 +314,8 @@ func TestMapDiff(t *testing.T) {
 	smallTestChunks()
 	defer normalProductionChunks()
 
-	testMap1 := newRandomTestMap(int(64)*2, newNumber)
-	testMap2 := newRandomTestMap(int(64)*2, newNumber)
+	testMap1 := newRandomTestMap(64*2, newNumber)
+	testMap2 := newRandomTestMap(64*2, newNumber)
 	testMapAdded, testMapRemoved, testMapModified := testMap1.Diff(testMap2)
 	map1 := testMap1.toMap()
 	map2 := testMap2.toMap()

@@ -155,17 +155,10 @@ func NewBlob(r io.Reader) Blob {
 	return NewStreamingBlob(r, nil)
 }
 
-type tempBlob struct {
-	seq sequence
-	mt  metaTuple
-}
-
-func blobHashValueBytes(item sequenceItem, rv *rollingValueHasher) {
-	rv.HashByte(item.(byte))
-}
-
 func NewStreamingBlob(r io.Reader, vrw ValueReadWriter) Blob {
-	sc := newEmptySequenceChunker(vrw, newBlobLeafChunkFn(nil), newIndexedMetaSequenceChunkFn(BlobKind, nil), blobHashValueBytes)
+	sc := newEmptySequenceChunker(vrw, newBlobLeafChunkFn(nil), newIndexedMetaSequenceChunkFn(BlobKind, nil), func(item sequenceItem, rv *rollingValueHasher) {
+		rv.HashByte(item.(byte))
+	})
 
 	// TODO: The code below is a temporary. It's basically a custom leaf-level chunker for blobs. There are substational perf gains by doing it this way as it avoids the cost of boxing every single byte which is chunked.
 	chunkBuff := [8192]byte{}
@@ -180,7 +173,6 @@ func NewStreamingBlob(r io.Reader, vrw ValueReadWriter) Blob {
 		}
 		chunkBytes[offset] = b
 		offset++
-		rv.Reset()
 		rv.HashByte(b)
 		return rv.onBoundary
 	}
@@ -212,6 +204,7 @@ func NewStreamingBlob(r io.Reader, vrw ValueReadWriter) Blob {
 			n, err := r.Read(readBuff[:])
 			for i := 0; i < n; i++ {
 				if addByte(readBuff[i]) {
+					rv.Reset()
 					makeChunk()
 				}
 			}

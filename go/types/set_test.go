@@ -173,21 +173,21 @@ func TestSetSuite4KStructs(t *testing.T) {
 }
 
 func getTestNativeOrderSet(scale int) testSet {
-	return newRandomTestSet(int(64)*scale, newNumber)
+	return newRandomTestSet(64*scale, newNumber)
 }
 
 func getTestRefValueOrderSet(scale int) testSet {
-	return newRandomTestSet(int(64)*scale, newNumber)
+	return newRandomTestSet(64*scale, newNumber)
 }
 
 func getTestRefToNativeOrderSet(scale int, vw ValueWriter) testSet {
-	return newRandomTestSet(int(64)*scale, func(v int) Value {
+	return newRandomTestSet(64*scale, func(v int) Value {
 		return vw.WriteValue(Number(v))
 	})
 }
 
 func getTestRefToValueOrderSet(scale int, vw ValueWriter) testSet {
-	return newRandomTestSet(int(64)*scale, func(v int) Value {
+	return newRandomTestSet(64*scale, func(v int) Value {
 		return vw.WriteValue(NewSet(Number(v)))
 	})
 }
