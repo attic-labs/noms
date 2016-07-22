@@ -29,7 +29,6 @@ func Diff(w io.Writer, v1, v2 types.Value) error {
 }
 
 func diff(w io.Writer, p types.Path, key, v1, v2 types.Value) {
-	d.Chk.True(v1 != nil && v2 != nil)
 	if v1 == nil && v2 != nil {
 		line(w, addPrefix, key, v2)
 	} else if v1 != nil && v2 == nil {
@@ -65,7 +64,7 @@ func diffLists(w io.Writer, p types.Path, v1, v2 types.List) {
 		close(spliceChan)
 		doneChan <- struct{}{}
 	}()
-	defer waitForCloseOrDone(closeChan, doneChan)
+	defer waitForCloseOrDone(closeChan, doneChan) // see comment for explanation
 
 	wroteHeader := false
 
@@ -108,7 +107,7 @@ func diffMaps(w io.Writer, p types.Path, v1, v2 types.Map) {
 		close(changeChan)
 		doneChan <- struct{}{}
 	}()
-	defer waitForCloseOrDone(closeChan, doneChan)
+	defer waitForCloseOrDone(closeChan, doneChan) // see comment for explanation
 
 	wroteHeader := false
 
@@ -165,7 +164,7 @@ func diffSets(w io.Writer, p types.Path, v1, v2 types.Set) {
 		close(changeChan)
 		doneChan <- struct{}{}
 	}()
-	defer waitForCloseOrDone(closeChan, doneChan)
+	defer waitForCloseOrDone(closeChan, doneChan) // see comment for explanation
 
 	wroteHeader := false
 
@@ -177,7 +176,6 @@ func diffSets(w io.Writer, p types.Path, v1, v2 types.Set) {
 		case types.DiffChangeRemoved:
 			line(w, subPrefix, nil, change.V)
 		default:
-			// sets should not have any DiffChangeModified or unknown change types
 			panic("unknown change type")
 		}
 	}
@@ -245,13 +243,25 @@ func writeEncodedValueWithTags(w io.Writer, v types.Value) {
 	d.PanicIfError(types.WriteEncodedValueWithTags(w, v))
 }
 
+// This is intended to be used
+// - when called as deferred,
+// - with a separate goroutine running a Diff, cancelable by |closeChan|, which writes to |doneChan| when it's finished.
+// I.e.
+//
+// go func() {
+//   Diff(...)
+//   doneChan <- struct{}{}
+// }()
+// defer waitForCloseOrDone()
+//
+// It's designed to handle 2 cases: (1) the outer function panic'd so Diff didn't finish, or (2) the Diff finished and the outer function exited normally.
+// If (1) we try to cancel the diff by sending to |closeChan|.
+// If (2) we wait for the Diff to finish by blocking on |doneChan|.
+// In both cases this deferred function will be unblocked.
 func waitForCloseOrDone(closeChan, doneChan chan struct{}) {
 	select {
 	case closeChan <- struct{}{}:
-		// A message was successfully sent to |closeChan|, meaning the diff was in the middle of running - otherwise it would have already finished, and no longer accepting messages on |closeChan|.
-		// We still need to wait for |doneChan|, since that channel is *always* sent to.
-		<-doneChan
+		<-doneChan // after cancelling, Diff will exit then block on |doneChan|, so unblock it
 	case <-doneChan:
-		// A message arrived on |doneChan| before |closeChan| managed to send - the diff probably finished before this function ran, so it's no longer accepting messages on |closeChan|.
 	}
 }
