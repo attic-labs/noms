@@ -52,7 +52,7 @@ func main() {
 	}
 
 	// Note: overwrites any existing file.
-	file, err := os.OpenFile(file_path, os.O_WRONLY|os.O_CREATE, 0644)
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
 	d.CheckErrorNoUsage(err)
 	defer file.Close()
 
