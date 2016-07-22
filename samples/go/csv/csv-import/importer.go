@@ -102,7 +102,7 @@ func main() {
 	}
 
 	if !*noProgress {
-		r = progressreader.New(r, getStatusPrinter(size))
+		r = progressreader.New(r, progressreader.Megabyte, getStatusPrinter(size))
 	}
 
 	comma, err := csv.StringToRune(*delimiter)

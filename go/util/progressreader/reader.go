@@ -9,11 +9,17 @@ import (
 	"io"
 )
 
+const (
+	Kilobyte = uint64(1 << 10)
+	Megabyte = uint64(1 << 20)
+)
+
 type Callback func(seen uint64)
 
-func New(inner io.Reader, cb Callback) io.Reader {
+func New(inner io.Reader, reportFreq uint64, cb Callback) io.Reader {
 	return &reader{
 		inner,
+		reportFreq,
 		uint64(0),
 		uint64(0),
 		cb,
@@ -21,16 +27,15 @@ func New(inner io.Reader, cb Callback) io.Reader {
 }
 
 type reader struct {
-	inner    io.Reader
-	seen     uint64
-	lastMult uint64
-	cb       Callback
+	inner      io.Reader
+	reportFreq uint64
+	seen       uint64
+	lastMult   uint64
+	cb         Callback
 }
 
-const reportFreq = 2 << 19 // 1 MB
-
 func (r *reader) Read(p []byte) (n int, err error) {
-	mult := uint64(r.seen / reportFreq)
+	mult := r.seen / r.reportFreq
 	if mult > r.lastMult {
 		r.cb(r.seen)
 		r.lastMult = mult
