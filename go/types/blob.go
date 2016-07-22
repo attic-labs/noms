@@ -204,7 +204,7 @@ func NewStreamingBlob(r io.Reader, vrw ValueReadWriter) Blob {
 			n, err := r.Read(readBuff[:])
 			for i := 0; i < n; i++ {
 				if addByte(readBuff[i]) {
-					rv.Reset()
+					rv.ClearLastBoundary()
 					makeChunk()
 				}
 			}

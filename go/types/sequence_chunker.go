@@ -278,8 +278,10 @@ func (sc *sequenceChunker) finalizeCursor() {
 			// While we are within the hash window, we need to continue to hash items into the rolling hash and explicitly check for resulting boundaries.
 			sc.rv.ClearLastBoundary()
 			sc.hashValueBytes(item, sc.rv)
-			isBoundary, bytesHashed := sc.rv.State()
+			onBoundary, bytesHashed := sc.rv.State()
 			hashWindow -= int64(bytesHashed)
+
+			isBoundary = onBoundary
 		} else if fzr.indexInChunk() == 0 {
 			// Once we are beyond the hash window, we know that boundaries can only occur in the same place they did within the existing sequence.
 			isBoundary = true
