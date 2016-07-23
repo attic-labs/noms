@@ -17,15 +17,15 @@ import (
 	"github.com/attic-labs/testify/suite"
 )
 
-func TestDownload(t *testing.T) {
-	suite.Run(t, &downloadSuite{})
+func TestBlobGet(t *testing.T) {
+	suite.Run(t, &bgSuite{})
 }
 
-type downloadSuite struct {
+type bgSuite struct {
 	clienttest.ClientTestSuite
 }
 
-func (s *downloadSuite) TestDownload() {
+func (s *bgSuite) TestBlobGet() {
 	blob_bytes := []byte("hello")
 	blob := types.NewBlob(bytes.NewBuffer(blob_bytes))
 
