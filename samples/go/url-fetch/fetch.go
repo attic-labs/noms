@@ -65,7 +65,7 @@ func main() {
 			return
 		}
 
-		pr = progressreader.New(resp.Body, progressreader.Megabyte, getStatusPrinter(resp.ContentLength))
+		pr = progressreader.New(resp.Body, getStatusPrinter(resp.ContentLength))
 		fileOrUrl = "url"
 	} else {
 		// assume it's a file
@@ -81,7 +81,7 @@ func main() {
 			return
 		}
 
-		pr = progressreader.New(f, progressreader.Megabyte, getStatusPrinter(s.Size()))
+		pr = progressreader.New(f, getStatusPrinter(s.Size()))
 		fileOrUrl = "file"
 	}
 

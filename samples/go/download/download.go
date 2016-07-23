@@ -59,7 +59,7 @@ func main() {
 	expected := humanize.Bytes(blob.Len())
 	start := time.Now()
 
-	progReader := progressreader.New(blob.Reader(), 100*progressreader.Kilobyte, func(seen uint64) {
+	progReader := progressreader.New(blob.Reader(), func(seen uint64) {
 		elapsed := time.Since(start).Seconds()
 		rate := uint64(float64(seen) / elapsed)
 		status.Printf("%s of %s written in %ds (%s/s)...", humanize.Bytes(seen), expected, int(elapsed), humanize.Bytes(rate))
