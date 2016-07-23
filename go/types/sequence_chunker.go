@@ -80,8 +80,7 @@ func (sc *sequenceChunker) resume() {
 			primeHashCount++
 			sc.rv.ClearLastBoundary()
 			sc.hashValueBytes(retreater.current(), sc.rv)
-			_, bytesHashed := sc.rv.State()
-			primeHashBytes -= int64(bytesHashed)
+			primeHashBytes -= int64(sc.rv.bytesHashed)
 		}
 	}
 
@@ -90,8 +89,7 @@ func (sc *sequenceChunker) resume() {
 		primeHashCount++
 		sc.rv.ClearLastBoundary()
 		sc.hashValueBytes(retreater.current(), sc.rv)
-		_, bytesHashed := sc.rv.State()
-		primeHashBytes -= int64(bytesHashed)
+		primeHashBytes -= int64(sc.rv.bytesHashed)
 	}
 	sc.rv.lengthOnly = false
 
@@ -118,7 +116,7 @@ func (sc *sequenceChunker) resume() {
 		sc.current = append(sc.current, item)
 
 		// Within current chunk and hash window: append item & hash value bytes into window.
-		if sc.rv.onBoundary && cursorBeyondFinal && appendCount == 1 {
+		if sc.rv.crossedBoundary && cursorBeyondFinal && appendCount == 1 {
 			// The cursor is positioned immediately after the final item in the sequence and it *was* an *explicit* chunk boundary: create a chunk.
 			sc.handleChunkBoundary()
 		}
@@ -133,7 +131,7 @@ func (sc *sequenceChunker) Append(item sequenceItem) {
 	sc.current = append(sc.current, item)
 	sc.rv.ClearLastBoundary()
 	sc.hashValueBytes(item, sc.rv)
-	if sc.rv.onBoundary {
+	if sc.rv.crossedBoundary {
 		sc.handleChunkBoundary()
 	}
 }
@@ -278,10 +276,8 @@ func (sc *sequenceChunker) finalizeCursor() {
 			// While we are within the hash window, we need to continue to hash items into the rolling hash and explicitly check for resulting boundaries.
 			sc.rv.ClearLastBoundary()
 			sc.hashValueBytes(item, sc.rv)
-			onBoundary, bytesHashed := sc.rv.State()
-			hashWindow -= int64(bytesHashed)
-
-			isBoundary = onBoundary
+			hashWindow -= int64(sc.rv.bytesHashed)
+			isBoundary = sc.rv.crossedBoundary
 		} else if fzr.indexInChunk() == 0 {
 			// Once we are beyond the hash window, we know that boundaries can only occur in the same place they did within the existing sequence.
 			isBoundary = true

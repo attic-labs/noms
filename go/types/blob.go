@@ -174,7 +174,7 @@ func NewStreamingBlob(r io.Reader, vrw ValueReadWriter) Blob {
 		chunkBytes[offset] = b
 		offset++
 		rv.HashByte(b)
-		return rv.onBoundary
+		return rv.crossedBoundary
 	}
 
 	input := make(chan interface{}, 16)
