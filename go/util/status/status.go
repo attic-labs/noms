@@ -48,10 +48,6 @@ func Done() {
 	reset(time.Time{})
 }
 
-func NewTicker() *time.Ticker {
-	return time.NewTicker(rate)
-}
-
 func reset(time time.Time) {
 	lastTime = time
 	lastFormat, lastArgs = "", nil

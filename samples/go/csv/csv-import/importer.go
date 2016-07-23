@@ -101,6 +101,10 @@ func main() {
 		size = uint64(fi.Size())
 	}
 
+	if !*noProgress {
+		r = progressreader.New(r, progressreader.Megabyte, getStatusPrinter(size))
+	}
+
 	comma, err := csv.StringToRune(*delimiter)
 	d.CheckErrorNoUsage(err)
 
@@ -115,19 +119,6 @@ func main() {
 	} else {
 		fmt.Println("Invalid dest-type: ", *destType)
 		return
-	}
-
-	var ticker *time.Ticker
-	if !*noProgress {
-		pr := progressreader.New(r)
-		r = pr
-		ticker = status.NewTicker()
-		go func() {
-			start := time.Now()
-			for range ticker.C {
-				printStatus(start, pr.Seen(), size)
-			}
-		}()
 	}
 
 	cr := csv.NewCSVReader(r, comma)
@@ -159,13 +150,10 @@ func main() {
 		value = csv.ReadToMap(cr, headers, pk, kinds, ds.Database())
 	}
 	mi := metaInfoForCommit(filePath, *path, *comment)
-
+	_, err = ds.Commit(value, dataset.CommitOptions{Meta: mi})
 	if !*noProgress {
-		ticker.Stop()
 		status.Clear()
 	}
-
-	_, err = ds.Commit(value, dataset.CommitOptions{Meta: mi})
 	d.PanicIfError(err)
 }
 
@@ -187,9 +175,16 @@ func metaInfoForCommit(filePath, nomsPath string, comment string) types.Struct {
 	return types.NewStruct("Meta", metaValues)
 }
 
-func printStatus(start time.Time, seen, expected uint64) {
-	percent := float64(seen) / float64(expected) * 100
-	elapsed := time.Since(start).Seconds()
-	rate := float64(seen) / elapsed
-	status.Printf("%.2f%% of %s (%s/s)...", percent, humanize.Bytes(expected), humanize.Bytes(uint64(rate)))
+func getStatusPrinter(expected uint64) progressreader.Callback {
+	startTime := time.Now()
+	return func(seen uint64) {
+		percent := float64(seen) / float64(expected) * 100
+		elapsed := time.Since(startTime)
+		rate := float64(seen) / elapsed.Seconds()
+
+		status.Printf("%.2f%% of %s (%s/s)...",
+			percent,
+			humanize.Bytes(expected),
+			humanize.Bytes(uint64(rate)))
+	}
 }

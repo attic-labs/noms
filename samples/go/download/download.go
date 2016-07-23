@@ -56,21 +56,15 @@ func main() {
 	d.CheckErrorNoUsage(err)
 	defer file.Close()
 
-	progReader := progressreader.New(blob.Reader())
+	expected := humanize.Bytes(blob.Len())
+	start := time.Now()
 
-	ticker := status.NewTicker()
-	go func() {
-		expected := humanize.Bytes(blob.Len())
-		start := time.Now()
-		for range ticker.C {
-			elapsed := time.Since(start).Seconds()
-			seen := progReader.Seen()
-			rate := uint64(float64(seen) / elapsed)
-			status.Printf("%s of %s written in %ds (%s/s)...", humanize.Bytes(seen), expected, int(elapsed), humanize.Bytes(rate))
-		}
-	}()
+	progReader := progressreader.New(blob.Reader(), 100*progressreader.Kilobyte, func(seen uint64) {
+		elapsed := time.Since(start).Seconds()
+		rate := uint64(float64(seen) / elapsed)
+		status.Printf("%s of %s written in %ds (%s/s)...", humanize.Bytes(seen), expected, int(elapsed), humanize.Bytes(rate))
+	})
 
 	io.Copy(file, progReader)
-	ticker.Stop()
 	status.Done()
 }
