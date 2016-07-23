@@ -24,10 +24,6 @@ import (
 	human "github.com/dustin/go-humanize"
 )
 
-var (
-	start time.Time
-)
-
 func main() {
 	comment := flag.String("comment", "", "comment to add to commit's meta data")
 	spec.RegisterDatabaseFlags(flag.CommandLine)
@@ -46,56 +42,75 @@ func main() {
 	d.CheckErrorNoUsage(err)
 	defer ds.Database().Close()
 
-	url := flag.Arg(1)
-	fileOrUrl := "file"
-	start = time.Now()
+	src := flag.Arg(1)
 
-	var pr io.Reader
+	var fileOrUrl string
+	var body io.Reader
+	var contentLength int64
 
-	if strings.HasPrefix(url, "http") {
-		resp, err := http.Get(url)
+	if strings.HasPrefix(src, "http") {
+		resp, err := http.Get(src)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Could not fetch url %s, error: %s\n", url, err)
+			fmt.Fprintf(os.Stderr, "Could not fetch url %s, error: %s\n", src, err)
 			return
 		}
 
 		switch resp.StatusCode / 100 {
 		case 4, 5:
-			fmt.Fprintf(os.Stderr, "Could not fetch url %s, error: %d (%s)\n", url, resp.StatusCode, resp.Status)
+			fmt.Fprintf(os.Stderr, "Could not fetch url %s, error: %d (%s)\n", src, resp.StatusCode, resp.Status)
 			return
 		}
 
-		pr = progressreader.New(resp.Body, progressreader.Megabyte, getStatusPrinter(resp.ContentLength))
+		body = resp.Body
+		contentLength = resp.ContentLength
 		fileOrUrl = "url"
 	} else {
 		// assume it's a file
-		f, err := os.Open(url)
+		f, err := os.Open(src)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Invalid URL %s - does not start with 'http' and isn't local file either. fopen error: %s", url, err)
+			fmt.Fprintf(os.Stderr, "Invalid URL %s - does not start with 'http' and isn't local file either. fopen error: %s", src, err)
 			return
 		}
 
 		s, err := f.Stat()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Could not stat file %s: %s", url, err)
+			fmt.Fprintf(os.Stderr, "Could not stat file %s: %s", src, err)
 			return
 		}
 
-		pr = progressreader.New(f, progressreader.Megabyte, getStatusPrinter(s.Size()))
+		body = f
+		contentLength = int64(s.Size())
 		fileOrUrl = "file"
 	}
 
+	pr := progressreader.New(body)
+
+	ticker := status.NewTicker()
+	go func() {
+		var expected string
+		if contentLength < 0 {
+			expected = "(unknown)"
+		} else {
+			expected = human.Bytes(uint64(contentLength))
+		}
+		start := time.Now()
+		for range ticker.C {
+			printProgress(start, pr.Seen(), expected)
+		}
+	}()
+
 	b := types.NewStreamingBlob(pr, ds.Database())
-	mi := metaInfoForCommit(fileOrUrl, url, *comment)
+	ticker.Stop()
+	status.Done()
+
+	mi := metaInfoForCommit(fileOrUrl, src, *comment)
 	ds, err = ds.Commit(b, dataset.CommitOptions{Meta: mi})
 	if err != nil {
 		d.Chk.Equal(datas.ErrMergeNeeded, err)
 		fmt.Fprintf(os.Stderr, "Could not commit, optimistic concurrency failed.")
-		return
+	} else {
+		fmt.Println("Done")
 	}
-
-	status.Done()
-	fmt.Println("Done")
 }
 
 func metaInfoForCommit(fileOrUrl, source, comment string) types.Struct {
@@ -110,22 +125,8 @@ func metaInfoForCommit(fileOrUrl, source, comment string) types.Struct {
 	return types.NewStruct("Meta", metaValues)
 }
 
-func getStatusPrinter(expectedLen int64) progressreader.Callback {
-	return func(seenLen uint64) {
-		var expected string
-		if expectedLen < 0 {
-			expected = "(unknown)"
-		} else {
-			expected = human.Bytes(uint64(expectedLen))
-		}
-
-		elapsed := time.Now().Sub(start)
-		rate := uint64(float64(seenLen) / elapsed.Seconds())
-
-		status.Printf("%s of %s written in %ds (%s/s)...",
-			human.Bytes(seenLen),
-			expected,
-			uint64(elapsed.Seconds()),
-			human.Bytes(rate))
-	}
+func printProgress(start time.Time, seen uint64, expected string) {
+	elapsed := time.Now().Sub(start).Seconds()
+	rate := uint64(float64(seen) / elapsed)
+	status.Printf("%s of %s written in %ds (%s/s)...", human.Bytes(seen), expected, int(elapsed), human.Bytes(rate))
 }

@@ -2,46 +2,28 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-// Package progressreader provides an io.Reader that reports progress to a callback
+// Package progressreader provides an io.Reader that can be queried for progress. Intended to be used with go/util/status.
 package progressreader
 
 import (
 	"io"
 )
 
-const (
-	Kilobyte = uint64(1 << 10)
-	Megabyte = uint64(1 << 20)
-)
-
-type Callback func(seen uint64)
-
-func New(inner io.Reader, reportFreq uint64, cb Callback) io.Reader {
-	return &reader{
-		inner,
-		reportFreq,
-		uint64(0),
-		uint64(0),
-		cb,
-	}
+type Reader struct {
+	inner io.Reader
+	seen  uint64
 }
 
-type reader struct {
-	inner      io.Reader
-	reportFreq uint64
-	seen       uint64
-	lastMult   uint64
-	cb         Callback
+func New(inner io.Reader) *Reader {
+	return &Reader{inner, 0}
 }
 
-func (r *reader) Read(p []byte) (n int, err error) {
-	mult := r.seen / r.reportFreq
-	if mult > r.lastMult {
-		r.cb(r.seen)
-		r.lastMult = mult
-	}
-
+func (r *Reader) Read(p []byte) (n int, err error) {
 	n, err = r.inner.Read(p)
 	r.seen += uint64(n)
 	return
+}
+
+func (r *Reader) Seen() uint64 {
+	return r.seen
 }
