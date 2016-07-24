@@ -7,6 +7,7 @@ package types
 import (
 	"testing"
 
+	"github.com/attic-labs/testify/assert"
 	"github.com/attic-labs/testify/suite"
 )
 
@@ -150,4 +151,20 @@ func TestOrderedSequencesDisjoint(t *testing.T) {
 	suite.Run(t, ts2)
 	ts1.Equal(ts1.added, ts2.removed, "added and removed in disjoint diff")
 	ts1.Equal(ts1.removed, ts2.added, "removed and added in disjoint diff")
+}
+
+func TestOrderedSequencesDiffVsEmpty(t *testing.T) {
+	assert := assert.New(t)
+	m := NewMap(generateNumbersAsValuesFromToBy(0, lengthOfNumbersTest, 1)...)
+
+	added, removed, modified := accumulateOrderedSequenceDiffChanges(emptySequence{}, m.sequence().(orderedSequence))
+	assert.True(len(added) == lengthOfNumbersTest/2)
+	assert.True(len(removed) == 0)
+	assert.True(len(modified) == 0)
+
+	added, removed, modified = accumulateOrderedSequenceDiffChanges(m.sequence().(orderedSequence), emptySequence{})
+	assert.True(len(added) == 0)
+	assert.True(len(removed) == lengthOfNumbersTest/2)
+	assert.True(len(modified) == 0)
+
 }

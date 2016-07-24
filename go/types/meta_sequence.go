@@ -90,6 +90,46 @@ func (key orderedKey) Less(mk2 orderedKey) bool {
 	}
 }
 
+type emptySequence struct{}
+
+func (es emptySequence) getItem(idx int) sequenceItem {
+	panic("not to be called")
+}
+
+func (es emptySequence) seqLen() int {
+	return 0
+}
+
+func (es emptySequence) numLeaves() uint64 {
+	return 0
+}
+
+func (es emptySequence) valueReader() ValueReader {
+	return nil
+}
+
+func (es emptySequence) Chunks() (chunks []Ref) {
+	return
+}
+
+func (es emptySequence) Type() *Type {
+	panic("not to be called")
+}
+
+func (es emptySequence) getCompareFn(other sequence) compareFn {
+	return func(idx, otherIdx int) bool {
+		return false
+	}
+}
+
+func (es emptySequence) getKey(idx int) orderedKey {
+	return emptyKey
+}
+
+func (es emptySequence) getOffset(idx int) uint64 {
+	panic("not to be called")
+}
+
 type metaSequenceData []metaTuple
 
 func (msd metaSequenceData) last() metaTuple {
@@ -165,6 +205,10 @@ func (ms metaSequenceObject) getCompositeChildSequence(start uint64, length uint
 	metaItems := []metaTuple{}
 	mapItems := []mapEntry{}
 	valueItems := []Value{}
+
+	if length == 0 {
+		return emptySequence{}
+	}
 
 	childIsMeta := false
 	isIndexedSequence := false
