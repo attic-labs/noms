@@ -93,15 +93,20 @@ func StringToType(s string, k types.NomsKind) types.Value {
 			return types.Number(float64(0))
 		}
 		fval, err := strconv.ParseFloat(s, 64)
-		d.Chk.NoError(err)
+		if err != nil {
+			d.Chk.NoError(err, "Could not parse '%s' into number", s)
+		}
 		return types.Number(fval)
 	case types.BoolKind:
-		if s == "" {
+		// TODO: This should probably be configurable.
+		switch s {
+		case "true", "1", "y", "Y":
+			return types.Bool(true)
+		case "false", "0", "n", "N", "":
 			return types.Bool(false)
+		default:
+			d.Chk.Fail("Could not parse '%s' into bool", s)
 		}
-		bval, err := strconv.ParseBool(s)
-		d.Chk.NoError(err)
-		return types.Bool(bval)
 	case types.StringKind:
 		return types.String(s)
 	default:
