@@ -89,10 +89,16 @@ func (tc *typeCanFit) testBool(value string) {
 func StringToType(s string, k types.NomsKind) types.Value {
 	switch k {
 	case types.NumberKind:
+		if s == "" {
+			return types.Number(float64(0))
+		}
 		fval, err := strconv.ParseFloat(s, 64)
 		d.Chk.NoError(err)
 		return types.Number(fval)
 	case types.BoolKind:
+		if s == "" {
+			return types.Bool(false)
+		}
 		bval, err := strconv.ParseBool(s)
 		d.Chk.NoError(err)
 		return types.Bool(bval)

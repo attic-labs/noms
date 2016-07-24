@@ -173,3 +173,20 @@ func TestEscapeFieldNames(t *testing.T) {
 	assert.Equal(uint64(1), l.Len())
 	assert.Equal(types.Number(1), m.Get(types.Number(2)).(types.Struct).Get(types.EscapeStructField("A A")))
 }
+
+func TestDefaults(t *testing.T) {
+	assert := assert.New(t)
+	ds := datas.NewDatabase(chunks.NewMemoryStore())
+	dataString := "42,,,\n"
+	r := NewCSVReader(bytes.NewBufferString(dataString), ',')
+	headers := []string{"A", "B", "C", "D"}
+	kinds := KindSlice{types.NumberKind, types.NumberKind, types.BoolKind, types.StringKind}
+
+	l, _ := ReadToList(r, "test", headers, kinds, ds)
+	assert.Equal(uint64(1), l.Len())
+	row := l.Get(0).(types.Struct)
+	assert.Equal(types.Number(42), row.Get("A"))
+	assert.Equal(types.Number(0), row.Get("B"))
+	assert.Equal(types.Bool(false), row.Get("C"))
+	assert.Equal(types.String(""), row.Get("D"))
+}
