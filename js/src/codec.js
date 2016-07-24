@@ -57,7 +57,7 @@ function ensureTypeSerialization(t: Type) {
   }
 }
 
-const maxUInt32 = Math.pow(2, 32);
+export const maxUInt32 = Math.pow(2, 32);
 const bigEndian = false;
 
 export interface NomsReader {
