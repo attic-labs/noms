@@ -82,7 +82,7 @@ func (m Map) hashPointer() *hash.Hash {
 
 // Value interface
 func (m Map) Equals(other Value) bool {
-	return other != nil && m.Hash() == other.Hash()
+	return m.Hash() == other.Hash()
 }
 
 func (m Map) Less(other Value) bool {
