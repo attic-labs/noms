@@ -39,19 +39,17 @@ func orderedSequenceDiffBest(last orderedSequence, current orderedSequence, chan
 	lrChanges := make(chan ValueChanged)
 	lrCloseChan := make(chan struct{})
 	tdChanges := make(chan ValueChanged)
+	tdCloseChan := make(chan struct{})
 
 	// This is thread safe because it's only written to before closing |tdChanges|, and only read after |tdChanges| has closed.
 	wasCanceled := false
 
-	// The left-right diff gets a separate close channel so that if/when the top-down diff overtakes it, it can be aborted.
 	go func() {
 		orderedSequenceDiffLeftRight(last, current, lrChanges, lrCloseChan)
 		close(lrChanges)
 	}()
-
-	// The top-down diff uses the default close channel. Detect if it was called via the result of |wasCanceled|.
 	go func() {
-		wasCanceled = orderedSequenceDiffTopDown(last, current, tdChanges, closeChan)
+		wasCanceled = orderedSequenceDiffTopDown(last, current, tdChanges, tdCloseChan)
 		close(tdChanges)
 	}()
 
@@ -60,12 +58,18 @@ func orderedSequenceDiffBest(last orderedSequence, current orderedSequence, chan
 
 	for multiplexing := true; multiplexing; {
 		select {
+		case <-closeChan:
+			stopChan(lrCloseChan)
+			stopChan(tdCloseChan)
+			return false
 		case c, ok := <-lrChanges:
 			if !ok {
 				return true // the only way |lrChanges| can be done is if the diff completed.
 			}
 			lrChangeCount++
-			changes <- c
+			if !sendChange(changes, closeChan, c) {
+				return false
+			}
 		case c, ok := <-tdChanges:
 			if !ok {
 				return wasCanceled
@@ -73,15 +77,19 @@ func orderedSequenceDiffBest(last orderedSequence, current orderedSequence, chan
 			tdChangeCount++
 			if tdChangeCount > lrChangeCount {
 				// Top-down changes have overtaken left-right changes.
-				changes <- c
-				lrCloseChan <- struct{}{}
+				if !sendChange(changes, closeChan, c) {
+					return false
+				}
+				stopChan(lrCloseChan)
 				multiplexing = false
 			}
 		}
 	}
 
 	for c := range tdChanges {
-		changes <- c
+		if !sendChange(changes, closeChan, c) {
+			return false
+		}
 	}
 	return wasCanceled
 }
@@ -230,4 +238,10 @@ func doFastForward(allowPastEnd bool, a *sequenceCursor, b *sequenceCursor) (aHa
 
 func isCurrentEqual(a *sequenceCursor, b *sequenceCursor) bool {
 	return a.seq.getCompareFn(b.seq)(a.idx, b.idx)
+}
+
+func stopChan(ch chan struct{}) {
+	go func() {
+		ch <- struct{}{}
+	}()
 }
