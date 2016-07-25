@@ -159,7 +159,7 @@ export default class SequenceChunker<T, S: Sequence<T>> {
       if (this._rv.crossedBoundary && cursorBeyondFinal && appendCount === 1) {
         // The cursor is positioned immediately after the final item in the sequence and it *was*
         // an *explicit* chunk boundary: create a chunk.
-			  this.handleChunkBoundary();
+        this.handleChunkBoundary();
       }
 
       appendCount--;

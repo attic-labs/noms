@@ -250,7 +250,7 @@ suite('Blob', () => {
       assert.equal(db.writeCount, writes);
 
       w.close();
-      writes += 3;  // one for the last leaf chunk and one for the meta chunk.
+      writes += 3;
       assert.equal(db.writeCount, writes);
 
       const b2 = await w.blob;

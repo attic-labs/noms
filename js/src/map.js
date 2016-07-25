@@ -45,8 +45,8 @@ function newMapLeafChunkFn<K: Value, V: Value>(vr: ?ValueReader):
 }
 
 function mapHashValueBytes(entry: MapEntry, rv: RollingValueHasher) {
-  hashValueBytes(entry[0], rv);
-  hashValueBytes(entry[1], rv);
+  hashValueBytes(entry[KEY], rv);
+  hashValueBytes(entry[VALUE], rv);
 }
 
 export function removeDuplicateFromOrdered<T>(elems: Array<T>,
