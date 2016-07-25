@@ -24,7 +24,7 @@ import {
 import {IndexedSequence} from './indexed-sequence.js';
 import {invariant, notNull} from './assert.js';
 import {OrderedSequence} from './ordered-sequence.js';
-import {default as Ref, constructRef} from './ref.js';
+import Ref, {constructRef} from './ref.js';
 import Sequence from './sequence.js';
 import {Kind} from './noms-kind.js';
 import type {NomsKind} from './noms-kind.js';

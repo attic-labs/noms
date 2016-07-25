@@ -27,7 +27,7 @@ import diff from './ordered-sequence-diff.js';
 import {ValueBase} from './value.js';
 import {Kind} from './noms-kind.js';
 import type {EqualsFn} from './edit-distance.js';
-import {default as RollingValueHasher, hashValueBytes} from './rolling-value-hasher.js';
+import RollingValueHasher, {hashValueBytes} from './rolling-value-hasher.js';
 
 export type MapEntry<K: Value, V: Value> = [K, V];
 

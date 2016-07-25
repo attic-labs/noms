@@ -13,14 +13,14 @@ import type Value from './value.js';
 import type {Type} from './type.js';
 import {floatToIntExp} from './number-util.js';
 import {invariant} from './assert.js';
-import {maxUInt32} from './codec.js';
+import {maxUint32} from './codec.js';
 
 const defaultChunkPattern = ((1 << 12) | 0) - 1; // Avg Chunk Size of 4k
 
 // The window size to use for computing the rolling hash. This is way more than neccessary assuming
 // random data (two bytes would be sufficient with a target chunk size of 4k). The benefit of a
 // larger window is it allows for better distribution on input with lower entropy. At a target
-// chunk size of 4k, any given by changing has roughly a 1.5% chance of affecting an existing
+// chunk size of 4k, any given byte changing has roughly a 1.5% chance of affecting an existing
 // boundary, which seems like an acceptable trade-off.
 const defaultChunkWindow = 64;
 
@@ -72,7 +72,7 @@ export default class RollingValueHasher {
         this.crossedBoundary || ((this.bz.sum32 & this.pattern) | 0) === this.pattern;
   }
 
-  clearChunkBoundary() {
+  clearLastBoundary() {
     this.crossedBoundary = false;
     this.bytesHashed = 0;
   }
@@ -103,8 +103,8 @@ export default class RollingValueHasher {
 
   writeUint64(v: number): void {
     invariant(v <= Number.MAX_SAFE_INTEGER);
-    const msi = (v / maxUInt32) | 0;
-    const lsi = v % maxUInt32;
+    const msi = (v / maxUint32) | 0;
+    const lsi = v % maxUint32;
 
     // Big endian
     this.writeUint32(msi);
@@ -125,9 +125,9 @@ export default class RollingValueHasher {
   }
 
   writeNumber(v: number): void {
-    const [intVal, expVal] = floatToIntExp(v);
-    this.hashVarint(intVal);
-    this.hashVarint(expVal);
+    const intAndExp = floatToIntExp(v);
+    this.hashVarint(intAndExp[0]);
+    this.hashVarint(intAndExp[1]);
   }
 
   writeBool(v:boolean): void {
@@ -156,6 +156,6 @@ export default class RollingValueHasher {
   }
 
   appendType(t: Type): void { // eslint-disable-line no-unused-vars
-	// Type bytes aren't included in the byte stream we chunk over
+    // Type bytes aren't included in the byte stream we chunk over
   }
 }

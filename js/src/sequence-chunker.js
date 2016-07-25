@@ -82,7 +82,6 @@ export default class SequenceChunker<T, S: Sequence<T>> {
     this._isLeaf = true;
     this._hashValueBytes = hashValueBytes;
     this._rv = new RollingValueHasher();
-    this._hashValueBytes = hashValueBytes;
     this._done = false;
   }
 
@@ -117,7 +116,7 @@ export default class SequenceChunker<T, S: Sequence<T>> {
       appendCount++;
       if (primeHashBytes > 0) {
         primeHashCount++;
-        this._rv.clearChunkBoundary();
+        this._rv.clearLastBoundary();
         this._hashValueBytes(retreater.getCurrent(), this._rv);
         primeHashBytes -= this._rv.bytesHashed;
       }
@@ -127,7 +126,7 @@ export default class SequenceChunker<T, S: Sequence<T>> {
     // further back until they will.
     while (primeHashBytes > 0 && await retreater._retreatMaybeAllowBeforeStart(false)) {
       primeHashCount++;
-      this._rv.clearChunkBoundary();
+      this._rv.clearLastBoundary();
       this._hashValueBytes(retreater.getCurrent(), this._rv);
       primeHashBytes -= this._rv.bytesHashed;
     }
@@ -151,7 +150,7 @@ export default class SequenceChunker<T, S: Sequence<T>> {
         continue;
       }
 
-      this._rv.clearChunkBoundary();
+      this._rv.clearLastBoundary();
       this._hashValueBytes(item, this._rv);
       this._current.push(item);
 
@@ -169,7 +168,7 @@ export default class SequenceChunker<T, S: Sequence<T>> {
 
   append(item: T) {
     this._current.push(item);
-    this._rv.clearChunkBoundary();
+    this._rv.clearLastBoundary();
     this._hashValueBytes(item, this._rv);
     if (this._rv.crossedBoundary) {
       this.handleChunkBoundary();
@@ -376,7 +375,7 @@ export default class SequenceChunker<T, S: Sequence<T>> {
       if (hashWindow > 0) {
         // While we are within the hash window, append items (which explicit checks the hash value
         // for chunk boundaries).
-        this._rv.clearChunkBoundary();
+        this._rv.clearLastBoundary();
         this._hashValueBytes(item, this._rv);
         isBoundary = this._rv.crossedBoundary;
         hashWindow -= this._rv.bytesHashed;

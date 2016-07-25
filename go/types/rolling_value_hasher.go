@@ -15,7 +15,7 @@ import (
 const (
 	defaultChunkPattern = uint32(1<<12 - 1) // Avg Chunk Size of 4k
 
-	// The window size to use for computing the rolling hash. This is way more than neccessary assuming random data (two bytes would be sufficient with a target chunk size of 4k). The benefit of a larger window is it allows for better distribution on input with lower entropy. At a target chunk size of 4k, any given by changing has roughly a 1.5% chance of affecting an existing boundary, which seems like an acceptable trade-off.
+	// The window size to use for computing the rolling hash. This is way more than neccessary assuming random data (two bytes would be sufficient with a target chunk size of 4k). The benefit of a larger window is it allows for better distribution on input with lower entropy. At a target chunk size of 4k, any given byte changing has roughly a 1.5% chance of affecting an existing boundary, which seems like an acceptable trade-off.
 	defaultChunkWindow = uint32(64)
 )
 
