@@ -41,15 +41,12 @@ func orderedSequenceDiffBest(last orderedSequence, current orderedSequence, chan
 	tdChanges := make(chan ValueChanged)
 	tdCloseChan := make(chan struct{})
 
-	// This is thread safe because it's only written to before closing |tdChanges|, and only read after |tdChanges| has closed.
-	wasCanceled := false
-
 	go func() {
 		orderedSequenceDiffLeftRight(last, current, lrChanges, lrCloseChan)
 		close(lrChanges)
 	}()
 	go func() {
-		wasCanceled = orderedSequenceDiffTopDown(last, current, tdChanges, tdCloseChan)
+		orderedSequenceDiffTopDown(last, current, tdChanges, tdCloseChan)
 		close(tdChanges)
 	}()
 
@@ -59,8 +56,10 @@ func orderedSequenceDiffBest(last orderedSequence, current orderedSequence, chan
 	for multiplexing := true; multiplexing; {
 		select {
 		case <-closeChan:
-			stopChan(lrCloseChan)
-			stopChan(tdCloseChan)
+			functions.All(
+				func() { lrCloseChan <- struct{}{} },
+				func() { tdCloseChan <- struct{}{} },
+			)
 			return false
 		case c, ok := <-lrChanges:
 			if !ok {
@@ -72,7 +71,7 @@ func orderedSequenceDiffBest(last orderedSequence, current orderedSequence, chan
 			}
 		case c, ok := <-tdChanges:
 			if !ok {
-				return wasCanceled
+				return true // the only way |tdChanges| can be done is if the diff completed.
 			}
 			tdChangeCount++
 			if tdChangeCount > lrChangeCount {
@@ -80,7 +79,7 @@ func orderedSequenceDiffBest(last orderedSequence, current orderedSequence, chan
 				if !sendChange(changes, closeChan, c) {
 					return false
 				}
-				stopChan(lrCloseChan)
+				lrCloseChan <- struct{}{}
 				multiplexing = false
 			}
 		}
@@ -91,7 +90,7 @@ func orderedSequenceDiffBest(last orderedSequence, current orderedSequence, chan
 			return false
 		}
 	}
-	return wasCanceled
+	return true
 }
 
 // Streams the diff from |last| to |current| into |changes|, using a top-down approach.
@@ -238,10 +237,4 @@ func doFastForward(allowPastEnd bool, a *sequenceCursor, b *sequenceCursor) (aHa
 
 func isCurrentEqual(a *sequenceCursor, b *sequenceCursor) bool {
 	return a.seq.getCompareFn(b.seq)(a.idx, b.idx)
-}
-
-func stopChan(ch chan struct{}) {
-	go func() {
-		ch <- struct{}{}
-	}()
 }
