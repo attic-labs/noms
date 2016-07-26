@@ -146,3 +146,19 @@ func TestVerifyStructName(t *testing.T) {
 	assertValid("a_")
 	assertValid("a0_")
 }
+
+func TestUnionWithCycles(tt *testing.T) {
+	inodeType := MakeStructType("Inode", []string{"attr", "contents"}, []*Type{
+		MakeStructType("Attr", []string{"ctime", "mode", "mtime"}, []*Type{NumberType, NumberType, NumberType}),
+		MakeUnionType(MakeStructType("Directory", []string{"entries"}, []*Type{
+			MakeMapType(StringType, MakeCycleType(1))}),
+			MakeStructType("File", []string{"data"}, []*Type{BlobType}),
+			MakeStructType("Symlink", []string{"targetPath"}, []*Type{StringType}),
+		),
+	})
+
+	t1 := inodeType.Desc.(StructDesc).Field("contents")
+	t2 := DecodeValue(EncodeValue(t1, nil), nil)
+	assert.True(tt, t1.Equals(t2))
+	assert.True(tt, t1 == t2)
+}
