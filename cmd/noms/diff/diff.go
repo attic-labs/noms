@@ -194,8 +194,11 @@ func line(w io.Writer, op int, key, val types.Value) {
 
 func writeHeader(w io.Writer, wroteHeader bool, p types.Path) bool {
 	if !wroteHeader {
-		write(w, []byte("/"))
-		write(w, []byte(p.String()))
+		if len(p) == 0 {
+			write(w, []byte("(root)"))
+		} else {
+			write(w, []byte(p.String()))
+		}
 		write(w, []byte(" {\n"))
 	}
 	return true

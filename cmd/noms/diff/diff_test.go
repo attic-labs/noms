@@ -70,11 +70,11 @@ func createStruct(name string, kv ...interface{}) types.Struct {
 
 func TestNomsMapdiff(t *testing.T) {
 	assert := assert.New(t)
-	expected := `/["map-3"] {
+	expected := `["map-3"] {
 -   "m3": "m-three"
 +   "m3": "m-three-diff"
   }
-/["map-3"]["m4"] {
+["map-3"]["m4"] {
 -   "a1": "a-one"
 +   "a1": "a-one-diff"
   }
@@ -91,7 +91,7 @@ func TestNomsMapdiff(t *testing.T) {
 func TestNomsSetDiff(t *testing.T) {
 	assert := assert.New(t)
 
-	expected := `/ {
+	expected := `(root) {
 -   "five"
 +   "five-diff"
   }
@@ -102,7 +102,7 @@ func TestNomsSetDiff(t *testing.T) {
 	Diff(buf, s1, s2)
 	assert.Equal(expected, buf.String())
 
-	expected = `/ {
+	expected = `(root) {
 +   {  // 4 items
 +     "m1": "m-one",
 +     "m3": "m-three-diff",
@@ -136,11 +136,11 @@ func TestNomsSetDiff(t *testing.T) {
 
 func TestNomsStructDiff(t *testing.T) {
 	assert := assert.New(t)
-	expected := `/ {
+	expected := `(root) {
 -   "four": "four"
 +   "four": "four-diff"
   }
-/["three"] {
+["three"] {
 -   "field3": "field3-data"
 +   "field3": "field3-data-diff"
 `
@@ -165,7 +165,7 @@ func TestNomsStructDiff(t *testing.T) {
 func TestNomsListDiff(t *testing.T) {
 	assert := assert.New(t)
 
-	expected := `/ {
+	expected := `(root) {
 -   2
 +   22
 -   44
@@ -177,7 +177,7 @@ func TestNomsListDiff(t *testing.T) {
 	Diff(buf, l1, l2)
 	assert.Equal(expected, buf.String())
 
-	expected = `/ {
+	expected = `(root) {
 +   "seven"
   }
 `
@@ -187,11 +187,11 @@ func TestNomsListDiff(t *testing.T) {
 	Diff(buf, l1, l2)
 	assert.Equal(expected, buf.String())
 
-	expected = `/[2] {
+	expected = `[2] {
 -   "m3": "m-three"
 +   "m3": "m-three-diff"
   }
-/[2]["m4"] {
+[2]["m4"] {
 -   "a1": "a-one"
 +   "a1": "a-one-diff"
   }
