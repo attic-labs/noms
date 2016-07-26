@@ -38,16 +38,22 @@ func sendChange(changes chan<- ValueChanged, closeChan <-chan struct{}, change V
 func orderedSequenceDiffBest(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) bool {
 	lrChanges := make(chan ValueChanged)
 	lrCloseChan := make(chan struct{})
+	lrDoneChan := make(chan struct{})
 	tdChanges := make(chan ValueChanged)
 	tdCloseChan := make(chan struct{})
+	tdDoneChan := make(chan struct{})
 
 	go func() {
 		orderedSequenceDiffLeftRight(last, current, lrChanges, lrCloseChan)
 		close(lrChanges)
+		// XXX: Not quite right, must guarantee that |lrDoneChan| is read from.
+		lrDoneChan <- struct{}{}
 	}()
 	go func() {
 		orderedSequenceDiffTopDown(last, current, tdChanges, tdCloseChan)
 		close(tdChanges)
+		// XXX: Not quite right, must guarantee that |tdDoneChan| is read from.
+		tdDoneChan <- struct{}{}
 	}()
 
 	// Stream left-right changes while the top-down diff algorithm catches up.
@@ -63,7 +69,12 @@ func orderedSequenceDiffBest(last orderedSequence, current orderedSequence, chan
 			return false
 		case c, ok := <-lrChanges:
 			if !ok {
-				return true // the only way |lrChanges| can be done is if the diff completed.
+				// The only way |lrChanges| can be done is if the diff completed. Try to stop top-down.
+				select {
+				case <-tdDoneChan:
+				case tdCloseChan <- struct{}{}:
+				}
+				return true
 			}
 			lrChangeCount++
 			if !sendChange(changes, closeChan, c) {
@@ -71,7 +82,12 @@ func orderedSequenceDiffBest(last orderedSequence, current orderedSequence, chan
 			}
 		case c, ok := <-tdChanges:
 			if !ok {
-				return true // the only way |tdChanges| can be done is if the diff completed.
+				// The only way |tdChanges| can be done is if the diff completed. Try to stop left-right.
+				select {
+				case <-lrDoneChan:
+				case lrCloseChan <- struct{}{}:
+				}
+				return true
 			}
 			tdChangeCount++
 			if tdChangeCount > lrChangeCount {
