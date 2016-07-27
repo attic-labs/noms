@@ -277,7 +277,7 @@ func (es emptySequence) getCompareFn(other sequence) compareFn {
 }
 
 func (es emptySequence) getKey(idx int) orderedKey {
-	return emptyKey
+	panic("empty sequence")
 }
 
 func (es emptySequence) getOffset(idx int) uint64 {
