@@ -273,9 +273,7 @@ func (es emptySequence) Type() *Type {
 }
 
 func (es emptySequence) getCompareFn(other sequence) compareFn {
-	return func(idx, otherIdx int) bool {
-		return false
-	}
+	return func(idx, otherIdx int) bool { panic("empty sequence") }
 }
 
 func (es emptySequence) getKey(idx int) orderedKey {
