@@ -12,24 +12,31 @@ import (
 // Summary prints a summary of the diff between two values to stdout.
 func Summary(value1, value2 types.Value) {
 	if datas.IsCommitType(value1.Type()) && datas.IsCommitType(value2.Type()) {
-		fmt.Println("Commits detected. Comparing values instead.")
+		fmt.Println("Comparing commit values")
 		value1 = value1.(types.Struct).Get(datas.ValueField)
 		value2 = value2.(types.Struct).Get(datas.ValueField)
 	}
 
-	var valueString string
+	var valueString, valuesString string
 	if value1.Type().Kind() == value2.Type().Kind() {
 		switch value1.Type().Kind() {
 		case types.StructKind:
 			valueString = "field"
+			valuesString = "fields"
 		case types.MapKind:
 			valueString = "entry"
+			valuesString = "entries"
 		default:
 			valueString = "value"
+			valuesString = "values"
 		}
 	}
 	waitChan := make(chan struct{})
 	ch := make(chan diffSummaryProgress)
+	go func() {
+		diffSummary(ch, value1, value2)
+		close(ch)
+	}()
 	go func() {
 		acc := diffSummaryProgress{}
 		for p := range ch {
@@ -38,13 +45,14 @@ func Summary(value1, value2 types.Value) {
 			acc.Changes += p.Changes
 			acc.NewSize += p.NewSize
 			acc.OldSize += p.OldSize
-			formatStatus(acc, valueString)
+			if status.WillPrint() {
+				formatStatus(acc, valueString, valuesString)
+			}
 		}
+		formatStatus(acc, valueString, valuesString)
 		status.Done()
 		waitChan <- struct{}{}
 	}()
-	diffSummary(ch, value1, value2)
-
 	<-waitChan
 }
 
@@ -69,7 +77,6 @@ func diffSummary(ch chan diffSummaryProgress, v1, v2 types.Value) {
 			}
 		} else {
 			ch <- diffSummaryProgress{Adds: 1, Removes: 1, NewSize: 1, OldSize: 1}
-			close(ch)
 		}
 	}
 }
@@ -78,15 +85,15 @@ func diffSummaryList(ch chan<- diffSummaryProgress, v1, v2 types.List) {
 	ch <- diffSummaryProgress{OldSize: v1.Len(), NewSize: v2.Len()}
 
 	spliceChan := make(chan types.Splice)
-	closeChan := make(chan struct{})
+	stopChan := make(chan struct{})
 	doneChan := make(chan struct{})
 
 	go func() {
-		v2.Diff(v1, spliceChan, closeChan)
+		v2.Diff(v1, spliceChan, stopChan)
 		close(spliceChan)
 		doneChan <- struct{}{}
 	}()
-	defer waitForCloseOrDone(closeChan, doneChan) // see comment for explanation
+	defer waitForCloseOrDone(stopChan, doneChan) // see comment for explanation
 
 	for splice := range spliceChan {
 		if splice.SpRemoved == splice.SpAdded {
@@ -95,46 +102,44 @@ func diffSummaryList(ch chan<- diffSummaryProgress, v1, v2 types.List) {
 			ch <- diffSummaryProgress{Adds: splice.SpAdded, Removes: splice.SpRemoved}
 		}
 	}
-	close(ch)
 }
 
 func diffSummaryMap(ch chan<- diffSummaryProgress, v1, v2 types.Map) {
-	diffSummaryGeneric(ch, v1.Len(), v2.Len(), func(changeChan chan<- types.ValueChanged, closeChan <-chan struct{}) {
-		v2.Diff(v1, changeChan, closeChan)
+	diffSummaryValueChanged(ch, v1.Len(), v2.Len(), func(changeChan chan<- types.ValueChanged, stopChan <-chan struct{}) {
+		v2.Diff(v1, changeChan, stopChan)
 	})
 }
 
 func diffSummarySet(ch chan<- diffSummaryProgress, v1, v2 types.Set) {
-	diffSummaryGeneric(ch, v1.Len(), v2.Len(), func(changeChan chan<- types.ValueChanged, closeChan <-chan struct{}) {
-		v2.Diff(v1, changeChan, closeChan)
+	diffSummaryValueChanged(ch, v1.Len(), v2.Len(), func(changeChan chan<- types.ValueChanged, stopChan <-chan struct{}) {
+		v2.Diff(v1, changeChan, stopChan)
 	})
 }
 
 func diffSummaryStructs(ch chan<- diffSummaryProgress, v1, v2 types.Struct) {
 	size1 := uint64(v1.Type().Desc.(types.StructDesc).Len())
 	size2 := uint64(v2.Type().Desc.(types.StructDesc).Len())
-	diffSummaryGeneric(ch, size1, size2, func(changeChan chan<- types.ValueChanged, closeChan <-chan struct{}) {
-		v2.Diff(v1, changeChan, closeChan)
+	diffSummaryValueChanged(ch, size1, size2, func(changeChan chan<- types.ValueChanged, stopChan <-chan struct{}) {
+		v2.Diff(v1, changeChan, stopChan)
 	})
 }
 
-type diffFunc func(changeChan chan<- types.ValueChanged, closeChan <-chan struct{})
+type diffFunc func(changeChan chan<- types.ValueChanged, stopChan <-chan struct{})
 
-func diffSummaryGeneric(ch chan<- diffSummaryProgress, oldSize, newSize uint64, f diffFunc) {
+func diffSummaryValueChanged(ch chan<- diffSummaryProgress, oldSize, newSize uint64, f diffFunc) {
 	ch <- diffSummaryProgress{OldSize: oldSize, NewSize: newSize}
 
 	changeChan := make(chan types.ValueChanged)
-	closeChan := make(chan struct{})
+	stopChan := make(chan struct{})
 	doneChan := make(chan struct{})
 
 	go func() {
-		f(changeChan, closeChan)
+		f(changeChan, stopChan)
 		close(changeChan)
 		doneChan <- struct{}{}
 	}()
-	defer waitForCloseOrDone(closeChan, doneChan) // see comment for explanation
+	defer waitForCloseOrDone(stopChan, doneChan) // see comment for explanation
 	reportChanges(ch, changeChan)
-	close(ch)
 }
 
 func reportChanges(ch chan<- diffSummaryProgress, changeChan chan types.ValueChanged) {
@@ -152,25 +157,25 @@ func reportChanges(ch chan<- diffSummaryProgress, changeChan chan types.ValueCha
 	}
 }
 
-func formatStatus(acc diffSummaryProgress, valueString string) {
-	pluralize := func(noun string, n uint64) string {
+func formatStatus(acc diffSummaryProgress, valueString, valuesString string) {
+	pluralize := func(singular, plural string, n uint64) string {
 		// This only hanldes what we care about.
-		if noun[len(noun)-1] == 'y' {
-			noun = noun[:len(noun)-1] + "ie"
-		}
-		pattern := "%s %s"
+
+		var noun string
 		if n != 1 {
-			pattern += "s"
+			noun = plural
+		} else {
+			noun = singular
 		}
-		return fmt.Sprintf(pattern, humanize.Comma(int64(n)), noun)
+		return fmt.Sprintf("%s %s", humanize.Comma(int64(n)), noun)
 	}
 
-	insertions := pluralize("insertion", acc.Adds)
-	deletions := pluralize("deletion", acc.Removes)
-	changes := pluralize("change", acc.Changes)
+	insertions := pluralize("insertion", "insertions", acc.Adds)
+	deletions := pluralize("deletion", "deletions", acc.Removes)
+	changes := pluralize("change", "changes", acc.Changes)
 
-	oldValues := pluralize(valueString, acc.OldSize)
-	newValues := pluralize(valueString, acc.NewSize)
+	oldValues := pluralize(valueString, valuesString, acc.OldSize)
+	newValues := pluralize(valueString, valuesString, acc.NewSize)
 
 	status.Printf("%s, %s, %s, (%s vs %s)", insertions, deletions, changes, oldValues, newValues)
 }

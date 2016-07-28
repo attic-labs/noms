@@ -51,26 +51,26 @@ func (s *nomsDiffTestSuite) TestNomsDiffSummarize() {
 
 	ds, err = addCommit(ds, "first commit")
 	s.NoError(err)
-	r1 := spec.CreateValueSpecString("ldb", s.LdbDir, "#"+ds.HeadRef().TargetHash().String())
+	r1 := spec.CreateHashSpecString("ldb", s.LdbDir, ds.HeadRef().TargetHash())
 
 	ds, err = addCommit(ds, "second commit")
 	s.NoError(err)
-	r2 := spec.CreateValueSpecString("ldb", s.LdbDir, "#"+ds.HeadRef().TargetHash().String())
+	r2 := spec.CreateHashSpecString("ldb", s.LdbDir, ds.HeadRef().TargetHash())
 
 	out, _ := s.Run(main, []string{"diff", "--summarize", r1, r2})
-	s.Contains(out, "Commits detected. Comparing values instead.")
+	s.Contains(out, "Comparing commit values")
 	s.Contains(out, "1 insertion, 1 deletion, 0 changes, (1 value vs 1 value)")
 
 	out, _ = s.Run(main, []string{"diff", "--summarize", r1 + ".value", r2 + ".value"})
-	s.NotContains(out, "Commits detected. Comparing values instead.")
+	s.NotContains(out, "Comparing commit values")
 
 	ds, err = ds.CommitValue(types.NewList(types.Number(1), types.Number(2), types.Number(3), types.Number(4)))
 	s.NoError(err)
-	r3 := spec.CreateValueSpecString("ldb", s.LdbDir, "#"+ds.HeadRef().TargetHash().String()) + ".value"
+	r3 := spec.CreateHashSpecString("ldb", s.LdbDir, ds.HeadRef().TargetHash()) + ".value"
 
 	ds, err = ds.CommitValue(types.NewList(types.Number(1), types.Number(222), types.Number(4)))
 	s.NoError(err)
-	r4 := spec.CreateValueSpecString("ldb", s.LdbDir, "#"+ds.HeadRef().TargetHash().String()) + ".value"
+	r4 := spec.CreateHashSpecString("ldb", s.LdbDir, ds.HeadRef().TargetHash()) + ".value"
 
 	out, _ = s.Run(main, []string{"diff", "--summarize", r3, r4})
 	s.Contains(out, "1 insertion, 2 deletions, 0 changes, (4 values vs 3 values)")

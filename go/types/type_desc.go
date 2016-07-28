@@ -44,7 +44,6 @@ var KindToString = map[NomsKind]string{
 	RefKind:    "Ref",
 	SetKind:    "Set",
 	StringKind: "String",
-	StructKind: "Struct",
 	TypeKind:   "Type",
 	ValueKind:  "Value",
 	CycleKind:  "Cycle",
