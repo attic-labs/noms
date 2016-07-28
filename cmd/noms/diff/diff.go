@@ -128,17 +128,28 @@ func diffMaps(w io.Writer, p types.Path, v1, v2 types.Map) {
 }
 
 func diffStructs(w io.Writer, p types.Path, v1, v2 types.Struct) {
-	changed := types.StructDiff(v1, v2)
+	changeChan := make(chan types.ValueChanged)
+	closeChan := make(chan struct{})
+	doneChan := make(chan struct{})
+
+	go func() {
+		v2.Diff(v1, changeChan, closeChan)
+		close(changeChan)
+		doneChan <- struct{}{}
+	}()
+	defer waitForCloseOrDone(closeChan, doneChan) // see comment for explanation
+
 	wroteHeader := false
-	for _, change := range changed {
+
+	for change := range changeChan {
 		fn := string(change.V.(types.String))
 		switch change.ChangeType {
 		case types.DiffChangeAdded:
 			wroteHeader = writeHeader(w, wroteHeader, p)
-			line(w, ADD, change.V, v2.Get(fn))
+			field(w, ADD, change.V, v2.Get(fn))
 		case types.DiffChangeRemoved:
 			wroteHeader = writeHeader(w, wroteHeader, p)
-			line(w, DEL, change.V, v1.Get(fn))
+			field(w, DEL, change.V, v1.Get(fn))
 		case types.DiffChangeModified:
 			f1 := v1.Get(fn)
 			f2 := v2.Get(fn)
@@ -146,8 +157,8 @@ func diffStructs(w io.Writer, p types.Path, v1, v2 types.Struct) {
 				diff(w, p.AddField(fn), types.String(fn), f1, f2)
 			} else {
 				wroteHeader = writeHeader(w, wroteHeader, p)
-				line(w, DEL, change.V, f1)
-				line(w, ADD, change.V, f2)
+				field(w, DEL, change.V, f1)
+				field(w, ADD, change.V, f2)
 			}
 		}
 	}
@@ -189,6 +200,14 @@ func line(w io.Writer, op int, key, val types.Value) {
 		writeEncodedValue(pw, key)
 		write(w, []byte(": "))
 	}
+	writeEncodedValue(pw, val)
+	write(w, []byte("\n"))
+}
+
+func field(w io.Writer, op int, name, val types.Value) {
+	pw := newPrefixWriter(w, op)
+	write(pw, []byte(name.(types.String)))
+	write(w, []byte(": "))
 	writeEncodedValue(pw, val)
 	write(w, []byte("\n"))
 }
