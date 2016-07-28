@@ -17,43 +17,40 @@ func Summary(value1, value2 types.Value) {
 		value2 = value2.(types.Struct).Get(datas.ValueField)
 	}
 
-	var valueString, valuesString string
+	var singular, plural string
 	if value1.Type().Kind() == value2.Type().Kind() {
 		switch value1.Type().Kind() {
 		case types.StructKind:
-			valueString = "field"
-			valuesString = "fields"
+			singular = "field"
+			plural = "fields"
 		case types.MapKind:
-			valueString = "entry"
-			valuesString = "entries"
+			singular = "entry"
+			plural = "entries"
 		default:
-			valueString = "value"
-			valuesString = "values"
+			singular = "value"
+			plural = "values"
 		}
 	}
-	waitChan := make(chan struct{})
+	// waitChan := make(chan struct{})
 	ch := make(chan diffSummaryProgress)
 	go func() {
 		diffSummary(ch, value1, value2)
 		close(ch)
 	}()
-	go func() {
-		acc := diffSummaryProgress{}
-		for p := range ch {
-			acc.Adds += p.Adds
-			acc.Removes += p.Removes
-			acc.Changes += p.Changes
-			acc.NewSize += p.NewSize
-			acc.OldSize += p.OldSize
-			if status.WillPrint() {
-				formatStatus(acc, valueString, valuesString)
-			}
+
+	acc := diffSummaryProgress{}
+	for p := range ch {
+		acc.Adds += p.Adds
+		acc.Removes += p.Removes
+		acc.Changes += p.Changes
+		acc.NewSize += p.NewSize
+		acc.OldSize += p.OldSize
+		if status.WillPrint() {
+			formatStatus(acc, singular, plural)
 		}
-		formatStatus(acc, valueString, valuesString)
-		status.Done()
-		waitChan <- struct{}{}
-	}()
-	<-waitChan
+	}
+	formatStatus(acc, singular, plural)
+	status.Done()
 }
 
 type diffSummaryProgress struct {
@@ -157,10 +154,8 @@ func reportChanges(ch chan<- diffSummaryProgress, changeChan chan types.ValueCha
 	}
 }
 
-func formatStatus(acc diffSummaryProgress, valueString, valuesString string) {
+func formatStatus(acc diffSummaryProgress, singular, plural string) {
 	pluralize := func(singular, plural string, n uint64) string {
-		// This only hanldes what we care about.
-
 		var noun string
 		if n != 1 {
 			noun = plural
@@ -174,8 +169,8 @@ func formatStatus(acc diffSummaryProgress, valueString, valuesString string) {
 	deletions := pluralize("deletion", "deletions", acc.Removes)
 	changes := pluralize("change", "changes", acc.Changes)
 
-	oldValues := pluralize(valueString, valuesString, acc.OldSize)
-	newValues := pluralize(valueString, valuesString, acc.NewSize)
+	oldValues := pluralize(singular, plural, acc.OldSize)
+	newValues := pluralize(singular, plural, acc.NewSize)
 
 	status.Printf("%s, %s, %s, (%s vs %s)", insertions, deletions, changes, oldValues, newValues)
 }
