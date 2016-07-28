@@ -8,17 +8,13 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/attic-labs/noms/cmd/noms/diff"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/util/outputpager"
-)
-
-const (
-	addPrefix = "+   "
-	subPrefix = "-   "
 )
 
 var summarize bool
@@ -59,16 +55,17 @@ func runDiff(args []string) int {
 		return 0
 	}
 
-	waitChan := outputpager.PageOutput()
-	if waitChan != nil {
-		go func() {
-			<-waitChan
-			os.Exit(0)
-		}()
+	var w io.Writer
+	if pager := outputpager.NewOrNil(); pager != nil {
+		w = pager.Writer
+		defer pager.Stop()
+		go pager.RunAndExit()
+	} else {
+		bw := bufio.NewWriter(os.Stdout)
+		defer bw.Flush()
+		w = bw
 	}
 
-	w := bufio.NewWriter(os.Stdout)
 	diff.Diff(w, value1, value2)
-	w.Flush()
 	return 0
 }

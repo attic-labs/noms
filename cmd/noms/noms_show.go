@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/attic-labs/noms/go/d"
@@ -34,23 +35,25 @@ func setupShowFlags() *flag.FlagSet {
 func runShow(args []string) int {
 	database, value, err := spec.GetPath(args[0])
 	d.CheckErrorNoUsage(err)
+	defer database.Close()
 
 	if value == nil {
 		fmt.Fprintf(os.Stderr, "Object not found: %s\n", args[0])
 		return 0
 	}
 
-	waitChan := outputpager.PageOutput()
-
-	w := bufio.NewWriter(os.Stdout)
-	types.WriteEncodedValueWithTags(w, value)
-	fmt.Fprintf(w, "\n")
-	w.Flush()
-	database.Close()
-
-	if waitChan != nil {
-		os.Stdout.Close()
-		<-waitChan
+	var w io.Writer
+	if pager := outputpager.NewOrNil(); pager != nil {
+		w = pager.Writer
+		defer pager.Stop()
+		go pager.RunAndExit()
+	} else {
+		bw := bufio.NewWriter(os.Stdout)
+		defer bw.Flush()
+		w = bw
 	}
+
+	types.WriteEncodedValueWithTags(w, value)
+	w.Write([]byte{'\n'})
 	return 0
 }

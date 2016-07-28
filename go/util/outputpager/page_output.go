@@ -6,6 +6,7 @@ package outputpager
 
 import (
 	"flag"
+	"io"
 	"os"
 	"os/exec"
 
@@ -18,42 +19,50 @@ var (
 	flagsRegistered = false
 )
 
+type Pager struct {
+	Writer        io.Writer
+	cmd           *exec.Cmd
+	stdin, stdout *os.File
+}
+
+func NewOrNil() *Pager {
+	if noPager || !IsStdoutTty() {
+		return nil
+	}
+
+	lessPath, err := exec.LookPath("less")
+	d.Chk.NoError(err)
+
+	// -F ... Quit if entire file fits on first screen.
+	// -S ... Chop (truncate) long lines rather than wrapping.
+	// -R ... Output "raw" control characters.
+	// -X ... Don't use termcap init/deinit strings.
+	cmd := exec.Command(lessPath, "-FSRX")
+	stdin, stdout, err := os.Pipe()
+	d.Chk.NoError(err)
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = stdin
+	return &Pager{stdout, cmd, stdin, stdout}
+}
+
+func (p *Pager) RunAndExit() {
+	err := p.cmd.Run()
+	d.Chk.NoError(err)
+	os.Exit(0)
+}
+
+func (p *Pager) Stop() {
+	p.stdin.Close()
+	p.stdout.Close()
+}
+
 func RegisterOutputpagerFlags(flags *flag.FlagSet) {
 	if !flagsRegistered {
 		flagsRegistered = true
 		flags.BoolVar(&noPager, "no-pager", false, "suppress paging functionality")
 	}
-}
-
-func PageOutput() <-chan struct{} {
-	if noPager || !IsStdoutTty() {
-		return nil
-	}
-
-	lessExecutable, err := exec.LookPath("less")
-	d.Chk.NoError(err, "unable to find 'less' utility: %s", err)
-
-	lessStdin, newStdout, err := os.Pipe()
-	d.Chk.NoError(err, "os.Pipe() failed: %s\n", err)
-
-	cmd := exec.Command(lessExecutable, []string{"-FSRX"}...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	os.Stdout = newStdout
-	cmd.Stdin = lessStdin
-
-	err = cmd.Start()
-	d.Chk.NoError(err, "cmd execution failed: %s\n", err)
-
-	ch := make(chan struct{})
-	go func() {
-		err := cmd.Wait()
-		d.Chk.NoError(err, "pager exited with error: %s\n", err)
-		os.Stdout.Close()
-		ch <- struct{}{}
-	}()
-
-	return ch
 }
 
 func IsStdoutTty() bool {

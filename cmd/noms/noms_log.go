@@ -70,8 +70,6 @@ func runLog(args []string) int {
 		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[0]))
 	}
 
-	waitChan := outputpager.PageOutput()
-
 	origCommit, ok := value.(types.Struct)
 	if !ok || !datas.IsCommitType(origCommit.Type()) {
 		d.CheckError(fmt.Errorf("%s does not reference a Commit object", args[0]))
@@ -98,15 +96,19 @@ func runLog(args []string) int {
 		close(inChan)
 	}()
 
-	w := bufio.NewWriter(os.Stdout)
+	var w io.Writer
+	if pager := outputpager.NewOrNil(); pager != nil {
+		w = pager.Writer
+		defer pager.Stop()
+		go pager.RunAndExit()
+	} else {
+		bw := bufio.NewWriter(os.Stdout)
+		defer bw.Flush()
+		w = bw
+	}
+
 	for commitBuff := range outChan {
 		io.Copy(w, bytes.NewReader(commitBuff.([]byte)))
-	}
-	w.Flush()
-
-	if waitChan != nil {
-		os.Stdout.Close()
-		<-waitChan
 	}
 	return 0
 }
