@@ -11,6 +11,7 @@ import (
 )
 
 // RefByHeight implements sort.Interface to order by increasing HeightOrder(). It uses increasing order because this causes repeated pushes and pops of the 'tallest' Refs to re-use memory, avoiding reallocations.
+// We might consider making this a firmer abstraction boundary as a part of BUG 2182
 type RefByHeight []Ref
 
 func (h RefByHeight) Len() int {
