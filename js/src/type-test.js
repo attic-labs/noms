@@ -7,7 +7,9 @@
 import {TestDatabase} from './test-util.js';
 import {assert} from 'chai';
 import {
+  blobType,
   boolType,
+  makeCycleType,
   makeMapType,
   makeSetType,
   makeStructType,
@@ -19,6 +21,8 @@ import {
 } from './type.js';
 import {suite, test} from 'mocha';
 import {equals} from './compare.js';
+import {encodeValue, decodeValue} from './codec.js';
+import {notNull} from './assert.js';
 
 suite('Type', () => {
   test('types', async () => {
@@ -137,5 +141,24 @@ suite('Type', () => {
     ].forEach(([t, desc]) => {
       assert.equal(t.describe(), desc);
     });
+  });
+
+  test('union with cycle', () => {
+    const inodeType = makeStructType('Inode', ['attr', 'contents'], [
+      makeStructType('Attr', ['ctime', 'mode', 'mtime'], [numberType, numberType, numberType]),
+      makeUnionType([
+        makeStructType('Directory', ['entries'], [
+          makeMapType(stringType, makeCycleType(1)),
+        ]),
+        makeStructType('File', ['data'], [blobType]),
+        makeStructType('Symlink', ['targetPath'], [stringType]),
+      ]),
+    ]);
+
+    const vr: any = null;
+    const t1 = notNull(inodeType.desc.getField('contents'));
+    const t2 = decodeValue(encodeValue(t1, null), vr);
+    assert.isTrue(equals(t1, t2));
+    assert.isTrue(t1 === t2);
   });
 });
