@@ -5,11 +5,8 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
-	"io"
-	"os"
 
 	"github.com/attic-labs/noms/cmd/noms/diff"
 	"github.com/attic-labs/noms/go/d"
@@ -55,17 +52,9 @@ func runDiff(args []string) int {
 		return 0
 	}
 
-	var w io.Writer
-	if pager := outputpager.NewOrNil(); pager != nil {
-		w = pager.Writer
-		defer pager.Stop()
-		go pager.RunAndExit()
-	} else {
-		bw := bufio.NewWriter(os.Stdout)
-		defer bw.Flush()
-		w = bw
-	}
+	pgr := outputpager.Start()
+	defer pgr.Stop()
 
-	diff.Diff(w, value1, value2)
+	diff.Diff(pgr.Writer, value1, value2)
 	return 0
 }

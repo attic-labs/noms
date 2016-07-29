@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 
 	"github.com/attic-labs/noms/go/d"
 	goisatty "github.com/mattn/go-isatty"
@@ -21,13 +22,14 @@ var (
 
 type Pager struct {
 	Writer        io.Writer
-	cmd           *exec.Cmd
 	stdin, stdout *os.File
+	mtx           *sync.Mutex
+	doneCh        chan struct{}
 }
 
-func NewOrNil() *Pager {
+func Start() *Pager {
 	if noPager || !IsStdoutTty() {
-		return nil
+		return &Pager{os.Stdout, nil, nil, nil, nil}
 	}
 
 	lessPath, err := exec.LookPath("less")
@@ -38,24 +40,40 @@ func NewOrNil() *Pager {
 	// -R ... Output "raw" control characters.
 	// -X ... Don't use termcap init/deinit strings.
 	cmd := exec.Command(lessPath, "-FSRX")
+
 	stdin, stdout, err := os.Pipe()
 	d.Chk.NoError(err)
-
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = stdin
-	return &Pager{stdout, cmd, stdin, stdout}
-}
 
-func (p *Pager) RunAndExit() {
-	err := p.cmd.Run()
-	d.Chk.NoError(err)
-	os.Exit(0)
+	p := &Pager{stdout, stdin, stdout, &sync.Mutex{}, make(chan struct{})}
+	go func() {
+		err := cmd.Run()
+		d.Chk.NoError(err)
+		p.closePipe()
+		p.doneCh <- struct{}{}
+	}()
+	return p
 }
 
 func (p *Pager) Stop() {
-	p.stdin.Close()
-	p.stdout.Close()
+	if p.Writer != os.Stdout {
+		p.closePipe()
+		// Wait until less has fully exited, otherwise it might not have printed the terminal restore characters.
+		<-p.doneCh
+	}
+}
+
+func (p *Pager) closePipe() {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+	if p.stdin != nil {
+		// Closing the pipe will cause any outstanding writes to stdout fail, and fail from now on.
+		p.stdin.Close()
+		p.stdout.Close()
+		p.stdin, p.stdout = nil, nil
+	}
 }
 
 func RegisterOutputpagerFlags(flags *flag.FlagSet) {

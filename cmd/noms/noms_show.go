@@ -5,10 +5,8 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/attic-labs/noms/go/d"
@@ -42,18 +40,10 @@ func runShow(args []string) int {
 		return 0
 	}
 
-	var w io.Writer
-	if pager := outputpager.NewOrNil(); pager != nil {
-		w = pager.Writer
-		defer pager.Stop()
-		go pager.RunAndExit()
-	} else {
-		bw := bufio.NewWriter(os.Stdout)
-		defer bw.Flush()
-		w = bw
-	}
+	pgr := outputpager.Start()
+	defer pgr.Stop()
 
-	types.WriteEncodedValueWithTags(w, value)
-	w.Write([]byte{'\n'})
+	types.WriteEncodedValueWithTags(pgr.Writer, value)
+	fmt.Fprintln(pgr.Writer)
 	return 0
 }

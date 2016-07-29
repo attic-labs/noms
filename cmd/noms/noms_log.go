@@ -5,13 +5,11 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
 	"io"
 	"math"
-	"os"
 	"strings"
 
 	"github.com/attic-labs/noms/cmd/noms/diff"
@@ -96,19 +94,11 @@ func runLog(args []string) int {
 		close(inChan)
 	}()
 
-	var w io.Writer
-	if pager := outputpager.NewOrNil(); pager != nil {
-		w = pager.Writer
-		defer pager.Stop()
-		go pager.RunAndExit()
-	} else {
-		bw := bufio.NewWriter(os.Stdout)
-		defer bw.Flush()
-		w = bw
-	}
+	pgr := outputpager.Start()
+	defer pgr.Stop()
 
 	for commitBuff := range outChan {
-		io.Copy(w, bytes.NewReader(commitBuff.([]byte)))
+		io.Copy(pgr.Writer, bytes.NewReader(commitBuff.([]byte)))
 	}
 	return 0
 }
