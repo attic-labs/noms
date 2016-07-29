@@ -39,9 +39,32 @@ export function diff(last: IndexedSequence, lastHeight: number, lastOffset: numb
 
   const splicesP = splices.map(splice => {
     if (!last.isMeta || splice[SPLICE_REMOVED] === 0 || splice[SPLICE_ADDED] === 0) {
-      splice[SPLICE_AT] += lastOffset;
+      // We have meta data about the number of leaves below us, so if an entire meta sequence was
+      // removed, we don't need to dig down to compute the diff, we can just use math.
+      let lastAtCum = 0;
+      if (splice[SPLICE_AT] > 0) {
+        lastAtCum = last.cumulativeNumberOfLeaves(splice[SPLICE_AT] - 1);
+      }
+      let lastEndRemoveCum = 0;
+      if (splice[SPLICE_AT] + splice[SPLICE_REMOVED] > 0) {
+        lastEndRemoveCum =
+            last.cumulativeNumberOfLeaves(splice[SPLICE_AT] + splice[SPLICE_REMOVED] - 1);
+      }
+      let currentFromCum = 0;
+      if (splice[SPLICE_FROM] > 0) {
+        currentFromCum = current.cumulativeNumberOfLeaves(splice[SPLICE_FROM] - 1);
+      }
+      let currentEndAddedCum = 0;
+      if (splice[SPLICE_FROM] + splice[SPLICE_ADDED] > 0) {
+        currentEndAddedCum =
+            current.cumulativeNumberOfLeaves(splice[SPLICE_FROM] + splice[SPLICE_ADDED] - 1);
+      }
+
+      splice[SPLICE_REMOVED] = lastEndRemoveCum - lastAtCum;
+      splice[SPLICE_ADDED] = currentEndAddedCum - currentFromCum;
+      splice[SPLICE_AT] = lastOffset + lastAtCum;
       if (splice[SPLICE_ADDED] > 0) {
-        splice[SPLICE_FROM] += currentOffset;
+        splice[SPLICE_FROM] = currentOffset + currentFromCum;
       }
 
       return [splice];
