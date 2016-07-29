@@ -236,6 +236,6 @@ func writeEncodedValueWithTags(w io.Writer, v types.Value) {
 	d.PanicIfError(types.WriteEncodedValueWithTags(w, v))
 }
 
-func stop(ch chan struct{}) {
+func stop(ch chan<- struct{}) {
 	ch <- struct{}{}
 }
