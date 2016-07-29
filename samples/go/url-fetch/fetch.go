@@ -5,7 +5,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,29 +29,38 @@ var (
 
 func main() {
 	comment := flag.String("comment", "", "comment to add to commit's meta data")
+	stdin := flag.Bool("stdin", false, "read blob from stdin")
+
 	spec.RegisterDatabaseFlags(flag.CommandLine)
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Fetches a URL (or file) into a noms blob\n\nUsage: %s <dataset> <url-or-local-path>:\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Fetches a URL (or file) into a noms blob\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: %s [-stdin] <dataset> [url-or-local-path]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Either -stdin or a url/path must be given.\n\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse(true)
 
-	if flag.NArg() != 2 {
-		d.CheckErrorNoUsage(errors.New("expected dataset and url arguments"))
+	if !*stdin && flag.NArg() != 2 {
+		flag.Usage()
+		os.Exit(-1)
 	}
+
+	start = time.Now()
 
 	ds, err := spec.GetDataset(flag.Arg(0))
 	d.CheckErrorNoUsage(err)
 	defer ds.Database().Close()
 
-	url := flag.Arg(1)
-	fileOrUrl := "file"
-	start = time.Now()
+	var r io.Reader
+	var contentLength int64
+	var sourceType, sourceVal string
 
-	var pr io.Reader
-
-	if strings.HasPrefix(url, "http") {
+	if *stdin {
+		r = os.Stdin
+		contentLength = -1
+		sourceType, sourceVal = "file", "stdin"
+	} else if url := flag.Arg(1); strings.HasPrefix(url, "http") {
 		resp, err := http.Get(url)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Could not fetch url %s, error: %s\n", url, err)
@@ -65,8 +73,9 @@ func main() {
 			return
 		}
 
-		pr = progressreader.New(resp.Body, getStatusPrinter(resp.ContentLength))
-		fileOrUrl = "url"
+		r = resp.Body
+		contentLength = resp.ContentLength
+		sourceType, sourceVal = "url", url
 	} else {
 		// assume it's a file
 		f, err := os.Open(url)
@@ -81,12 +90,14 @@ func main() {
 			return
 		}
 
-		pr = progressreader.New(f, getStatusPrinter(s.Size()))
-		fileOrUrl = "file"
+		r = f
+		contentLength = s.Size()
+		sourceType, sourceVal = "file", url
 	}
 
+	pr := progressreader.New(r, getStatusPrinter(contentLength))
 	b := types.NewStreamingBlob(pr, ds.Database())
-	mi := metaInfoForCommit(fileOrUrl, url, *comment)
+	mi := metaInfoForCommit(sourceType, sourceVal, *comment)
 	ds, err = ds.Commit(b, dataset.CommitOptions{Meta: mi})
 	if err != nil {
 		d.Chk.Equal(datas.ErrMergeNeeded, err)
@@ -98,11 +109,11 @@ func main() {
 	fmt.Println("Done")
 }
 
-func metaInfoForCommit(fileOrUrl, source, comment string) types.Struct {
+func metaInfoForCommit(sourceType, sourceVal, comment string) types.Struct {
 	date := time.Now().UTC().Format("2006-01-02T15:04:05-0700")
 	metaValues := map[string]types.Value{
-		"date":    types.String(date),
-		fileOrUrl: types.String(source),
+		"date":     types.String(date),
+		sourceType: types.String(sourceVal),
 	}
 	if comment != "" {
 		metaValues["comment"] = types.String(comment)
