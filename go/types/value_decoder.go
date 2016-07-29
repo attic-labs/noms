@@ -6,6 +6,7 @@ package types
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
@@ -47,10 +48,11 @@ func (r *valueDecoder) readType() *Type {
 		return r.readStructType()
 	case UnionKind:
 		l := r.readUint32()
-		elemTypes := make([]*Type, l)
+		elemTypes := make(typeSlice, l)
 		for i := uint32(0); i < l; i++ {
 			elemTypes[i] = r.readType()
 		}
+		sort.Sort(elemTypes)
 		return r.tc.getCompoundType(UnionKind, elemTypes...)
 	case CycleKind:
 		return r.tc.getCycleType(r.readUint32())
