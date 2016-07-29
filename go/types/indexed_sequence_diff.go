@@ -21,9 +21,29 @@ func indexedSequenceDiff(last indexedSequence, lastHeight int, lastOffset uint64
 
 	for _, splice := range initialSplices {
 		if !isMetaSequence(last) || splice.SpRemoved == 0 || splice.SpAdded == 0 {
-			splice.SpAt += lastOffset
+			// We have meta data about the number of leaves below us, so if an entire meta sequence was removed, we don't need to dig down to compute the diff, we can just use math.
+			lastAtCum := uint64(0)
+			if splice.SpAt > 0 {
+				lastAtCum = last.cumulativeNumberOfLeaves(int(splice.SpAt) - 1)
+			}
+			lastEndRemoveCum := uint64(0)
+			if splice.SpAt+splice.SpRemoved > 0 {
+				lastEndRemoveCum = last.cumulativeNumberOfLeaves(int(splice.SpAt+splice.SpRemoved) - 1)
+			}
+			currentFromCum := uint64(0)
+			if splice.SpFrom > 0 {
+				currentFromCum = current.cumulativeNumberOfLeaves(int(splice.SpFrom) - 1)
+			}
+			currentEndAddedCum := uint64(0)
+			if splice.SpFrom+splice.SpAdded > 0 {
+				currentEndAddedCum = current.cumulativeNumberOfLeaves(int(splice.SpFrom+splice.SpAdded) - 1)
+			}
+
+			splice.SpRemoved = lastEndRemoveCum - lastAtCum
+			splice.SpAdded = currentEndAddedCum - currentFromCum
+			splice.SpAt = lastOffset + lastAtCum
 			if splice.SpAdded > 0 {
-				splice.SpFrom += currentOffset
+				splice.SpFrom = currentOffset + currentFromCum
 			}
 
 			select {
