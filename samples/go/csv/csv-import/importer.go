@@ -43,7 +43,7 @@ func main() {
 		name            = flag.String("name", "Row", "struct name. The user-visible name to give to the struct type that will hold each row of data.")
 		columnTypes     = flag.String("column-types", "", "a comma-separated list of types representing the desired type of each column. if absent all types default to be String")
 		path            = flag.String("p", "", "noms path to blob to import")
-		dateFlag        = flag.String("date", "", fmt.Sprintf(`date of commit, must be of form "%s". By default, the current date is used.`, dateFormat))
+		dateFlag        = flag.String("date", "", fmt.Sprintf(`date of commit in ISO 8601 format ("%s"). By default, the current date is used.`, dateFormat))
 		noProgress      = flag.Bool("no-progress", false, "prevents progress from being output if true")
 		destType        = flag.String("dest-type", "list", "the destination type to import to. can be 'list' or 'map:<pk>', where <pk> is the index position (0-based) of the column that is a the unique identifier for the column")
 		skipRecords     = flag.Uint("skip-records", 0, "number of records to skip at beginning of file")
@@ -73,13 +73,12 @@ func main() {
 	}
 	d.CheckError(err)
 
-	var date string
-	if df := *dateFlag; df == "" {
+	var date = *dateFlag
+	if date == "" {
 		date = time.Now().UTC().Format(dateFormat)
 	} else {
-		_, err := time.Parse(dateFormat, df)
+		_, err := time.Parse(dateFormat, date)
 		d.CheckErrorNoUsage(err)
-		date = df
 	}
 
 	defer profile.MaybeStartProfile().Stop()
