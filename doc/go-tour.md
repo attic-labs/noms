@@ -46,11 +46,10 @@ func main() {
 }
 ```
 
-Now build and run:
+Now let's run it:
 
 ```sh
-> go build
-> ./noms-tour
+> go run noms-tour.go
 ```
 
 If you did not leave the server running you would see output of ```Could not access database``` here, otherwise your program should exit cleanly.
@@ -86,11 +85,10 @@ func main() {
 }
 ```
 
-Now build and run:
+Now let's run it:
 
 ```sh
-> go build
-> ./noms-tour
+> go run noms-tour.go
 head is empty
 ```
 
@@ -107,6 +105,13 @@ import (
   "github.com/attic-labs/noms/go/types"
 )
 
+func newPerson(givenName string, male bool) types.Struct {
+  return types.NewStruct("Person", map[string]types.Value{
+    "given": types.String(givenName),
+    "male":  types.Bool(male),
+  })
+}
+
 func main() {
   ds, err := spec.GetDataset("http://localhost:8000::people")
   if err != nil {
@@ -116,22 +121,10 @@ func main() {
   defer ds.Database().Close()
 
   data := types.NewList(
-    types.NewStruct("Person", map[string]types.Value{
-      "given": types.String("Rickon"),
-      "male":  types.Bool(true),
-    }),
-    types.NewStruct("Person", map[string]types.Value{
-      "given": types.String("Bran"),
-      "male":  types.Bool(true),
-    }),
-    types.NewStruct("Person", map[string]types.Value{
-      "given": types.String("Arya"),
-      "male":  types.Bool(false),
-    }),
-    types.NewStruct("Person", map[string]types.Value{
-      "given": types.String("Sansa"),
-      "male":  types.Bool(false),
-    }),
+    newPerson("Rickon", true),
+    newPerson("Bran", true),
+    newPerson("Arya", false),
+    newPerson("Sansa", false),
   )
 
   fmt.Fprintf(os.Stdout, "data type: %v\n", data.Type().Describe())
@@ -143,11 +136,10 @@ func main() {
 }
 ```
 
-Now build and run, then you will get output of the data type of our Dataset value:
+Now you will get output of the data type of our Dataset value:
 
 ```
-> go build
-> ./noms-tour
+> go run noms-tour.go
 data type: List<struct  {
   given: String
   male: Bool
@@ -188,11 +180,10 @@ func main() {
 }
 ```
 
-Now build and run:
+Running it now:
 
 ```sh
-> go build
-> ./noms-tour
+> go run noms-tour.go
 given: Rickon
 ```
 
@@ -267,11 +258,10 @@ func main() {
 }
 ```
 
-Now build and run:
+Running this:
 
 ```sh
-> go build
-> ./noms-tour
+> go run noms-tour.go
 data type: List<struct Person {
   family: String,
   given: String,
