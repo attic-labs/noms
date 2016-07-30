@@ -321,7 +321,7 @@ function encodeForOID(t: Type, buf: BinaryWriter, allowUnresolvedCycles: boolean
         buf.writeUint8(t.kind);
         if (t === root) {
           // If this is where we started, we don't need to keep going.
-          return;
+          break;
         }
 
         buf.writeUint32(desc.elemTypes.length);
