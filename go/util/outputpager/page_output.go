@@ -5,7 +5,6 @@
 package outputpager
 
 import (
-	"flag"
 	"io"
 	"os"
 	"os/exec"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/attic-labs/noms/go/d"
 	goisatty "github.com/mattn/go-isatty"
+	flag "github.com/tsuru/gnuflag"
 )
 
 var (
@@ -46,10 +46,11 @@ func Start() *Pager {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = stdin
+	cmd.Start()
 
 	p := &Pager{stdout, stdin, stdout, &sync.Mutex{}, make(chan struct{})}
 	go func() {
-		err := cmd.Run()
+		err := cmd.Wait()
 		d.Chk.NoError(err)
 		p.closePipe()
 		p.doneCh <- struct{}{}
