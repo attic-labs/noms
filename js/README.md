@@ -1,6 +1,6 @@
 # Store All the Things
 
-*Noms* is a content-addressed, immutable, decentralized, strongly-typed database.
+*[Noms](https://github.com/attic-labs/noms/)* is a content-addressed, immutable, decentralized, strongly-typed database.
 
 In other words, Noms is Git for data.
 
