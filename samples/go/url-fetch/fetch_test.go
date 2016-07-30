@@ -43,7 +43,7 @@ func (s *testSuite) TestImportFromStdin() {
 
 	dsName := spec.CreateValueSpecString("ldb", s.LdbDir, "ds")
 	// Run() will return when blobOut is closed.
-	s.Run(main, []string{"-stdin", dsName})
+	s.Run(main, []string{"--stdin", dsName})
 
 	db, blob, err := spec.GetPath(dsName + ".value")
 	assert.NoError(err)

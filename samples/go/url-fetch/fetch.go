@@ -35,8 +35,8 @@ func main() {
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Fetches a URL (or file) into a noms blob\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s [-stdin] <dataset> [url-or-local-path]\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Either -stdin or a url/path must be given.\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: %s [--stdin] <dataset> [url-or-local-path]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Either --stdin or a url/path must be given.\n\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse(true)
