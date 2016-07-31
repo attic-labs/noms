@@ -37,7 +37,7 @@ func TestLDBDatabase(t *testing.T) {
 
 	sp, errRead := parseDatabaseSpec(spec)
 	assert.NoError(errRead)
-	store, err := sp.Database()
+	store, err := sp.Database(false)
 	assert.NoError(err)
 	assert.Equal(s1, store.ReadValue(s1.Hash()))
 	store.Close()
@@ -50,7 +50,7 @@ func TestMemDatabase(t *testing.T) {
 	spec := "mem"
 	sp, err := parseDatabaseSpec(spec)
 	assert.NoError(err)
-	store, err := sp.Database()
+	store, err := sp.Database(false)
 	assert.NoError(err)
 	r := store.WriteValue(types.Bool(true))
 

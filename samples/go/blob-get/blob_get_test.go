@@ -29,7 +29,7 @@ func (s *bgSuite) TestBlobGet() {
 	blob_bytes := []byte("hello")
 	blob := types.NewBlob(bytes.NewBuffer(blob_bytes))
 
-	db, err := spec.GetDatabase(s.TempDir)
+	db, err := spec.GetDatabase(s.TempDir, false)
 	s.NoError(err)
 	hash := db.WriteValue(blob)
 	db.Close()
