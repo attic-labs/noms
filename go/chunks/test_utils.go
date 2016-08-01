@@ -5,8 +5,6 @@
 package chunks
 
 import (
-	"sync"
-
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/testify/assert"
 )
@@ -30,11 +28,7 @@ type TestStore struct {
 }
 
 func NewTestStore() *TestStore {
-	return &TestStore{
-		MemoryStore: MemoryStore{
-			mu: &sync.Mutex{},
-		},
-	}
+	return &TestStore{}
 }
 
 func (s *TestStore) Get(h hash.Hash) Chunk {
