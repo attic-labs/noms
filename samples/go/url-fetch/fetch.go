@@ -35,12 +35,12 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Fetches a URL (or file) into a noms blob\n\n")
 		fmt.Fprintf(os.Stderr, "Usage: %s <dataset> [url-or-local-path?]\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "       Leave url-or-local-path empty to read from stdin.")
+		fmt.Fprintf(os.Stderr, "Leave url-or-local-path empty to read from stdin.\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse(true)
 
-	if flag.NArg() == 0 {
+	if flag.NArg() != 1 && flag.NArg() != 2 {
 		flag.Usage()
 		os.Exit(-1)
 	}
