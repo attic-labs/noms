@@ -85,7 +85,7 @@ func mergeDatasets(ds1, ds2 dataset.Dataset, v string) (dataset.Dataset, error) 
 func (s *nomsLogTestSuite) TestNArg() {
 	str := spec.CreateDatabaseSpecString("ldb", s.LdbDir)
 	dsName := "nArgTest"
-	db, err := spec.GetDatabase(str)
+	db, err := spec.GetDatabase(str, false)
 	s.NoError(err)
 
 	ds := dataset.NewDataset(db, dsName)
@@ -145,7 +145,7 @@ func (s *nomsLogTestSuite) TestEmptyCommit() {
 
 func (s *nomsLogTestSuite) TestNomsGraph1() {
 	str := spec.CreateDatabaseSpecString("ldb", s.LdbDir)
-	db, err := spec.GetDatabase(str)
+	db, err := spec.GetDatabase(str, false)
 	s.NoError(err)
 
 	b1 := dataset.NewDataset(db, "b1")
@@ -198,7 +198,7 @@ func (s *nomsLogTestSuite) TestNomsGraph1() {
 
 func (s *nomsLogTestSuite) TestNomsGraph2() {
 	str := spec.CreateDatabaseSpecString("ldb", s.LdbDir)
-	db, err := spec.GetDatabase(str)
+	db, err := spec.GetDatabase(str, false)
 	s.NoError(err)
 
 	ba := dataset.NewDataset(db, "ba")
@@ -230,7 +230,7 @@ func (s *nomsLogTestSuite) TestNomsGraph2() {
 
 func (s *nomsLogTestSuite) TestNomsGraph3() {
 	str := spec.CreateDatabaseSpecString("ldb", s.LdbDir)
-	db, err := spec.GetDatabase(str)
+	db, err := spec.GetDatabase(str, false)
 	s.NoError(err)
 
 	w := dataset.NewDataset(db, "w")
@@ -279,7 +279,7 @@ func (s *nomsLogTestSuite) TestTruncation() {
 	}
 
 	str := spec.CreateDatabaseSpecString("ldb", s.LdbDir)
-	db, err := spec.GetDatabase(str)
+	db, err := spec.GetDatabase(str, false)
 	s.NoError(err)
 
 	t := dataset.NewDataset(db, "truncate")

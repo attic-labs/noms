@@ -49,7 +49,7 @@ func runDs(args []string) int {
 			d.CheckError(fmt.Errorf("Database arg missing"))
 		}
 
-		store, err := spec.GetDatabase(args[0])
+		store, err := spec.GetDatabase(args[0], true)
 		d.CheckError(err)
 		defer store.Close()
 

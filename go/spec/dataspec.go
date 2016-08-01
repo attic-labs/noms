@@ -5,8 +5,10 @@
 package spec
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 
@@ -24,12 +26,12 @@ var (
 	ldbStores = map[string]*refCountingLdbStore{}
 )
 
-func GetDatabase(str string) (datas.Database, error) {
+func GetDatabase(str string, errIfNotExists bool) (datas.Database, error) {
 	sp, err := parseDatabaseSpec(str)
 	if err != nil {
 		return nil, err
 	}
-	return sp.Database()
+	return sp.Database(errIfNotExists)
 }
 
 func GetChunkStore(str string) (chunks.ChunkStore, error) {
@@ -40,7 +42,7 @@ func GetChunkStore(str string) (chunks.ChunkStore, error) {
 
 	switch sp.Protocol {
 	case "ldb":
-		return getLDBStore(sp.Path), nil
+		return getLDBStore(sp.Path, false)
 	case "mem":
 		return chunks.NewMemoryStore(), nil
 	default:
@@ -167,7 +169,7 @@ func (s databaseSpec) String() string {
 	return s.Protocol + ":" + s.Path
 }
 
-func (spec databaseSpec) Database() (ds datas.Database, err error) {
+func (spec databaseSpec) Database(errorIfNotExists bool) (ds datas.Database, err error) {
 	switch spec.Protocol {
 	case "http", "https":
 		err = d.Unwrap(d.Try(func() {
@@ -175,7 +177,9 @@ func (spec databaseSpec) Database() (ds datas.Database, err error) {
 		}))
 	case "ldb":
 		err = d.Unwrap(d.Try(func() {
-			ds = datas.NewDatabase(getLDBStore(spec.Path))
+			store, e2 := getLDBStore(spec.Path, errorIfNotExists)
+			d.PanicIfError(e2)
+			ds = datas.NewDatabase(store)
 		}))
 	case "mem":
 		ds = datas.NewDatabase(chunks.NewMemoryStore())
@@ -186,7 +190,7 @@ func (spec databaseSpec) Database() (ds datas.Database, err error) {
 }
 
 func (spec datasetSpec) Dataset() (dataset.Dataset, error) {
-	store, err := spec.DbSpec.Database()
+	store, err := spec.DbSpec.Database(false)
 	if err != nil {
 		return dataset.Dataset{}, err
 	}
@@ -214,7 +218,7 @@ func (spec datasetSpec) Value() (datas.Database, types.Value, error) {
 }
 
 func (spec pathSpec) Value() (db datas.Database, val types.Value, err error) {
-	db, err = spec.DbSpec.Database()
+	db, err = spec.DbSpec.Database(false)
 	if err != nil {
 		return
 	}
@@ -239,15 +243,25 @@ func CreateHashSpecString(protocol, path string, h hash.Hash) string {
 	return fmt.Sprintf("%s:%s::#%s", protocol, path, h.String())
 }
 
-func getLDBStore(path string) chunks.ChunkStore {
+func getLDBStore(path string, errorNotExists bool) (chunks.ChunkStore, error) {
 	if store, ok := ldbStores[path]; ok {
 		store.AddRef()
-		return store
+		return store, nil
+	}
+
+	if errorNotExists {
+		stat, err := os.Stat(path)
+		if err != nil {
+			return nil, err
+		}
+		if !stat.IsDir() {
+			return nil, errors.New("path is not a directory")
+		}
 	}
 
 	store := newRefCountingLdbStore(path, func() {
 		delete(ldbStores, path)
 	})
 	ldbStores[path] = store
-	return store
+	return store, nil
 }
