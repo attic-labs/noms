@@ -53,7 +53,7 @@ func main() {
 	profile.RegisterProfileFlags(flag.CommandLine)
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: csv-import [options] <dataset> <csvfile>?\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: csv-import [options] <csvfile> <dataset>\n\n")
 		flag.PrintDefaults()
 	}
 
@@ -100,7 +100,7 @@ func main() {
 		r = blob.Reader()
 		size = blob.Len()
 	} else {
-		filePath = flag.Arg(1)
+		filePath = flag.Arg(0)
 		res, err := os.Open(filePath)
 		d.CheckError(err)
 		defer res.Close()
@@ -143,7 +143,7 @@ func main() {
 		headers = strings.Split(*header, string(comma))
 	}
 
-	ds, err := spec.GetDataset(flag.Arg(0))
+	ds, err := spec.GetDataset(flag.Arg(1))
 	d.CheckError(err)
 	defer ds.Database().Close()
 
