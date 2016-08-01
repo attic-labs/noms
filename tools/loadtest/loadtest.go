@@ -33,7 +33,7 @@ type runner struct {
 }
 
 func main() {
-	rand.Seed(time.Now().Unix() + bestEffortGetIP())
+	rand.Seed(time.Now().UnixNano() + bestEffortGetIP())
 
 	if len(os.Args) != 2 {
 		fmt.Println("Usage: loadtest <database>")
@@ -69,6 +69,7 @@ func bestEffortGetIP() (asNum int64) {
 		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() != nil {
 				asNum = int64(binary.BigEndian.Uint32([]byte(ipnet.IP.To4())))
+				break
 			}
 		}
 	}
@@ -88,7 +89,7 @@ func runLogDiff(db, ds string) {
 }
 
 func runLogShow(db, ds string) {
-	call(nil, "noms", "log", "-show-value", ds)
+	call(nil, "noms", "log", "--show-value", ds)
 }
 
 func runShow(db, ds string) {
@@ -118,7 +119,7 @@ func runSync(db, ds string) {
 
 func getParent(db, ds string) string {
 	buf := &bytes.Buffer{}
-	call(buf, "noms", "log", "-n", "2", "-oneline", ds)
+	call(buf, "noms", "log", "-n", "2", "--oneline", ds)
 	// Output will look like:
 	// abc (Parent def)
 	// def (Parent None)
