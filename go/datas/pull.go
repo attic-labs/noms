@@ -133,6 +133,7 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 		}
 		sort.Sort(sinkQ)
 		sort.Sort(srcQ)
+		sinkQ.Unique()
 		srcQ.Unique()
 	}
 
@@ -158,7 +159,7 @@ type traverseResult struct {
 //
 // As we build up lists of refs to be processed in parallel, we need to avoid blowing past potential common refs. When processing a given Ref, we enumerate Refs of all Chunks that are directly reachable, which must _by definition_ be shorter than the given Ref. This means that, for example, if the queues are the same height we know that nothing can happen that will put more Refs of that height on either queue. In general, if you look at the height of the Ref at the head of a queue, you know that all Refs of that height in the current graph under consideration are already in the queue. Conversely, for any height less than that of the head of the queue, it's possible that Refs of that height remain to be discovered. Given this, we can figure out which Refs are safe to pull off the 'taller' queue in the cases where the heights of the two queues are not equal.
 // If one queue is 'taller' than the other, it's clear that we can process all refs from the taller queue with height greater than the height of the 'shorter' queue. We should also be able to process refs from the taller queue that are of the same height as the shorter queue, as long as we also check to see if they're common to both queues. It is not safe, however, to pull unique items off the shorter queue at this point. It's possible that, in processing some of the Refs from the taller queue, that these Refs will be discovered to be common after all.
-// TODO: Make this less aggressive about parallelism, but a lot simpler. Perhaps by going one level at a time? BUG 2182
+// TODO: Bug 2203
 func planWork(srcQ, sinkQ *types.RefByHeight) (srcRefs, sinkRefs, comRefs types.RefSlice) {
 	srcHt, sinkHt := tallestHeight(srcQ), tallestHeight(sinkQ)
 	if srcHt > sinkHt {
