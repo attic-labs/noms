@@ -85,6 +85,7 @@ func main() {
 	var r io.Reader
 	var size uint64
 	var filePath string
+	var dataSetArgN int
 
 	if *path != "" {
 		db, val, err := spec.GetPath(*path)
@@ -99,6 +100,7 @@ func main() {
 		defer db.Close()
 		r = blob.Reader()
 		size = blob.Len()
+		dataSetArgN = 0
 	} else {
 		filePath = flag.Arg(0)
 		res, err := os.Open(filePath)
@@ -108,6 +110,7 @@ func main() {
 		d.CheckError(err)
 		r = res
 		size = uint64(fi.Size())
+		dataSetArgN = 1
 	}
 
 	if !*noProgress {
@@ -143,7 +146,7 @@ func main() {
 		headers = strings.Split(*header, string(comma))
 	}
 
-	ds, err := spec.GetDataset(flag.Arg(1))
+	ds, err := spec.GetDataset(flag.Arg(dataSetArgN))
 	d.CheckError(err)
 	defer ds.Database().Close()
 
