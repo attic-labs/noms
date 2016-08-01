@@ -53,22 +53,23 @@ func (s *TestStore) PutMany(chunks []Chunk) (e BackpressureError) {
 	return
 }
 
-type testStoreFactory struct {
-	stores map[string]*TestStore
+// TestStoreFactory is public, and exposes Stores to ensure that test code can directly query instances vended by this factory.
+type TestStoreFactory struct {
+	Stores map[string]*TestStore
 }
 
-func NewTestStoreFactory() *testStoreFactory {
-	return &testStoreFactory{map[string]*TestStore{}}
+func NewTestStoreFactory() *TestStoreFactory {
+	return &TestStoreFactory{map[string]*TestStore{}}
 }
 
-func (f *testStoreFactory) CreateStore(ns string) ChunkStore {
-	if cs, present := f.stores[ns]; present {
+func (f *TestStoreFactory) CreateStore(ns string) ChunkStore {
+	if cs, present := f.Stores[ns]; present {
 		return cs
 	}
-	f.stores[ns] = NewTestStore()
-	return f.stores[ns]
+	f.Stores[ns] = NewTestStore()
+	return f.Stores[ns]
 }
 
-func (f *testStoreFactory) Shutter() {
-	f.stores = map[string]*TestStore{}
+func (f *TestStoreFactory) Shutter() {
+	f.Stores = map[string]*TestStore{}
 }
