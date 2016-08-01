@@ -29,19 +29,18 @@ var (
 
 func main() {
 	comment := flag.String("comment", "", "comment to add to commit's meta data")
-	stdin := flag.Bool("stdin", false, "read blob from stdin")
 
 	spec.RegisterDatabaseFlags(flag.CommandLine)
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Fetches a URL (or file) into a noms blob\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s [--stdin] <dataset> [url-or-local-path]\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Either --stdin or a url/path must be given.\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: %s <dataset> [url-or-local-path?]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "       Leave url-or-local-path empty to read from stdin.")
 		flag.PrintDefaults()
 	}
 	flag.Parse(true)
 
-	if !*stdin && flag.NArg() != 2 {
+	if flag.NArg() == 0 {
 		flag.Usage()
 		os.Exit(-1)
 	}
@@ -56,10 +55,9 @@ func main() {
 	var contentLength int64
 	var sourceType, sourceVal string
 
-	if *stdin {
+	if flag.NArg() == 1 {
 		r = os.Stdin
 		contentLength = -1
-		sourceType, sourceVal = "file", "stdin"
 	} else if url := flag.Arg(1); strings.HasPrefix(url, "http") {
 		resp, err := http.Get(url)
 		if err != nil {
@@ -112,8 +110,10 @@ func main() {
 func metaInfoForCommit(sourceType, sourceVal, comment string) types.Struct {
 	date := time.Now().UTC().Format("2006-01-02T15:04:05-0700")
 	metaValues := map[string]types.Value{
-		"date":     types.String(date),
-		sourceType: types.String(sourceVal),
+		"date": types.String(date),
+	}
+	if sourceType != "" {
+		metaValues[sourceType] = types.String(sourceVal)
 	}
 	if comment != "" {
 		metaValues["comment"] = types.String(comment)

@@ -43,7 +43,7 @@ func (s *testSuite) TestImportFromStdin() {
 
 	dsName := spec.CreateValueSpecString("ldb", s.LdbDir, "ds")
 	// Run() will return when blobOut is closed.
-	s.Run(main, []string{"--stdin", dsName})
+	s.Run(main, []string{dsName})
 
 	db, blob, err := spec.GetPath(dsName + ".value")
 	assert.NoError(err)
@@ -52,7 +52,10 @@ func (s *testSuite) TestImportFromStdin() {
 	assert.True(expected.Equals(blob))
 
 	meta := db.Head("ds").Get(datas.MetaField).(types.Struct)
-	assert.Equal("stdin", string(meta.Get("file").(types.String)))
+	// The meta should only have a "date" field.
+	metaDesc := meta.Type().Desc.(types.StructDesc)
+	assert.Equal(1, metaDesc.Len())
+	assert.NotNil(metaDesc.Field("date"))
 
 	db.Close()
 }
