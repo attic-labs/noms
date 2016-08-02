@@ -29,25 +29,24 @@ var (
 
 func main() {
 	comment := flag.String("comment", "", "comment to add to commit's meta data")
+	stdin := flag.Bool("stdin", false, "read blob from stdin")
 
 	spec.RegisterDatabaseFlags(flag.CommandLine)
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Fetches a URL (or file) into a noms blob\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s <dataset> [url-or-local-path?]\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Leave url-or-local-path empty to read from stdin.\n")
+		fmt.Fprintf(os.Stderr, "Fetches a URL, file, or stdin into a noms blob\n\nUsage: %s [--stdin?] [url-or-local-path?] [dataset]\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse(true)
 
-	if flag.NArg() != 1 && flag.NArg() != 2 {
+	if !(*stdin && flag.NArg() == 1) && flag.NArg() != 2 {
 		flag.Usage()
 		os.Exit(-1)
 	}
 
 	start = time.Now()
 
-	ds, err := spec.GetDataset(flag.Arg(0))
+	ds, err := spec.GetDataset(flag.Arg(flag.NArg() - 1))
 	d.CheckErrorNoUsage(err)
 	defer ds.Database().Close()
 
@@ -55,10 +54,10 @@ func main() {
 	var contentLength int64
 	var sourceType, sourceVal string
 
-	if flag.NArg() == 1 {
+	if *stdin {
 		r = os.Stdin
 		contentLength = -1
-	} else if url := flag.Arg(1); strings.HasPrefix(url, "http") {
+	} else if url := flag.Arg(0); strings.HasPrefix(url, "http") {
 		resp, err := http.Get(url)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Could not fetch url %s, error: %s\n", url, err)
