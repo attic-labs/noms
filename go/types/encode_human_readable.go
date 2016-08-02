@@ -205,6 +205,9 @@ func (w *hrsWriter) WriteTagged(v Value) {
 		w.Write(v)
 	case BlobKind, ListKind, MapKind, RefKind, SetKind, TypeKind, CycleKind:
 		w.writeType(t, nil)
+		if l, ok := v.(lenable); ok && l.Len() == 0 {
+			break
+		}
 		w.write("(")
 		w.Write(v)
 		w.write(")")

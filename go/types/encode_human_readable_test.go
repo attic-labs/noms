@@ -82,7 +82,7 @@ func TestWriteHumanReadableCollections(t *testing.T) {
 
 	l2 := NewList()
 	assertWriteHRSEqual(t, "[]", l2)
-	assertWriteTaggedHRSEqual(t, "List<>([])", l2)
+	assertWriteTaggedHRSEqual(t, "List<>", l2)
 
 	l3 := NewList(Number(0))
 	assertWriteHRSEqual(t, "[\n  0,\n]", l3)
@@ -186,7 +186,7 @@ func TestWriteHumanReadableListOfStruct(t *testing.T) {
 
 func TestWriteHumanReadableBlob(t *testing.T) {
 	assertWriteHRSEqual(t, "", NewEmptyBlob())
-	assertWriteTaggedHRSEqual(t, "Blob()", NewEmptyBlob())
+	assertWriteTaggedHRSEqual(t, "Blob", NewEmptyBlob())
 
 	b1 := NewBlob(bytes.NewBuffer([]byte{0x01}))
 	assertWriteHRSEqual(t, "01", b1)
@@ -406,9 +406,9 @@ func TestEmptyCollections(t *testing.T) {
 	c := MakeMapType(BlobType, NumberType)
 	assertWriteTaggedHRSEqual(t, "Type(Map<Blob, Number>)", c)
 	d := NewMap()
-	assertWriteTaggedHRSEqual(t, "Map<, >({})", d)
+	assertWriteTaggedHRSEqual(t, "Map<, >", d)
 	e := MakeSetType(StringType)
 	assertWriteTaggedHRSEqual(t, "Type(Set<String>)", e)
 	f := NewSet()
-	assertWriteTaggedHRSEqual(t, "Set<>({})", f)
+	assertWriteTaggedHRSEqual(t, "Set<>", f)
 }
