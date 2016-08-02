@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -43,7 +44,7 @@ func (s *testSuite) TestImportFromStdin() {
 
 	dsName := spec.CreateValueSpecString("ldb", s.LdbDir, "ds")
 	// Run() will return when blobOut is closed.
-	s.Run(main, []string{dsName})
+	s.Run(main, []string{"--stdin", dsName})
 
 	db, blob, err := spec.GetPath(dsName + ".value")
 	assert.NoError(err)
@@ -59,3 +60,32 @@ func (s *testSuite) TestImportFromStdin() {
 
 	db.Close()
 }
+
+func (s *testSuite) TestImportFromFile() {
+	assert := s.Assert()
+
+	f, err := ioutil.TempFile("", "TestImportFromFile")
+	assert.NoError(err)
+
+	f.Write([]byte("abcdef"))
+	f.Close()
+
+	dsName := spec.CreateValueSpecString("ldb", s.LdbDir, "ds")
+	s.Run(main, []string{f.Name(), dsName})
+
+	db, blob, err := spec.GetPath(dsName + ".value")
+	assert.NoError(err)
+
+	expected := types.NewBlob(bytes.NewBufferString("abcdef"))
+	assert.True(expected.Equals(blob))
+
+	meta := db.Head("ds").Get(datas.MetaField).(types.Struct)
+	metaDesc := meta.Type().Desc.(types.StructDesc)
+	assert.Equal(2, metaDesc.Len())
+	assert.NotNil(metaDesc.Field("date"))
+	assert.Equal(f.Name(), string(meta.Get("file").(types.String)))
+
+	db.Close()
+}
+
+// TODO: TestImportFromURL
