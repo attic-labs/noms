@@ -102,28 +102,38 @@ func (ds *Dataset) Commit(v types.Value, opts CommitOptions) (Dataset, error) {
 	return Dataset{store, ds.id}, err
 }
 
-func (ds *Dataset) Pull(sourceStore datas.Database, sourceRef types.Ref, concurrency int, progressCh chan datas.PullProgress) (Dataset, error) {
-	sink := *ds
-
+func (ds *Dataset) Pull(sourceStore datas.Database, sourceRef types.Ref, concurrency int, progressCh chan datas.PullProgress) (fastForward bool) {
 	sinkHeadRef := types.Ref{}
-	if currentHeadRef, ok := sink.MaybeHeadRef(); ok {
+	if currentHeadRef, ok := ds.MaybeHeadRef(); ok {
 		sinkHeadRef = currentHeadRef
 	}
+	return datas.Pull(sourceStore, ds.Database(), sourceRef, sinkHeadRef, concurrency, progressCh)
+}
 
-	if sourceRef == sinkHeadRef {
-		return sink, nil
+func (ds *Dataset) FastForward(newHeadRef types.Ref) (sink Dataset, err error) {
+	sink = *ds
+	if currentHeadRef, ok := sink.MaybeHeadRef(); ok && newHeadRef == currentHeadRef {
+		return
 	}
 
-	datas.Pull(sourceStore, sink.Database(), sourceRef, sinkHeadRef, concurrency, progressCh)
-	err := datas.ErrOptimisticLockFailed
-	for ; err == datas.ErrOptimisticLockFailed; sink, err = sink.setNewHead(sourceRef) {
+	for err = datas.ErrOptimisticLockFailed; err == datas.ErrOptimisticLockFailed; sink, err = sink.commitNewHead(newHeadRef) {
+	}
+	return
+}
+
+func (ds *Dataset) SetHead(newHeadRef types.Ref) (sink Dataset, err error) {
+	sink = *ds
+	if currentHeadRef, ok := sink.MaybeHeadRef(); ok && newHeadRef == currentHeadRef {
+		return
 	}
 
-	return sink, err
+	commit := sink.validateRefAsCommit(newHeadRef)
+	store, err := sink.Database().SetHead(sink.id, commit)
+	return Dataset{store, sink.id}, err
 }
 
 func (ds *Dataset) validateRefAsCommit(r types.Ref) types.Struct {
-	v := ds.store.ReadValue(r.TargetHash())
+	v := ds.Database().ReadValue(r.TargetHash())
 
 	if v == nil {
 		panic(r.TargetHash().String() + " not found")
@@ -134,8 +144,8 @@ func (ds *Dataset) validateRefAsCommit(r types.Ref) types.Struct {
 	return v.(types.Struct)
 }
 
-// setNewHead attempts to make the object pointed to by newHeadRef the new Head of ds. First, it checks that the object exists in ds and validates that it decodes to the correct type of value. Next, it attempts to commit the object to ds.Database(). This may fail if, for instance, the Head of ds has been changed by another goroutine or process. In the event that the commit fails, the error from Database().Commit() is returned along with a new Dataset that's at it's proper, current Head. The caller should take any necessary corrective action and try again using this new Dataset.
-func (ds *Dataset) setNewHead(newHeadRef types.Ref) (Dataset, error) {
+// commitNewHead attempts to make the object pointed to by newHeadRef the new Head of ds. First, it checks that the object exists in ds and validates that it decodes to the correct type of value. Next, it attempts to commit the object to ds.Database(). This may fail if, for instance, the Head of ds has been changed by another goroutine or process. In the event that the commit fails, the error from Database().Commit() is returned along with a new Dataset that's at it's proper, current Head. The caller should take any necessary corrective action and try again using this new Dataset.
+func (ds *Dataset) commitNewHead(newHeadRef types.Ref) (Dataset, error) {
 	commit := ds.validateRefAsCommit(newHeadRef)
 	store, err := ds.Database().Commit(ds.id, commit)
 	return Dataset{store, ds.id}, err

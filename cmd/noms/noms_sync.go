@@ -79,8 +79,14 @@ func runSync(args []string) int {
 
 	err = d.Try(func() {
 		defer profile.MaybeStartProfile().Stop()
+		sourceRef := types.NewRef(sourceObj)
 		var err error
-		sinkDataset, err = sinkDataset.Pull(sourceStore, types.NewRef(sourceObj), p, progressCh)
+		if rewind := sinkDataset.Pull(sourceStore, sourceRef, p, progressCh); rewind {
+			fmt.Printf("Abandoning %s; new head is %s\n", sinkDataset.HeadRef().TargetHash(), sourceRef.TargetHash())
+			sinkDataset, err = sinkDataset.SetHead(sourceRef)
+		} else {
+			sinkDataset, err = sinkDataset.FastForward(sourceRef)
+		}
 		d.PanicIfError(err)
 	})
 
