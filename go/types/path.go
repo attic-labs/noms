@@ -32,12 +32,12 @@ func ParsePath(path string) (Path, error) {
 	if path == "" {
 		return Path{}, errors.New("Empty path")
 	}
-	return parsePath(path)
+	return appendPath(Path{}, path)
 }
 
-func parsePath(str string) (Path, error) {
+func appendPath(p Path, str string) (Path, error) {
 	if len(str) == 0 {
-		return Path{}, nil
+		return p, nil
 	}
 
 	op, tail := str[0], str[1:]
@@ -48,12 +48,8 @@ func parsePath(str string) (Path, error) {
 		if idx == nil {
 			return Path{}, errors.New("Invalid field: " + tail)
 		}
-		fp := FieldPathPart{tail[:idx[1]]}
-		if tailPath, err := parsePath(tail[idx[1]:]); err != nil {
-			return Path{}, err
-		} else {
-			return append(Path{fp}, tailPath...), nil
-		}
+		p = append(p, FieldPathPart{tail[:idx[1]]})
+		return appendPath(p, tail[idx[1]:])
 
 	case '[':
 		if len(tail) == 0 {
@@ -88,12 +84,8 @@ func parsePath(str string) (Path, error) {
 		default:
 			part = NewHashIndexPathPart(h)
 		}
-
-		if remPath, err := parsePath(rem); err != nil {
-			return Path{}, err
-		} else {
-			return append(Path{part}, remPath...), nil
-		}
+		p = append(p, Path{part})
+		return appendPath(p, rem)
 
 	case ']':
 		return Path{}, errors.New("] is missing opening [")
