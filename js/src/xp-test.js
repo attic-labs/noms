@@ -8,6 +8,7 @@ import {assert} from 'chai';
 import {suite, test} from 'mocha';
 import type Value from './value.js';
 import {TestDatabase} from './test-util.js';
+import {equals} from './compare.js';
 
 export class TestValue {
   _value: Value;
@@ -29,8 +30,9 @@ suite('cross platform test', () => {
     const db = new TestDatabase();
     const r = db.writeValue(t._value);
     const v2 = await db.readValue(r.targetHash);
+    assert.isTrue(equals(v2, t._value), t._description);
+    assert.isTrue(equals(t._value, v2), t._description);
     assert.strictEqual(v2, t._value, t._description);
-    assert.strictEqual(t._value, v2, t._description);
     assert.strictEqual(t._expectedRef, r.targetHash.toString(), t._description);
     return db.close();
   }
@@ -49,6 +51,16 @@ suite('cross platform test', () => {
       new TestValue(-1, 'hq0jvv1enraehfggfk8s27ll1rmirt96', 'num - -1'),
       new TestValue(0, 'elie88b5iouak7onvi2mpkcgoqqr771l', 'num - 0'),
       new TestValue(1, '6h9ldndhjoq0r5sbn1955gaearq5dovc', 'num - 1'),
+      new TestValue(-122.411912027329, 'hcdjnev3lccjplue6pb0fkhgeehv6oec',
+        'num - -122.411912027329'),
+      // Number.MAX_SAFE_INTEGER
+      new TestValue(9007199254740991, '3fpnjghte4v4q8qogl4bga0qldetlo7b', 'num - 9007199254740991'),
+      // Number.MIN_SAFE_INTEGER
+      new TestValue(-9007199254740991, 'jd80frddd2fs3q567tledcgmfs85dvke',
+        'num - -9007199254740991'),
+      // Number.EPSILON
+      new TestValue(2.220446049250313e-16, 'qapetp8502l672v2vie52nd4qjviq5je',
+        'num - 2.220446049250313e-16'),
       new TestValue('', 'ssfs0o2eq3kg50p37q2crhhqhjcs2391', 'str - empty'),
       new TestValue('0', 'jngc7d11d2h0c6s2f15l10rckvu753rb', 'str - 0'),
       new TestValue('false', '1v3a1t4to25kkohm1bhh2thebmls0lp0', 'str - false'),

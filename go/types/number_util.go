@@ -4,9 +4,7 @@
 
 package types
 
-import (
-	"math"
-)
+import "math"
 
 func float64IsInt(f, machineEpsilon float64) bool {
 	_, frac := math.Modf(math.Abs(f))
@@ -47,7 +45,7 @@ func float64ToIntExp(f float64) (i int64, exp int) {
 func intExpToFloat64(i int64, exp int) float64 {
 	if exp == 0 {
 		return float64(i)
-	} else {
-		return float64(i) / math.Pow(2, float64(exp))
 	}
+
+	return float64(i) / math.Pow(2, float64(exp))
 }

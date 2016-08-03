@@ -168,7 +168,7 @@ func TestRoundTrips(t *testing.T) {
 		f = math.Copysign(f, -1)
 		assertRoundTrips(Number(f))
 	}
-	floatTest := []float64{1.01, 1.001, 1.0001, 1.00001, 1.000001, 100.01, 1000.000001}
+	floatTest := []float64{1.01, 1.001, 1.0001, 1.00001, 1.000001, 100.01, 1000.000001, 122.411912027329, 0.42}
 	for _, f := range floatTest {
 		assertRoundTrips(Number(f))
 		f = math.Copysign(f, -1)
