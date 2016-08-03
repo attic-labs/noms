@@ -59,7 +59,7 @@ func NewStreamingMap(vrw ValueReadWriter, kvs <-chan Value) <-chan Map {
 	return outChan
 }
 
-// Computes the diff from |last| to |s| using "best" algorithm, which balances returning results early vs completing quickly.
+// Computes the diff from |last| to |m| using "best" algorithm, which balances returning results early vs completing quickly.
 func (m Map) Diff(last Map, changes chan<- ValueChanged, closeChan <-chan struct{}) {
 	if m.Equals(last) {
 		return
