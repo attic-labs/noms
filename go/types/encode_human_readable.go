@@ -205,9 +205,6 @@ func (w *hrsWriter) WriteTagged(v Value) {
 		w.Write(v)
 	case BlobKind, ListKind, MapKind, RefKind, SetKind, TypeKind, CycleKind:
 		w.writeType(t, nil)
-		if l, ok := v.(lenable); ok && l.Len() == 0 {
-			break
-		}
 		w.write("(")
 		w.Write(v)
 		w.write(")")
@@ -249,7 +246,10 @@ func (w *hrsWriter) writeType(t *Type, parentStructTypes []*Type) {
 		w.write("<")
 		for i, et := range t.Desc.(CompoundDesc).ElemTypes {
 			if i != 0 {
-				w.write(", ")
+				w.write(",")
+				if et.Kind() != UnionKind {
+					w.write(" ")
+				}
 			}
 			w.writeType(et, parentStructTypes)
 			if w.err != nil {
