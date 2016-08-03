@@ -1,5 +1,10 @@
 # A Short Tour of Noms for Go
 
+<p align='right'>
+[![Build Status](http://jenkins.noms.io/job/NomsServer/badge/icon)](http://jenkins.noms.io/job/NomsServer) 
+[![GoDoc](https://godoc.org/github.com/attic-labs/noms?status.svg)](https://godoc.org/github.com/attic-labs/noms)
+<br clear='all'/>
+
 This is a short introduction to using Noms from Go. It should only take a few minutes if you have some familiarity with Go.
 
 ## Requirements
