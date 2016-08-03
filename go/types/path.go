@@ -19,58 +19,25 @@ import (
 
 var annotationRe = regexp.MustCompile("^@([a-z]+)")
 
-type Path []pathPart
+// A Path is an address to a Noms value - and unlike refs (i.e. #abcd...) they can address inlined values.
+// See https://github.com/attic-labs/noms/blob/master/doc/spelling.md.
+type Path []PathPart
 
-type pathPart interface {
+type PathPart interface {
 	Resolve(v Value) Value
 	String() string
 }
 
-func NewPath() Path {
-	return Path{}
-}
-
 func ParsePath(path string) (Path, error) {
-	return NewPath().AddPath(path)
-}
-
-func (p Path) AddField(name string) Path {
-	return p.appendPart(newFieldPart(name))
-}
-
-func (p Path) AddIndex(idx Value) Path {
-	return p.appendPart(newIndexPart(idx, false))
-}
-
-func (p Path) AddKeyIndex(idx Value) Path {
-	return p.appendPart(newIndexPart(idx, true))
-}
-
-func (p Path) AddHashIndex(h hash.Hash) Path {
-	return p.appendPart(newHashIndexPart(h, false))
-}
-
-func (p Path) AddHashKeyIndex(h hash.Hash) Path {
-	return p.appendPart(newHashIndexPart(h, true))
-}
-
-func (p Path) appendPart(part pathPart) Path {
-	p2 := make([]pathPart, len(p), len(p)+1)
-	copy(p2, p)
-	return append(p2, part)
-}
-
-func (p Path) AddPath(str string) (Path, error) {
-	if len(str) == 0 {
+	if path == "" {
 		return Path{}, errors.New("Empty path")
 	}
-
-	return p.addPath(str)
+	return parsePath(path)
 }
 
-func (p Path) addPath(str string) (Path, error) {
+func parsePath(str string) (Path, error) {
 	if len(str) == 0 {
-		return p, nil
+		return Path{}, nil
 	}
 
 	op, tail := str[0], str[1:]
@@ -81,8 +48,12 @@ func (p Path) addPath(str string) (Path, error) {
 		if idx == nil {
 			return Path{}, errors.New("Invalid field: " + tail)
 		}
-
-		return p.AddField(tail[:idx[1]]).addPath(tail[idx[1]:])
+		fp := FieldPathPart{tail[:idx[1]]}
+		if tailPath, err := parsePath(tail[idx[1]:]); err != nil {
+			return Path{}, err
+		} else {
+			return append(Path{fp}, tailPath...), nil
+		}
 
 	case '[':
 		if len(tail) == 0 {
@@ -94,27 +65,34 @@ func (p Path) addPath(str string) (Path, error) {
 			return Path{}, err
 		}
 
-		key := false
+		intoKey := false
 		if annParts := annotationRe.FindStringSubmatch(rem); annParts != nil {
 			ann := annParts[1]
 			if ann != "key" {
 				return Path{}, fmt.Errorf("Unsupported annotation: @%s", ann)
 			}
-			key = true
+			intoKey = true
 			rem = rem[len(annParts[0]):]
 		}
 
 		d.Chk.NotEqual(idx == nil, h.IsEmpty())
 
+		var part PathPart
 		switch {
-		case idx != nil && key:
-			return p.AddKeyIndex(idx).addPath(rem)
+		case idx != nil && intoKey:
+			part = NewIndexIntoKeyPathPart(idx)
 		case idx != nil:
-			return p.AddIndex(idx).addPath(rem)
-		case key:
-			return p.AddHashKeyIndex(h).addPath(rem)
+			part = NewIndexPathPart(idx)
+		case intoKey:
+			part = NewHashIndexIntoKeyPathPart(h)
 		default:
-			return p.AddHashIndex(h).addPath(rem)
+			part = NewHashIndexPathPart(h)
+		}
+
+		if remPath, err := parsePath(rem); err != nil {
+			return Path{}, err
+		} else {
+			return append(Path{part}, remPath...), nil
 		}
 
 	case ']':
@@ -145,17 +123,15 @@ func (p Path) String() string {
 	return strings.Join(strs, "")
 }
 
-type fieldPart struct {
-	name string
+// Gets Struct field values by name.
+type FieldPathPart struct {
+	// The name of the field, e.g. `.Name`.
+	Name string
 }
 
-func newFieldPart(name string) fieldPart {
-	return fieldPart{name}
-}
-
-func (fp fieldPart) Resolve(v Value) Value {
+func (fp FieldPathPart) Resolve(v Value) Value {
 	if s, ok := v.(Struct); ok {
-		if fv, ok := s.MaybeGet(fp.name); ok {
+		if fv, ok := s.MaybeGet(fp.Name); ok {
 			return fv
 		}
 	}
@@ -163,31 +139,44 @@ func (fp fieldPart) Resolve(v Value) Value {
 	return nil
 }
 
-func (fp fieldPart) String() string {
-	return fmt.Sprintf(".%s", fp.name)
+func (fp FieldPathPart) String() string {
+	return fmt.Sprintf(".%s", fp.Name)
 }
 
-type indexPart struct {
-	idx Value
-	key bool
+// Indexes into Maps and Lists by key or index.
+type IndexPathPart struct {
+	// The value of the index, e.g. `[42]` or `["value"]`.
+	Index Value
+	// Whether this index should resolve to the key of a map, given by a `@key` annotation.
+	// Typically IntoKey is false, and indices would resolve to the values. E.g. given `{a: 42}` then `["a"]` resolves to `42`.
+	// If IntoKey is true, then it resolves to `"a"`. For IndexPathPart this isn't particularly useful - it's mostly provided for consistency with HashIndexPathPart - but note that given `{a: 42}` then `["b"]` resolves to nil, not `"b"`.
+	IntoKey bool
 }
 
-func newIndexPart(idx Value, key bool) indexPart {
+func NewIndexPathPart(idx Value) IndexPathPart {
+	return newIndexPathPart(idx, false)
+}
+
+func NewIndexIntoKeyPathPart(idx Value) IndexPathPart {
+	return newIndexPathPart(idx, true)
+}
+
+func newIndexPathPart(idx Value, intoKey bool) IndexPathPart {
 	k := idx.Type().Kind()
 	d.Chk.True(k == StringKind || k == BoolKind || k == NumberKind)
-	return indexPart{idx, key}
+	return IndexPathPart{idx, intoKey}
 }
 
-func (ip indexPart) Resolve(v Value) Value {
+func (ip IndexPathPart) Resolve(v Value) Value {
 	switch v := v.(type) {
 	case List:
-		if n, ok := ip.idx.(Number); ok {
+		if n, ok := ip.Index.(Number); ok {
 			f := float64(n)
 			if f == math.Trunc(f) && f >= 0 {
 				u := uint64(f)
 				if u < v.Len() {
-					if ip.key {
-						return ip.idx
+					if ip.IntoKey {
+						return ip.Index
 					}
 					return v.Get(u)
 				}
@@ -195,46 +184,60 @@ func (ip indexPart) Resolve(v Value) Value {
 		}
 
 	case Map:
-		if ip.key && v.Has(ip.idx) {
-			return ip.idx
+		if ip.IntoKey && v.Has(ip.Index) {
+			return ip.Index
 		}
-		if !ip.key {
-			return v.Get(ip.idx)
+		if !ip.IntoKey {
+			return v.Get(ip.Index)
 		}
 	}
 
 	return nil
 }
 
-func (ip indexPart) String() (str string) {
+func (ip IndexPathPart) String() (str string) {
 	ann := ""
-	if ip.key {
+	if ip.IntoKey {
 		ann = "@key"
 	}
-	return fmt.Sprintf("[%s]%s", EncodedIndexValue(ip.idx), ann)
+	return fmt.Sprintf("[%s]%s", EncodedIndexValue(ip.Index), ann)
 }
 
-type hashIndexPart struct {
-	h   hash.Hash
-	key bool
+// Indexes into Maps by the hash of a key, or a Set by the hash of a value.
+type HashIndexPathPart struct {
+	// The hash of the key or value to search for. Maps and Set are ordered, so this in O(log(size)).
+	Hash hash.Hash
+	// Whether this index should resolve to the key of a map, given by a `@key` annotation.
+	// Typically IntoKey is false, and indices would resolve to the values. E.g. given `{a: 42}` and if the hash of `"a"` is `#abcd`, then `[#abcd]` resolves to `42`.
+	// If IntoKey is true, then it resolves to `"a"`. This is useful for when Map keys aren't primitive values, e.g. a struct, since struct literals can't be spelled using a Path.
+	IntoKey bool
 }
 
-func newHashIndexPart(h hash.Hash, key bool) hashIndexPart {
-	return hashIndexPart{h, key}
+func NewHashIndexPathPart(h hash.Hash) HashIndexPathPart {
+	return newHashIndexPathPart(h, false)
 }
 
-func (hip hashIndexPart) Resolve(v Value) (res Value) {
+func NewHashIndexIntoKeyPathPart(h hash.Hash) HashIndexPathPart {
+	return newHashIndexPathPart(h, true)
+}
+
+func newHashIndexPathPart(h hash.Hash, intoKey bool) HashIndexPathPart {
+	d.Chk.False(h.IsEmpty())
+	return HashIndexPathPart{h, intoKey}
+}
+
+func (hip HashIndexPathPart) Resolve(v Value) (res Value) {
 	var seq orderedSequence
 	var getCurrentValue func(cur *sequenceCursor) Value
 
 	switch v := v.(type) {
 	case Set:
-		// Unclear what the behavior should be if |hip.key| is true, but ignoring it for sets is arguably correct.
+		// Unclear what the behavior should be if |hip.IntoKey| is true, but ignoring it for sets is arguably correct.
 		seq = v.seq
 		getCurrentValue = func(cur *sequenceCursor) Value { return cur.current().(Value) }
 	case Map:
 		seq = v.seq
-		if hip.key {
+		if hip.IntoKey {
 			getCurrentValue = func(cur *sequenceCursor) Value { return cur.current().(mapEntry).key }
 		} else {
 			getCurrentValue = func(cur *sequenceCursor) Value { return cur.current().(mapEntry).value }
@@ -243,24 +246,24 @@ func (hip hashIndexPart) Resolve(v Value) (res Value) {
 		return nil
 	}
 
-	cur := newCursorAt(seq, orderedKeyFromHash(hip.h), false, false)
+	cur := newCursorAt(seq, orderedKeyFromHash(hip.Hash), false, false)
 	if !cur.valid() {
 		return nil
 	}
 
-	if getCurrentKey(cur).h != hip.h {
+	if getCurrentKey(cur).h != hip.Hash {
 		return nil
 	}
 
 	return getCurrentValue(cur)
 }
 
-func (hip hashIndexPart) String() string {
+func (hip HashIndexPathPart) String() string {
 	ann := ""
-	if hip.key {
+	if hip.IntoKey {
 		ann = "@key"
 	}
-	return fmt.Sprintf("[#%s]%s", hip.h.String(), ann)
+	return fmt.Sprintf("[#%s]%s", hip.Hash.String(), ann)
 }
 
 func parsePathIndex(str string) (idx Value, h hash.Hash, rem string, err error) {
