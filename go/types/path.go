@@ -19,7 +19,7 @@ import (
 
 var annotationRe = regexp.MustCompile("^@([a-z]+)")
 
-// A Path is an address to a Noms value - and unlike refs (i.e. #abcd...) they can address inlined values.
+// A Path is an address to a Noms value - and unlike hashes (i.e. #abcd...) they can address inlined values.
 // See https://github.com/attic-labs/noms/blob/master/doc/spelling.md.
 type Path []PathPart
 
@@ -119,6 +119,10 @@ func (p Path) String() string {
 type FieldPathPart struct {
 	// The name of the field, e.g. `.Name`.
 	Name string
+}
+
+func NewFieldPathPart(name string) FieldPathPart {
+	return FieldPathPart{name}
 }
 
 func (fp FieldPathPart) Resolve(v Value) Value {
