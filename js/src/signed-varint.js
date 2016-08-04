@@ -120,7 +120,8 @@ export function decode(buf: Uint8Array, offset: number): [number, number] {
  * The number of bytes needed to encode `n` as a signed varint.
  */
 export function encodingLength(n: number): number {
-  if (n <= 0) {
+  n = Math.abs(n);
+  if (n === 0) {
     return 1;
   }
   return Math.floor((Math.log2(n) + 1) / 7) + 1;

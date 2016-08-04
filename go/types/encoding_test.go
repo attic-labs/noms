@@ -174,6 +174,11 @@ func TestRoundTrips(t *testing.T) {
 		f = math.Copysign(f, -1)
 		assertRoundTrips(Number(f))
 	}
+
+	// JS Number.MAX_SAFE_INTEGER
+	assertRoundTrips(Number(9007199254740991))
+	// JS Number.MIN_SAFE_INTEGER
+	assertRoundTrips(Number(-9007199254740991))
 	assertRoundTrips(Number(math.MaxFloat64))
 	assertRoundTrips(Number(math.Nextafter(1, 2) - 1))
 

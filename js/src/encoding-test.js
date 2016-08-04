@@ -89,6 +89,9 @@ suite('Encoding - roundtrip', () => {
     assertRoundTrips(0xffffffff + Math.pow(2, 33));
     assertRoundTrips(Number.MAX_SAFE_INTEGER);
     assertRoundTrips(Number.MIN_SAFE_INTEGER);
+    assertRoundTrips(Number.EPSILON);
+    // Go math.MaxFloat64
+    assertRoundTrips(1.7976931348623157e+308);
     assertRoundTrips(-122.411912027329);
   });
 
