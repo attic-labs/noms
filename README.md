@@ -1,8 +1,8 @@
 
 <img src='doc/nommy_cropped_smaller.png' align='left' width='350' title='Nommy, the snacky otter'>
 <p align='right'>
-[![Build Status](http://jenkins.noms.io/job/NomsServer/badge/icon)](http://jenkins.noms.io/job/NomsServer)
-
+[![Build Status](http://jenkins.noms.io/job/NomsServer/badge/icon)](http://jenkins.noms.io/job/NomsServer) 
+[![GoDoc](https://godoc.org/github.com/attic-labs/noms?status.svg)](https://godoc.org/github.com/attic-labs/noms)
 <br clear='all'/>
 
 *Noms* is a decentralized database based on ideas from Git.
@@ -21,8 +21,7 @@ Noms is different from other databases. It is:
 
 * *Decentralized*. If I give you a copy of my database, you and I can modify our copies disconnected from each other, and come back together and merge our changes efficiently and correctly days, weeks, or years later.
 
-- *Incomplete*. This is a somewhere between alpha and beta software. We are fairly confident in the core format, but major features like queries, concurrency, automatic merging, and GC are not yet implemented. Please keep a separate backup of data outside of Noms until we are out of beta.
-
+<br/>
 ## Setup
 
 Noms is supported on Mac OS X and Linux. Windows usually works, but isn't officially supported.
@@ -39,14 +38,18 @@ noms log http://demo.noms.io/cli-tour::sf-film-locations
 [Command-Line Tour](doc/cli-tour.md)&nbsp; | &nbsp;[Go SDK Tour](doc/go-tour.md)&nbsp; | &nbsp;[JavaScript SDK Tour](doc/js-tour.md)&nbsp; | &nbsp;[Intro to Noms](doc/intro.md)&nbsp; | &nbsp;[FAQ](doc/faq.md)
 
 <br/>
+## Explore
+<a href="http://splore.noms.io/?db=https://demo.noms.io/cli-tour"><img src="doc/splore.png"><br>Visually explore a demo instance of Noms</a>
+
+<br/>
 ## What Noms is Good For
 
 #### Data Version Control
 
 Noms gives you the entire Git workflow, but for large-scale structured (or unstructured) data. Fork, merge, track history, efficiently synchronize changes, etc.
 
-[<img src="doc/data-version-control.png" width="320" height="180">](https://www.youtube.com/watch?v=ONByMptWa2A)<br/>
-*[`noms diff` and `noms log` on large datasets](https://www.youtube.com/watch?v=ONByMptWa2A)*
+[<img src="doc/data-version-control.png" width="320" height="180">](https://www.youtube.com/watch?v=Zeg9CY3BMes)<br/>
+*[`noms diff` and `noms log` on large datasets](https://www.youtube.com/watch?v=Zeg9CY3BMes)*
 
 
 #### An Application Database with History
@@ -67,9 +70,10 @@ Trivially import snapshots from any format or API. Data is automatically version
 <br>
 ## Status
 
-**Noms is in beta. Please keep a backup of important data in some other store.**
+We are fairly confident in the core data format, and plan to support Noms database version `7` and forward. If you create a database with Noms today, future versions will have migration tools to pull your databases forward.
 
-We are working toward a 1.0, after which time we will remove this warning and guarantee format stability.
+However, many important features are not yet implemented including a query system, concurrency, auto-merging, and GC.
+
 
 <br>
 ## Talk

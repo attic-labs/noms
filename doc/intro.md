@@ -38,7 +38,7 @@ A database has two responsibilities: it provides storage of [content-addressed](
 
 A Noms database can be implemented on top of any underlying storage system that provides key/value storage with at least optional optimistic concurrency. We only use optimistic concurrency to store the current value of each dataset. Chunks themselves are immutable.
 
-We have implementations of Noms databases on top of [LevelDB](https://github.com/google/leveldb) (usually used locally), our own [HTTP protocol](https://github.com/attic-labs/noms/blob/master/datas/database_server.go) (used for working with a remote database), [Amazon Dynamo](https://aws.amazon.com/dynamodb/), and [memory](https://github.com/attic-labs/noms/blob/master/js/src/memory-store.js) (mainly used for testing).
+We have implementations of Noms databases on top of [LevelDB](https://github.com/google/leveldb) (usually used locally), our own [HTTP protocol](https://github.com/attic-labs/noms/blob/master/go/datas/database_server.go) (used for working with a remote database), [Amazon DynamoDB](https://aws.amazon.com/dynamodb/), and [memory](https://github.com/attic-labs/noms/blob/master/js/src/memory-store.js) (mainly used for testing).
 
 Here's an example of creating an http-backed database using the [JavaScript Noms SDK](js-tour.md):
 
@@ -107,7 +107,7 @@ Types serve several purposes in Noms:
 
 A _hash_ in Noms is just like the hashes used elsewhere in computing: a short string of bytes that uniquely identifies a larger value. Every value in Noms has a hash. Noms currently uses the [sha2-512](https://github.com/attic-labs/noms/blob/master/go/hash/hash.go#L7) hash function, but that can change in future versions of the system.
 
-A _ref_ is subtly, but importantly different. A `Ref` is a part of the type system - a `Ref` is a value. Anywhere you can find a Noms value, you can find a `Ref`. For example, you can commit a `Ref<T>` to a dataset, but you can't commit a bare hash.
+A _ref_ is different in subtle, but important ways. A `Ref` is a part of the type system - a `Ref` is a value. Anywhere you can find a Noms value, you can find a `Ref`. For example, you can commit a `Ref<T>` to a dataset, but you can't commit a bare hash.
 
 The difference is that `Ref` carries the type of its target, along with the hash. This allows us to efficiently validate commits that include `Ref`, among other things.
 
