@@ -15,8 +15,10 @@ suite('signed varint', () => {
 
     const buf = alloc(maxVarintLength);
     for (let i = 0; i < 54; i++) {
-      const n = Math.pow(2, i);
-      assert.equal(encodingLength(n), encode(n, buf, 0));
+      const n2 = Math.pow(2, i);
+      for (const n of [n2, -n2, n2 + 1, n2 - 1, -n2 - 1, -n2 + 1]) {
+        assert.equal(encodingLength(n), encode(n, buf, 0));
+      }
     }
   });
 

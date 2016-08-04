@@ -99,9 +99,25 @@ export function decode(buf: Uint8Array, offset: number): [number, number] {
  * The number of bytes needed to encode `n` as a signed varint.
  */
 export function encodingLength(n: number): number {
-  n = Math.abs(n);
+  // TODO: Clean this up. Remember to not overflow though!
   if (n === 0) {
     return 1;
   }
-  return Math.floor((Math.log2(n) + 1) / 7) + 1;
+  let negative = false;
+  if (n < 0) {
+    negative = true;
+    n = -n;
+  }
+
+  const l2 = Math.log2(n);
+  const bits = Math.ceil(l2);
+
+  let rv = Math.floor((l2 + 1) / 7) + 1;
+  // If negative and an exact power of 2 and 1 bit over a multiple of 7 the +1 reduces the result
+  // by one.
+  if (negative && l2 === bits && l2 % 7 === 6) {
+    rv--;
+  }
+
+  return rv;
 }
