@@ -102,14 +102,16 @@ func (ds *Dataset) Commit(v types.Value, opts CommitOptions) (Dataset, error) {
 	return Dataset{store, ds.id}, err
 }
 
-func (ds *Dataset) Pull(sourceStore datas.Database, sourceRef types.Ref, concurrency int, progressCh chan datas.PullProgress) (fastForward bool) {
+// Pull objects that descend from sourceRef in srcDB into sinkDB, using at most the given degree of concurrency. Progress will be reported over progressCh as the algorithm works. Objects that are already present in ds will not be pulled over.
+func (ds *Dataset) Pull(sourceDB datas.Database, sourceRef types.Ref, concurrency int, progressCh chan datas.PullProgress) (fastForward bool) {
 	sinkHeadRef := types.Ref{}
 	if currentHeadRef, ok := ds.MaybeHeadRef(); ok {
 		sinkHeadRef = currentHeadRef
 	}
-	return datas.Pull(sourceStore, ds.Database(), sourceRef, sinkHeadRef, concurrency, progressCh)
+	return datas.Pull(sourceDB, ds.Database(), sourceRef, sinkHeadRef, concurrency, progressCh)
 }
 
+// FastForward takes a types.Ref to a Commit object and makes it the new Head of ds iff it is a descendant of the current Head. Intended to be used e.g. after a call to Pull(). If the update cannot be performed, e.g., because another process moved the current Head out from under you, err will be non-nil. The newest snapshot of the Dataset is always returned, so the caller an easily retry using the latest.
 func (ds *Dataset) FastForward(newHeadRef types.Ref) (sink Dataset, err error) {
 	sink = *ds
 	if currentHeadRef, ok := sink.MaybeHeadRef(); ok && newHeadRef == currentHeadRef {
@@ -121,6 +123,7 @@ func (ds *Dataset) FastForward(newHeadRef types.Ref) (sink Dataset, err error) {
 	return
 }
 
+// SetHead takes a types.Ref to a Commit object and makes it the new Head of ds. Intended to be used e.g. when rewinding in ds' Commit history. If the update cannot be performed, e.g., because the state of ds.Database() changed out from under you, err will be non-nil. The newest snapshot of the Dataset is always returned, so the caller an easily retry using the latest.
 func (ds *Dataset) SetHead(newHeadRef types.Ref) (sink Dataset, err error) {
 	sink = *ds
 	if currentHeadRef, ok := sink.MaybeHeadRef(); ok && newHeadRef == currentHeadRef {
