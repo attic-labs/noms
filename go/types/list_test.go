@@ -1039,3 +1039,25 @@ func TestListTypeAfterMutations(t *testing.T) {
 	test(15, listLeafSequence{})
 	test(1500, indexedMetaSequence{})
 }
+
+func TestListRemoveLastWhenNotLoaded(t *testing.T) {
+	assert := assert.New(t)
+
+	smallTestChunks()
+	defer normalProductionChunks()
+
+	vs := NewTestValueStore()
+	reload := func(v Value) Value {
+		return vs.ReadValue(vs.WriteValue(v).TargetHash())
+	}
+
+	tl := newTestList(1024)
+	nl := tl.toList()
+
+	for len(tl) > 0 {
+		tl = tl[:len(tl)-1]
+		nl = nl.RemoveAt(uint64(len(tl)))
+		nl = reload(nl).(List)
+		assert.True(tl.toList().Equals(nl))
+	}
+}

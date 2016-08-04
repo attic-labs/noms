@@ -1131,3 +1131,28 @@ func TestCompoundMapWithValuesOfEveryType(t *testing.T) {
 		assert.Equal(len(kvs)/2, int(m.Len()))
 	}
 }
+
+func TestMapRemoveLastWhenNotLoaded(t *testing.T) {
+	assert := assert.New(t)
+
+	smallTestChunks()
+	defer normalProductionChunks()
+
+	vs := NewTestValueStore()
+	reload := func(v Value) Value {
+		return vs.ReadValue(vs.WriteValue(v).TargetHash())
+	}
+
+	tm := getTestNativeOrderMap(4)
+	nm := tm.toMap()
+
+	for len(tm.entries) > 0 {
+		entr := tm.entries
+		last := entr[len(entr)-1]
+		entr = entr[:len(entr)-1]
+		tm.entries = entr
+		nm = nm.Remove(last.key)
+		nm = reload(nm).(Map)
+		assert.True(tm.toMap().Equals(nm))
+	}
+}

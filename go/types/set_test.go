@@ -926,3 +926,26 @@ func TestChunkedSetWithValuesOfEveryType(t *testing.T) {
 		assert.Equal(len(vs), int(s.Len()))
 	}
 }
+
+func TestSetRemoveLastWhenNotLoaded(t *testing.T) {
+	assert := assert.New(t)
+
+	smallTestChunks()
+	defer normalProductionChunks()
+
+	vs := NewTestValueStore()
+	reload := func(v Value) Value {
+		return vs.ReadValue(vs.WriteValue(v).TargetHash())
+	}
+
+	ts := getTestNativeOrderSet(8)
+	ns := ts.toSet()
+
+	for len(ts) > 0 {
+		last := ts[len(ts)-1]
+		ts = ts[:len(ts)-1]
+		ns = ns.Remove(last)
+		ns = reload(ns).(Set)
+		assert.True(ts.toSet().Equals(ns))
+	}
+}
