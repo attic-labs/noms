@@ -4,8 +4,6 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-import * as Bytes from './bytes.js';
-
 export const maxVarintLength = 10;
 
 const mathPowTwoThirtyTwo = Math.pow(2, 32);
@@ -36,41 +34,22 @@ export function encode(val: number, buf: Uint8Array, offset: number): number {
     }
   }
 
-  function append(num, start, end, arr, j) {
-    for (let i = start; i < end; i += 7) {
-      if (j !== 0) {
-        arr[j - 1] |= 0x80;
-      }
-      arr[j++] = (num & (0x7f << i)) >>> i;
+  const sigbits = hi !== 0 ? 64 - Math.clz32(hi) : lo === 0 ? 1 : 32 - Math.clz32(lo);
+  const byteLength = Math.ceil(sigbits / 7);
+  let j = offset;
+  for (let i = 0; i < sigbits; i += 7) {
+    if (i !== 0) {
+      buf[j - 1] |= 0x80;
     }
-    return j;
+    if (i < 28) {
+      buf[j++] = (lo & (0x7f << i)) >>> i;
+    } else if (i < 35) {
+      buf[j++] = lo >>> 32 - 4 | (hi & 0b111) << 4;
+    } else {
+      buf[j++] = (hi & (0x7f << i)) >>> i;
+    }
   }
-
-  if (hi === 0) {
-    const sigbits = 32 - Math.clz32(lo);
-    const byteLength = Math.max(1, Math.ceil(sigbits / 7));
-    const arr = Bytes.alloc(byteLength);
-    append(lo, 0, sigbits, arr, 0);
-    Bytes.copy(arr, buf, offset);
-    return byteLength;
-  } else {
-    const sigbits = 64 - Math.clz32(hi);
-    const byteLength = Math.ceil(sigbits / 7);
-    const arr = Bytes.alloc(byteLength);
-
-    // All lo, bit 0 through 28
-    let j = append(lo, 0, 28, arr, 0);
-
-    // Get the 4 remaining from lo and 3 from hi
-    arr[j - 1] |= 0x80;
-    arr[j++] = lo >>> 32 - 4 | (hi & 0b111) << 4;
-
-    // And the hi bits
-    append(hi, 3, sigbits - 32, arr, j);
-
-    Bytes.copy(arr, buf, offset);
-    return byteLength;
-  }
+  return byteLength;
 }
 
 /**

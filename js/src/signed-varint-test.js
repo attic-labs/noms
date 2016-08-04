@@ -9,7 +9,7 @@ import {suite, test} from 'mocha';
 import {encodingLength, encode, decode, maxVarintLength} from './signed-varint.js';
 import {alloc} from './bytes.js';
 
-suite('varint', () => {
+suite('signed varint', () => {
   test('encodingLength', () => {
     assert.equal(encodingLength(0), 1);
 
@@ -24,8 +24,18 @@ suite('varint', () => {
     const buf = alloc(maxVarintLength);
     assert.equal(encode(0, buf, 0), 1);
     assert.equal(buf[0], 0);
+
+    // Make sure we write 0
+    buf[0] = 255;
+    assert.equal(encode(0, buf, 0), 1);
+    assert.equal(buf[0], 0);
+
     assert.equal(encode(1, buf, 0), 1);
     assert.equal(buf[0], 2);
+
+    assert.equal(encode(0x3f, buf, 0), 1);
+    assert.equal(buf[0], 126);
+
     // offset
     assert.equal(encode(1, buf, 1), 1);
     assert.equal(buf[1], 2);
