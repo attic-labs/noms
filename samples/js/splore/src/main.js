@@ -24,7 +24,7 @@ import {
   Struct,
   StructMirror,
 } from '@attic/noms';
-import type {StructFieldMirror} from '@attic/noms';
+import type {StructFieldMirror, Value} from '@attic/noms';
 import {layout, TreeNode} from './buchheim.js';
 import type {NodeGraph} from './buchheim.js';
 import {filesize} from 'humanize';
@@ -137,14 +137,7 @@ function handleChunkLoad(hash: Hash, val: any, fromHash: ?string) {
     } else if (val instanceof Collection) {
       const {sequence} = val;
       const ks = kindToString(val.type.kind);
-      let size;
-      if (val instanceof List) {
-        size = val.length;
-      } else if (val instanceof Map || val instanceof Set) {
-        size = val.size;
-      } else if (val instanceof Blob) {
-        size = filesize(val.length);
-      }
+      const size = getSize(val);
       if (sequence instanceof IndexedMetaSequence) {
         const name = `${ks}Node (${size})`;
         processMetaSequence(id, sequence, name);
@@ -287,4 +280,18 @@ function render() {
   ReactDOM.render(
     <Layout tree={dt} data={data} onNodeClick={handleNodeClick} db={params.db}/>,
     renderNode);
+}
+
+function getSize(val: Value): string | number {
+  // This was extracted into a function to work around a bug in Flow.
+  if (val instanceof List) {
+    return val.length;
+  }
+  if (val instanceof Map || val instanceof Set) {
+    return val.size;
+  }
+  if (val instanceof Blob) {
+    return filesize(val.length);
+  }
+  throw new Error('unreachable');
 }
