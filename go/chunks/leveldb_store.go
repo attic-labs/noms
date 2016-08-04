@@ -147,7 +147,7 @@ func (l *LevelDBStore) setVersIfUnset() {
 
 type internalLevelDBStore struct {
 	db                                     *rateLimitedLevelDB
-	mu                                     sync.RWMutex
+	mu                                     sync.Mutex
 	getCount, hasCount, putCount, putBytes int64
 	dumpStats                              bool
 }
@@ -169,8 +169,6 @@ func newBackingStore(dir string, maxFileHandles int, dumpStats bool) *internalLe
 }
 
 func (l *internalLevelDBStore) rootByKey(key []byte) hash.Hash {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
 	val, err := l.db.Get(key, nil)
 	if err == errors.ErrNotFound {
 		return hash.Hash{}
@@ -181,12 +179,12 @@ func (l *internalLevelDBStore) rootByKey(key []byte) hash.Hash {
 }
 
 func (l *internalLevelDBStore) updateRootByKey(key []byte, current, last hash.Hash) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if last != l.rootByKey(key) {
 		return false
 	}
 
-	l.mu.Lock()
-	defer l.mu.Unlock()
 	// Sync: true write option should fsync memtable data to disk
 	err := l.db.Put(key, []byte(current.String()), &opt.WriteOptions{Sync: true})
 	d.Chk.NoError(err)
