@@ -26,7 +26,10 @@ function fetch<T>(url: string, responseType: string, options: FetchOptions = {})
   const p = new Promise((resolve, reject) => {
     xhr.onloadend = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve({headers: makeHeaders(xhr), buf: xhr.response});
+        resolve({
+          headers: makeHeaders(xhr),
+          buf: responseType === 'arraybuffer' ? new Uint8Array(xhr.response) : xhr.response,
+        });
       } else {
         reject(new Error(`HTTP Error: ${xhr.status}`));
       }
@@ -76,7 +79,7 @@ function makeHeaders(xhr: XMLHttpRequest): Map<string, string> {
   for (const header of headers) {
     if (header) {
       const [, name, value] = notNull(header.match(/([^:]+): (.*)/));
-      m.set(name, value);
+      m.set(name.toLowerCase(), value);
     }
   }
   return m;
