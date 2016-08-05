@@ -15,6 +15,7 @@ import {equals} from './compare.js';
 import {invariant, notNull} from './assert.js';
 import {newStruct} from './struct.js';
 import type Value from './value.js';
+import {smallTestChunks, normalProductionChunks} from './rolling-value-hasher.js';
 import {
   makeListType,
   makeRefType,
@@ -591,10 +592,14 @@ suite('ListWriter', () => {
   let db;
 
   setup(() => {
+    smallTestChunks();
     db = new TestDatabase();
   });
 
-  teardown((): Promise<void> => db.close());
+  teardown(async () => {
+    normalProductionChunks();
+    await db.close();
+  });
 
   test('ListWriter', async () => {
     const values = intSequence(15);
@@ -695,5 +700,22 @@ suite('ListWriter', () => {
 
     await t(15, ListLeafSequence);
     await t(1500, IndexedMetaSequence);
+  });
+
+  test('Remove last when not loaded', async () => {
+    const reload = async (l: List): Promise<List> => {
+      const l2 = await db.readValue(db.writeValue(l).targetHash);
+      invariant(l2 instanceof List);
+      return l2;
+    };
+
+    let vals = intSequence(64);
+    let list = new List(vals);
+
+    while (vals.length > 0) {
+      vals = vals.slice(0, vals.length - 1);
+      list = await list.remove(vals.length).then(reload);
+      assert.isTrue(equals(new List(vals), list));
+    }
   });
 });

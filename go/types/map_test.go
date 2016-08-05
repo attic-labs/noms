@@ -1139,8 +1139,8 @@ func TestMapRemoveLastWhenNotLoaded(t *testing.T) {
 	defer normalProductionChunks()
 
 	vs := NewTestValueStore()
-	reload := func(v Value) Value {
-		return vs.ReadValue(vs.WriteValue(v).TargetHash())
+	reload := func(m Map) Map {
+		return vs.ReadValue(vs.WriteValue(m).TargetHash()).(Map)
 	}
 
 	tm := getTestNativeOrderMap(4)
@@ -1151,8 +1151,7 @@ func TestMapRemoveLastWhenNotLoaded(t *testing.T) {
 		last := entr[len(entr)-1]
 		entr = entr[:len(entr)-1]
 		tm.entries = entr
-		nm = nm.Remove(last.key)
-		nm = reload(nm).(Map)
+		nm = reload(nm.Remove(last.key))
 		assert.True(tm.toMap().Equals(nm))
 	}
 }

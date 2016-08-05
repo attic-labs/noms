@@ -934,8 +934,8 @@ func TestSetRemoveLastWhenNotLoaded(t *testing.T) {
 	defer normalProductionChunks()
 
 	vs := NewTestValueStore()
-	reload := func(v Value) Value {
-		return vs.ReadValue(vs.WriteValue(v).TargetHash())
+	reload := func(s Set) Set {
+		return vs.ReadValue(vs.WriteValue(s).TargetHash()).(Set)
 	}
 
 	ts := getTestNativeOrderSet(8)
@@ -944,8 +944,7 @@ func TestSetRemoveLastWhenNotLoaded(t *testing.T) {
 	for len(ts) > 0 {
 		last := ts[len(ts)-1]
 		ts = ts[:len(ts)-1]
-		ns = ns.Remove(last)
-		ns = reload(ns).(Set)
+		ns = reload(ns.Remove(last))
 		assert.True(ts.toSet().Equals(ns))
 	}
 }

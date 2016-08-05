@@ -1047,8 +1047,8 @@ func TestListRemoveLastWhenNotLoaded(t *testing.T) {
 	defer normalProductionChunks()
 
 	vs := NewTestValueStore()
-	reload := func(v Value) Value {
-		return vs.ReadValue(vs.WriteValue(v).TargetHash())
+	reload := func(l List) List {
+		return vs.ReadValue(vs.WriteValue(l).TargetHash()).(List)
 	}
 
 	tl := newTestList(1024)
@@ -1056,8 +1056,7 @@ func TestListRemoveLastWhenNotLoaded(t *testing.T) {
 
 	for len(tl) > 0 {
 		tl = tl[:len(tl)-1]
-		nl = nl.RemoveAt(uint64(len(tl)))
-		nl = reload(nl).(List)
+		nl = reload(nl.RemoveAt(uint64(len(tl))))
 		assert.True(tl.toList().Equals(nl))
 	}
 }
