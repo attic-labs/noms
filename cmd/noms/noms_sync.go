@@ -85,10 +85,8 @@ func runSync(args []string) int {
 		sinkDataset.Pull(sourceStore, sourceRef, p, progressCh)
 
 		var err error
-		if sourceRef.Height() > sinkRef.Height() {
-			sinkDataset, err = sinkDataset.FastForward(sourceRef)
-		}
-		if sourceRef.Height() <= sinkRef.Height() || err == datas.ErrMergeNeeded {
+		sinkDataset, err = sinkDataset.FastForward(sourceRef)
+		if err == datas.ErrMergeNeeded {
 			sinkDataset, err = sinkDataset.SetHead(sourceRef)
 			nonFF = true
 		}

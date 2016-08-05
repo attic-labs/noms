@@ -116,6 +116,8 @@ func (ds *Dataset) FastForward(newHeadRef types.Ref) (sink Dataset, err error) {
 	sink = *ds
 	if currentHeadRef, ok := sink.MaybeHeadRef(); ok && newHeadRef == currentHeadRef {
 		return
+	} else if newHeadRef.Height() <= currentHeadRef.Height() {
+		return sink, datas.ErrMergeNeeded
 	}
 
 	for err = datas.ErrOptimisticLockFailed; err == datas.ErrOptimisticLockFailed; sink, err = sink.commitNewHead(newHeadRef) {

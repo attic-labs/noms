@@ -149,7 +149,6 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 		}
 	}
 	sinkDB.validatingBatchStore().AddHints(hints)
-	return
 }
 
 type traverseResult struct {
