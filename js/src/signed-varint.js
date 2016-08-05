@@ -99,25 +99,30 @@ export function decode(buf: Uint8Array, offset: number): [number, number] {
  * The number of bytes needed to encode `n` as a signed varint.
  */
 export function encodingLength(n: number): number {
-  // TODO: Clean this up. Remember to not overflow though!
+  // Signed varints are encoded using zigzag encoding, where the number is multiplied by 2 and if
+  // negative then the sign is removed and we subtract 1 (v >= 0 ? 2 * v : -2 * v - 1)
+
   if (n === 0) {
     return 1;
   }
-  let negative = false;
-  if (n < 0) {
-    negative = true;
+
+  const neg = n < 0;
+  if (neg) {
     n = -n;
   }
 
-  const l2 = Math.log2(n);
-  const bits = Math.ceil(l2);
+  const log2 = Math.log2(n);
+  const log2Truncated = log2 | 0;
+  let bits = log2Truncated + 2;  // log2(0b100) == 2, uses 3 bits, log2(0b101) == 2.32, uses 3 bits,
+                                 // Multiply by 2 adds another bit.
 
-  let rv = Math.floor((l2 + 1) / 7) + 1;
-  // If negative and an exact power of 2 and 1 bit over a multiple of 7 the +1 reduces the result
-  // by one.
-  if (negative && l2 === bits && l2 % 7 === 6) {
-    rv--;
+  // If negative we need to subtract 1, if the number was an exact power of 2 then the significant
+  // bits gets reduced, for example 0b1000 - 1 = 0b111
+  if (neg && log2 === log2Truncated) {
+    bits--;
   }
 
-  return rv;
+  // Now we have the number of bits needed to represent the number. The encoding we use uses 7 bits
+  // per byte and sets the high bit if there are more numbers.
+  return Math.ceil(bits / 7);
 }
