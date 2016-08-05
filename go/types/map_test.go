@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"math/rand"
 	"sort"
+	"sync"
 	"testing"
 
 	"github.com/attic-labs/testify/assert"
@@ -212,7 +213,7 @@ func newMapTestSuite(size uint, expectRefStr string, expectChunkCount int, expec
 	}
 }
 
-func (suite *mapTestSuite) TestStreamingMap() {
+func (suite *mapTestSuite) createStreamingMap() {
 	randomized := make(mapEntrySlice, len(suite.elems.entries))
 	for i, j := range rand.Perm(len(randomized)) {
 		randomized[j] = suite.elems.entries[i]
@@ -226,7 +227,25 @@ func (suite *mapTestSuite) TestStreamingMap() {
 		kvChan <- entry.value
 	}
 	close(kvChan)
-	suite.validate(<-mapChan)
+	suite.True(suite.validate(<-mapChan))
+}
+
+func (suite *mapTestSuite) TestStreamingMap() {
+	suite.createStreamingMap()
+}
+
+func (suite *mapTestSuite) TestStreamingMap2() {
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		suite.createStreamingMap()
+		wg.Done()
+	}()
+	go func() {
+		suite.createStreamingMap()
+		wg.Done()
+	}()
+	wg.Wait()
 }
 
 func TestMapSuite1K(t *testing.T) {

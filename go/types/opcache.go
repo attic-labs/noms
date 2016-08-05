@@ -8,15 +8,33 @@ import (
 	"encoding/binary"
 	"io/ioutil"
 	"os"
+	"sync"
+	"sync/atomic"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
-func newOpCache(vrw ValueReadWriter) *opCache {
+var (
+	collectionId = uint32(0)
+	ldb          *opCacheDb
+	activeOpcCnt = int32(0)
+	once         = sync.Once{}
+	activeMutex  = sync.Mutex{}
+)
+
+const prefixByteSize = 4
+
+type opCacheDb struct {
+	ops   *leveldb.DB
+	dbDir string
+}
+
+func newLevelDb() *opCacheDb {
 	dir, err := ioutil.TempDir("", "")
 	d.Chk.NoError(err)
 	db, err := leveldb.OpenFile(dir, &opt.Options{
@@ -27,24 +45,64 @@ func newOpCache(vrw ValueReadWriter) *opCache {
 		WriteBuffer:            1 << 27, // 128MiB
 	})
 	d.Chk.NoError(err, "opening put cache in %s", dir)
-	return &opCache{ops: db, dbDir: dir, vrw: vrw}
+	return &opCacheDb{ops: db, dbDir: dir}
+}
+
+func newOpCache(vrw ValueReadWriter) *opCache {
+	incrementActiveColCount()
+	prefix := [prefixByteSize]byte{}
+	colId := atomic.AddUint32(&collectionId, 1)
+	binary.LittleEndian.PutUint32(prefix[:], colId)
+	return &opCache{vrw: vrw, colId: colId, prefix: prefix[:]}
 }
 
 type opCache struct {
-	ops           *leveldb.DB
-	dbDir         string
-	vrw           ValueReadWriter
-	ldbKeyScratch [1 + hash.ByteLen]byte
-	keyScratch    [initialBufferSize]byte
-	valScratch    [initialBufferSize]byte
+	vrw              ValueReadWriter
+	ldbKeyScratch    [1 + hash.ByteLen]byte
+	keyScratch       [initialBufferSize]byte
+	prefixKeyScratch [initialBufferSize]byte
+	valScratch       [initialBufferSize]byte
+	colId            uint32
+	prefix           []byte
 }
 
 type opCacheIterator struct {
+	opc  *opCache
 	iter iterator.Iterator
 	vr   ValueReader
 }
 
 var uint32Size = binary.Size(uint32(0))
+
+func incrementActiveColCount() {
+	activeMutex.Lock()
+	defer activeMutex.Unlock()
+
+	if activeOpcCnt == 0 {
+		ldb = newLevelDb()
+	}
+	activeOpcCnt++
+}
+
+func decrementActiveColCount() (err error) {
+	activeMutex.Lock()
+	defer activeMutex.Unlock()
+
+	if activeOpcCnt == 1 {
+		d.Chk.NoError(ldb.ops.Close())
+		err = os.RemoveAll(ldb.dbDir)
+		ldb = nil
+	}
+	activeOpcCnt--
+	return
+}
+
+func (p *opCache) PutOp(key, val []byte) error {
+	copy(p.prefixKeyScratch[:], p.prefix)
+	copy(p.prefixKeyScratch[prefixByteSize:], key)
+	prefixedKey := p.prefixKeyScratch[:prefixByteSize+len(key)]
+	return ldb.ops.Put(prefixedKey, val, nil)
+}
 
 // Set can be called from any goroutine
 func (p *opCache) Set(mapKey Value, mapVal Value) {
@@ -70,7 +128,7 @@ func (p *opCache) Set(mapKey Value, mapVal Value) {
 		copy(data[uint32Size+mapKeyByteLen:], mapValData)
 
 		// TODO: Will manually batching these help?
-		err := p.ops.Put(p.ldbKeyScratch[:], data, nil)
+		err := p.PutOp(p.ldbKeyScratch[:], data)
 		d.Chk.NoError(err)
 
 	case BoolKind, NumberKind, StringKind:
@@ -78,7 +136,7 @@ func (p *opCache) Set(mapKey Value, mapVal Value) {
 		keyData := encToSlice(mapKey, p.keyScratch[:], p.vrw)
 		valData := encToSlice(mapVal, p.valScratch[:], p.vrw)
 		// TODO: Will manually batching these help?
-		err := p.ops.Put(keyData, valData, nil)
+		err := p.PutOp(keyData, valData)
 		d.Chk.NoError(err)
 	}
 }
@@ -92,12 +150,11 @@ func encToSlice(v Value, initBuf []byte, vw ValueWriter) []byte {
 }
 
 func (p *opCache) NewIterator() *opCacheIterator {
-	return &opCacheIterator{p.ops.NewIterator(nil, nil), p.vrw}
+	return &opCacheIterator{opc: p, iter: ldb.ops.NewIterator(util.BytesPrefix(p.prefix), nil), vr: p.vrw}
 }
 
 func (p *opCache) Destroy() error {
-	d.Chk.NoError(p.ops.Close())
-	return os.RemoveAll(p.dbDir)
+	return decrementActiveColCount()
 }
 
 func (i *opCacheIterator) Next() bool {
@@ -106,7 +163,8 @@ func (i *opCacheIterator) Next() bool {
 
 func (i *opCacheIterator) Op() sequenceItem {
 	entry := mapEntry{}
-	ldbKey := i.iter.Key()
+	prefixedLdbKey := i.iter.Key()
+	ldbKey := prefixedLdbKey[prefixByteSize:]
 	data := i.iter.Value()
 	dataOffset := 0
 	switch NomsKind(ldbKey[0]) {
@@ -120,6 +178,45 @@ func (i *opCacheIterator) Op() sequenceItem {
 
 	entry.value = DecodeFromBytes(data[dataOffset:], i.vr, staticTypeCache)
 	return entry
+}
+
+// Insert can be called from any goroutine
+func (p *opCache) Insert(val Value) {
+	switch val.Type().Kind() {
+	default:
+		// This is the complicated case. For non-primitives, we want the ldb key to be the hash of mapKey, but we obviously need to get both mapKey and mapVal into ldb somehow. The simplest thing is just to do this:
+		//
+		//     uint32 (4 bytes)             bytes
+		// +-----------------------+----------------------+
+		// | key serialization len |   serialized value   |
+		// +-----------------------+----------------------+
+
+		// Note that, if val is a prolly trees, any in-memory child chunks will be written to vrw at this time.
+		p.ldbKeyScratch[0] = byte(val.Type().Kind())
+		copy(p.ldbKeyScratch[1:], val.Hash().DigestSlice())
+		mapValData := encToSlice(val, p.valScratch[:], p.vrw)
+
+		data := make([]byte, len(mapValData))
+		copy(data, mapValData)
+
+		// TODO: Will manually batching these help?
+		err := p.PutOp(p.ldbKeyScratch[:], data)
+		d.Chk.NoError(err)
+
+	case BoolKind, NumberKind, StringKind:
+		// In this case, we can just serialize mapKey and use it as the ldb key, so we can also just serialize mapVal and dump that into the DB.
+		keyData := encToSlice(val, p.keyScratch[:], p.vrw)
+		valData := encToSlice(val, p.valScratch[:], p.vrw)
+		// TODO: Will manually batching these help?
+		err := p.PutOp(keyData, valData)
+		d.Chk.NoError(err)
+	}
+}
+
+func (i *opCacheIterator) SetOp() sequenceItem {
+	data := i.iter.Value()
+	val := DecodeFromBytes(data, i.vr, staticTypeCache)
+	return val
 }
 
 func (i *opCacheIterator) Release() {
