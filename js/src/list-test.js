@@ -298,10 +298,15 @@ suite('CompoundList', () => {
   let db;
 
   setup(() => {
+    smallTestChunks();
     db = new TestDatabase();
   });
 
-  teardown((): Promise<void> => db.close());
+  teardown(async () => {
+    normalProductionChunks();
+    await db.close();
+  });
+
   function build(): List {
     const l1 = new List(['a', 'b']);
     const r1 = db.writeValue(l1);
@@ -364,6 +369,23 @@ suite('CompoundList', () => {
     assert.deepEqual(
         [{done: false, value: 'a'}, {done: false, value: 'b'}, {done: true}, {done: true}],
         values);
+  });
+
+  test('Remove last when not loaded', async () => {
+    const reload = async (l: List): Promise<List> => {
+      const l2 = await db.readValue(db.writeValue(l).targetHash);
+      invariant(l2 instanceof List);
+      return l2;
+    };
+
+    let vals = intSequence(64);
+    let list = new List(vals);
+
+    while (vals.length > 0) {
+      vals = vals.slice(0, vals.length - 1);
+      list = await list.remove(vals.length).then(reload);
+      assert.isTrue(equals(new List(vals), list));
+    }
   });
 });
 
@@ -592,14 +614,10 @@ suite('ListWriter', () => {
   let db;
 
   setup(() => {
-    smallTestChunks();
     db = new TestDatabase();
   });
 
-  teardown(async () => {
-    normalProductionChunks();
-    await db.close();
-  });
+  teardown((): Promise<void> => db.close());
 
   test('ListWriter', async () => {
     const values = intSequence(15);
@@ -700,22 +718,5 @@ suite('ListWriter', () => {
 
     await t(15, ListLeafSequence);
     await t(1500, IndexedMetaSequence);
-  });
-
-  test('Remove last when not loaded', async () => {
-    const reload = async (l: List): Promise<List> => {
-      const l2 = await db.readValue(db.writeValue(l).targetHash);
-      invariant(l2 instanceof List);
-      return l2;
-    };
-
-    let vals = intSequence(64);
-    let list = new List(vals);
-
-    while (vals.length > 0) {
-      vals = vals.slice(0, vals.length - 1);
-      list = await list.remove(vals.length).then(reload);
-      assert.isTrue(equals(new List(vals), list));
-    }
   });
 });
