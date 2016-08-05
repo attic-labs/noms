@@ -103,12 +103,12 @@ func (ds *Dataset) Commit(v types.Value, opts CommitOptions) (Dataset, error) {
 }
 
 // Pull objects that descend from sourceRef in srcDB into sinkDB, using at most the given degree of concurrency. Progress will be reported over progressCh as the algorithm works. Objects that are already present in ds will not be pulled over.
-func (ds *Dataset) Pull(sourceDB datas.Database, sourceRef types.Ref, concurrency int, progressCh chan datas.PullProgress) (fastForward bool) {
+func (ds *Dataset) Pull(sourceDB datas.Database, sourceRef types.Ref, concurrency int, progressCh chan datas.PullProgress) {
 	sinkHeadRef := types.Ref{}
 	if currentHeadRef, ok := ds.MaybeHeadRef(); ok {
 		sinkHeadRef = currentHeadRef
 	}
-	return datas.Pull(sourceDB, ds.Database(), sourceRef, sinkHeadRef, concurrency, progressCh)
+	datas.Pull(sourceDB, ds.Database(), sourceRef, sinkHeadRef, concurrency, progressCh)
 }
 
 // FastForward takes a types.Ref to a Commit object and makes it the new Head of ds iff it is a descendant of the current Head. Intended to be used e.g. after a call to Pull(). If the update cannot be performed, e.g., because another process moved the current Head out from under you, err will be non-nil. The newest snapshot of the Dataset is always returned, so the caller an easily retry using the latest.

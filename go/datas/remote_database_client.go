@@ -37,7 +37,7 @@ func (rds *RemoteDatabaseClient) Delete(datasetID string) (Database, error) {
 }
 
 func (rds *RemoteDatabaseClient) SetHead(datasetID string, commit types.Struct) (Database, error) {
-	err := rds.doCommit(datasetID, commit)
+	err := rds.doSetHead(datasetID, commit)
 	return &RemoteDatabaseClient{newDatabaseCommon(rds.cch, rds.vs, rds.rt)}, err
 }
 

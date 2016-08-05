@@ -18,12 +18,12 @@ type PullProgress struct {
 }
 
 // Pull objects that descends from sourceRef from srcDB to sinkDB. sinkHeadRef should point to a Commit (in sinkDB) that's an ancestor of sourceRef. This allows the algorithm to figure out which portions of data are already present in sinkDB and skip copying them.
-func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency int, progressCh chan PullProgress) (rewind bool) {
+func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency int, progressCh chan PullProgress) {
 	srcQ, sinkQ := &types.RefByHeight{sourceRef}, &types.RefByHeight{sinkHeadRef}
 
 	// If the sourceRef points to an object already in sinkDB, there's nothing to do.
 	if sinkDB.has(sourceRef.TargetHash()) {
-		return true
+		return
 	}
 
 	// We generally expect that sourceRef descends from sinkHeadRef, so that walking down from sinkHeadRef yields useful hints. If it's not even in the srcDB, then just clear out sinkQ right now and don't bother.
@@ -149,7 +149,7 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 		}
 	}
 	sinkDB.validatingBatchStore().AddHints(hints)
-	return false
+	return
 }
 
 type traverseResult struct {
