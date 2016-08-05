@@ -227,6 +227,25 @@ func (m Map) IterAll(cb mapIterAllCallback) {
 	})
 }
 
+func (m Map) IterAllRange(start, end Value, includeStart, includeEnd bool, cb mapIterAllCallback) {
+	cur := newCursorAtValue(m.seq, start, false, false)
+	first := true
+	cur.iter(func(v interface{}) bool {
+		entry := v.(mapEntry)
+		if first {
+			if !includeStart && start.Equals(entry.key) {
+				return false
+			}
+			first = false
+		}
+		done := end != nil && end.Less(entry.key) || (!includeEnd && end.Equals(entry.key))
+		if !done {
+			cb(entry.key, entry.value)
+		}
+		return done
+	})
+}
+
 func (m Map) elemTypes() []*Type {
 	return m.Type().Desc.(CompoundDesc).ElemTypes
 }
