@@ -58,7 +58,9 @@ export function copy(source: Uint8Array, target: Uint8Array, targetStart: number
 
 export function slice(buff: Uint8Array, start: number, end: number): Uint8Array {
   // Safari does not have slice on typed arrays.
-  return new Uint8Array(buff.buffer, buff.byteOffset + start, end - start);
+  const v = alloc(end - start);
+  copy(buff.subarray(start, end), v, 0);
+  return v;
 }
 
 export function subarray(buff: Uint8Array, start: number, end: number): Uint8Array {

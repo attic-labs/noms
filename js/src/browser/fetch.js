@@ -26,10 +26,12 @@ function fetch<T>(url: string, responseType: string, options: FetchOptions = {})
   const p = new Promise((resolve, reject) => {
     xhr.onloadend = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve({
-          headers: makeHeaders(xhr),
-          buf: responseType === 'arraybuffer' ? new Uint8Array(xhr.response) : xhr.response,
-        });
+        // Workaround Flow
+        let buf: any = xhr.response;
+        if (responseType === 'arraybuffer') {
+          buf = new Uint8Array(buf);
+        }
+        resolve({headers: makeHeaders(xhr), buf});
       } else {
         reject(new Error(`HTTP Error: ${xhr.status}`));
       }
