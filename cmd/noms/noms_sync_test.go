@@ -60,7 +60,7 @@ func (s *nomsSyncTestSuite) TestSync() {
 	sinkDatasetSpec := spec.CreateValueSpecString("ldb", ldb2dir, "dest")
 	sout, _ := s.Run(main, []string{"sync", sourceSpec, sinkDatasetSpec})
 
-	s.Regexp("created", sout)
+	s.Regexp("Created", sout)
 	dest := dataset.NewDataset(datas.NewDatabase(chunks.NewLevelDBStore(ldb2dir, "", 1, false)), "dest")
 	s.True(types.Number(42).Equals(dest.HeadValue()))
 	dest.Database().Close()
@@ -74,7 +74,7 @@ func (s *nomsSyncTestSuite) TestSync() {
 	dest.Database().Close()
 
 	sout, _ = s.Run(main, []string{"sync", sourceDataset, sinkDatasetSpec})
-	s.Regexp("already up to date", sout)
+	s.Regexp("up to date", sout)
 }
 
 func (s *nomsSyncTestSuite) TestRewind() {
