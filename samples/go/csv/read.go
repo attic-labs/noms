@@ -117,22 +117,7 @@ func ReadToList(r *csv.Reader, structName string, headers []string, kinds KindSl
 }
 
 func ReadToMap(r *csv.Reader, headersRaw []string, pkIdx int, kinds KindSlice, vrw types.ValueReadWriter) types.Map {
-	headers := make([]string, 0, len(headersRaw)-1)
-	for i, h := range headersRaw {
-		if i != pkIdx {
-			headers = append(headers, h)
-		}
-	}
-
-	var pkKind types.NomsKind
-	if len(kinds) == 0 {
-		pkKind = types.StringKind
-	} else {
-		pkKind = kinds[pkIdx]
-		kinds = append(kinds[:pkIdx], kinds[pkIdx+1:]...)
-	}
-
-	t, fieldOrder, kindMap := MakeStructTypeFromHeaders(headers, "", kinds)
+	t, fieldOrder, kindMap := MakeStructTypeFromHeaders(headersRaw, "", kinds)
 
 	kvChan := make(chan types.Value, 128)
 	mapChan := types.NewStreamingMap(vrw, kvChan)
@@ -146,17 +131,18 @@ func ReadToMap(r *csv.Reader, headersRaw []string, pkIdx int, kinds KindSlice, v
 
 		fieldIndex := 0
 		var pk types.Value
-		fields := make(types.ValueSlice, len(headers))
+		fields := make(types.ValueSlice, len(headersRaw))
 		for x, v := range row {
-			if x == pkIdx {
-				pk, err = StringToValue(v, pkKind)
-			} else if fieldIndex < len(headers) {
+			if fieldIndex < len(headersRaw) {
 				fieldOrigIndex := fieldOrder[fieldIndex]
 				fields[fieldOrigIndex], err = StringToValue(v, kindMap[fieldOrigIndex])
+				if x == pkIdx {
+					pk = fields[fieldOrigIndex]
+				}
 				fieldIndex++
 			}
 			if err != nil {
-				d.Chk.Fail(fmt.Sprintf("Error parsing value for column '%s': %s", headers[x], err))
+				d.Chk.Fail(fmt.Sprintf("Error parsing value for column '%s': %s", headersRaw[x], err))
 			}
 		}
 		kvChan <- pk
