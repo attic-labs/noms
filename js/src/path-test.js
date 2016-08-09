@@ -9,31 +9,30 @@ import {suite, test} from 'mocha';
 import {equals} from './compare.js';
 
 import {getHash} from './get-hash.js';
+import {invariant} from './assert.js';
 import List from './list.js';
 import Map from './map.js';
-import {default as Path} from './path.js';
+import Path from './path.js';
 import Ref from './ref.js';
 import Set from './set.js';
 import type Value from './value.js';
 import {newStruct} from './struct.js';
 
-function strify(s) {
-  return JSON.stringify(s);
-}
-
 function hashIdx(v: Value): string {
-  return `[#${getHash(v).toString()}]`;
+  return `[#${getHash(v)}]`;
 }
 
 async function assertResolvesTo(expect: ?Value, ref: Value, str: string) {
+  const j = s => JSON.stringify(s);
   const p = Path.parse(str);
   const actual = await p.resolve(ref);
-  if (expect == null) {
-    assert.isTrue(actual == null, `Expected null, but got ${strify(actual)}`);
-  } else if (actual == null) {
-    assert.isTrue(false, `Expected ${strify(expect)}, but got null`);
+  invariant(expect !== undefined && actual !== undefined);
+  if (expect === null) {
+    assert.isTrue(actual === null, `Expected null, but got ${j(actual)}`);
+  } else if (actual === null) {
+    assert.isTrue(false, `Expected ${j(expect)}, but got null`);
   } else {
-    assert.isTrue(equals(expect, actual), `Expected ${strify(expect)}, but got ${strify(actual)}`);
+    assert.isTrue(equals(expect, actual), `Expected ${j(expect)}, but got ${j(actual)}`);
   }
 }
 
@@ -57,8 +56,8 @@ suite('Path', () => {
     await assertResolvesTo('foo', v2, '.v1.foo');
     await assertResolvesTo(false, v2, '.v1.bar');
     await assertResolvesTo(203, v2, '.v1.baz');
-    await assertResolvesTo(undefined, v2, '.v1.notHere');
-    await assertResolvesTo(undefined, v2, '.notHere.foo');
+    await assertResolvesTo(null, v2, '.v1.notHere');
+    await assertResolvesTo(null, v2, '.notHere.foo');
   });
 
   test('index', async () => {
@@ -67,7 +66,7 @@ suite('Path', () => {
       // Indices resolve to |exp|.
       await assertResolvesTo(exp, v, str);
       // Keys resolves to themselves.
-      if (exp != null) {
+      if (exp !== null) {
         exp = val;
       }
       await assertResolvesTo(exp, v, str + '@key');
@@ -116,7 +115,7 @@ suite('Path', () => {
       // Values resolve to |exp|.
       await assertResolvesTo(exp, col, hashIdx(val));
       // Keys resolves to themselves.
-      if (exp != null) {
+      if (exp !== null) {
         exp = val;
       }
       await assertResolvesTo(exp, col, hashIdx(val) + '@key');
@@ -188,7 +187,7 @@ suite('Path', () => {
   });
 
   test('parse success', () => {
-    const test = (s: string) => {
+    const t = (s: string) => {
       const p = Path.parse(s);
       let expect = s;
       // Human readable serialization special cases.
@@ -204,34 +203,34 @@ suite('Path', () => {
 
     const h = getHash(42); // arbitrary hash
 
-    test('.foo');
-    test('.Q');
-    test('.QQ');
-    test('[true]');
-    test('[false]');
-    test('[false]@key');
-    test('[42]');
-    test('[42]@key');
-    test('[1e4]');
-    test('[1.]');
-    test('[1.345]');
-    test('[""]');
-    test('["42"]');
-    test('["42"]@key');
-    test('[\"line\nbreak\rreturn\"]');
-    test('["qu\\\\ote\\\""]');
-    test('["π"]');
-    test('["[[br][]acke]]ts"]');
-    test('["xπy✌z"]');
-    test('["ಠ_ಠ"]');
-    test('["0"]["1"]["100"]');
-    test('.foo[0].bar[4.5][false]');
-    test(`.foo[#${h.toString()}]`);
-    test(`.bar[#${h.toString()}]@key`);
+    t('.foo');
+    t('.Q');
+    t('.QQ');
+    t('[true]');
+    t('[false]');
+    t('[false]@key');
+    t('[42]');
+    t('[42]@key');
+    t('[1e4]');
+    t('[1.]');
+    t('[1.345]');
+    t('[""]');
+    t('["42"]');
+    t('["42"]@key');
+    t('[\"line\nbreak\rreturn\"]');
+    t('["qu\\\\ote\\\""]');
+    t('["π"]');
+    t('["[[br][]acke]]ts"]');
+    t('["xπy✌z"]');
+    t('["ಠ_ಠ"]');
+    t('["0"]["1"]["100"]');
+    t('.foo[0].bar[4.5][false]');
+    t(`.foo[#${h.toString()}]`);
+    t(`.bar[#${h.toString()}]@key`);
   });
 
   test('parse errors', () => {
-    const test = (s: string, expectErr: string) => {
+    const t = (s: string, expectErr: string) => {
       try {
         Path.parse(s);
         assert.isOk(false, 'Expected error: ' + expectErr);
@@ -240,45 +239,45 @@ suite('Path', () => {
       }
     };
 
-    test('', 'Empty path');
-    test('.', 'Invalid field: ');
-    test('[', 'Path ends in [');
-    test(']', '] is missing opening [');
-    test('.#', 'Invalid field: #');
-    test('. ', 'Invalid field:  ');
-    test('. invalid.field', 'Invalid field:  invalid.field');
-    test('.foo.', 'Invalid field: ');
-    test('.foo.#invalid.field', 'Invalid field: #invalid.field');
-    test('.foo!', 'Invalid operator: !');
-    test('.foo!bar', 'Invalid operator: !');
-    test('.foo#', 'Invalid operator: #');
-    test('.foo#bar', 'Invalid operator: #');
-    test('.foo[', 'Path ends in [');
-    test('.foo[.bar', '[ is missing closing ]');
-    test('.foo]', '] is missing opening [');
-    test('.foo].bar', '] is missing opening [');
-    test('.foo[]', 'Empty index value');
-    test('.foo[[]', 'Invalid index: [');
-    test('.foo[[]]', 'Invalid index: [');
-    test('.foo[42.1.2]', 'Invalid index: 42.1.2');
-    test('.foo[1f4]', 'Invalid index: 1f4');
-    test('.foo[hello]', 'Invalid index: hello');
-    test('.foo[\'hello\']', 'Invalid index: \'hello\'');
-    test('.foo[\\]', 'Invalid index: \\');
-    test('.foo[\\\\]', 'Invalid index: \\\\');
-    test('.foo["hello]', '[ is missing closing ]');
-    test('.foo["hello', '[ is missing closing ]');
-    test('.foo["', '[ is missing closing ]');
-    test('.foo["\\', '[ is missing closing ]');
-    test('.foo["]', '[ is missing closing ]');
-    test('.foo[#]', 'Invalid hash: ');
-    test('.foo[#invalid]', 'Invalid hash: invalid');
-    test('.foo["hello\\nworld"]', 'Only " and \\ can be escaped');
-    test('.foo[42]bar', 'Invalid operator: b');
-    test('#foo', 'Invalid operator: #');
-    test('!foo', 'Invalid operator: !');
-    test('@foo', 'Invalid operator: @');
-    test('@key', 'Invalid operator: @');
-    test('.foo[42]@soup', 'Unsupported annotation: @soup');
+    t('', 'Empty path');
+    t('.', 'Invalid field: ');
+    t('[', 'Path ends in [');
+    t(']', '] is missing opening [');
+    t('.#', 'Invalid field: #');
+    t('. ', 'Invalid field:  ');
+    t('. invalid.field', 'Invalid field:  invalid.field');
+    t('.foo.', 'Invalid field: ');
+    t('.foo.#invalid.field', 'Invalid field: #invalid.field');
+    t('.foo!', 'Invalid operator: !');
+    t('.foo!bar', 'Invalid operator: !');
+    t('.foo#', 'Invalid operator: #');
+    t('.foo#bar', 'Invalid operator: #');
+    t('.foo[', 'Path ends in [');
+    t('.foo[.bar', '[ is missing closing ]');
+    t('.foo]', '] is missing opening [');
+    t('.foo].bar', '] is missing opening [');
+    t('.foo[]', 'Empty index value');
+    t('.foo[[]', 'Invalid index: [');
+    t('.foo[[]]', 'Invalid index: [');
+    t('.foo[42.1.2]', 'Invalid index: 42.1.2');
+    t('.foo[1f4]', 'Invalid index: 1f4');
+    t('.foo[hello]', 'Invalid index: hello');
+    t('.foo[\'hello\']', 'Invalid index: \'hello\'');
+    t('.foo[\\]', 'Invalid index: \\');
+    t('.foo[\\\\]', 'Invalid index: \\\\');
+    t('.foo["hello]', '[ is missing closing ]');
+    t('.foo["hello', '[ is missing closing ]');
+    t('.foo["', '[ is missing closing ]');
+    t('.foo["\\', '[ is missing closing ]');
+    t('.foo["]', '[ is missing closing ]');
+    t('.foo[#]', 'Invalid hash: ');
+    t('.foo[#invalid]', 'Invalid hash: invalid');
+    t('.foo["hello\\nworld"]', 'Only " and \\ can be escaped');
+    t('.foo[42]bar', 'Invalid operator: b');
+    t('#foo', 'Invalid operator: #');
+    t('!foo', 'Invalid operator: !');
+    t('@foo', 'Invalid operator: @');
+    t('@key', 'Invalid operator: @');
+    t('.foo[42]@soup', 'Unsupported annotation: @soup');
   });
 });

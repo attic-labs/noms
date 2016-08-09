@@ -4,7 +4,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-import {invariant} from './assert.js';
+import {invariant, notNull} from './assert.js';
 import type Value from './value.js';
 import Hash from './hash.js';
 import {Kind} from './noms-kind.js';
@@ -18,8 +18,18 @@ import {getTypeOfValue, StructDesc} from './type.js';
 
 const annotationRe = /^@([a-z]+)/;
 
+/**
+ * A single component of a Path.
+ */
 export interface Part {
+  /**
+   * Resolves this part in `v`. Returns a Promise to the result, or `null` if unresolved.
+   */
   resolve(v: Value): Promise<?Value>;
+
+  /**
+   * Returns the string representation of this Part. It should be parseable back into the Part.
+   */
   toString(): string;
 }
 
@@ -35,161 +45,161 @@ export default class Path {
       throw new SyntaxError('Empty path');
     }
     const p = new Path();
-    p._parse(str);
+    constructPath(p._parts, str);
     return p;
   }
 
-  constructor(parts: Array<Part> = []) {
+  constructor(...parts: Array<Part>) {
     this._parts = parts;
   }
 
   append(part: Part): Path {
-    return new Path(this._parts.concat(part));
+    return new Path(...this._parts.concat(part));
   }
 
   toString(): string {
-    return this._parts.map(p => p.toString()).join('');
+    return this._parts.join('');
   }
 
   async resolve(v: Value): Promise<?Value> {
     let res = v;
     for (const part of this._parts) {
-      if (res == null) {
+      if (res === null) {
         break;
       }
-      res = await part.resolve(res);
+      res = await part.resolve(notNull(res));
     }
     return res;
   }
+}
 
-  _parse(str: string) {
-    if (str === '') {
-      return;
-    }
-
-    const op = str[0], tail = str.slice(1);
-
-    if (op === '.') {
-      const match = tail.match(fieldNameComponentRe);
-      if (!match) {
-        throw new SyntaxError('Invalid field: ' + tail);
-      }
-      const idx = match[0].length;
-      this._parts.push(new FieldPath(tail.slice(0, idx)));
-      this._parse(tail.slice(idx));
-      return;
-    }
-
-    if (op === '[') {
-      if (tail === '') {
-        throw new SyntaxError('Path ends in [');
-      }
-
-      const [idx, h, rem1] = this._parsePathIndex(tail);
-      const [ann, rem2] = this._getAnnotation(rem1);
-
-      let rem = rem1;
-      let intoKey = false;
-      if (ann !== '') {
-        if (ann !== 'key') {
-          throw new SyntaxError(`Unsupported annotation: @${ann}`);
-        }
-        intoKey = true;
-        rem = rem2;
-      }
-
-      let part: Part;
-      if (idx != null) {
-        part = new IndexPath(idx, intoKey);
-      } else if (h != null) {
-        part = new HashIndexPath(h, intoKey);
-      } else {
-        throw new Error('unreachable');
-      }
-      this._parts.push(part);
-      this._parse(rem);
-      return;
-    }
-
-    if (op === ']') {
-      throw new SyntaxError('] is missing opening [');
-    }
-
-    throw new SyntaxError(`Invalid operator: ${op}`);
+function constructPath(parts: Array<Part>, str: string) {
+  if (str === '') {
+    return parts;
   }
 
-  _parsePathIndex(str: string): [?indexType, ?Hash, string] {
-    if (str[0] === '"') {
-      // String is complicated because ] might be quoted, and " or \ might be escaped.
-      const stringBuf = [];
-      let i = 1;
+  const op = str[0], tail = str.slice(1);
 
-      for (; i < str.length; i++) {
-        let c = str[i];
-        if (c === '"') {
-          break;
-        }
-        if (c === '\\' && i < str.length - 1) {
-          i++;
-          c = str[i];
-          if (c !== '\\' && c !== '"') {
-            throw new SyntaxError('Only " and \\ can be escaped');
-          }
-        }
-        stringBuf.push(c);
-      }
+  if (op === '.') {
+    const match = tail.match(fieldNameComponentRe);
+    if (!match) {
+      throw new SyntaxError('Invalid field: ' + tail);
+    }
+    const idx = match[0].length;
+    parts.push(new FieldPath(tail.slice(0, idx)));
+    constructPath(parts, tail.slice(idx));
+    return;
+  }
 
-      if (i === str.length) {
-        throw new SyntaxError('[ is missing closing ]');
-      }
-      return [stringBuf.join(''), null, str.slice(i + 2)];
+  if (op === '[') {
+    if (tail === '') {
+      throw new SyntaxError('Path ends in [');
     }
 
-    const closingIdx = str.indexOf(']');
-    if (closingIdx === -1) {
+    const [idx, h, rem1] = parsePathIndex(tail);
+    const [ann, rem2] = getAnnotation(rem1);
+
+    let rem = rem1;
+    let intoKey = false;
+    if (ann !== '') {
+      if (ann !== 'key') {
+        throw new SyntaxError(`Unsupported annotation: @${ann}`);
+      }
+      intoKey = true;
+      rem = rem2;
+    }
+
+    let part: Part;
+    if (idx !== null) {
+      part = new IndexPath(notNull(idx), intoKey);
+    } else if (h !== null) {
+      part = new HashIndexPath(notNull(h), intoKey);
+    } else {
+      throw new Error('unreachable');
+    }
+    parts.push(part);
+    constructPath(parts, rem);
+    return;
+  }
+
+  if (op === ']') {
+    throw new SyntaxError('] is missing opening [');
+  }
+
+  throw new SyntaxError(`Invalid operator: ${op}`);
+}
+
+function parsePathIndex(str: string): [?indexType, ?Hash, string] {
+  if (str[0] === '"') {
+    // String is complicated because ] might be quoted, and " or \ might be escaped.
+    const stringBuf = [];
+    let i = 1;
+
+    for (; i < str.length; i++) {
+      let c = str[i];
+      if (c === '"') {
+        break;
+      }
+      if (c === '\\' && i < str.length - 1) {
+        i++;
+        c = str[i];
+        if (c !== '\\' && c !== '"') {
+          throw new SyntaxError('Only " and \\ can be escaped');
+        }
+      }
+      stringBuf.push(c);
+    }
+
+    if (i === str.length) {
       throw new SyntaxError('[ is missing closing ]');
     }
-
-    const idxStr = str.slice(0, closingIdx);
-    const rem = str.slice(closingIdx + 1);
-
-    if (idxStr.length === 0) {
-      throw new SyntaxError('Empty index value');
-    }
-
-    if (idxStr[0] === '#') {
-      const hashStr = idxStr.slice(1);
-      const h = Hash.parse(hashStr);
-      if (h == null) {
-        throw new SyntaxError(`Invalid hash: ${hashStr}`);
-      }
-      return [null, h, rem];
-    }
-
-    if (idxStr === 'true') {
-      return [true, null, rem];
-    }
-
-    if (idxStr === 'false') {
-      return [false, null, rem];
-    }
-
-    const n = Number(idxStr);
-    if (!Number.isNaN(n)) {
-      return [n, null, rem];
-    }
-
-    throw new SyntaxError(`Invalid index: ${idxStr}`);
+    return [stringBuf.join(''), null, str.slice(i + 2)];
   }
 
-  _getAnnotation(str: string): [string /* ann */, string /* rem */] {
-    const parts = annotationRe.exec(str);
-    if (parts) {
-      invariant(parts.length === 2);
-      return [parts[1], str.slice(parts[0].length)];
-    }
-    return ['', str];
+  const closingIdx = str.indexOf(']');
+  if (closingIdx === -1) {
+    throw new SyntaxError('[ is missing closing ]');
   }
+
+  const idxStr = str.slice(0, closingIdx);
+  const rem = str.slice(closingIdx + 1);
+
+  if (idxStr.length === 0) {
+    throw new SyntaxError('Empty index value');
+  }
+
+  if (idxStr[0] === '#') {
+    const hashStr = idxStr.slice(1);
+    const h = Hash.parse(hashStr);
+    if (h === null) {
+      throw new SyntaxError(`Invalid hash: ${hashStr}`);
+    }
+    return [null, h, rem];
+  }
+
+  if (idxStr === 'true') {
+    return [true, null, rem];
+  }
+
+  if (idxStr === 'false') {
+    return [false, null, rem];
+  }
+
+  const n = Number(idxStr);
+  if (!Number.isNaN(n)) {
+    return [n, null, rem];
+  }
+
+  throw new SyntaxError(`Invalid index: ${idxStr}`);
+}
+
+function getAnnotation(str: string): [string /* ann */, string /* rem */] {
+  const parts = annotationRe.exec(str);
+  if (parts) {
+    invariant(parts.length === 2);
+    return [parts[1], str.slice(parts[0].length)];
+  }
+  return ['', str];
 }
 
 /**
@@ -205,19 +215,19 @@ export class FieldPath {
     this.name = name;
   }
 
-  resolve(value: Value): Promise<?Value> {
+  async resolve(value: Value): Promise<?Value> {
     const t = getTypeOfValue(value);
     if (t.kind !== Kind.Struct) {
-      return Promise.resolve();
+      return null;
     }
 
     const f = (t.desc: StructDesc).getField(this.name);
     if (!f) {
-      return Promise.resolve(); // non-present field
+      return null; // non-present field
     }
 
     // $FlowIssue: Flow doesn't know that it's safe to just access the field name here.
-    return value[this.name];
+    return undefinedToNull(value[this.name]);
   }
 
   toString(): string {
@@ -237,7 +247,7 @@ export class IndexPath {
    */
   index: indexType;
 
-	/**
+  /**
    * Whether this index should resolve to the key of a map, given by a `@key` annotation.
    *
    * Typically IntoKey is false, and indices would resolve to the values. E.g.  given `{a: 42}`
@@ -245,7 +255,7 @@ export class IndexPath {
    *
    * If IntoKey is true, then it resolves to `"a"`. For IndexPath this isn't particularly useful
    * - it's mostly provided for consistency with HashIndexPath - but note that given `{a: 42}`
-   *   then `["b"]` resolves to nil, not `"b"`.
+   *   then `["b"]` resolves to null, not `"b"`.
    */
   intoKey: boolean;
 
@@ -264,18 +274,14 @@ export class IndexPath {
   }
 
   async resolve(value: Value): Promise<?Value> {
-    if (value == null) {
-      return;
-    }
-
     if (value instanceof List) {
       if (typeof this.index !== 'number') {
-        return;
+        return null;
       }
       if (this.index < 0 || this.index >= value.length) {
-        return; // index out of bounds
+        return null; // index out of bounds
       }
-      return this.intoKey ? this.index : value.get(this.index);
+      return this.intoKey ? this.index : value.get(this.index).then(undefinedToNull);
     }
 
     if (value instanceof Map) {
@@ -283,9 +289,11 @@ export class IndexPath {
         return this.index;
       }
       if (!this.intoKey) {
-        return value.get(this.index);
+        return value.get(this.index).then(undefinedToNull);
       }
     }
+
+    return null;
   }
 
   toString(): string {
@@ -311,7 +319,7 @@ export class HashIndexPath {
    */
   hash: Hash;
 
-	/**
+  /**
    * Whether this index should resolve to the key of a map, given by a `@key` annotation.
    *
    * Typically IntoKey is false, and indices would resolve to the values. E.g. given `{a: 42}`
@@ -345,17 +353,17 @@ export class HashIndexPath {
         getCurrentValue = cur => cur.getCurrent()[1]; // value
       }
     } else {
-      return;
+      return null;
     }
 
     const cur = await seq.newCursorAt(OrderedKey.fromHash(this.hash));
     if (!cur.valid) {
-      return;
+      return null;
     }
 
     const currentHash = cur.getCurrentKey().h;
     if (!currentHash || !currentHash.equals(this.hash)) {
-      return;
+      return null;
     }
 
     return getCurrentValue(cur);
@@ -365,4 +373,8 @@ export class HashIndexPath {
     const ann = this.intoKey ? '@key' : '';
     return `[#${this.hash.toString()}]${ann}`;
   }
+}
+
+function undefinedToNull(v: ?Value): ?Value {
+  return v === undefined ? null : v;
 }
