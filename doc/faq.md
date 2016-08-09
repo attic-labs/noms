@@ -28,6 +28,14 @@ That said, it is definitely possible to have write patterns that defeat this. De
 
 Theoretically, definitely. In Git, for example, the concept of "shallow clones" exists, and we could do something similar in Noms. This has not been implemented yet.
 
+### Is this another one of those NoSQL database thingies?
+
+It depends on the specific features and/or functionality you use to define `NoSQL`. Does Noms support similar type of data? Yes. Does Noms support a flexible schema? Yes.  Does Noms "compromise consistency"? No. Is Noms “eventually consistent”? No, it is always consistent.
+
+### Git can store files, how is this different?
+
+Git is awesome at storing files, allowing different versions of files, tracking changes between commits, and having a strong sense of data integrity. If you commit 2 versions of a 2 GB text file with a large number of changes, then Git will give you information about line differences or sections of changes in those files.  If you imported those files into Noms as structured data, then the differences calculated by Noms would give you semantic information about the data that changed - and much more quickly than Git. Noms is great at working with data and this is only one example of how Noms is different than Git.
+
 ### Why is it called Noms?
 
 1. It's insert-only. OMNOMNOM.
