@@ -9,7 +9,7 @@ import {suite, test} from 'mocha';
 import {equals} from './compare.js';
 
 import {getHash} from './get-hash.js';
-import {invariant} from './assert.js';
+import {notNull} from './assert.js';
 import List from './list.js';
 import Map from './map.js';
 import Path from './path.js';
@@ -22,17 +22,16 @@ function hashIdx(v: Value): string {
   return `[#${getHash(v)}]`;
 }
 
-async function assertResolvesTo(expect: ?Value, ref: Value, str: string) {
+async function assertResolvesTo(expect: Value | null, ref: Value, str: string) {
   const j = s => JSON.stringify(s);
   const p = Path.parse(str);
   const actual = await p.resolve(ref);
-  invariant(expect !== undefined && actual !== undefined);
   if (expect === null) {
     assert.isTrue(actual === null, `Expected null, but got ${j(actual)}`);
   } else if (actual === null) {
     assert.isTrue(false, `Expected ${j(expect)}, but got null`);
   } else {
-    assert.isTrue(equals(expect, actual), `Expected ${j(expect)}, but got ${j(actual)}`);
+    assert.isTrue(equals(notNull(expect), actual), `Expected ${j(expect)}, but got ${j(actual)}`);
   }
 }
 
@@ -62,7 +61,7 @@ suite('Path', () => {
 
   test('index', async () => {
     let v: Value;
-    const resolvesTo = async (exp: ?Value, val: Value, str: string) => {
+    const resolvesTo = async (exp: Value | null, val: Value, str: string) => {
       // Indices resolve to |exp|.
       await assertResolvesTo(exp, v, str);
       // Keys resolves to themselves.
@@ -111,7 +110,7 @@ suite('Path', () => {
     ]);
     const s = new Set([b, br, i, str, l, lr]);
 
-    const resolvesTo = async (col: Value, exp: ?Value, val: Value) => {
+    const resolvesTo = async (col: Value, exp: Value | null, val: Value) => {
       // Values resolve to |exp|.
       await assertResolvesTo(exp, col, hashIdx(val));
       // Keys resolves to themselves.

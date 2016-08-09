@@ -4,7 +4,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-import {invariant, notNull} from './assert.js';
+import {invariant} from './assert.js';
 import type Value from './value.js';
 import Hash from './hash.js';
 import {Kind} from './noms-kind.js';
@@ -25,7 +25,7 @@ export interface Part {
   /**
    * Resolves this part in `v`. Returns a Promise to the result, or `null` if unresolved.
    */
-  resolve(v: Value): Promise<?Value>;
+  resolve(v: Value): Promise<Value | null>;
 
   /**
    * Returns the string representation of this Part. It should be parseable back into the Part.
@@ -61,13 +61,13 @@ export default class Path {
     return this._parts.join('');
   }
 
-  async resolve(v: Value): Promise<?Value> {
+  async resolve(v: Value): Promise<Value | null> {
     let res = v;
     for (const part of this._parts) {
       if (res === null) {
         break;
       }
-      res = await part.resolve(notNull(res));
+      res = await part.resolve(res);
     }
     return res;
   }
@@ -83,7 +83,7 @@ function constructPath(parts: Array<Part>, str: string) {
   if (op === '.') {
     const match = tail.match(fieldNameComponentRe);
     if (!match) {
-      throw new SyntaxError('Invalid field: ' + tail);
+      throw new SyntaxError(`Invalid field: ${tail}`);
     }
     const idx = match[0].length;
     parts.push(new FieldPath(tail.slice(0, idx)));
@@ -111,9 +111,9 @@ function constructPath(parts: Array<Part>, str: string) {
 
     let part: Part;
     if (idx !== null) {
-      part = new IndexPath(notNull(idx), intoKey);
+      part = new IndexPath(idx, intoKey);
     } else if (h !== null) {
-      part = new HashIndexPath(notNull(h), intoKey);
+      part = new HashIndexPath(h, intoKey);
     } else {
       throw new Error('unreachable');
     }
@@ -129,7 +129,7 @@ function constructPath(parts: Array<Part>, str: string) {
   throw new SyntaxError(`Invalid operator: ${op}`);
 }
 
-function parsePathIndex(str: string): [?indexType, ?Hash, string] {
+function parsePathIndex(str: string): [indexType|null, Hash|null, string] {
   if (str[0] === '"') {
     // String is complicated because ] might be quoted, and " or \ might be escaped.
     const stringBuf = [];
@@ -215,7 +215,7 @@ export class FieldPath {
     this.name = name;
   }
 
-  async resolve(value: Value): Promise<?Value> {
+  async resolve(value: Value): Promise<Value | null> {
     const t = getTypeOfValue(value);
     if (t.kind !== Kind.Struct) {
       return null;
@@ -227,7 +227,7 @@ export class FieldPath {
     }
 
     // $FlowIssue: Flow doesn't know that it's safe to just access the field name here.
-    return undefinedToNull(value[this.name]);
+    return valueOrNull(value[this.name]);
   }
 
   toString(): string {
@@ -273,7 +273,7 @@ export class IndexPath {
     this.intoKey = intoKey;
   }
 
-  async resolve(value: Value): Promise<?Value> {
+  async resolve(value: Value): Promise<Value | null> {
     if (value instanceof List) {
       if (typeof this.index !== 'number') {
         return null;
@@ -281,7 +281,7 @@ export class IndexPath {
       if (this.index < 0 || this.index >= value.length) {
         return null; // index out of bounds
       }
-      return this.intoKey ? this.index : value.get(this.index).then(undefinedToNull);
+      return this.intoKey ? this.index : value.get(this.index).then(valueOrNull);
     }
 
     if (value instanceof Map) {
@@ -289,7 +289,7 @@ export class IndexPath {
         return this.index;
       }
       if (!this.intoKey) {
-        return value.get(this.index).then(undefinedToNull);
+        return value.get(this.index).then(valueOrNull);
       }
     }
 
@@ -336,7 +336,7 @@ export class HashIndexPath {
     this.intoKey = intoKey;
   }
 
-  async resolve(value: Value): Promise<?Value> {
+  async resolve(value: Value): Promise<Value | null> {
     let seq: OrderedSequence;
     let getCurrentValue; // (cur: sequenceCursor): Value
 
@@ -375,6 +375,6 @@ export class HashIndexPath {
   }
 }
 
-function undefinedToNull(v: ?Value): ?Value {
+function valueOrNull(v: ?Value): Value | null {
   return v === undefined ? null : v;
 }
