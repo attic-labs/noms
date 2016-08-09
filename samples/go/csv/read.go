@@ -129,20 +129,20 @@ func ReadToMap(r *csv.Reader, headersRaw []string, pkIdx int, kinds KindSlice, v
 			panic(err)
 		}
 
-		fieldIndex := 0
 		var pk types.Value
 		fields := make(types.ValueSlice, len(headersRaw))
-		for x, v := range row {
-			if fieldIndex < len(headersRaw) {
-				fieldOrigIndex := fieldOrder[fieldIndex]
+		for i, v := range row {
+			if i < len(headersRaw) {
+				fieldOrigIndex := fieldOrder[i]
 				fields[fieldOrigIndex], err = StringToValue(v, kindMap[fieldOrigIndex])
-				if x == pkIdx {
+				if i == pkIdx {
 					pk = fields[fieldOrigIndex]
 				}
-				fieldIndex++
-			}
-			if err != nil {
-				d.Chk.Fail(fmt.Sprintf("Error parsing value for column '%s': %s", headersRaw[x], err))
+				if err != nil {
+					d.Chk.Fail(fmt.Sprintf("Error parsing value for column '%s': %s", headersRaw[i], err))
+				}
+			} else {
+				d.Chk.Fail(fmt.Sprintf("Error parsing row - header count (%d) < row value count (%d), row: %v", len(headersRaw), i, row))
 			}
 		}
 		kvChan <- pk
