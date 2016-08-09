@@ -56,11 +56,12 @@ export function copy(source: Uint8Array, target: Uint8Array, targetStart: number
   target.set(source, targetStart);
 }
 
+/**
+ * Slice returns a copy of parts of the bytes starting at `start` ending at `end` (exclusive).
+ */
 export function slice(buff: Uint8Array, start: number, end: number): Uint8Array {
   // Safari does not have slice on typed arrays.
-  const v = alloc(end - start);
-  copy(buff.subarray(start, end), v, 0);
-  return v;
+  return new Uint8Array(buff.buffer.slice(buff.byteOffset + start, buff.byteOffset + end));
 }
 
 export function subarray(buff: Uint8Array, start: number, end: number): Uint8Array {
