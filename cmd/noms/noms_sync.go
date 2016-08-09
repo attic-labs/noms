@@ -9,6 +9,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
@@ -23,7 +24,7 @@ var (
 	p int
 )
 
-var nomsSync = &nomsCommand{
+var nomsSync = &util.Command{
 	Run:       runSync,
 	UsageLine: "sync [options] <source-object> <dest-dataset>",
 	Short:     "Moves datasets between or within databases",
@@ -77,10 +78,19 @@ func runSync(args []string) int {
 		lastProgressCh <- last
 	}()
 
+	sourceRef := types.NewRef(sourceObj)
+	sinkRef, _ := sinkDataset.MaybeHeadRef()
+	nonFF := false
 	err = d.Try(func() {
 		defer profile.MaybeStartProfile().Stop()
+		sinkDataset.Pull(sourceStore, sourceRef, p, progressCh)
+
 		var err error
-		sinkDataset, err = sinkDataset.Pull(sourceStore, types.NewRef(sourceObj), p, progressCh)
+		sinkDataset, err = sinkDataset.FastForward(sourceRef)
+		if err == datas.ErrMergeNeeded {
+			sinkDataset, err = sinkDataset.SetHead(sourceRef)
+			nonFF = true
+		}
 		d.PanicIfError(err)
 	})
 
@@ -92,8 +102,10 @@ func runSync(args []string) int {
 	if last := <-lastProgressCh; last.DoneCount > 0 {
 		status.Printf("Done - Synced %s in %s (%s/s)", humanize.Bytes(last.DoneBytes), since(start), bytesPerSec(last, start))
 		status.Done()
+	} else if nonFF && !sourceRef.Equals(sinkRef) {
+		fmt.Printf("Abandoning %s; new head is %s\n", sinkRef.TargetHash(), sourceRef.TargetHash())
 	} else {
-		fmt.Println(args[0], "is up to date.")
+		fmt.Println(args[1], "is up to date.")
 	}
 
 	return 0
