@@ -56,7 +56,7 @@ func constructPath(p Path, str string) (Path, error) {
 			return Path{}, errors.New("Path ends in [")
 		}
 
-		idx, h, rem, err := constructPathPathIndex(tail)
+		idx, h, rem, err := parsePathIndex(tail)
 		if err != nil {
 			return Path{}, err
 		}
