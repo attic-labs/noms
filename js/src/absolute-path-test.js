@@ -79,12 +79,14 @@ suite('AbsolutePath', () => {
 
   test('parse errors', () => {
     const t = (path: string, exp: string) => {
+      let act = '';
       try {
         AbsolutePath.parse(path);
       } catch (e) {
-        assert.isTrue(e instanceof SyntaxError);
-        assert.strictEqual(exp, e.message);
+        assert.instanceOf(e, SyntaxError);
+        act = e.message;
       }
+      assert.strictEqual(exp, act);
     };
 
     t('', 'Empty path');
