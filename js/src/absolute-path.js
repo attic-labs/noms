@@ -92,12 +92,7 @@ export default class AbsolutePath {
     if (val === undefined) {
       val = null;
     }
-
-    if (val !== null) {
-      return this.path.resolve(val);
-    } else {
-      return null;
-    }
+    return val === null ? null : this.path.resolve(val);
   }
 
   toString(): string {
