@@ -24,8 +24,9 @@ function hashIdx(v: Value): string {
 
 async function assertResolvesTo(expect: Value | null, ref: Value, str: string) {
   const j = s => JSON.stringify(s);
-  const p = Path.parse(str);
-  const actual = await p.resolve(ref);
+  const [p, err] = Path.parse(str);
+  assert.strictEqual('', err);
+  const actual = await notNull(p).resolve(ref);
   if (expect === null) {
     assert.isTrue(actual === null, `Expected null, but got ${j(actual)}`);
   } else if (actual === null) {
@@ -187,7 +188,8 @@ suite('Path', () => {
 
   test('parse success', () => {
     const t = (s: string) => {
-      const p = Path.parse(s);
+      const [p, err] = Path.parse(s);
+      assert.strictEqual('', err);
       let expect = s;
       // Human readable serialization special cases.
       if (expect === '[1e4]') {
@@ -197,7 +199,7 @@ suite('Path', () => {
       } else if (expect === '["line\nbreak\rreturn"]') {
         expect = '["line\\nbreak\\rreturn"]';
       }
-      assert.strictEqual(expect, p.toString());
+      assert.strictEqual(expect, notNull(p).toString());
     };
 
     const h = getHash(42); // arbitrary hash
@@ -230,12 +232,8 @@ suite('Path', () => {
 
   test('parse errors', () => {
     const t = (s: string, expectErr: string) => {
-      try {
-        Path.parse(s);
-        assert.isOk(false, 'Expected error: ' + expectErr);
-      } catch (e) {
-        assert.strictEqual(expectErr, e.message);
-      }
+      const [_, err] = Path.parse(s);
+      assert.strictEqual(expectErr, err);
     };
 
     t('', 'Empty path');

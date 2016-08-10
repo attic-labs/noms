@@ -40,13 +40,16 @@ export interface Part {
 export default class Path {
   _parts: Array<Part>;
 
-  static parse(str: string): Path {
+  /**
+   * Returns `str` parsed as Path if successful, or a null path with an error message if not.
+   */
+  static parse(str: string): [Path | null, string /* error */] {
     if (str === '') {
-      throw new SyntaxError('Empty path');
+      return [null, 'Empty path'];
     }
     const p = new Path();
-    constructPath(p._parts, str);
-    return p;
+    const err = constructPath(p._parts, str);
+    return err === '' ? [p, ''] : [null, err];
   }
 
   constructor(...parts: Array<Part>) {
@@ -73,9 +76,9 @@ export default class Path {
   }
 }
 
-function constructPath(parts: Array<Part>, str: string) {
+function constructPath(parts: Array<Part>, str: string): string {
   if (str === '') {
-    return parts;
+    return '';
   }
 
   const op = str[0], tail = str.slice(1);
@@ -83,27 +86,30 @@ function constructPath(parts: Array<Part>, str: string) {
   if (op === '.') {
     const match = tail.match(fieldNameComponentRe);
     if (!match) {
-      throw new SyntaxError(`Invalid field: ${tail}`);
+      return `Invalid field: ${tail}`;
     }
     const idx = match[0].length;
     parts.push(new FieldPath(tail.slice(0, idx)));
-    constructPath(parts, tail.slice(idx));
-    return;
+    return constructPath(parts, tail.slice(idx));
   }
 
   if (op === '[') {
     if (tail === '') {
-      throw new SyntaxError('Path ends in [');
+      return 'Path ends in [';
     }
 
-    const [idx, h, rem1] = parsePathIndex(tail);
+    const [idx, h, rem1, err] = parsePathIndex(tail);
+    if (err !== '') {
+      return err;
+    }
+
     const [ann, rem2] = getAnnotation(rem1);
 
     let rem = rem1;
     let intoKey = false;
     if (ann !== '') {
       if (ann !== 'key') {
-        throw new SyntaxError(`Unsupported annotation: @${ann}`);
+        return `Unsupported annotation: @${ann}`;
       }
       intoKey = true;
       rem = rem2;
@@ -118,18 +124,18 @@ function constructPath(parts: Array<Part>, str: string) {
       throw new Error('unreachable');
     }
     parts.push(part);
-    constructPath(parts, rem);
-    return;
+    return constructPath(parts, rem);
   }
 
   if (op === ']') {
-    throw new SyntaxError('] is missing opening [');
+    return '] is missing opening [';
   }
 
-  throw new SyntaxError(`Invalid operator: ${op}`);
+  return `Invalid operator: ${op}`;
 }
 
-function parsePathIndex(str: string): [indexType|null, Hash|null, string] {
+function parsePathIndex(str: string): [indexType|null, Hash|null,
+                                       string /* remainder */, string /* error */] {
   if (str[0] === '"') {
     // String is complicated because ] might be quoted, and " or \ might be escaped.
     const stringBuf = [];
@@ -144,53 +150,53 @@ function parsePathIndex(str: string): [indexType|null, Hash|null, string] {
         i++;
         c = str[i];
         if (c !== '\\' && c !== '"') {
-          throw new SyntaxError('Only " and \\ can be escaped');
+          return [null, null, '', 'Only " and \\ can be escaped'];
         }
       }
       stringBuf.push(c);
     }
 
     if (i === str.length) {
-      throw new SyntaxError('[ is missing closing ]');
+      return [null, null, '', '[ is missing closing ]'];
     }
-    return [stringBuf.join(''), null, str.slice(i + 2)];
+    return [stringBuf.join(''), null, str.slice(i + 2), ''];
   }
 
   const closingIdx = str.indexOf(']');
   if (closingIdx === -1) {
-    throw new SyntaxError('[ is missing closing ]');
+    return [null, null, '', '[ is missing closing ]'];
   }
 
   const idxStr = str.slice(0, closingIdx);
   const rem = str.slice(closingIdx + 1);
 
   if (idxStr.length === 0) {
-    throw new SyntaxError('Empty index value');
+    return [null, null, '', 'Empty index value'];
   }
 
   if (idxStr[0] === '#') {
     const hashStr = idxStr.slice(1);
     const h = Hash.parse(hashStr);
     if (h === null) {
-      throw new SyntaxError(`Invalid hash: ${hashStr}`);
+      return [null, null, '', `Invalid hash: ${hashStr}`];
     }
-    return [null, h, rem];
+    return [null, h, rem, ''];
   }
 
   if (idxStr === 'true') {
-    return [true, null, rem];
+    return [true, null, rem, ''];
   }
 
   if (idxStr === 'false') {
-    return [false, null, rem];
+    return [false, null, rem, ''];
   }
 
   const n = Number(idxStr);
   if (!Number.isNaN(n)) {
-    return [n, null, rem];
+    return [n, null, rem, ''];
   }
 
-  throw new SyntaxError(`Invalid index: ${idxStr}`);
+  return [null, null, '', `Invalid index: ${idxStr}`];
 }
 
 function getAnnotation(str: string): [string /* ann */, string /* rem */] {
