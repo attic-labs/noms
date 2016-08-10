@@ -26,11 +26,11 @@ export default class AbsolutePath {
   /** The hash the that `path` is in, if any. */
   hash: Hash | null;
 
-  /** Path relative to either `_dataset` or `_hash`. */
+  /** Path relative to either `dataset` or `hash`. */
   path: Path;
 
   /**
-   * Returns `str` parsed as an AbsolutePath. Throws a `SyntaxError` is `str` isn't a valid path.
+   * Returns `str` parsed as an AbsolutePath. Throws a `SyntaxError` if `str` isn't a valid path.
    */
   static parse(str: string): AbsolutePath {
     if (str === '') {
