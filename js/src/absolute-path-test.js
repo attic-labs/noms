@@ -21,9 +21,7 @@ import type Value from './value.js';
 suite('AbsolutePath', () => {
   test('to and from string', () => {
     const t = (str: string) => {
-      const [p, err] = AbsolutePath.parse(str);
-      assert.strictEqual('', err);
-      invariant(p);
+      const p = AbsolutePath.parse(str);
       assert.strictEqual(str, p.toString());
     };
 
@@ -48,8 +46,7 @@ suite('AbsolutePath', () => {
     invariant(head);
 
     const resolvesTo = async (exp: Value | null, str: string) => {
-      const [p, err] = AbsolutePath.parse(str);
-      assert.strictEqual('', err);
+      const p = AbsolutePath.parse(str);
       const act = await notNull(p).resolve(db);
       if (exp === null) {
         assert.strictEqual(null, act);
@@ -82,9 +79,12 @@ suite('AbsolutePath', () => {
 
   test('parse errors', () => {
     const t = (path: string, exp: string) => {
-      const [p, act] = AbsolutePath.parse(path);
-      assert.strictEqual(exp, act);
-      assert.strictEqual(null, p);
+      try {
+        AbsolutePath.parse(path);
+      } catch (e) {
+        assert.isTrue(e instanceof SyntaxError);
+        assert.strictEqual(exp, e.message);
+      }
     };
 
     t('', 'Empty path');

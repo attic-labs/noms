@@ -4,10 +4,10 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-import {invariant, notNull} from './assert.js';
+import {invariant} from './assert.js';
 import {datasetRe} from './dataset.js';
 import Database from './database.js';
-import {default as Hash, stringLength} from './hash.js';
+import Hash, {stringLength} from './hash.js';
 import Path from './path.js';
 import type Value from './value.js';
 
@@ -15,24 +15,26 @@ const datasetCapturePrefixRe = new RegExp('^(' + datasetRe.source + ')');
 
 /**
  * An AbsolutePath is a Path relative to either a dataset head, or a hash.
+ *
+ * E.g. in a spec like `http://demo.noms.io::foo.bar` this is the `foo.bar` component, or in
+ * `http://demo.noms.io::#abcdef.bar` the `#abcdef.bar` component.
  */
 export default class AbsolutePath {
-  /** The dataset ID that `_path` is in, or `''` if none. */
+  /** The dataset ID that `path` is in, or `''` if none. */
   dataset: string;
 
-  /** The hash the that `_path` is in, if any. */
+  /** The hash the that `path` is in, if any. */
   hash: Hash | null;
 
   /** Path relative to either `_dataset` or `_hash`. */
   path: Path;
 
   /**
-   * Returns `str` parsed as an AbsolutePath if successful, or a null path with an error message
-   * if not.
+   * Returns `str` parsed as an AbsolutePath. Throws a `SyntaxError` is `str` isn't a valid path.
    */
-  static parse(str: string): [AbsolutePath | null, string] {
+  static parse(str: string): AbsolutePath {
     if (str === '') {
-      return [null, 'Empty path'];
+      throw new SyntaxError('Empty path');
     }
 
     let dataset = '';
@@ -42,20 +44,20 @@ export default class AbsolutePath {
     if (str[0] === '#') {
       const tail = str.slice(1);
       if (tail.length < stringLength) {
-        return [null, `Invalid hash: ${tail}`];
+        throw new SyntaxError(`Invalid hash: ${tail}`);
       }
 
       const hashStr = tail.slice(0, stringLength);
       hash = Hash.parse(hashStr);
       if (hash === null) {
-        return [null, `Invalid hash: ${hashStr}`];
+        throw new SyntaxError(`Invalid hash: ${hashStr}`);
       }
 
       pathStr = tail.slice(stringLength);
     } else {
       const parts = datasetCapturePrefixRe.exec(str);
       if (!parts) {
-        return [null, `Invalid dataset name: ${str}`];
+        throw new SyntaxError(`Invalid dataset name: ${str}`);
       }
 
       invariant(parts.length === 2);
@@ -64,15 +66,11 @@ export default class AbsolutePath {
     }
 
     if (pathStr.length === 0) {
-      return [new AbsolutePath(dataset, hash, new Path()), ''];
+      return new AbsolutePath(dataset, hash, new Path());
     }
 
-    const [path, err] = Path.parse(pathStr);
-    if (err !== '') {
-      return [null, err];
-    }
-
-    return [new AbsolutePath(dataset, hash, notNull(path)), ''];
+    const path = Path.parse(pathStr);
+    return new AbsolutePath(dataset, hash, path);
   }
 
   constructor(dataset: string, hash: Hash | null, path: Path) {

@@ -36,20 +36,22 @@ export interface Part {
 /**
  * A Path is an address to a Noms value - and unlike hashes (i.e. #abcd...) they can address inlined
  * values. See https://github.com/attic-labs/noms/blob/master/doc/spelling.md.
+ *
+ * E.g. in a spec like `http://demo.noms.io::foo.bar` this is the `.bar` component.
  */
 export default class Path {
   _parts: Array<Part>;
 
   /**
-   * Returns `str` parsed as Path if successful, or a null path with an error message if not.
+   * Returns `str` parsed as Path. Throws a `SyntaxError` if `str` isn't a valid path.
    */
-  static parse(str: string): [Path | null, string /* error */] {
+  static parse(str: string): Path {
     if (str === '') {
-      return [null, 'Empty path'];
+      throw new SyntaxError('Empty path');
     }
     const p = new Path();
-    const err = constructPath(p._parts, str);
-    return err === '' ? [p, ''] : [null, err];
+    constructPath(p._parts, str);
+    return p;
   }
 
   constructor(...parts: Array<Part>) {
@@ -76,9 +78,9 @@ export default class Path {
   }
 }
 
-function constructPath(parts: Array<Part>, str: string): string {
+function constructPath(parts: Array<Part>, str: string) {
   if (str === '') {
-    return '';
+    return parts;
   }
 
   const op = str[0], tail = str.slice(1);
@@ -86,30 +88,27 @@ function constructPath(parts: Array<Part>, str: string): string {
   if (op === '.') {
     const match = tail.match(fieldNameComponentRe);
     if (!match) {
-      return `Invalid field: ${tail}`;
+      throw new SyntaxError(`Invalid field: ${tail}`);
     }
     const idx = match[0].length;
     parts.push(new FieldPath(tail.slice(0, idx)));
-    return constructPath(parts, tail.slice(idx));
+    constructPath(parts, tail.slice(idx));
+    return;
   }
 
   if (op === '[') {
     if (tail === '') {
-      return 'Path ends in [';
+      throw new SyntaxError('Path ends in [');
     }
 
-    const [idx, h, rem1, err] = parsePathIndex(tail);
-    if (err !== '') {
-      return err;
-    }
-
+    const [idx, h, rem1] = parsePathIndex(tail);
     const [ann, rem2] = getAnnotation(rem1);
 
     let rem = rem1;
     let intoKey = false;
     if (ann !== '') {
       if (ann !== 'key') {
-        return `Unsupported annotation: @${ann}`;
+        throw new SyntaxError(`Unsupported annotation: @${ann}`);
       }
       intoKey = true;
       rem = rem2;
@@ -124,18 +123,18 @@ function constructPath(parts: Array<Part>, str: string): string {
       throw new Error('unreachable');
     }
     parts.push(part);
-    return constructPath(parts, rem);
+    constructPath(parts, rem);
+    return;
   }
 
   if (op === ']') {
-    return '] is missing opening [';
+    throw new SyntaxError('] is missing opening [');
   }
 
-  return `Invalid operator: ${op}`;
+  throw new SyntaxError(`Invalid operator: ${op}`);
 }
 
-function parsePathIndex(str: string): [indexType|null, Hash|null,
-                                       string /* remainder */, string /* error */] {
+function parsePathIndex(str: string): [indexType|null, Hash|null, string] {
   if (str[0] === '"') {
     // String is complicated because ] might be quoted, and " or \ might be escaped.
     const stringBuf = [];
@@ -150,53 +149,53 @@ function parsePathIndex(str: string): [indexType|null, Hash|null,
         i++;
         c = str[i];
         if (c !== '\\' && c !== '"') {
-          return [null, null, '', 'Only " and \\ can be escaped'];
+          throw new SyntaxError('Only " and \\ can be escaped');
         }
       }
       stringBuf.push(c);
     }
 
     if (i === str.length) {
-      return [null, null, '', '[ is missing closing ]'];
+      throw new SyntaxError('[ is missing closing ]');
     }
-    return [stringBuf.join(''), null, str.slice(i + 2), ''];
+    return [stringBuf.join(''), null, str.slice(i + 2)];
   }
 
   const closingIdx = str.indexOf(']');
   if (closingIdx === -1) {
-    return [null, null, '', '[ is missing closing ]'];
+    throw new SyntaxError('[ is missing closing ]');
   }
 
   const idxStr = str.slice(0, closingIdx);
   const rem = str.slice(closingIdx + 1);
 
   if (idxStr.length === 0) {
-    return [null, null, '', 'Empty index value'];
+    throw new SyntaxError('Empty index value');
   }
 
   if (idxStr[0] === '#') {
     const hashStr = idxStr.slice(1);
     const h = Hash.parse(hashStr);
     if (h === null) {
-      return [null, null, '', `Invalid hash: ${hashStr}`];
+      throw new SyntaxError(`Invalid hash: ${hashStr}`);
     }
-    return [null, h, rem, ''];
+    return [null, h, rem];
   }
 
   if (idxStr === 'true') {
-    return [true, null, rem, ''];
+    return [true, null, rem];
   }
 
   if (idxStr === 'false') {
-    return [false, null, rem, ''];
+    return [false, null, rem];
   }
 
   const n = Number(idxStr);
   if (!Number.isNaN(n)) {
-    return [n, null, rem, ''];
+    return [n, null, rem];
   }
 
-  return [null, null, '', `Invalid index: ${idxStr}`];
+  throw new SyntaxError(`Invalid index: ${idxStr}`);
 }
 
 function getAnnotation(str: string): [string /* ann */, string /* rem */] {
