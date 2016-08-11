@@ -31,9 +31,9 @@ export default class ValueDecoder {
   _ds: ValueReader;
   _tc: TypeCache;
 
-  constructor(r: NomsReader, ds: ValueReader, tc: TypeCache) {
+  constructor(r: NomsReader, vr: ValueReader, tc: TypeCache) {
     this._r = r;
-    this._ds = ds;
+    this._ds = vr;
     this._tc = tc;
   }
 

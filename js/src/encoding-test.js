@@ -301,7 +301,7 @@ suite('Encoding', () => {
     assert.deepEqual(encoding, w.toArray());
 
     const r = new TestReader(encoding);
-    const dec = new ValueDecoder(r, (null: any), staticTypeCache);
+    const dec = new ValueDecoder(r, new TestDatabase(), staticTypeCache);
     const v2 = dec.readValue();
     assert.isTrue(equals(v, v2));
   }
@@ -427,7 +427,7 @@ suite('Encoding', () => {
     Bytes.copy(data, buff);
     buff[data.byteLength] = 5; // Add a bogus extra byte
     const c2 = new Chunk(buff);
-    assert.throws(() => decodeValue(c2, (null: any)));
+    assert.throws(() => decodeValue(c2, new TestDatabase()));
   });
 
   test('struct with list', () => {
