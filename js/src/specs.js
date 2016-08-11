@@ -23,8 +23,7 @@ export class DatabaseSpec {
   scheme: string;
   path: string;
 
-  /** Cache this for testing, or it will reset every time database() is called. */
-  _ms: MemoryStore|null;
+  _ms: MemoryStore | null;
 
   /**
    * Returns `spec` parsed as a DatabaseSpec. Throws a `SyntaxError` if `spec` isn't valid.
@@ -67,6 +66,7 @@ export class DatabaseSpec {
   constructor(scheme: string, path: string) {
     this.scheme = scheme;
     this.path = path;
+    // Cache the MemoryStore for testing, or it will reset every time database() is called.
     this._ms = scheme === 'mem' ? new MemoryStore() : null;
   }
 
@@ -127,12 +127,7 @@ export class DatasetSpec {
    */
   value(): Promise<[Database, Value|null]> {
     const db = this.database.database();
-    return this.dataset().head().then(commit => {
-      if (commit === null || commit === undefined) {
-        return [db, null];
-      }
-      return [db, commit.value];
-    });
+    return this.dataset().head().then(commit => [db, commit ? commit.value : null]);
   }
 }
 
