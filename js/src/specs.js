@@ -125,7 +125,7 @@ export class DatasetSpec {
    *
    * The caller should always call `close()` when done.
    */
-  value(): Promise<[Database, Value|null]> {
+  value(): Promise<[Database, Value | null]> {
     const db = this.database.database();
     return this.dataset().head().then(commit => [db, commit ? commit.value : null]);
   }
