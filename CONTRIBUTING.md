@@ -1,7 +1,23 @@
+Contributing to Noms
+====================
+
+License
+-------
+
 Noms is open source software, licensed under the [Apache License, Version 2.0]().
+
+Contributing code
+-----------------
 
 Due to legal reasons, all contributors must sign a contributor license
 agreement, either for an
 [individual](http://noms.io/ca_individual.html) or
 [corporation](http://noms.io/ca_corporation.html), before a
 pull request can be accepted.
+
+Running the tests
+-----------------
+
+You can use `go test` command, e.g:
+
+ - `go test ./cmd/...` should run every tests under the `cmd` directory.
