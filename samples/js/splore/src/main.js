@@ -8,6 +8,7 @@ import Layout from './layout.js';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import {
+  AbsolutePath,
   Blob,
   Collection,
   Database,
@@ -21,7 +22,6 @@ import {
   List,
   Map,
   OrderedMetaSequence,
-  PathSpec,
   Ref,
   Set,
   Struct,
@@ -64,37 +64,32 @@ function loadUnsafe() {
     });
   }
 
-  if (params.p && params.db) {
-    renderPrompt('Specify either a database or a path, not both');
+  if (!params.db) {
+    renderPrompt('Can haz database?');
     return;
   }
-  if (!params.p && !params.db) {
-    renderPrompt('Can haz database or path?');
-    return;
-  }
+
+  const dbSpec = DatabaseSpec.parse(params.db);
+  database = dbSpec.database();
 
   let rootP: Promise<[Hash, Value]>;
-
   if (params.p) {
-    const pathSpec = PathSpec.parse(params.p);
-    database = pathSpec.database.database();
-    rootP = pathSpec.value().then(([_, value]) => {
+    const path = AbsolutePath.parse(params.p);
+    rootP = path.resolve(database).then(value => {
       if (value === null) {
         throw new Error('No value found at ' + params.p);
       }
       return [getHashOfValue(value), value];
     });
   } else {
-    const dbSpec = DatabaseSpec.parse(params.db);
-    database = dbSpec.database();
-    // TODO: Don't access _rt, expose getRoot somewhere.
+    // TODO: Don't access _rt directly: https://github.com/attic-labs/noms/issues/2363.
     rootP = database._rt.getRoot().then(r => database.readValue(r).then(value => [r, value]));
   }
 
   rootP.then(([r, value]) => {
     rootHash = r;
     handleChunkLoad(emptyHash, r);
-    // It's nice if the root of the database/path starts open.
+    // It's nice if the root starts open, the first thing anybody will do is click on it.
     const id = r.toString();
     data.nodes[id].isOpen = true;
     handleChunkLoad(r, value, id);
@@ -246,37 +241,35 @@ function handleNodeClick(e: MouseEvent, id: string) {
 
 type PromptProps = {
   msg: string,
-}
+};
 
 class Prompt extends React.Component<void, PromptProps, void> {
   render(): React.Element<any> {
-    const fontStyle: {[key: string]: any} = {
+    const fontStyle: {[key: string]: string} = {
       fontFamily: 'Menlo',
-      fontSize: 14,
+      fontSize: '14px',
     };
-    const inputStyle = Object.assign(fontStyle, {}, {width: '80ex', marginBottom: '0.5em'});
+    const divStyle = {
+      alignItems: 'center',
+      display: 'flex',
+      height: '100%',
+      justifyContent: 'center',
+    };
+    const inputStyle = Object.assign(fontStyle, {}, {
+      marginBottom: '0.5em',
+      width: '50ex',
+    });
     const demoServer = 'https://demo.noms.io/cli-tour';
 
-    let defaultDb, defaultP;
-    if (params.db) {
-      defaultDb = params.db;
-    } else if (params.p) {
-      defaultP = params.p;
-    } else {
-      defaultDb = 'http://demo.noms.io/cli-tour';
-    }
-
-    return <div style={{display: 'flex', height: '100%', alignItems: 'center',
-      justifyContent: 'center'}}>
+    return <div style={divStyle}>
       <div style={fontStyle}>
         {this.props.msg}
         <form style={{margin:'0.5em 0'}} onSubmit={e => this._handleOnSubmit(e)}>
           <input type='text' ref='db' autoFocus={true} style={inputStyle}
-            defaultValue={defaultDb} placeholder={`database (${demoServer})`}
+            defaultValue={params.db || demoServer} placeholder={`database (e.g. ${demoServer})`}
           />
-          or
           <input type='text' ref='p' style={inputStyle}
-            defaultValue={defaultP} placeholder={`path (${demoServer}::sf-film-locations)`}
+            defaultValue={params.p} placeholder={'path (e.g. sf-film-locations)'}
           />
           <button type='submit'>OK</button>
         </form>
@@ -301,6 +294,10 @@ function renderPrompt(msg: string) {
 }
 
 function render() {
+  // TODO: Set up better Promise chaining. rootHash is loaded asynchronously elsewhere.
+  if (!rootHash) {
+    return;
+  }
   const dt = new TreeNode(data, rootHash.toString(), null, 0, 0, {});
   layout(dt);
   ReactDOM.render(
