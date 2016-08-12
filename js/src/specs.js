@@ -22,6 +22,7 @@ import type Value from './value.js';
 export class DatabaseSpec {
   scheme: string;
   path: string;
+  authorization: string;
 
   _ms: MemoryStore | null;
 
@@ -66,6 +67,7 @@ export class DatabaseSpec {
   constructor(scheme: string, path: string) {
     this.scheme = scheme;
     this.path = path;
+    this.authorization = '';
     // Cache the MemoryStore for testing, or it will reset every time database() is called.
     this._ms = scheme === 'mem' ? new MemoryStore() : null;
   }
@@ -78,8 +80,11 @@ export class DatabaseSpec {
       case 'mem':
         return new Database(new BatchStoreAdaptor(notNull(this._ms)));
       case 'http':
-      case 'https':
-        return new Database(new HttpBatchStore(`${this.scheme}:${this.path}`));
+      case 'https': {
+        const auth = this.authorization;
+        const opts = auth !== '' ? {headers: {Authorization: `Bearer ${auth}`}} : undefined;
+        return new Database(new HttpBatchStore(`${this.scheme}:${this.path}`, undefined, opts));
+      }
       default:
         throw new Error('Unreached');
     }
