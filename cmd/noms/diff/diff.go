@@ -68,7 +68,7 @@ func diffLists(w io.Writer, p types.Path, v1, v2 types.List) (err error) {
 
 		if splice.SpRemoved == splice.SpAdded {
 			// Heuristic: list only has modifications.
-			for i := uint64(0); i < splice.SpRemoved; i++ {
+			for i := uint64(0); i < splice.SpRemoved && err == nil; i++ {
 				lastEl := v1.Get(splice.SpAt + i)
 				newEl := v2.Get(splice.SpFrom + i)
 				if shouldDescend(lastEl, newEl) {
