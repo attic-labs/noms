@@ -20,4 +20,8 @@ Running the tests
 
 You can use `go test` command, e.g:
 
- - `go test ./cmd/...` should run every tests under the `cmd` directory.
+ - `go test $(go list ./... | grep -v /vendor/)` should run every tests except from vendor packages.
+
+For JS code, We have a python script to run all js tests.
+
+ - `python tools/run-all-js-tests.py`
