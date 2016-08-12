@@ -67,21 +67,17 @@ function loadUnsafe() {
   if (params.p && params.db) {
     renderPrompt('Specify either a database or a path, not both');
     return;
-  } else if (!params.p && !params.db) {
+  }
+  if (!params.p && !params.db) {
     renderPrompt('Can haz database or path?');
     return;
   }
-
-  const setDatabase = (dbSpec: DatabaseSpec) => {
-    dbSpec.authorization = params.token ? params.token : '';
-    database = dbSpec.database();
-  };
 
   let rootP: Promise<[Hash, Value]>;
 
   if (params.p) {
     const pathSpec = PathSpec.parse(params.p);
-    setDatabase(pathSpec.database);
+    database = pathSpec.database.database();
     rootP = pathSpec.value().then(([_, value]) => {
       if (value === null) {
         throw new Error('No value found at ' + params.p);
@@ -90,7 +86,7 @@ function loadUnsafe() {
     });
   } else {
     const dbSpec = DatabaseSpec.parse(params.db);
-    setDatabase(dbSpec);
+    database = dbSpec.database();
     // TODO: Don't access _rt, expose getRoot somewhere.
     rootP = database._rt.getRoot().then(r => database.readValue(r).then(value => [r, value]));
   }
@@ -258,8 +254,17 @@ class Prompt extends React.Component<void, PromptProps, void> {
       fontFamily: 'Menlo',
       fontSize: 14,
     };
-    const inputStyle = Object.assign(fontStyle, {}, {width: '50ex', marginBottom: '0.5em'});
+    const inputStyle = Object.assign(fontStyle, {}, {width: '80ex', marginBottom: '0.5em'});
     const demoServer = 'https://demo.noms.io/cli-tour';
+
+    let defaultDb, defaultP;
+    if (params.db) {
+      defaultDb = params.db;
+    } else if (params.p) {
+      defaultP = params.p;
+    } else {
+      defaultDb = 'http://demo.noms.io/cli-tour';
+    }
 
     return <div style={{display: 'flex', height: '100%', alignItems: 'center',
       justifyContent: 'center'}}>
@@ -267,18 +272,11 @@ class Prompt extends React.Component<void, PromptProps, void> {
         {this.props.msg}
         <form style={{margin:'0.5em 0'}} onSubmit={e => this._handleOnSubmit(e)}>
           <input type='text' ref='db' autoFocus={true} style={inputStyle}
-            defaultValue={params.db}
-            placeholder={`database URL (${demoServer})`}
+            defaultValue={defaultDb} placeholder={`database (${demoServer})`}
           />
           or
           <input type='text' ref='p' style={inputStyle}
-            defaultValue={params.p}
-            placeholder={`path (${demoServer}::sf-film-locations)`}
-          />
-          if needed:
-          <input type='text' ref='token' style={inputStyle}
-            defaultValue={params.token}
-            placeholder='auth token'
+            defaultValue={defaultP} placeholder={`path (${demoServer}::sf-film-locations)`}
           />
           <button type='submit'>OK</button>
         </form>
@@ -288,17 +286,12 @@ class Prompt extends React.Component<void, PromptProps, void> {
 
   _handleOnSubmit(e) {
     e.preventDefault();
-    let qs = '';
-    const append = (name, ref) => {
-      if (ref.value) {
-        qs += (qs === '' ? '?' : '&');
-        qs += `${name}=${ref.value}`;
-      }
-    };
-    append('db', this.refs.db);
-    append('p', this.refs.p);
-    append('token', this.refs.token);
-    window.history.pushState({}, undefined, qs);
+    const qs = ['db', 'p']
+      .map(k => [k, this.refs[k].value])
+      .filter(([, v]) => !!v)
+      .map(([k, v]) => `${k}=${v}`)
+      .join('&');
+    window.history.pushState({}, undefined, qs === '' || ('?' + qs));
     load();
   }
 }
