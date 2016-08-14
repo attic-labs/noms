@@ -75,13 +75,13 @@ func main() {
 	kinds := []types.NomsKind{}
 	if *detectColumnTypes {
 		kinds = csv.GetSchema(cr, *numSamples, len(headers))
-		fmt.Fprintf(os.Stdout, "kinds detected: %v\n", strings.Join(csv.KindsToStrings(kinds), ","))
+		fmt.Fprintf(os.Stdout, "%v\n", strings.Join(csv.KindsToStrings(kinds), ","))
 	}
 
 	if *detectPrimaryKeys {
 		pks := csv.FindPrimaryKeys(cr, *numSamples, *numFieldsInPK, len(headers))
 		for _, pk := range pks {
-			fmt.Fprintf(os.Stdout, "pk: (%v) - %s\n", pk, strings.Join(csv.GetFieldNamesFromIndices(headers, pk), ","))
+			fmt.Fprintf(os.Stdout, "%s\n", strings.Join(csv.GetFieldNamesFromIndices(headers, pk), ","))
 		}
 	}
 }
