@@ -6,7 +6,6 @@ package diff
 
 import (
 	"bytes"
-	"io"
 	"strings"
 	"testing"
 
@@ -25,14 +24,6 @@ var (
 	mm3x = createMap("m1", "m-one", "v2", "m-two", "m3", "m-three-diff", "m4", aa1x)
 	mm4  = createMap("n1", "n-one", "n2", "n-two", "n3", "n-three", "n4", aa1)
 )
-
-type testFunc func(w io.Writer, v1, v2 types.Value)
-
-func makeTestFunc(leftRight bool) testFunc {
-	return func(w io.Writer, v1, v2 types.Value) {
-		Diff(w, v1, v2, leftRight)
-	}
-}
 
 func valToTypesValue(v interface{}) types.Value {
 	var v1 types.Value
@@ -91,17 +82,17 @@ func TestNomsMapdiff(t *testing.T) {
   }
 `
 
-	tf := func(f testFunc) {
+	tf := func(leftRight bool) {
 		m1 := createMap("map-1", mm1, "map-2", mm2, "map-3", mm3, "map-4", mm4)
 		m2 := createMap("map-1", mm1, "map-2", mm2, "map-3", mm3x, "map-4", mm4)
 		buf := &bytes.Buffer{}
-		f(buf, m1, m2)
+		Diff(buf, m1, m2, leftRight)
 
 		assert.Equal(expected, buf.String())
 	}
 
-	tf(makeTestFunc(true))
-	tf(makeTestFunc(false))
+	tf(true)
+	tf(false)
 }
 
 func TestNomsSetDiff(t *testing.T) {
@@ -144,18 +135,18 @@ func TestNomsSetDiff(t *testing.T) {
 	s3 := createSet(mm1, mm2, mm3, mm4)
 	s4 := createSet(mm1, mm2, mm3x, mm4)
 
-	tf := func(f testFunc) {
+	tf := func(leftRight bool) {
 		buf := &bytes.Buffer{}
-		f(buf, s1, s2)
+		Diff(buf, s1, s2, leftRight)
 		assert.Equal(expected1, buf.String())
 
 		buf = &bytes.Buffer{}
-		f(buf, s3, s4)
+		Diff(buf, s3, s4, leftRight)
 		assert.Equal(expected2, buf.String())
 	}
 
-	tf(makeTestFunc(true))
-	tf(makeTestFunc(false))
+	tf(true)
+	tf(false)
 }
 
 func TestNomsStructDiff(t *testing.T) {
@@ -186,14 +177,14 @@ func TestNomsStructDiff(t *testing.T) {
 	m1 := createMap("one", 1, "two", 2, "three", s1, "four", "four")
 	m2 := createMap("one", 1, "two", 2, "three", s2, "four", "four-diff")
 
-	tf := func(f testFunc) {
+	tf := func(leftRight bool) {
 		buf := &bytes.Buffer{}
-		f(buf, m1, m2)
+		Diff(buf, m1, m2, leftRight)
 		assert.Equal(expected, buf.String())
 	}
 
-	tf(makeTestFunc(true))
-	tf(makeTestFunc(false))
+	tf(true)
+	tf(false)
 }
 
 func TestNomsListDiff(t *testing.T) {
@@ -230,23 +221,23 @@ func TestNomsListDiff(t *testing.T) {
 	l5 := createList(mm1, mm2, mm3, mm4)
 	l6 := createList(mm1, mm2, mm3x, mm4)
 
-	tf := func(f testFunc) {
+	tf := func(leftRight bool) {
 		buf := &bytes.Buffer{}
-		f(buf, l1, l2)
+		Diff(buf, l1, l2, leftRight)
 		assert.Equal(expected1, buf.String())
 
 		buf = &bytes.Buffer{}
-		f(buf, l3, l4)
+		Diff(buf, l3, l4, leftRight)
 		assert.Equal(expected2, buf.String())
 
 		buf = &bytes.Buffer{}
-		f(buf, l5, l6)
+		Diff(buf, l5, l6, leftRight)
 
 		assert.Equal(expected3, buf.String())
 	}
 
-	tf(makeTestFunc(true))
-	tf(makeTestFunc(false))
+	tf(true)
+	tf(false)
 }
 
 func TestNomsBlobDiff(t *testing.T) {
@@ -256,14 +247,14 @@ func TestNomsBlobDiff(t *testing.T) {
 	b1 := types.NewBlob(strings.NewReader(strings.Repeat("x", 2*1024)))
 	b2 := types.NewBlob(strings.NewReader("Hello World"))
 
-	tf := func(f testFunc) {
+	tf := func(leftRight bool) {
 		buf := &bytes.Buffer{}
-		f(buf, b1, b2)
+		Diff(buf, b1, b2, leftRight)
 		assert.Equal(expected, buf.String())
 	}
 
-	tf(makeTestFunc(true))
-	tf(makeTestFunc(false))
+	tf(true)
+	tf(false)
 }
 
 func TestNomsTypeDiff(t *testing.T) {
@@ -277,18 +268,18 @@ func TestNomsTypeDiff(t *testing.T) {
 	t3 := types.MakeListType(types.NumberType)
 	t4 := types.MakeSetType(types.StringType)
 
-	tf := func(f testFunc) {
+	tf := func(leftRight bool) {
 		buf := &bytes.Buffer{}
-		f(buf, t1, t2)
+		Diff(buf, t1, t2, leftRight)
 		assert.Equal(expected1, buf.String())
 
 		buf = &bytes.Buffer{}
-		f(buf, t3, t4)
+		Diff(buf, t3, t4, leftRight)
 		assert.Equal(expected2, buf.String())
 	}
 
-	tf(makeTestFunc(true))
-	tf(makeTestFunc(false))
+	tf(true)
+	tf(false)
 }
 
 func TestNomsRefDiff(t *testing.T) {
@@ -298,13 +289,13 @@ func TestNomsRefDiff(t *testing.T) {
 	r1 := types.NewRef(l1)
 	r2 := types.NewRef(l2)
 
-	tf := func(f testFunc) {
+	tf := func(leftRight bool) {
 		buf := &bytes.Buffer{}
-		f(buf, r1, r2)
+		Diff(buf, r1, r2, leftRight)
 
 		test.EqualsIgnoreHashes(t, expected, buf.String())
 	}
 
-	tf(makeTestFunc(true))
-	tf(makeTestFunc(false))
+	tf(true)
+	tf(false)
 }
