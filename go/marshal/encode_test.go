@@ -5,6 +5,7 @@
 package marshal
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -196,4 +197,38 @@ func TestEncodeInvalidNamedFields(t *testing.T) {
 		A int `noms:"1a"`
 	}
 	assertEncodeErrorMessage(t, S{42}, "Invalid struct field name: 1a")
+}
+
+func ExampleMarshal() {
+	type Person struct {
+		Given string
+		Male  bool
+	}
+	arya, err := Marshal(Person{"Arya", false})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Printf("Given: %s, Male: %t\n", arya.(types.Struct).Get("given").(types.String), arya.(types.Struct).Get("male").(types.Bool))
+	// Output: Given: Arya, Male: false
+}
+
+func ExampleUnmarshal() {
+	type Person struct {
+		Given string
+		Male  bool
+	}
+	var rickon Person
+	err := Unmarshal(types.NewStruct("Person", types.StructData{
+		"given": types.String("Rickon"),
+		"male":  types.Bool(true),
+	}), &rickon)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Printf("Given: %s, Male: %t\n", rickon.Given, rickon.Male)
+	// Output: Given: Rickon, Male: true
 }

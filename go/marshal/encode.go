@@ -20,13 +20,13 @@ import (
 //
 // Marshal traverses the value v recursively. Marshal uses the following type-dependent encodings:
 //
-// Boolean values encode as Noms types.Bool.
+// Boolean values are encoded as Noms types.Bool.
 //
-// Floating point and integer values encode as Noms types.Number. At the moment this might lead to some loss in precision because types.Number currently takes a float64.
+// Floating point and integer values are encoded as Noms types.Number. At the moment this might lead to some loss in precision because types.Number currently takes a float64.
 //
-// String values encode as Noms types.String.
+// String values are encoded as Noms types.String.
 //
-// Struct values encode as Noms structs (types.Struct). Each exported struct field becomes a member of the struct unless
+// Struct values are encoded as Noms structs (types.Struct). Each exported struct field becomes a member of the struct unless
 //   - the field's tag is "-"
 // The structs default field name is the struct field name where the first character is lower cased,
 // but can be specified in the struct field's tag value. The "noms" key in
