@@ -5,13 +5,14 @@
 package diff
 
 import (
+	"bytes"
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/test"
 	"github.com/attic-labs/testify/assert"
-	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 var (
@@ -24,6 +25,14 @@ var (
 	mm3x = createMap("m1", "m-one", "v2", "m-two", "m3", "m-three-diff", "m4", aa1x)
 	mm4  = createMap("n1", "n-one", "n2", "n-two", "n3", "n-three", "n4", aa1)
 )
+
+type testFunc func(w io.Writer, v1, v2 types.Value)
+
+func makeTestFunc(leftRight bool) testFunc {
+	return func(w io.Writer, v1, v2 types.Value) {
+		Diff(w, v1, v2, leftRight)
+	}
+}
 
 func valToTypesValue(v interface{}) types.Value {
 	var v1 types.Value
@@ -82,29 +91,29 @@ func TestNomsMapdiff(t *testing.T) {
   }
 `
 
-	m1 := createMap("map-1", mm1, "map-2", mm2, "map-3", mm3, "map-4", mm4)
-	m2 := createMap("map-1", mm1, "map-2", mm2, "map-3", mm3x, "map-4", mm4)
-	buf := util.NewBuffer(nil)
-	Diff(buf, m1, m2)
+	tf := func(f testFunc) {
+		m1 := createMap("map-1", mm1, "map-2", mm2, "map-3", mm3, "map-4", mm4)
+		m2 := createMap("map-1", mm1, "map-2", mm2, "map-3", mm3x, "map-4", mm4)
+		buf := &bytes.Buffer{}
+		f(buf, m1, m2)
 
-	assert.Equal(expected, buf.String())
+		assert.Equal(expected, buf.String())
+	}
+
+	tf(makeTestFunc(true))
+	tf(makeTestFunc(false))
 }
 
 func TestNomsSetDiff(t *testing.T) {
 	assert := assert.New(t)
 
-	expected := `(root) {
+	expected1 := `(root) {
 -   "five"
 +   "five-diff"
   }
 `
-	s1 := createSet("one", "three", "five", "seven", "nine")
-	s2 := createSet("one", "three", "five-diff", "seven", "nine")
-	buf := util.NewBuffer(nil)
-	Diff(buf, s1, s2)
-	assert.Equal(expected, buf.String())
 
-	expected = `(root) {
+	expected2 := `(root) {
 +   {  // 4 items
 +     "m1": "m-one",
 +     "m3": "m-three-diff",
@@ -129,11 +138,24 @@ func TestNomsSetDiff(t *testing.T) {
 -   }
   }
 `
-	s1 = createSet(mm1, mm2, mm3, mm4)
-	s2 = createSet(mm1, mm2, mm3x, mm4)
-	buf = util.NewBuffer(nil)
-	Diff(buf, s1, s2)
-	assert.Equal(expected, buf.String())
+
+	s1 := createSet("one", "three", "five", "seven", "nine")
+	s2 := createSet("one", "three", "five-diff", "seven", "nine")
+	s3 := createSet(mm1, mm2, mm3, mm4)
+	s4 := createSet(mm1, mm2, mm3x, mm4)
+
+	tf := func(f testFunc) {
+		buf := &bytes.Buffer{}
+		f(buf, s1, s2)
+		assert.Equal(expected1, buf.String())
+
+		buf = &bytes.Buffer{}
+		f(buf, s3, s4)
+		assert.Equal(expected2, buf.String())
+	}
+
+	tf(makeTestFunc(true))
+	tf(makeTestFunc(false))
 }
 
 func TestNomsStructDiff(t *testing.T) {
@@ -164,37 +186,38 @@ func TestNomsStructDiff(t *testing.T) {
 	m1 := createMap("one", 1, "two", 2, "three", s1, "four", "four")
 	m2 := createMap("one", 1, "two", 2, "three", s2, "four", "four-diff")
 
-	buf := util.NewBuffer(nil)
-	Diff(buf, m1, m2)
-	assert.Equal(expected, buf.String())
+	tf := func(f testFunc) {
+		buf := &bytes.Buffer{}
+		f(buf, m1, m2)
+		assert.Equal(expected, buf.String())
+	}
+
+	tf(makeTestFunc(true))
+	tf(makeTestFunc(false))
 }
 
 func TestNomsListDiff(t *testing.T) {
 	assert := assert.New(t)
 
-	expected := `(root) {
+	expected1 := `(root) {
 -   2
 +   22
 -   44
   }
 `
+
 	l1 := createList(1, 2, 3, 4, 44, 5, 6)
 	l2 := createList(1, 22, 3, 4, 5, 6)
-	buf := util.NewBuffer(nil)
-	Diff(buf, l1, l2)
-	assert.Equal(expected, buf.String())
 
-	expected = `(root) {
+	expected2 := `(root) {
 +   "seven"
   }
 `
-	l1 = createList("one", "two", "three", "four", "five", "six")
-	l2 = createList("one", "two", "three", "four", "five", "six", "seven")
-	buf = util.NewBuffer(nil)
-	Diff(buf, l1, l2)
-	assert.Equal(expected, buf.String())
 
-	expected = `[2] {
+	l3 := createList("one", "two", "three", "four", "five", "six")
+	l4 := createList("one", "two", "three", "four", "five", "six", "seven")
+
+	expected3 := `[2] {
 -   "m3": "m-three"
 +   "m3": "m-three-diff"
   }
@@ -203,12 +226,27 @@ func TestNomsListDiff(t *testing.T) {
 +   "a1": "a-one-diff"
   }
 `
-	l1 = createList(mm1, mm2, mm3, mm4)
-	l2 = createList(mm1, mm2, mm3x, mm4)
-	buf = util.NewBuffer(nil)
-	Diff(buf, l1, l2)
 
-	assert.Equal(expected, buf.String())
+	l5 := createList(mm1, mm2, mm3, mm4)
+	l6 := createList(mm1, mm2, mm3x, mm4)
+
+	tf := func(f testFunc) {
+		buf := &bytes.Buffer{}
+		f(buf, l1, l2)
+		assert.Equal(expected1, buf.String())
+
+		buf = &bytes.Buffer{}
+		f(buf, l3, l4)
+		assert.Equal(expected2, buf.String())
+
+		buf = &bytes.Buffer{}
+		f(buf, l5, l6)
+
+		assert.Equal(expected3, buf.String())
+	}
+
+	tf(makeTestFunc(true))
+	tf(makeTestFunc(false))
 }
 
 func TestNomsBlobDiff(t *testing.T) {
@@ -217,27 +255,40 @@ func TestNomsBlobDiff(t *testing.T) {
 	expected := "-   Blob (2.0 kB)\n+   Blob (11 B)\n"
 	b1 := types.NewBlob(strings.NewReader(strings.Repeat("x", 2*1024)))
 	b2 := types.NewBlob(strings.NewReader("Hello World"))
-	buf := util.NewBuffer(nil)
-	Diff(buf, b1, b2)
-	assert.Equal(expected, buf.String())
+
+	tf := func(f testFunc) {
+		buf := &bytes.Buffer{}
+		f(buf, b1, b2)
+		assert.Equal(expected, buf.String())
+	}
+
+	tf(makeTestFunc(true))
+	tf(makeTestFunc(false))
 }
 
 func TestNomsTypeDiff(t *testing.T) {
 	assert := assert.New(t)
 
-	expected := "-   List<Number>\n+   List<String>\n"
+	expected1 := "-   List<Number>\n+   List<String>\n"
 	t1 := types.MakeListType(types.NumberType)
 	t2 := types.MakeListType(types.StringType)
-	buf := util.NewBuffer(nil)
-	Diff(buf, t1, t2)
-	assert.Equal(expected, buf.String())
 
-	expected = "-   List<Number>\n+   Set<String>\n"
-	t1 = types.MakeListType(types.NumberType)
-	t2 = types.MakeSetType(types.StringType)
-	buf = util.NewBuffer(nil)
-	Diff(buf, t1, t2)
-	assert.Equal(expected, buf.String())
+	expected2 := "-   List<Number>\n+   Set<String>\n"
+	t3 := types.MakeListType(types.NumberType)
+	t4 := types.MakeSetType(types.StringType)
+
+	tf := func(f testFunc) {
+		buf := &bytes.Buffer{}
+		f(buf, t1, t2)
+		assert.Equal(expected1, buf.String())
+
+		buf = &bytes.Buffer{}
+		f(buf, t3, t4)
+		assert.Equal(expected2, buf.String())
+	}
+
+	tf(makeTestFunc(true))
+	tf(makeTestFunc(false))
 }
 
 func TestNomsRefDiff(t *testing.T) {
@@ -246,8 +297,14 @@ func TestNomsRefDiff(t *testing.T) {
 	l2 := createList(2)
 	r1 := types.NewRef(l1)
 	r2 := types.NewRef(l2)
-	buf := util.NewBuffer(nil)
-	Diff(buf, r1, r2)
 
-	test.EqualsIgnoreHashes(t, expected, buf.String())
+	tf := func(f testFunc) {
+		buf := &bytes.Buffer{}
+		f(buf, r1, r2)
+
+		test.EqualsIgnoreHashes(t, expected, buf.String())
+	}
+
+	tf(makeTestFunc(true))
+	tf(makeTestFunc(false))
 }
