@@ -406,6 +406,16 @@ func TestDecodeSlice(t *testing.T) {
 	assert.Equal([]string{"a", "b", "c"}, s)
 }
 
+func TestDecodeSliceReuse(t *testing.T) {
+	assert := assert.New(t)
+	s := []string{"A", "B", "C", "D"}
+	s2 := s[1:3]
+	err := Unmarshal(types.NewList(types.String("a"), types.String("b")), &s)
+	assert.NoError(err)
+	assert.Equal([]string{"a", "b"}, s)
+	assert.Equal([]string{"b", "C"}, s2)
+}
+
 func TestDecodeArray(t *testing.T) {
 	assert := assert.New(t)
 	s := [3]string{"", "", ""}

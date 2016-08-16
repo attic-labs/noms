@@ -21,6 +21,10 @@ import (
 // fields to the fields used by Marshal (either the struct field name or its tag).
 // Unmarshal will only set exported fields of the struct.
 //
+// To unmarshal a Noms list into a slice, Unmarshal resets the slice length to zero and then appends each element to the slice.
+//
+// To unmarshal a Noms list into a Go array, Unmarshal decodes Noms list elements into corresponding Go array elements.
+//
 // Unmarshal returns an UnmarshalTypeMismatchError if:
 // - a Noms value is not appropriate for a given target type
 // - a Noms number overflows the target type
@@ -229,10 +233,11 @@ func sliceDecoder(t reflect.Type) decoderFunc {
 	decoder := typeDecoder(t.Elem())
 	return func(v types.Value, rv reflect.Value) {
 		list := v.(types.List)
-		l := int(list.Len())
-		slice := reflect.MakeSlice(t, l, l)
+		slice := rv.Slice(0, 0)
 		list.IterAll(func(v types.Value, i uint64) {
-			decoder(v, slice.Index(int(i)))
+			elemRv := reflect.New(t.Elem()).Elem()
+			decoder(v, elemRv)
+			slice = reflect.Append(slice, elemRv)
 		})
 		rv.Set(slice)
 	}
