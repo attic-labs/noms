@@ -31,8 +31,8 @@ func shouldDescend(v1, v2 types.Value) bool {
 	return !types.IsPrimitiveKind(kind) && kind == v2.Type().Kind() && kind != types.RefKind
 }
 
-// Writes the Diff from |v1| to |v2| to |w|.
-// If |leftRight| is true then the left-diff diff is used for ordered sequences - see Diff vs DiffLeftRight in Set and Map.
+// Diff writes the diff from |v1| to |v2| to |w|.
+// If |leftRight| is true then the left-right diff is used for ordered sequences - see Diff vs DiffLeftRight in Set and Map.
 func Diff(w io.Writer, v1, v2 types.Value, leftRight bool) error {
 	return diff(diffWriter{w, leftRight}, types.Path{}, nil, v1, v2)
 }
