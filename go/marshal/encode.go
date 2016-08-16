@@ -25,6 +25,8 @@ import (
 //
 // String values are encoded as Noms types.String.
 //
+// Slices and arrays are encoded as Noms types.List.
+//
 // Struct values are encoded as Noms structs (types.Struct). Each exported Go struct field becomes a member of the Noms struct unless
 //   - the field's tag is "-"
 // The Noms struct default field name is the Go struct field name where the first character is lower cased,
@@ -48,7 +50,7 @@ import (
 //
 // Noms values (values implementing types.Value) are copied over without any change.
 //
-// Go maps, slices, arrays, pointers, complex, interface (non types.Value), function are not supported. Attempting to encode such a value causes Marshal to return an UnsupportedTypeError.
+// Go maps, pointers, complex, interface (non types.Value), function are not supported. Attempting to encode such a value causes Marshal to return an UnsupportedTypeError.
 //
 func Marshal(v interface{}) (nomsValue types.Value, err error) {
 	defer func() {
@@ -132,6 +134,8 @@ func typeEncoder(t reflect.Type) encoderFunc {
 		return stringEncoder
 	case reflect.Struct:
 		return structEncoder(t)
+	case reflect.Slice, reflect.Array:
+		return listEncoder(t)
 	default:
 		panic(&UnsupportedTypeError{Type: t})
 	}
@@ -261,10 +265,14 @@ func nomsType(t reflect.Type) *types.Type {
 		return types.StringType
 	case reflect.Struct:
 		return structNomsType(t)
-	default:
-		// This will be reported as an error at a different layer.
-		return nil
+	case reflect.Array, reflect.Slice:
+		elemType := nomsType(t.Elem())
+		if elemType != nil {
+			return types.MakeListType(elemType)
+		}
 	}
+	// This will be reported as an error at a different layer.
+	return nil
 }
 
 // structNomsType returns the noms types.Type if it can be determined from the reflect.Type. Note that we can only determine the type for a subset of noms types since the Go type does not fully reflect it. In this cases this returns nil and we have to wait until we have a value to be able to determine the type.
@@ -287,4 +295,15 @@ func structNomsType(t reflect.Type) *types.Type {
 
 	_, structType := typeFields(t)
 	return structType
+}
+
+func listEncoder(t reflect.Type) encoderFunc {
+	encoder := typeEncoder(t.Elem())
+	return func(v reflect.Value) types.Value {
+		values := make([]types.Value, v.Len(), v.Len())
+		for i := 0; i < v.Len(); i++ {
+			values[i] = encoder(v.Index(i))
+		}
+		return types.NewList(values...)
+	}
 }

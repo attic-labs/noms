@@ -21,7 +21,10 @@ import (
 // fields to the fields used by Marshal (either the struct field name or its tag).
 // Unmarshal will only set exported fields of the struct.
 //
-// If a Noms value is not appropriate for a given target type, or if a Noms number overflows the target type, Unmarshal returns a UnmarshalTypeMismatchError.
+// Unmarshal returns an UnmarshalTypeMismatchError if:
+// - a Noms value is not appropriate for a given target type
+// - a Noms number overflows the target type
+// - a Noms list is decoded into a Go array of a different length
 //
 func Unmarshal(v types.Value, out interface{}) (err error) {
 	defer func() {
@@ -92,6 +95,10 @@ func typeDecoder(t reflect.Type) decoderFunc {
 		return stringDecoder
 	case reflect.Struct, reflect.Interface:
 		return structDecoder(t)
+	case reflect.Slice:
+		return sliceDecoder(t)
+	case reflect.Array:
+		return arrayDecoder(t)
 	default:
 		panic(&UnsupportedTypeError{Type: t})
 	}
@@ -216,4 +223,32 @@ func nomsValueDecoder(v types.Value, rv reflect.Value) {
 		panic(&UnmarshalTypeMismatchError{v, rv.Type(), ""})
 	}
 	rv.Set(reflect.ValueOf(v))
+}
+
+func sliceDecoder(t reflect.Type) decoderFunc {
+	decoder := typeDecoder(t.Elem())
+	return func(v types.Value, rv reflect.Value) {
+		list := v.(types.List)
+		l := int(list.Len())
+		slice := reflect.MakeSlice(t, l, l)
+		list.IterAll(func(v types.Value, i uint64) {
+			decoder(v, slice.Index(int(i)))
+		})
+		rv.Set(slice)
+	}
+}
+
+func arrayDecoder(t reflect.Type) decoderFunc {
+	size := t.Len()
+	decoder := typeDecoder(t.Elem())
+	return func(v types.Value, rv reflect.Value) {
+		list := v.(types.List)
+		l := int(list.Len())
+		if l != size {
+			panic(&UnmarshalTypeMismatchError{v, t, ", length does not match"})
+		}
+		list.IterAll(func(v types.Value, i uint64) {
+			decoder(v, rv.Index(int(i)))
+		})
+	}
 }
