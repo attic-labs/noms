@@ -21,7 +21,7 @@ import (
 // fields to the fields used by Marshal (either the struct field name or its tag).
 // Unmarshal will only set exported fields of the struct.
 //
-// If a Noms value is not appropriate for a given target type, or if a Noms number overflows the target type, Unmarshal returns a UnmarshalTypeMismatchError or OverflowError respectively
+// If a Noms value is not appropriate for a given target type, or if a Noms number overflows the target type, Unmarshal returns a UnmarshalTypeMismatchError.
 //
 func Unmarshal(v types.Value, out interface{}) (err error) {
 	defer func() {
