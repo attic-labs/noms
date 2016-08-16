@@ -250,7 +250,7 @@ func TestDecodeInvalidTypes(tt *testing.T) {
 
 func TestDecodeOverflows(tt *testing.T) {
 	t := func(p interface{}, n float64, ts string) {
-		assertDecodeErrorMessage(tt, types.Number(n), p, fmt.Sprintf("Cannot unmarshal %g into Go value of type %s", n, ts))
+		assertDecodeErrorMessage(tt, types.Number(n), p, fmt.Sprintf("Cannot unmarshal Number into Go value of type %s (%g does not fit in %s)", ts, n, ts))
 	}
 
 	var ui8 uint8

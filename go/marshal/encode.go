@@ -7,7 +7,6 @@ package marshal
 
 import (
 	"reflect"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -54,13 +53,12 @@ import (
 func Marshal(v interface{}) (nomsValue types.Value, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if _, ok := r.(runtime.Error); ok {
-				panic(r)
+			switch r.(type) {
+			case *UnsupportedTypeError, *InvalidTagError:
+				err = r.(error)
+				return
 			}
-			if s, ok := r.(string); ok {
-				panic(s)
-			}
-			err = r.(error)
+			panic(r)
 		}
 	}()
 	rv := reflect.ValueOf(v)
@@ -69,8 +67,7 @@ func Marshal(v interface{}) (nomsValue types.Value, err error) {
 	return
 }
 
-// UnsupportedTypeError is returned by encode when attempting
-// to encode an unsupported value type.
+// UnsupportedTypeError is returned by encode when attempting to encode a type that isn't supported.
 type UnsupportedTypeError struct {
 	Type    reflect.Type
 	Message string

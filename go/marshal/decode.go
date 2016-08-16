@@ -7,7 +7,6 @@ package marshal
 import (
 	"fmt"
 	"reflect"
-	"runtime"
 	"sync"
 
 	"github.com/attic-labs/noms/go/types"
@@ -27,13 +26,12 @@ import (
 func Unmarshal(v types.Value, out interface{}) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if _, ok := r.(runtime.Error); ok {
-				panic(r)
+			switch r.(type) {
+			case *UnmarshalTypeMismatchError, *UnsupportedTypeError, *InvalidTagError:
+				err = r.(error)
+				return
 			}
-			if s, ok := r.(string); ok {
-				panic(s)
-			}
-			err = r.(error)
+			panic(r)
 		}
 	}()
 
@@ -74,14 +72,8 @@ func (e *UnmarshalTypeMismatchError) Error() string {
 	return fmt.Sprintf("Cannot unmarshal %s into Go value of type %s%s", e.Value.Type().Describe(), e.Type.String(), e.details)
 }
 
-// OverflowError describes a Noms value that was not appropriate for a value of a specific Go number type.
-type OverflowError struct {
-	Value types.Number
-	Type  reflect.Type // type of Go value it could not be assigned to
-}
-
-func (e *OverflowError) Error() string {
-	return fmt.Sprintf("Cannot unmarshal %g into Go value of type %s", e.Value, e.Type)
+func overflowError(v types.Number, t reflect.Type) *UnmarshalTypeMismatchError {
+	return &UnmarshalTypeMismatchError{v, t, fmt.Sprintf(" (%g does not fit in %s)", v, t)}
 }
 
 type decoderFunc func(v types.Value, rv reflect.Value)
@@ -132,7 +124,7 @@ func intDecoder(v types.Value, rv reflect.Value) {
 	if n, ok := v.(types.Number); ok {
 		i := int64(n)
 		if rv.OverflowInt(i) {
-			panic(&OverflowError{n, rv.Type()})
+			panic(overflowError(n, rv.Type()))
 		}
 		rv.SetInt(i)
 	} else {
@@ -144,7 +136,7 @@ func uintDecoder(v types.Value, rv reflect.Value) {
 	if n, ok := v.(types.Number); ok {
 		u := uint64(n)
 		if rv.OverflowUint(u) {
-			panic(&OverflowError{n, rv.Type()})
+			panic(overflowError(n, rv.Type()))
 		}
 		rv.SetUint(u)
 	} else {
