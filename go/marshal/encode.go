@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-// Package marshal implements encoding and decoding of Noms values. The mapping between JSON objects and Go values is described  in the documentation for the Marshal and Unmarshal functions.
+// Package marshal implements encoding and decoding of Noms values. The mapping between Noms objects and Go values is described  in the documentation for the Marshal and Unmarshal functions.
 package marshal
 
 import (
@@ -26,11 +26,11 @@ import (
 //
 // String values are encoded as Noms types.String.
 //
-// Struct values are encoded as Noms structs (types.Struct). Each exported struct field becomes a member of the struct unless
+// Struct values are encoded as Noms structs (types.Struct). Each exported Go struct field becomes a member of the Noms struct unless
 //   - the field's tag is "-"
-// The structs default field name is the struct field name where the first character is lower cased,
-// but can be specified in the struct field's tag value. The "noms" key in
-// the struct field's tag value is the field name. Examples:
+// The Noms struct default field name is the Go struct field name where the first character is lower cased,
+// but can be specified in the Go struct field's tag value. The "noms" key in
+// the Go struct field's tag value is the field name. Examples:
 //
 //   // Field is ignored.
 //   Field int `noms:"-"`
@@ -39,11 +39,13 @@ import (
 //   MyName int
 //
 //   // Field appears in a Noms struct as key "myName".
-//   Field int `json:"myName"`
+//   Field int `noms:"myName"`
 //
 // Unlike encoding/json Marshal, this does not support "omitempty".
 //
 // Anonymous struct fields are currently not supported.
+//
+// Embedded structs are currently not supported (which is the same as anonymous struct fields).
 //
 // Noms values (values implementing types.Value) are copied over without any change.
 //
@@ -91,7 +93,7 @@ func (e *InvalidTagError) Error() string {
 	return e.message
 }
 
-var nomsValueType = reflect.TypeOf((*types.Value)(nil)).Elem()
+var nomsValueInterface = reflect.TypeOf((*types.Value)(nil)).Elem()
 
 type encoderFunc func(v reflect.Value) types.Value
 
@@ -139,7 +141,7 @@ func typeEncoder(t reflect.Type) encoderFunc {
 }
 
 func structEncoder(t reflect.Type) encoderFunc {
-	if t.Implements(nomsValueType) {
+	if t.Implements(nomsValueInterface) {
 		return nomsValueEncoder
 	}
 
@@ -270,7 +272,7 @@ func nomsType(t reflect.Type) *types.Type {
 
 // structNomsType returns the noms types.Type if it can be determined from the reflect.Type. Note that we can only determine the type for a subset of noms types since the Go type does not fully reflect it. In this cases this returns nil and we have to wait until we have a value to be able to determine the type.
 func structNomsType(t reflect.Type) *types.Type {
-	if t.Implements(nomsValueType) {
+	if t.Implements(nomsValueInterface) {
 		// Use Name because List and Blob are convertible to each other on Go.
 		switch t.Name() {
 		case "Blob":

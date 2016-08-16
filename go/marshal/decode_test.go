@@ -106,15 +106,15 @@ func TestDecode(tt *testing.T) {
 	}
 
 	var list types.List
-	list2 := types.NewList()
+	list2 := types.NewList(types.Number(42))
 	t(list2, &list, list2)
 
 	var m types.Map
-	map2 := types.NewMap()
+	map2 := types.NewMap(types.Number(42), types.String("Hi"))
 	t(map2, &m, map2)
 
 	var set types.Set
-	set2 := types.NewSet()
+	set2 := types.NewSet(types.String("Bye"))
 	t(set2, &set, set2)
 
 	var blob types.Blob
@@ -165,10 +165,10 @@ func TestDecode(tt *testing.T) {
 			"b": types.Bool(false),
 			"c": types.String("bye"),
 		}),
-		"def": types.NewList(),
+		"def": types.NewList(types.Number(42)),
 	}), &t2, T2{
 		TestStruct{false, 1, "bye"},
-		types.NewList(),
+		types.NewList(types.Number(42)),
 	})
 
 	// extra fields

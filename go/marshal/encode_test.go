@@ -5,6 +5,7 @@
 package marshal
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"testing"
@@ -89,9 +90,10 @@ func TestEncode(tt *testing.T) {
 		t(types.String(s), s)
 	}
 
-	t(types.NewList(), types.NewList())
-	t(types.NewMap(), types.NewMap())
-	t(types.NewSet(), types.NewSet())
+	t(types.NewList(types.Number(42)), types.NewList(types.Number(42)))
+	t(types.NewMap(types.Number(42), types.String("hi")), types.NewMap(types.Number(42), types.String("hi")))
+	t(types.NewSet(types.String("bye")), types.NewSet(types.String("bye")))
+	t(types.NewBlob(bytes.NewBufferString("hello")), types.NewBlob(bytes.NewBufferString("hello")))
 
 	type TestStruct struct {
 		Str string

@@ -71,7 +71,7 @@ type UnmarshalTypeMismatchError struct {
 }
 
 func (e *UnmarshalTypeMismatchError) Error() string {
-	return "Cannot unmarshal " + e.Value.Type().Describe() + " into Go value of type " + e.Type.String() + e.details
+	return fmt.Sprintf("Cannot unmarshal %s into Go value of type %s%s", e.Value.Type().Describe(), e.Type.String(), e.details)
 }
 
 // OverflowError describes a Noms value that was not appropriate for a value of a specific Go number type.
@@ -164,8 +164,7 @@ type decField struct {
 }
 
 func structDecoder(t reflect.Type) decoderFunc {
-	// TODO: Is this handling wrong noms type?
-	if t.Implements(nomsValueType) {
+	if t.Implements(nomsValueInterface) {
 		return nomsValueDecoder
 	}
 
@@ -196,6 +195,7 @@ func structDecoder(t reflect.Type) decoderFunc {
 
 	d = func(v types.Value, rv reflect.Value) {
 		s := v.(types.Struct)
+		// If the name is empty then the Go struct has to be anonymous.
 		if s.Type().Desc.(types.StructDesc).Name != name {
 			panic(&UnmarshalTypeMismatchError{v, rv.Type(), ", names do not match"})
 		}
