@@ -43,9 +43,9 @@ export const fieldNameRe = new RegExp(fieldNameComponentRe.source + '$');
  *   setS(value: string): MyStruct;
  * }
  *
- * With one major exception and that is that if the field name conflicts with any of the properties
- * in ValueBase (or Object), such as `chunks`, `hash` or `type` (or `toString`, `hasOwnProperty`
- * etc.), then these are not reflected directly on the struct instance.
+ * With one major exception: if the field name conflicts with any of the properties in ValueBase (or
+ * Object), such as `chunks`, `hash` or `type` (or `toString`, `hasOwnProperty` etc.), then these
+ * are not reflected directly on the struct instance.
  *
  * To reflect over structs you can create a new `StructMirror`. This is also the only way to get the
  * value of fields that conflict with `ValueBase` (`chunks`, `hash` and `type`).
