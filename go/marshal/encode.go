@@ -146,9 +146,7 @@ func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc
 		return nomsValueEncoder
 	}
 
-	encoderCache.RLock()
-	e := encoderCache.m[t]
-	encoderCache.RUnlock()
+	e := encoderCache.get(t)
 	if e != nil {
 		return e
 	}
@@ -164,7 +162,7 @@ func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc
 			return types.NewStructWithType(structType, values)
 		}
 	} else {
-		// Cannot precompute the type since there are noms collections.
+		// Cannot precompute the Noms type since there are noms collections.
 		name := t.Name()
 		e = func(v reflect.Value) types.Value {
 			data := make(types.StructData, len(fields))
@@ -175,13 +173,7 @@ func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc
 		}
 	}
 
-	encoderCache.Lock()
-	if encoderCache.m == nil {
-		encoderCache.m = map[reflect.Type]encoderFunc{}
-	}
-	encoderCache.m[t] = e
-	encoderCache.Unlock()
-
+	encoderCache.set(t, e)
 	return e
 }
 
@@ -198,9 +190,27 @@ func (fs fieldSlice) Len() int           { return len(fs) }
 func (fs fieldSlice) Swap(i, j int)      { fs[i], fs[j] = fs[j], fs[i] }
 func (fs fieldSlice) Less(i, j int) bool { return fs[i].name < fs[j].name }
 
-var encoderCache struct {
+type encoderCacheT struct {
 	sync.RWMutex
 	m map[reflect.Type]encoderFunc
+}
+
+var encoderCache = &encoderCacheT{}
+
+func (c *encoderCacheT) get(t reflect.Type) encoderFunc {
+	c.RLock()
+	e := c.m[t]
+	c.RUnlock()
+	return e
+}
+
+func (c *encoderCacheT) set(t reflect.Type, e encoderFunc) {
+	c.Lock()
+	if c.m == nil {
+		c.m = map[reflect.Type]encoderFunc{}
+	}
+	c.m[t] = e
+	c.Unlock()
 }
 
 func getFieldName(fieldName string, f reflect.StructField) string {
@@ -304,9 +314,7 @@ func structNomsType(t reflect.Type, parentStructTypes []reflect.Type) *types.Typ
 }
 
 func listEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc {
-	encoderCache.RLock()
-	e := encoderCache.m[t]
-	encoderCache.RUnlock()
+	e := encoderCache.get(t)
 	if e != nil {
 		return e
 	}
@@ -320,14 +328,7 @@ func listEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc {
 		return types.NewList(values...)
 	}
 
-	encoderCache.Lock()
-	if encoderCache.m == nil {
-		encoderCache.m = map[reflect.Type]encoderFunc{}
-	}
-	encoderCache.m[t] = e
-	encoderCache.Unlock()
-
+	encoderCache.set(t, e)
 	elemEncoder = typeEncoder(t.Elem(), parentStructTypes)
-
 	return e
 }

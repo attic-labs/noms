@@ -22,7 +22,6 @@ import (
 // Unmarshal will only set exported fields of the struct.
 //
 // To unmarshal a Noms list into a slice, Unmarshal resets the slice length to zero and then appends each element to the slice.
-// As a special case, to unmarshal an empty Noms list into a slice,  Unmarshal replaces the slice with a new empty slice.
 //
 // To unmarshal a Noms list into a Go array, Unmarshal decodes Noms list elements into corresponding Go array elements.
 //
@@ -156,9 +155,27 @@ func uintDecoder(v types.Value, rv reflect.Value) {
 	}
 }
 
-var decoderCache struct {
+type decoderCacheT struct {
 	sync.RWMutex
 	m map[reflect.Type]decoderFunc
+}
+
+var decoderCache = &decoderCacheT{}
+
+func (c *decoderCacheT) get(t reflect.Type) decoderFunc {
+	c.RLock()
+	d := c.m[t]
+	c.RUnlock()
+	return d
+}
+
+func (c *decoderCacheT) set(t reflect.Type, d decoderFunc) {
+	c.Lock()
+	if c.m == nil {
+		c.m = map[reflect.Type]decoderFunc{}
+	}
+	c.m[t] = d
+	c.Unlock()
 }
 
 type decField struct {
@@ -172,9 +189,7 @@ func structDecoder(t reflect.Type) decoderFunc {
 		return nomsValueDecoder
 	}
 
-	decoderCache.RLock()
-	d := decoderCache.m[t]
-	decoderCache.RUnlock()
+	d := decoderCache.get(t)
 	if d != nil {
 		return d
 	}
@@ -214,12 +229,7 @@ func structDecoder(t reflect.Type) decoderFunc {
 		}
 	}
 
-	decoderCache.Lock()
-	if decoderCache.m == nil {
-		decoderCache.m = map[reflect.Type]decoderFunc{}
-	}
-	decoderCache.m[t] = d
-	decoderCache.Unlock()
+	decoderCache.set(t, d)
 	return d
 }
 
@@ -231,9 +241,7 @@ func nomsValueDecoder(v types.Value, rv reflect.Value) {
 }
 
 func sliceDecoder(t reflect.Type) decoderFunc {
-	decoderCache.RLock()
-	d := decoderCache.m[t]
-	decoderCache.RUnlock()
+	d := decoderCache.get(t)
 	if d != nil {
 		return d
 	}
@@ -241,14 +249,8 @@ func sliceDecoder(t reflect.Type) decoderFunc {
 	var decoder decoderFunc
 
 	d = func(v types.Value, rv reflect.Value) {
-		list := v.(types.List)
-		if list.Len() == 0 {
-			rv.Set(reflect.MakeSlice(t, 0, 0))
-			return
-		}
-
 		slice := rv.Slice(0, 0)
-		list.IterAll(func(v types.Value, i uint64) {
+		v.(types.List).IterAll(func(v types.Value, i uint64) {
 			elemRv := reflect.New(t.Elem()).Elem()
 			decoder(v, elemRv)
 			slice = reflect.Append(slice, elemRv)
@@ -256,22 +258,13 @@ func sliceDecoder(t reflect.Type) decoderFunc {
 		rv.Set(slice)
 	}
 
-	decoderCache.Lock()
-	if decoderCache.m == nil {
-		decoderCache.m = map[reflect.Type]decoderFunc{}
-	}
-	decoderCache.m[t] = d
-	decoderCache.Unlock()
-
+	decoderCache.set(t, d)
 	decoder = typeDecoder(t.Elem())
-
 	return d
 }
 
 func arrayDecoder(t reflect.Type) decoderFunc {
-	decoderCache.RLock()
-	d := decoderCache.m[t]
-	decoderCache.RUnlock()
+	d := decoderCache.get(t)
 	if d != nil {
 		return d
 	}
@@ -290,14 +283,7 @@ func arrayDecoder(t reflect.Type) decoderFunc {
 		})
 	}
 
-	decoderCache.Lock()
-	if decoderCache.m == nil {
-		decoderCache.m = map[reflect.Type]decoderFunc{}
-	}
-	decoderCache.m[t] = d
-	decoderCache.Unlock()
-
+	decoderCache.set(t, d)
 	decoder = typeDecoder(t.Elem())
-
 	return d
 }
