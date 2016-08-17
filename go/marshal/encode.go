@@ -199,18 +199,17 @@ var encoderCache = &encoderCacheT{}
 
 func (c *encoderCacheT) get(t reflect.Type) encoderFunc {
 	c.RLock()
-	e := c.m[t]
-	c.RUnlock()
-	return e
+	defer c.RUnlock()
+	return c.m[t]
 }
 
 func (c *encoderCacheT) set(t reflect.Type, e encoderFunc) {
 	c.Lock()
+	defer c.Unlock()
 	if c.m == nil {
 		c.m = map[reflect.Type]encoderFunc{}
 	}
 	c.m[t] = e
-	c.Unlock()
 }
 
 func getFieldName(fieldName string, f reflect.StructField) string {

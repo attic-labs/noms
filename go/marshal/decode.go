@@ -164,18 +164,17 @@ var decoderCache = &decoderCacheT{}
 
 func (c *decoderCacheT) get(t reflect.Type) decoderFunc {
 	c.RLock()
-	d := c.m[t]
-	c.RUnlock()
-	return d
+	defer c.RUnlock()
+	return c.m[t]
 }
 
 func (c *decoderCacheT) set(t reflect.Type, d decoderFunc) {
 	c.Lock()
+	defer c.Unlock()
 	if c.m == nil {
 		c.m = map[reflect.Type]decoderFunc{}
 	}
 	c.m[t] = d
-	c.Unlock()
 }
 
 type decField struct {
