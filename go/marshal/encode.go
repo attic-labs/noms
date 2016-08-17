@@ -274,11 +274,6 @@ func nomsType(t reflect.Type, parentStructTypes []reflect.Type) *types.Type {
 	case reflect.String:
 		return types.StringType
 	case reflect.Struct:
-		for i, pst := range parentStructTypes {
-			if pst == t {
-				return types.MakeCycleType(uint32(i))
-			}
-		}
 		return structNomsType(t, parentStructTypes)
 	case reflect.Array, reflect.Slice:
 		elemType := nomsType(t.Elem(), parentStructTypes)
@@ -306,6 +301,12 @@ func structNomsType(t reflect.Type, parentStructTypes []reflect.Type) *types.Typ
 		}
 		// The rest of the Noms types need the value to get the exact type.
 		return nil
+	}
+
+	for i, pst := range parentStructTypes {
+		if pst == t {
+			return types.MakeCycleType(uint32(i))
+		}
 	}
 
 	_, structType := typeFields(t, parentStructTypes)
