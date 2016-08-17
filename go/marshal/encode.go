@@ -162,7 +162,7 @@ func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc
 			return types.NewStructWithType(structType, values)
 		}
 	} else {
-		// Cannot precompute the Noms type since there are noms collections.
+		// Cannot precompute the Noms type since there are Noms collections.
 		name := t.Name()
 		e = func(v reflect.Value) types.Value {
 			data := make(types.StructData, len(fields))
@@ -290,7 +290,7 @@ func nomsType(t reflect.Type, parentStructTypes []reflect.Type) *types.Type {
 	return nil
 }
 
-// structNomsType returns the noms types.Type if it can be determined from the reflect.Type. Note that we can only determine the type for a subset of noms types since the Go type does not fully reflect it. In this cases this returns nil and we have to wait until we have a value to be able to determine the type.
+// structNomsType returns the Noms types.Type if it can be determined from the reflect.Type. Note that we can only determine the type for a subset of Noms types since the Go type does not fully reflect it. In this cases this returns nil and we have to wait until we have a value to be able to determine the type.
 func structNomsType(t reflect.Type, parentStructTypes []reflect.Type) *types.Type {
 	if t.Implements(nomsValueInterface) {
 		// Use Name because List and Blob are convertible to each other on Go.
@@ -304,7 +304,7 @@ func structNomsType(t reflect.Type, parentStructTypes []reflect.Type) *types.Typ
 		case "String":
 			return types.StringType
 		}
-		// The rest of the noms types need the value to get the exact type.
+		// The rest of the Noms types need the value to get the exact type.
 		return nil
 	}
 
