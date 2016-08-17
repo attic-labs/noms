@@ -262,3 +262,39 @@ func TestEncodeStructWithArrayOfNomsValue(t *testing.T) {
 		"list": types.NewList(types.NewSet(types.Bool(true))),
 	}).Equals(v))
 }
+
+func TestEncodeRecursive(t *testing.T) {
+	assert := assert.New(t)
+
+	type Node struct {
+		Value    int
+		Children []Node
+	}
+	v, err := Marshal(Node{
+		1, []Node{
+			Node{2, []Node{}},
+			Node{3, []Node{}},
+		},
+	})
+	assert.NoError(err)
+
+	typ := types.MakeStructType("Node", []string{"children", "value"}, []*types.Type{
+		types.MakeListType(types.MakeCycleType(0)),
+		types.NumberType,
+	})
+	assert.True(typ.Equals(v.Type()))
+
+	assert.True(types.NewStructWithType(typ, types.ValueSlice{
+		types.NewList(
+			types.NewStructWithType(typ, types.ValueSlice{
+				types.NewList(),
+				types.Number(2),
+			}),
+			types.NewStructWithType(typ, types.ValueSlice{
+				types.NewList(),
+				types.Number(3),
+			}),
+		),
+		types.Number(1),
+	}).Equals(v))
+}

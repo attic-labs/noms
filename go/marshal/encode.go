@@ -64,7 +64,7 @@ func Marshal(v interface{}) (nomsValue types.Value, err error) {
 		}
 	}()
 	rv := reflect.ValueOf(v)
-	encoder := typeEncoder(rv.Type())
+	encoder := typeEncoder(rv.Type(), nil)
 	nomsValue = encoder(rv)
 	return
 }
@@ -120,7 +120,7 @@ func nomsValueEncoder(v reflect.Value) types.Value {
 	return v.Interface().(types.Value)
 }
 
-func typeEncoder(t reflect.Type) encoderFunc {
+func typeEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc {
 	switch t.Kind() {
 	case reflect.Bool:
 		return boolEncoder
@@ -133,27 +133,28 @@ func typeEncoder(t reflect.Type) encoderFunc {
 	case reflect.String:
 		return stringEncoder
 	case reflect.Struct:
-		return structEncoder(t)
+		return structEncoder(t, parentStructTypes)
 	case reflect.Slice, reflect.Array:
-		return listEncoder(t)
+		return listEncoder(t, parentStructTypes)
 	default:
 		panic(&UnsupportedTypeError{Type: t})
 	}
 }
 
-func structEncoder(t reflect.Type) encoderFunc {
+func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc {
 	if t.Implements(nomsValueInterface) {
 		return nomsValueEncoder
 	}
 
-	structEncoderCache.RLock()
-	e := structEncoderCache.m[t]
-	structEncoderCache.RUnlock()
+	encoderCache.RLock()
+	e := encoderCache.m[t]
+	encoderCache.RUnlock()
 	if e != nil {
 		return e
 	}
 
-	fields, structType := typeFields(t)
+	parentStructTypes = append(parentStructTypes, t)
+	fields, structType := typeFields(t, parentStructTypes)
 	if structType != nil {
 		e = func(v reflect.Value) types.Value {
 			values := make([]types.Value, len(fields))
@@ -174,12 +175,12 @@ func structEncoder(t reflect.Type) encoderFunc {
 		}
 	}
 
-	structEncoderCache.Lock()
-	if structEncoderCache.m == nil {
-		structEncoderCache.m = map[reflect.Type]encoderFunc{}
+	encoderCache.Lock()
+	if encoderCache.m == nil {
+		encoderCache.m = map[reflect.Type]encoderFunc{}
 	}
-	structEncoderCache.m[t] = e
-	structEncoderCache.Unlock()
+	encoderCache.m[t] = e
+	encoderCache.Unlock()
 
 	return e
 }
@@ -197,7 +198,7 @@ func (fs fieldSlice) Len() int           { return len(fs) }
 func (fs fieldSlice) Swap(i, j int)      { fs[i], fs[j] = fs[j], fs[i] }
 func (fs fieldSlice) Less(i, j int) bool { return fs[i].name < fs[j].name }
 
-var structEncoderCache struct {
+var encoderCache struct {
 	sync.RWMutex
 	m map[reflect.Type]encoderFunc
 }
@@ -221,12 +222,12 @@ func validateField(f reflect.StructField, t reflect.Type) {
 	}
 }
 
-func typeFields(t reflect.Type) (fields fieldSlice, structType *types.Type) {
+func typeFields(t reflect.Type, parentStructTypes []reflect.Type) (fields fieldSlice, structType *types.Type) {
 	canComputeStructType := true
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		validateField(f, t)
-		nt := nomsType(f.Type)
+		nt := nomsType(f.Type, parentStructTypes)
 		if nt == nil {
 			canComputeStructType = false
 		}
@@ -237,7 +238,7 @@ func typeFields(t reflect.Type) (fields fieldSlice, structType *types.Type) {
 
 		fields = append(fields, field{
 			name:     getFieldName(tags, f),
-			encoder:  typeEncoder(f.Type),
+			encoder:  typeEncoder(f.Type, parentStructTypes),
 			index:    i,
 			nomsType: nt,
 		})
@@ -255,7 +256,7 @@ func typeFields(t reflect.Type) (fields fieldSlice, structType *types.Type) {
 	return
 }
 
-func nomsType(t reflect.Type) *types.Type {
+func nomsType(t reflect.Type, parentStructTypes []reflect.Type) *types.Type {
 	switch t.Kind() {
 	case reflect.Bool:
 		return types.BoolType
@@ -264,9 +265,14 @@ func nomsType(t reflect.Type) *types.Type {
 	case reflect.String:
 		return types.StringType
 	case reflect.Struct:
-		return structNomsType(t)
+		for i, pst := range parentStructTypes {
+			if pst == t {
+				return types.MakeCycleType(uint32(i))
+			}
+		}
+		return structNomsType(t, parentStructTypes)
 	case reflect.Array, reflect.Slice:
-		elemType := nomsType(t.Elem())
+		elemType := nomsType(t.Elem(), parentStructTypes)
 		if elemType != nil {
 			return types.MakeListType(elemType)
 		}
@@ -276,7 +282,7 @@ func nomsType(t reflect.Type) *types.Type {
 }
 
 // structNomsType returns the noms types.Type if it can be determined from the reflect.Type. Note that we can only determine the type for a subset of noms types since the Go type does not fully reflect it. In this cases this returns nil and we have to wait until we have a value to be able to determine the type.
-func structNomsType(t reflect.Type) *types.Type {
+func structNomsType(t reflect.Type, parentStructTypes []reflect.Type) *types.Type {
 	if t.Implements(nomsValueInterface) {
 		// Use Name because List and Blob are convertible to each other on Go.
 		switch t.Name() {
@@ -293,17 +299,35 @@ func structNomsType(t reflect.Type) *types.Type {
 		return nil
 	}
 
-	_, structType := typeFields(t)
+	_, structType := typeFields(t, parentStructTypes)
 	return structType
 }
 
-func listEncoder(t reflect.Type) encoderFunc {
-	encoder := typeEncoder(t.Elem())
-	return func(v reflect.Value) types.Value {
+func listEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc {
+	encoderCache.RLock()
+	e := encoderCache.m[t]
+	encoderCache.RUnlock()
+	if e != nil {
+		return e
+	}
+
+	var elemEncoder encoderFunc
+	e = func(v reflect.Value) types.Value {
 		values := make([]types.Value, v.Len(), v.Len())
 		for i := 0; i < v.Len(); i++ {
-			values[i] = encoder(v.Index(i))
+			values[i] = elemEncoder(v.Index(i))
 		}
 		return types.NewList(values...)
 	}
+
+	encoderCache.Lock()
+	if encoderCache.m == nil {
+		encoderCache.m = map[reflect.Type]encoderFunc{}
+	}
+	encoderCache.m[t] = e
+	encoderCache.Unlock()
+
+	elemEncoder = typeEncoder(t.Elem(), parentStructTypes)
+
+	return e
 }

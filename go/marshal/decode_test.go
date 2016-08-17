@@ -467,3 +467,41 @@ func TestDecodeWrongSliceType(t *testing.T) {
 	var l []string
 	assertDecodeErrorMessage(t, types.NewList(types.Number(1)), &l, "Cannot unmarshal Number into Go value of type string")
 }
+
+func TestDecodeRecursive(t *testing.T) {
+	assert := assert.New(t)
+
+	type Node struct {
+		Value    int
+		Children []Node
+	}
+
+	typ := types.MakeStructType("Node", []string{"children", "value"}, []*types.Type{
+		types.MakeListType(types.MakeCycleType(0)),
+		types.NumberType,
+	})
+	v := types.NewStructWithType(typ, types.ValueSlice{
+		types.NewList(
+			types.NewStructWithType(typ, types.ValueSlice{
+				types.NewList(),
+				types.Number(2),
+			}),
+			types.NewStructWithType(typ, types.ValueSlice{
+				types.NewList(),
+				types.Number(3),
+			}),
+		),
+		types.Number(1),
+	})
+
+	var n Node
+	err := Unmarshal(v, &n)
+	assert.NoError(err)
+
+	assert.Equal(Node{
+		1, []Node{
+			Node{2, []Node{}},
+			Node{3, []Node{}},
+		},
+	}, n)
+}
