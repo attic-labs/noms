@@ -16,11 +16,10 @@ import (
 
 // Human Readable Serialization
 type hrsWriter struct {
-	ind         int
-	w           io.Writer
-	lineLength  int
-	floatFormat byte
-	err         error
+	ind        int
+	w          io.Writer
+	lineLength int
+	err        error
 }
 
 func (w *hrsWriter) maybeWriteIndentation() {
@@ -96,7 +95,8 @@ func (w *hrsWriter) Write(v Value) {
 	case BoolKind:
 		w.write(strconv.FormatBool(bool(v.(Bool))))
 	case NumberKind:
-		w.write(strconv.FormatFloat(float64(v.(Number)), w.floatFormat, -1, 64))
+		// 'f' means -ddd.dddd, no exponent.
+		w.write(strconv.FormatFloat(float64(v.(Number)), 'f', -1, 64))
 
 	case StringKind:
 		w.write(strconv.Quote(string(v.(String))))
@@ -306,32 +306,32 @@ func (w *hrsWriter) writeStructType(t *Type, parentStructTypes []*Type) {
 	w.write("}")
 }
 
-func encodedValueFormat(v Value, floatFormat byte) string {
+func encodedValueFormat(v Value) string {
 	var buf bytes.Buffer
-	w := &hrsWriter{w: &buf, floatFormat: floatFormat}
+	w := &hrsWriter{w: &buf}
 	w.Write(v)
 	d.Chk.NoError(w.err)
 	return buf.String()
 }
 
 func EncodedIndexValue(v Value) string {
-	return encodedValueFormat(v, 'f')
+	return encodedValueFormat(v)
 }
 
 func EncodedValue(v Value) string {
-	return encodedValueFormat(v, 'g')
+	return encodedValueFormat(v)
 }
 
 // WriteEncodedValue writes the serialization of a value
 func WriteEncodedValue(w io.Writer, v Value) error {
-	hrs := &hrsWriter{w: w, floatFormat: 'g'}
+	hrs := &hrsWriter{w: w}
 	hrs.Write(v)
 	return hrs.err
 }
 
 func EncodedValueWithTags(v Value) string {
 	var buf bytes.Buffer
-	w := &hrsWriter{w: &buf, floatFormat: 'g'}
+	w := &hrsWriter{w: &buf}
 	w.WriteTagged(v)
 	d.Chk.NoError(w.err)
 	return buf.String()
@@ -339,7 +339,7 @@ func EncodedValueWithTags(v Value) string {
 
 // WriteEncodedValueWithTags writes the serialization of a value prefixed by its type.
 func WriteEncodedValueWithTags(w io.Writer, v Value) error {
-	hrs := &hrsWriter{w: w, floatFormat: 'g'}
+	hrs := &hrsWriter{w: w}
 	hrs.WriteTagged(v)
 	return hrs.err
 }
