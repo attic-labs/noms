@@ -21,9 +21,11 @@ import (
 // fields to the fields used by Marshal (either the struct field name or its tag).
 // Unmarshal will only set exported fields of the struct.
 //
-// To unmarshal a Noms list into a slice, Unmarshal resets the slice length to zero and then appends each element to the slice.
+// To unmarshal a Noms list into a slice, Unmarshal resets the slice length to zero and then appends each element to the slice. If the Go slice was nil a new slice is created.
 //
 // To unmarshal a Noms list into a Go array, Unmarshal decodes Noms list elements into corresponding Go array elements.
+//
+// To unmarshal a Noms map into a Go map, Unmarshal decodes Noms key and values into corresponding Go array elements.
 //
 // Unmarshal returns an UnmarshalTypeMismatchError if:
 // - a Noms value is not appropriate for a given target type
