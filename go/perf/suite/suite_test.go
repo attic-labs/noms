@@ -39,8 +39,8 @@ func (s *testSuite) TestInterestingStuff() {
 		s.waitForSmidge()
 	})
 
-	s.tempFileName = s.TempFile("suite/suite_test").Name()
-	s.tempDir = s.TempDir("suite/suite_test")
+	s.tempFileName = s.TempFile("suite.suite_test").Name()
+	s.tempDir = s.TempDir("suite.suite_test")
 }
 
 func (s *testSuite) TestFoo() {
