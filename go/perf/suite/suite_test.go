@@ -171,16 +171,16 @@ func runTestSuite(t *testing.T, mem bool) {
 	assert.True(string(nomsRevision.(types.String)) != "")
 	getOrFail(head, "testdataRevision")
 
-	runsVal, ok := head.MaybeGet("runs")
+	repsVal, ok := head.MaybeGet("reps")
 	assert.True(ok)
-	runs := runsVal.(types.List)
+	reps := repsVal.(types.List)
 
-	assert.Equal(*perfRepeatFlag, int(runs.Len()))
+	assert.Equal(*perfRepeatFlag, int(reps.Len()))
 
-	runs.IterAll(func(run types.Value, _ uint64) {
+	reps.IterAll(func(rep types.Value, _ uint64) {
 		i := 0
 
-		run.(types.Map).IterAll(func(k, timesVal types.Value) {
+		rep.(types.Map).IterAll(func(k, timesVal types.Value) {
 			assert.True(i < len(expectedTests))
 			assert.Equal(expectedTests[i], string(k.(types.String)))
 

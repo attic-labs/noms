@@ -107,7 +107,7 @@ type PerfSuite struct {
 	// AtticLabs is the path to the attic-labs directory (e.g. /path/to/go/src/github.com/attic-labs).
 	AtticLabs string
 
-	// Database is a Noms database that tests can use for reading and writing. State is persisted across a single run of a suite.
+	// Database is a Noms database that tests can use for reading and writing. State is persisted across a single Run of a suite.
 	Database datas.Database
 
 	// DatabaseSpec is the Noms spec of `Database` (typically a localhost URL).
@@ -218,7 +218,7 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 	testReps := make([]testRep, *perfRepeatFlag)
 
 	defer func() {
-		runs := make([]types.Value, *perfRepeatFlag)
+		reps := make([]types.Value, *perfRepeatFlag)
 		for i, rep := range testReps {
 			timesSlice := types.ValueSlice{}
 			for name, info := range rep {
@@ -228,14 +228,14 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 					"total":   types.Number(info.total.Nanoseconds()),
 				}))
 			}
-			runs[i] = types.NewMap(timesSlice...)
+			reps[i] = types.NewMap(timesSlice...)
 		}
 
 		record := types.NewStruct("", map[string]types.Value{
 			"environment":      suite.getEnvironment(),
 			"nomsRevision":     types.String(suite.getGitHead(path.Join(suite.AtticLabs, "noms"))),
 			"testdataRevision": types.String(suite.getGitHead(path.Join(suite.AtticLabs, "testdata"))),
-			"runs":             types.NewList(runs...),
+			"reps":             types.NewList(reps...),
 		})
 
 		ds := dataset.NewDataset(db, datasetID)
@@ -249,8 +249,8 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 		t.SetupSuite()
 	}
 
-	for runIdx := 0; runIdx < *perfRepeatFlag; runIdx++ {
-		testReps[runIdx] = testRep{}
+	for repIdx := 0; repIdx < *perfRepeatFlag; repIdx++ {
+		testReps[repIdx] = testRep{}
 
 		if t, ok := suiteT.(SetupRepSuite); ok {
 			t.SetupRep()
@@ -270,7 +270,7 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 
 			recordName := parts[1]
 			if verbose {
-				fmt.Printf("(perf) RUN(%d/%d) %s (as \"%s\")\n", runIdx+1, *perfRepeatFlag, m.Name, recordName)
+				fmt.Printf("(perf) RUN(%d/%d) %s (as \"%s\")\n", repIdx+1, *perfRepeatFlag, m.Name, recordName)
 			}
 
 			start := time.Now()
@@ -288,7 +288,7 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 				fmt.Println(err)
 			}
 
-			testReps[runIdx][recordName] = timeInfo{elapsed, suite.paused, total}
+			testReps[repIdx][recordName] = timeInfo{elapsed, suite.paused, total}
 
 			if t, ok := suiteT.(testifySuite.TearDownTestSuite); ok {
 				t.TearDownTest()
