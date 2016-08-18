@@ -13,11 +13,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/perf/suite"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/testify/assert"
 	humanize "github.com/dustin/go-humanize"
 )
 
@@ -27,8 +27,19 @@ import (
 
 type perfSuite struct {
 	suite.PerfSuite
-	server      *datas.RemoteDatabaseServer
-	sfcBlobHash hash.Hash
+	csvImportExe string
+	sfcBlobHash  hash.Hash
+}
+
+func (s *perfSuite) SetupSuite() {
+	// Trick the temp file logic into creating a unique path for the csv-import binary.
+	f := s.TempFile("csv-import.perf_test")
+	f.Close()
+	os.Remove(f.Name())
+
+	s.csvImportExe = f.Name()
+	err := exec.Command("go", "build", "-o", s.csvImportExe, "github.com/attic-labs/noms/samples/go/csv/csv-import").Run()
+	assert.NoError(s.T, err)
 }
 
 func (s *perfSuite) Test01ImportSfCrimeBlobFromTestdata() {
@@ -66,24 +77,11 @@ func (s *perfSuite) Test01ImportSfCrimeBlobFromTestdata() {
 func (s *perfSuite) Test02ImportSfCrimeCSVFromBlob() {
 	assert := s.NewAssert()
 
-	var importCmd *exec.Cmd
-
-	s.Pause(func() {
-		// Trick the temp file logic into creating a unique path for the csv-import binary.
-		f := s.TempFile()
-		f.Close()
-		out := f.Name()
-		os.Remove(out)
-
-		// Build csv-import into that temporary file.
-		assert.NoError(exec.Command("go", "build", "-o", out, "github.com/attic-labs/noms/samples/go/csv/csv-import").Run())
-		blobSpec := fmt.Sprintf("%s::csv/raw.value", s.DatabaseSpec)
-		destSpec := fmt.Sprintf("%s::csv", s.DatabaseSpec)
-
-		importCmd = exec.Command(out, "-p", blobSpec, destSpec)
-		importCmd.Stdout = s.W
-		importCmd.Stderr = os.Stderr
-	})
+	blobSpec := fmt.Sprintf("%s::csv/raw.value", s.DatabaseSpec)
+	destSpec := fmt.Sprintf("%s::csv", s.DatabaseSpec)
+	importCmd := exec.Command(s.csvImportExe, "-p", blobSpec, destSpec)
+	importCmd.Stdout = s.W
+	importCmd.Stderr = os.Stderr
 
 	assert.NoError(importCmd.Run())
 }

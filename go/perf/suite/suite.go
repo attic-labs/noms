@@ -11,6 +11,11 @@
 // 3. Call `suite.Run` with an instance of that struct.
 // 4. Run `go test` with the `-perf <path to noms db>` flag. Use `-perf.repeat` to set how many times tests are repeated.
 //
+// `PerfSuite` also supports testify/suite style `Setup/TearDown` methods.
+// - `Setup/TearDownSuite` is called exactly once.
+// - `Setup/TearDownRep` is called once for each repetition of the test runs, i.e. `-perf.repeat` times.
+// - `Setup/TearDownTest` is called for every test.
+//
 // Test results are written to Noms, along with a soup of the environment they were recorded in.
 //
 // Test names are derived from that "non-empty capitalized string": `"Test"` is ommitted because it's redundant, and leading digits are omitted to allow for manual test ordering. For example:
@@ -77,6 +82,7 @@ import (
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/testify/assert"
+	testifySuite "github.com/attic-labs/testify/suite"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
@@ -86,6 +92,7 @@ import (
 var (
 	perfFlag        = flag.String("perf", "", "The database to write perf tests to. If this isn't specified, perf tests are skipped. If you want a dry run, use \"mem\" as a database")
 	perfRepeatFlag  = flag.Int("perf.repeat", 1, "The number of times to repeat each perf test")
+	perfMemFlag     = flag.Bool("perf.mem", false, "Back the test database with a memory store, not leveldb. This will affect test timing, but it's provided in case you're low on disk space")
 	testNamePattern = regexp.MustCompile("^Test[0-9]*([A-Z].*$)")
 )
 
@@ -107,7 +114,18 @@ type PerfSuite struct {
 	DatabaseSpec string
 
 	tempFiles []*os.File
+	tempDirs  []string
 	paused    time.Duration
+}
+
+// SetupRepSuite has a SetupRep method, which runs every repetition of the test, i.e. `-perf.repeat` times in total.
+type SetupRepSuite interface {
+	SetupRep()
+}
+
+// TearDownRepSuite has a TearDownRep method, which runs every repetition of hte test, i.e. `-perf.repeat` times in total.
+type TearDownRepSuite interface {
+	TearDownRep()
 }
 
 type perfSuiteT interface {
@@ -118,7 +136,7 @@ type timeInfo struct {
 	elapsed, paused, total time.Duration
 }
 
-type testRun map[string]timeInfo
+type testRep map[string]timeInfo
 
 type nopWriter struct{}
 
@@ -148,35 +166,62 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 	}
 
 	gopath := os.Getenv("GOPATH")
-	assert.True(gopath != "")
+	assert.NotEmpty(gopath)
 	suite.AtticLabs = path.Join(gopath, "src", "github.com", "attic-labs")
+
+	// Clean up temporary directories/files last.
+	defer func() {
+		for _, f := range suite.tempFiles {
+			os.Remove(f.Name())
+		}
+		for _, d := range suite.tempDirs {
+			os.RemoveAll(d)
+		}
+	}()
 
 	// This is the database the perf test results are written to.
 	db, err := spec.GetDatabase(*perfFlag)
 	assert.NoError(err)
 
 	// This is the temporary database for tests to use.
-	server := datas.NewRemoteDatabaseServer(chunks.NewMemoryStore(), 0)
+	//
+	// * Why not use a local database + memory store?
+	// Firstly, because the spec would be "mem", and the spec library doesn't know how to reuse stores.
+	// Secondly, because it's an unrealistic performance measurement.
+	//
+	// * Why use a remote (HTTP) database?
+	// It's more realistic to exercise the HTTP stack, even if it's just talking over localhost.
+	//
+	// * Why provide an option for leveldb vs memory underlying store?
+	// Again, leveldb is more realistic than memory, and in common cases disk space > memory space.
+	// However, on this developer's laptop, there is actually very little disk space, and a lot of memory;
+	// plus making the test run a little bit faster locally is nice.
+	var chunkStore chunks.ChunkStore
+	if *perfMemFlag {
+		chunkStore = chunks.NewMemoryStore()
+	} else {
+		ldbDir := suite.TempDir("suite.suite")
+		chunkStore = chunks.NewLevelDBStoreUseFlags(ldbDir, "")
+	}
+
+	server := datas.NewRemoteDatabaseServer(chunkStore, 0)
 	portChan := make(chan int)
 	server.Ready = func() { portChan <- server.Port() }
 	go server.Run()
+	defer server.Stop()
 
 	port := <-portChan
 	suite.DatabaseSpec = fmt.Sprintf("http://localhost:%d", port)
 	suite.Database = datas.NewRemoteDatabase(suite.DatabaseSpec, "")
 
 	// List of test runs, each a map of test name => timing info.
-	testRuns := make([]testRun, *perfRepeatFlag)
+	testReps := make([]testRep, *perfRepeatFlag)
 
 	defer func() {
-		for _, f := range suite.tempFiles {
-			os.Remove(f.Name())
-		}
-
 		runs := make([]types.Value, *perfRepeatFlag)
-		for i, run := range testRuns {
-			timesSlice := []types.Value{}
-			for name, info := range run {
+		for i, rep := range testReps {
+			timesSlice := types.ValueSlice{}
+			for name, info := range rep {
 				timesSlice = append(timesSlice, types.String(name), types.NewStruct("", types.StructData{
 					"elapsed": types.Number(info.elapsed.Nanoseconds()),
 					"paused":  types.Number(info.paused.Nanoseconds()),
@@ -187,10 +232,10 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 		}
 
 		record := types.NewStruct("", map[string]types.Value{
-			"environment":     suite.getEnvironment(),
-			"nomsVersion":     types.String(suite.getGitHead(path.Join(suite.AtticLabs, "noms"))),
-			"testdataVersion": types.String(suite.getGitHead(path.Join(suite.AtticLabs, "testdata"))),
-			"runs":            types.NewList(runs...),
+			"environment":      suite.getEnvironment(),
+			"nomsRevision":     types.String(suite.getGitHead(path.Join(suite.AtticLabs, "noms"))),
+			"testdataRevision": types.String(suite.getGitHead(path.Join(suite.AtticLabs, "testdata"))),
+			"runs":             types.NewList(runs...),
 		})
 
 		ds := dataset.NewDataset(db, datasetID)
@@ -198,12 +243,18 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 		ds, err = ds.CommitValue(record)
 		assert.NoError(err)
 		assert.NoError(db.Close())
-		server.Stop()
 	}()
 
+	if t, ok := suiteT.(testifySuite.SetupAllSuite); ok {
+		t.SetupSuite()
+	}
+
 	for runIdx := 0; runIdx < *perfRepeatFlag; runIdx++ {
-		run := testRun{}
-		testRuns[runIdx] = run
+		testReps[runIdx] = testRep{}
+
+		if t, ok := suiteT.(SetupRepSuite); ok {
+			t.SetupRep()
+		}
 
 		for t, mIdx := reflect.TypeOf(suiteT), 0; mIdx < t.NumMethod(); mIdx++ {
 			m := t.Method(mIdx)
@@ -211,6 +262,10 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 			parts := testNamePattern.FindStringSubmatch(m.Name)
 			if parts == nil {
 				continue
+			}
+
+			if t, ok := suiteT.(testifySuite.SetupTestSuite); ok {
+				t.SetupTest()
 			}
 
 			recordName := parts[1]
@@ -233,8 +288,20 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 				fmt.Println(err)
 			}
 
-			run[recordName] = timeInfo{elapsed, suite.paused, total}
+			testReps[runIdx][recordName] = timeInfo{elapsed, suite.paused, total}
+
+			if t, ok := suiteT.(testifySuite.TearDownTestSuite); ok {
+				t.TearDownTest()
+			}
 		}
+
+		if t, ok := suiteT.(TearDownRepSuite); ok {
+			t.TearDownRep()
+		}
+	}
+
+	if t, ok := suiteT.(testifySuite.TearDownAllSuite); ok {
+		t.TearDownSuite()
 	}
 }
 
@@ -248,11 +315,19 @@ func (suite *PerfSuite) NewAssert() *assert.Assertions {
 }
 
 // TempFile creates a temporary file, which will be automatically cleaned up by the perf test suite.
-func (suite *PerfSuite) TempFile() *os.File {
-	f, err := ioutil.TempFile("", "perf")
+func (suite *PerfSuite) TempFile(prefix string) *os.File {
+	f, err := ioutil.TempFile("", prefix)
 	assert.NoError(suite.T, err)
 	suite.tempFiles = append(suite.tempFiles, f)
 	return f
+}
+
+// TempDir creates a temporary directory, which will be automatically cleaned up by the perf test suite.
+func (suite *PerfSuite) TempDir(prefix string) string {
+	d, err := ioutil.TempDir("", prefix)
+	assert.NoError(suite.T, err)
+	suite.tempDirs = append(suite.tempDirs, d)
+	return d
 }
 
 // Pause pauses the test timer while `fn` is executing. Useful for omitting long setup code (e.g. copying files) from the test elapsed time.

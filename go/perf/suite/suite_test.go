@@ -17,8 +17,10 @@ import (
 
 type testSuite struct {
 	PerfSuite
-	tempFileName string
-	atticLabs    string
+	tempFileName, tempDir     string
+	setupTest, tearDownTest   int
+	setupRep, tearDownRep     int
+	setupSuite, tearDownSuite int
 }
 
 // This is the only test that does anything interesting. The others are just to test naming.
@@ -33,10 +35,12 @@ func (s *testSuite) TestInterestingStuff() {
 	r := s.Database.WriteValue(val)
 	assert.True(s.Database.ReadValue(r.TargetHash()).Equals(val))
 
-	s.tempFileName = s.TempFile().Name()
 	s.Pause(func() {
 		s.waitForSmidge()
 	})
+
+	s.tempFileName = s.TempFile("suite/suite_test").Name()
+	s.tempDir = s.TempDir("suite/suite_test")
 }
 
 func (s *testSuite) TestFoo() {
@@ -63,56 +67,117 @@ func (s *testSuite) Testimate() {
 	s.waitForSmidge()
 }
 
+func (s *testSuite) SetupTest() {
+	s.setupTest++
+}
+
+func (s *testSuite) TearDownTest() {
+	s.tearDownTest++
+}
+
+func (s *testSuite) SetupRep() {
+	s.setupRep++
+}
+
+func (s *testSuite) TearDownRep() {
+	s.tearDownRep++
+}
+
+func (s *testSuite) SetupSuite() {
+	s.setupSuite++
+}
+
+func (s *testSuite) TearDownSuite() {
+	s.tearDownSuite++
+}
+
 func (s *testSuite) waitForSmidge() {
 	// Tests should call this to make sure the measurement shows up as > 0, not that it shows up as a millisecond.
 	<-time.After(time.Millisecond)
 }
 
 func TestSuite(t *testing.T) {
+	runTestSuite(t, false)
+}
+
+func TestSuiteWithMem(t *testing.T) {
+	runTestSuite(t, true)
+}
+
+func runTestSuite(t *testing.T, mem bool) {
 	assert := assert.New(t)
 
 	// Write test results to our own temporary LDB database.
 	ldbDir, err := ioutil.TempDir("", "suite.TestSuite")
 	assert.NoError(err)
+	defer os.RemoveAll(ldbDir)
 
 	perfFlagVal := *perfFlag
 	perfRepeatFlagVal := *perfRepeatFlag
+	perfMemFlagVal := *perfMemFlag
 	*perfFlag = ldbDir
 	*perfRepeatFlag = 3
+	*perfMemFlag = mem
 	defer func() {
 		*perfFlag = perfFlagVal
 		*perfRepeatFlag = perfRepeatFlagVal
+		*perfMemFlag = perfMemFlagVal
 	}()
 
 	s := &testSuite{}
 	Run("ds", t, s)
 
-	// The temp file should have been cleaned up.
+	expectedTests := []string{"Abc", "Bar", "Def", "Foo", "InterestingStuff"}
+
+	// The temp file and dir should have been cleaned up.
 	_, err = os.Stat(s.tempFileName)
 	assert.NotNil(err)
+	_, err = os.Stat(s.tempDir)
+	assert.NotNil(err)
+
+	// The correct number of Setup/TearDown calls should have been run.
+	assert.Equal(1, s.setupSuite)
+	assert.Equal(1, s.tearDownSuite)
+	assert.Equal(*perfRepeatFlag, s.setupRep)
+	assert.Equal(*perfRepeatFlag, s.tearDownRep)
+	assert.Equal(*perfRepeatFlag*len(expectedTests), s.setupTest)
+	assert.Equal(*perfRepeatFlag*len(expectedTests), s.tearDownTest)
 
 	// The results should have been written to the "ds" dataset.
 	ds, err := spec.GetDataset(ldbDir + "::ds")
 	assert.NoError(err)
 	head := ds.HeadValue().(types.Struct)
 
-	// The general structure should be correct.
-	env := head.Get("environment").(types.Struct)
-	env.Get("diskUsages")
-	env.Get("cpus")
-	env.Get("mem")
-	env.Get("host")
-	env.Get("partitions")
+	// These tests mostly assert that the structure of the results is correct. Specific values are hard.
 
-	assert.NotEqual("", head.Get("nomsVersion"))
-	head.Get("testdataVersion") // don't assert it's not empty, it might not be checked out
+	getOrFail := func(s types.Struct, f string) types.Value {
+		val, ok := s.MaybeGet(f)
+		assert.True(ok)
+		return val
+	}
 
-	// Sanity check test runs.
-	runs := head.Get("runs").(types.List)
+	envVal, ok := head.MaybeGet("environment")
+	assert.True(ok)
+	env := envVal.(types.Struct)
+
+	getOrFail(env, "diskUsages")
+	getOrFail(env, "cpus")
+	getOrFail(env, "mem")
+	getOrFail(env, "host")
+	getOrFail(env, "partitions")
+
+	nomsRevision, ok := head.MaybeGet("nomsRevision")
+	assert.True(ok)
+	assert.True(string(nomsRevision.(types.String)) != "")
+	getOrFail(head, "testdataRevision")
+
+	runsVal, ok := head.MaybeGet("runs")
+	assert.True(ok)
+	runs := runsVal.(types.List)
+
 	assert.Equal(*perfRepeatFlag, int(runs.Len()))
 
 	runs.IterAll(func(run types.Value, _ uint64) {
-		expectedTests := []string{"Abc", "Bar", "Def", "Foo", "InterestingStuff"}
 		i := 0
 
 		run.(types.Map).IterAll(func(k, timesVal types.Value) {
@@ -120,13 +185,14 @@ func TestSuite(t *testing.T) {
 			assert.Equal(expectedTests[i], string(k.(types.String)))
 
 			times := timesVal.(types.Struct)
-			assert.True(times.Get("elapsed").(types.Number) > 0)
-			assert.True(times.Get("total").(types.Number) > 0)
+			assert.True(getOrFail(times, "elapsed").(types.Number) > 0)
+			assert.True(getOrFail(times, "total").(types.Number) > 0)
 
+			paused := getOrFail(times, "paused").(types.Number)
 			if k == types.String("InterestingStuff") {
-				assert.True(times.Get("paused").(types.Number) > 0)
+				assert.True(paused > 0)
 			} else {
-				assert.True(times.Get("paused").(types.Number) == 0)
+				assert.True(paused == 0)
 			}
 
 			i++
