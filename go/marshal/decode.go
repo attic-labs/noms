@@ -27,10 +27,17 @@ import (
 //
 // To unmarshal a Noms map into a Go map, Unmarshal decodes Noms key and values into corresponding Go array elements. If the Go map was nil a new map is created.
 //
+// When unmarshalling onto `interface{}` the following rules are used:
+//  - types.Bool -> bool
+//  - types.List -> []interface{}
+//  - types.Map -> map[interface{}]interface{}
+//  - types.Number -> float64
+//  - types.String -> string
+//
 // Unmarshal returns an UnmarshalTypeMismatchError if:
-// - a Noms value is not appropriate for a given target type
-// - a Noms number overflows the target type
-// - a Noms list is decoded into a Go array of a different length
+//  - a Noms value is not appropriate for a given target type
+//  - a Noms number overflows the target type
+//  - a Noms list is decoded into a Go array of a different length
 //
 func Unmarshal(v types.Value, out interface{}) (err error) {
 	defer func() {
@@ -78,7 +85,13 @@ type UnmarshalTypeMismatchError struct {
 }
 
 func (e *UnmarshalTypeMismatchError) Error() string {
-	return fmt.Sprintf("Cannot unmarshal %s into Go value of type %s%s", e.Value.Type().Describe(), e.Type.String(), e.details)
+	var ts string
+	if e.Type == nil {
+		ts = "nil"
+	} else {
+		ts = e.Type.String()
+	}
+	return fmt.Sprintf("Cannot unmarshal %s into Go value of type %s%s", e.Value.Type().Describe(), ts, e.details)
 }
 
 func overflowError(v types.Number, t reflect.Type) *UnmarshalTypeMismatchError {
@@ -99,8 +112,10 @@ func typeDecoder(t reflect.Type) decoderFunc {
 		return uintDecoder
 	case reflect.String:
 		return stringDecoder
-	case reflect.Struct, reflect.Interface:
+	case reflect.Struct:
 		return structDecoder(t)
+	case reflect.Interface:
+		return interfaceDecoder(t)
 	case reflect.Slice:
 		return sliceDecoder(t)
 	case reflect.Array:
@@ -338,4 +353,37 @@ func mapDecoder(t reflect.Type) decoderFunc {
 	keyDecoder = typeDecoder(t.Key())
 	valueDecoder = typeDecoder(t.Elem())
 	return d
+}
+
+func interfaceDecoder(t reflect.Type) decoderFunc {
+	if t.Implements(nomsValueInterface) {
+		return nomsValueDecoder
+	}
+
+	if t != emptyInterface {
+		panic(&UnsupportedTypeError{Type: t})
+	}
+
+	return func(v types.Value, rv reflect.Value) {
+		var t reflect.Type
+		switch v.Type().Kind() {
+		case types.BoolKind:
+			t = reflect.TypeOf(false)
+		case types.NumberKind:
+			t = reflect.TypeOf(float64(0))
+		case types.StringKind:
+			t = reflect.TypeOf("")
+		case types.ListKind:
+			t = reflect.SliceOf(emptyInterface)
+		case types.MapKind:
+			t = reflect.MapOf(emptyInterface, emptyInterface)
+		// case types.StructKind:
+		// reflect.StructOf was not added until Go 1.7
+		default:
+			panic(&UnmarshalTypeMismatchError{Value: v, Type: t})
+		}
+		i := reflect.New(t).Elem()
+		typeDecoder(t)(v, i)
+		rv.Set(i)
+	}
 }

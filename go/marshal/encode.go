@@ -95,6 +95,7 @@ func (e *InvalidTagError) Error() string {
 }
 
 var nomsValueInterface = reflect.TypeOf((*types.Value)(nil)).Elem()
+var emptyInterface = reflect.TypeOf((*interface{})(nil)).Elem()
 
 type encoderFunc func(v reflect.Value) types.Value
 
