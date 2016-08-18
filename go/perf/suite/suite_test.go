@@ -156,9 +156,8 @@ func runTestSuite(t *testing.T, mem bool) {
 		return val
 	}
 
-	envVal, ok := head.MaybeGet("environment")
+	env, ok := getOrFail(head, "environment").(types.Struct)
 	assert.True(ok)
-	env := envVal.(types.Struct)
 
 	getOrFail(env, "diskUsages")
 	getOrFail(env, "cpus")
@@ -166,15 +165,13 @@ func runTestSuite(t *testing.T, mem bool) {
 	getOrFail(env, "host")
 	getOrFail(env, "partitions")
 
-	nomsRevision, ok := head.MaybeGet("nomsRevision")
+	nomsRevision := getOrFail(head, "nomsRevision")
 	assert.True(ok)
 	assert.True(string(nomsRevision.(types.String)) != "")
 	getOrFail(head, "testdataRevision")
 
-	repsVal, ok := head.MaybeGet("reps")
+	reps, ok := getOrFail(head, "reps").(types.List)
 	assert.True(ok)
-	reps := repsVal.(types.List)
-
 	assert.Equal(*perfRepeatFlag, int(reps.Len()))
 
 	reps.IterAll(func(rep types.Value, _ uint64) {

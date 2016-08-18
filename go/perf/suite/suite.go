@@ -123,7 +123,7 @@ type SetupRepSuite interface {
 	SetupRep()
 }
 
-// TearDownRepSuite has a TearDownRep method, which runs every repetition of hte test, i.e. `-perf.repeat` times in total.
+// TearDownRepSuite has a TearDownRep method, which runs every repetition of the test, i.e. `-perf.repeat` times in total.
 type TearDownRepSuite interface {
 	TearDownRep()
 }
