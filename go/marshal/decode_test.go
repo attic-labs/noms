@@ -517,27 +517,26 @@ func TestDecodeMap(t *testing.T) {
 	assert := assert.New(t)
 	var m map[string]int
 
-	err := Unmarshal(types.NewMap(
+	testMap := types.NewMap(
 		types.String("a"), types.Number(1),
 		types.String("b"), types.Number(2),
-		types.String("c"), types.Number(3)), &m)
+		types.String("c"), types.Number(3))
+	expectedMap := map[string]int{"a": 1, "b": 2, "c": 3}
+	err := Unmarshal(testMap, &m)
 	assert.NoError(err)
-	assert.Equal(map[string]int{"a": 1, "b": 2, "c": 3}, m)
+	assert.Equal(expectedMap, m)
 
 	m = nil
-	err = Unmarshal(types.NewMap(
-		types.String("a"), types.Number(1),
-		types.String("b"), types.Number(2),
-		types.String("c"), types.Number(3)), &m)
+	err = Unmarshal(testMap, &m)
 	assert.NoError(err)
-	assert.Equal(map[string]int{"a": 1, "b": 2, "c": 3}, m)
+	assert.Equal(expectedMap, m)
 
-	m = map[string]int{"b": 2}
+	m = map[string]int{"b": 2, "c": 333}
 	err = Unmarshal(types.NewMap(
 		types.String("a"), types.Number(1),
 		types.String("c"), types.Number(3)), &m)
 	assert.NoError(err)
-	assert.Equal(map[string]int{"a": 1, "b": 2, "c": 3}, m)
+	assert.Equal(expectedMap, m)
 
 	type S struct {
 		N string
