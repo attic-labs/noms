@@ -5,7 +5,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -38,14 +37,10 @@ func main() {
 
 	flag.Parse(true)
 
-	var err error
-	switch {
-	case flag.NArg() == 0:
-		err = errors.New("Maybe you put options after the csvfile?")
-	case flag.NArg() > 1:
-		err = errors.New("Too many arguments")
+	if flag.NArg() != 1 {
+		flag.Usage()
+		return
 	}
-	d.CheckError(err)
 
 	defer profile.MaybeStartProfile().Stop()
 
@@ -75,7 +70,7 @@ func main() {
 	kinds := []types.NomsKind{}
 	if *detectColumnTypes {
 		kinds = csv.GetSchema(cr, *numSamples, len(headers))
-		fmt.Fprintf(os.Stdout, "%v\n", strings.Join(csv.KindsToStrings(kinds), ","))
+		fmt.Fprintf(os.Stdout, "%s\n", strings.Join(csv.KindsToStrings(kinds), ","))
 	}
 
 	if *detectPrimaryKeys {
