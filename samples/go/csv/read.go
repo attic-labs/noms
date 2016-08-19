@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/types"
@@ -116,10 +117,39 @@ func ReadToList(r *csv.Reader, structName string, headers []string, kinds KindSl
 	return <-listChan, t
 }
 
+// getFieldIndexByHeaderName takes the collection of headers and the name to search for and returns the index of name within the headers or -1 if not found
+func getFieldIndexByHeaderName(headers []string, name string) int {
+	for i, header := range headers {
+		if header == name {
+			return i
+		}
+	}
+	return -1
+}
+
+// getPkIndices takes collection of primary keys as strings and determines if they are integers, if so then use those ints as the indices, otherwise it looks up the strings in the headers to find the indices; returning the collection of int indices representing the primary keys maintaining the order of strPks to the return collection
+func getPkIndices(strPks []string, headers []string) []int {
+	result := make([]int, len(strPks))
+	for i, pk := range strPks {
+		pkIdx, ok := strconv.Atoi(pk)
+		if ok == nil {
+			result[i] = pkIdx
+		} else {
+			result[i] = getFieldIndexByHeaderName(headers, pk)
+		}
+		if result[i] < 0 {
+			d.Chk.Fail(fmt.Sprintf("Invalid pk: %v", pk))
+		}
+	}
+	return result
+}
+
 // ReadToMap takes a CSV reader and reads data into a typed Map of structs. Each row gets read into a struct named structName, described by headers. If the original data contained headers it is expected that the input reader has already read those and are pointing at the first data row.
 // If kinds is non-empty, it will be used to type the fields in the generated structs; otherwise, they will be left as string-fields.
-func ReadToMap(r *csv.Reader, structName string, headersRaw []string, pkIdx int, kinds KindSlice, vrw types.ValueReadWriter) types.Map {
+func ReadToMap(r *csv.Reader, structName string, headersRaw []string, primaryKeys []string, kinds KindSlice, vrw types.ValueReadWriter) types.Map {
 	t, fieldOrder, kindMap := MakeStructTypeFromHeaders(headersRaw, structName, kinds)
+
+	pkIndices := getPkIndices(primaryKeys, headersRaw)
 
 	kvChan := make(chan types.Value, 128)
 	mapChan := types.NewStreamingMap(vrw, kvChan)
@@ -131,22 +161,31 @@ func ReadToMap(r *csv.Reader, structName string, headersRaw []string, pkIdx int,
 			panic(err)
 		}
 
-		var pk types.Value
 		fields := make(types.ValueSlice, len(headersRaw))
 		for i, v := range row {
 			if i < len(headersRaw) {
 				fieldOrigIndex := fieldOrder[i]
 				fields[fieldOrigIndex], err = StringToValue(v, kindMap[fieldOrigIndex])
-				if i == pkIdx {
-					pk = fields[fieldOrigIndex]
-				}
 				if err != nil {
 					d.Chk.Fail(fmt.Sprintf("Error parsing value for column '%s': %s", headersRaw[i], err))
 				}
 			}
 		}
-		kvChan <- pk
-		kvChan <- types.NewStructWithType(t, fields)
+
+		// work backward through the pks so that outermost one is the first/primary one
+		// e.g. map<pk1, map<pk2, map<pk3, fields>>>
+		var v types.Value
+		v = types.NewStructWithType(t, fields)
+		for i := len(pkIndices); i > 1; i-- {
+			fieldOrigIndex := fieldOrder[pkIndices[i-1]]
+			key := fields[fieldOrigIndex]
+			m := types.NewMap(key, v)
+			v = m
+		}
+
+		fieldOrigIndex := fieldOrder[pkIndices[0]]
+		kvChan <- fields[fieldOrigIndex]
+		kvChan <- v
 	}
 
 	close(kvChan)

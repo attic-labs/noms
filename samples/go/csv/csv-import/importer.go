@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -48,7 +46,6 @@ func main() {
 	destType := flag.String("dest-type", "list", "the destination type to import to. can be 'list' or 'map:<pk>', where <pk> is the index position (0-based) of the column that is a the unique identifier for the column")
 	skipRecords := flag.Uint("skip-records", 0, "number of records to skip at beginning of file")
 	detectColumnTypes := flag.Bool("detect-column-types", false, "detect column types by analyzing a portion of csv file")
-	destTypePattern := regexp.MustCompile("^(list|map):(\\d+)$")
 
 	spec.RegisterDatabaseFlags(flag.CommandLine)
 	profile.RegisterProfileFlags(flag.CommandLine)
@@ -126,13 +123,16 @@ func main() {
 	d.CheckErrorNoUsage(err)
 
 	var dest int
-	var pk int
+	var strPks []string
 	if *destType == "list" {
 		dest = destList
-	} else if match := destTypePattern.FindStringSubmatch(*destType); match != nil {
+	} else if strings.HasPrefix(*destType, "map:") {
 		dest = destMap
-		pk, err = strconv.Atoi(match[2])
-		d.CheckErrorNoUsage(err)
+		strPks = strings.Split(strings.TrimPrefix(*destType, "map:"), ",")
+		if len(strPks) == 0 {
+			fmt.Println("Invalid dest-type map: ", *destType)
+			return
+		}
 	} else {
 		fmt.Println("Invalid dest-type: ", *destType)
 		return
@@ -168,7 +168,7 @@ func main() {
 	if dest == destList {
 		value, _ = csv.ReadToList(cr, *name, headers, kinds, ds.Database())
 	} else {
-		value = csv.ReadToMap(cr, *name, headers, pk, kinds, ds.Database())
+		value = csv.ReadToMap(cr, *name, headers, strPks, kinds, ds.Database())
 	}
 	mi := metaInfoForCommit(date, filePath, *path, *comment)
 	_, err = ds.Commit(value, dataset.CommitOptions{Meta: mi})
