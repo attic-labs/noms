@@ -100,17 +100,7 @@ func ReadToList(r *csv.Reader, structName string, headers []string, kinds KindSl
 			panic(err)
 		}
 
-		fields := make(types.ValueSlice, len(headers))
-		for i, v := range row {
-			if i < len(headers) {
-				fieldOrigIndex := fieldOrder[i]
-				val, err := StringToValue(v, kindMap[fieldOrigIndex])
-				if err != nil {
-					d.Chk.Fail(fmt.Sprintf("Error parsing value for column '%s': %s", headers[i], err))
-				}
-				fields[fieldOrigIndex] = val
-			}
-		}
+		fields := readFieldsFromRow(row, headers, fieldOrder, kindMap)
 		valueChan <- types.NewStructWithType(t, fields)
 	}
 
@@ -144,12 +134,29 @@ func getPkIndices(strPks []string, headers []string) []int {
 	return result
 }
 
+func readFieldsFromRow(row []string, headers []string, fieldOrder []int, kindMap []types.NomsKind) types.ValueSlice {
+	fields := make(types.ValueSlice, len(headers))
+	for i, v := range row {
+		if i < len(headers) {
+			fieldOrigIndex := fieldOrder[i]
+			val, err := StringToValue(v, kindMap[fieldOrigIndex])
+			if err != nil {
+				d.Chk.Fail(fmt.Sprintf("Error parsing value for column '%s': %s", headers[i], err))
+			}
+			fields[fieldOrigIndex] = val
+		}
+	}
+	return fields
+}
+
 // ReadToMap takes a CSV reader and reads data into a typed Map of structs. Each row gets read into a struct named structName, described by headers. If the original data contained headers it is expected that the input reader has already read those and are pointing at the first data row.
 // If kinds is non-empty, it will be used to type the fields in the generated structs; otherwise, they will be left as string-fields.
 func ReadToMap(r *csv.Reader, structName string, headersRaw []string, primaryKeys []string, kinds KindSlice, vrw types.ValueReadWriter) types.Map {
 	t, fieldOrder, kindMap := MakeStructTypeFromHeaders(headersRaw, structName, kinds)
 
 	pkIndices := getPkIndices(primaryKeys, headersRaw)
+
+	topMap := types.NewMap()
 
 	kvChan := make(chan types.Value, 128)
 	mapChan := types.NewStreamingMap(vrw, kvChan)
@@ -161,32 +168,39 @@ func ReadToMap(r *csv.Reader, structName string, headersRaw []string, primaryKey
 			panic(err)
 		}
 
-		fields := make(types.ValueSlice, len(headersRaw))
-		for i, v := range row {
-			if i < len(headersRaw) {
-				fieldOrigIndex := fieldOrder[i]
-				fields[fieldOrigIndex], err = StringToValue(v, kindMap[fieldOrigIndex])
-				if err != nil {
-					d.Chk.Fail(fmt.Sprintf("Error parsing value for column '%s': %s", headersRaw[i], err))
-				}
-			}
-		}
+		fields := readFieldsFromRow(row, headersRaw, fieldOrder, kindMap)
+		rowStruct := types.NewStructWithType(t, fields)
 
-		// work backward through the pks so that outermost one is the first/primary one
-		// e.g. map<pk1, map<pk2, map<pk3, fields>>>
-		var v types.Value
-		v = types.NewStructWithType(t, fields)
-		for i := len(pkIndices); i > 1; i-- {
-			fieldOrigIndex := fieldOrder[pkIndices[i-1]]
+		// needed to allow recursive calls to encloseInMap
+		var encloseInMapFunc func(m types.Map, keyLevel int) types.Map
+		encloseInMap := func(m types.Map, keyLevel int) types.Map {
+			fieldOrigIndex := fieldOrder[pkIndices[keyLevel]]
 			key := fields[fieldOrigIndex]
-			m := types.NewMap(key, v)
-			v = m
+
+			// at end of our indices, set the final key to point to this row
+			if keyLevel == len(pkIndices)-1 {
+				return m.Set(key, rowStruct)
+			}
+
+			// not at end of our indices, determine if we already have a map
+			// created for the next level and use it if so, otherwise create it
+			var subMap types.Map
+			if n, ok := m.MaybeGet(key); !ok {
+				subMap = types.NewMap()
+			} else {
+				subMap = n.(types.Map)
+			}
+			return m.Set(key, encloseInMapFunc(subMap, keyLevel+1))
 		}
 
-		fieldOrigIndex := fieldOrder[pkIndices[0]]
-		kvChan <- fields[fieldOrigIndex]
-		kvChan <- v
+		encloseInMapFunc = encloseInMap
+		topMap = encloseInMap(topMap, 0)
 	}
+
+	topMap.IterAll(func(k types.Value, v types.Value) {
+		kvChan <- k
+		kvChan <- v
+	})
 
 	close(kvChan)
 	return <-mapChan
