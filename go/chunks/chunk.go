@@ -2,6 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
+// Package chunks contains the core storage abstractions and implementations used in Noms.
 package chunks
 
 import (
