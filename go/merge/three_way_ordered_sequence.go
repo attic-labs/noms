@@ -11,10 +11,26 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
+type diffFunc func(chan<- types.ValueChanged, <-chan struct{})
 type applyFunc func(types.Value, types.ValueChanged, types.Value) types.Value
 type getFunc func(types.Value) types.Value
 
-func threeWayOrderedSequenceMerge(parent types.Value, aChangeChan, bChangeChan <-chan types.ValueChanged, aGetFunc, bGetFunc, pGetFunc getFunc, apply applyFunc, vwr types.ValueReadWriter) (merged types.Value, err error) {
+func threeWayOrderedSequenceMerge(parent types.Value, aDiff, bDiff diffFunc, aGet, bGet, pGet getFunc, apply applyFunc, vwr types.ValueReadWriter) (merged types.Value, err error) {
+	aChangeChan, bChangeChan := make(chan types.ValueChanged), make(chan types.ValueChanged)
+	aStopChan, bStopChan := make(chan struct{}, 1), make(chan struct{}, 1)
+
+	go func() {
+		aDiff(aChangeChan, aStopChan)
+		close(aChangeChan)
+	}()
+	go func() {
+		bDiff(bChangeChan, bStopChan)
+		close(bChangeChan)
+	}()
+
+	defer stopAndDrain(aStopChan, aChangeChan)
+	defer stopAndDrain(bStopChan, bChangeChan)
+
 	merged = parent
 	aChange, bChange := types.ValueChanged{}, types.ValueChanged{}
 	for {
@@ -34,11 +50,11 @@ func threeWayOrderedSequenceMerge(parent types.Value, aChangeChan, bChangeChan <
 		// Since diff generates changes in key-order, and we never skip over a change without processing it, we can simply compare the keys at which aChange and bChange occurred to determine if either is safe to apply to the merge result without further processing. This is because if, e.g. aChange.V.Less(bChange.V), we know that the diff of b will never generate a change at that key. If it was going to, it would have done so on an earlier iteration of this loop and been processed at that time.
 		// It's also obviously OK to apply a change if only one diff is generating any changes, e.g. aChange.V is non-nil and bChange.V is nil.
 		if aChange.V != nil && (bChange.V == nil || aChange.V.Less(bChange.V)) {
-			merged = apply(merged, aChange, aGetFunc(aChange.V))
+			merged = apply(merged, aChange, aGet(aChange.V))
 			aChange = types.ValueChanged{}
 			continue
 		} else if bChange.V != nil && (aChange.V == nil || bChange.V.Less(aChange.V)) {
-			merged = apply(merged, bChange, bGetFunc(bChange.V))
+			merged = apply(merged, bChange, bGet(bChange.V))
 			bChange = types.ValueChanged{}
 			continue
 		}
@@ -49,7 +65,7 @@ func threeWayOrderedSequenceMerge(parent types.Value, aChangeChan, bChangeChan <
 			return parent, newMergeConflict("Conflict:\n%s\nvs\n%s\n", describeChange(aChange), describeChange(bChange))
 		}
 
-		aValue, bValue := aGetFunc(aChange.V), bGetFunc(bChange.V)
+		aValue, bValue := aGet(aChange.V), bGet(bChange.V)
 		if aChange.ChangeType == types.DiffChangeRemoved || aValue.Equals(bValue) {
 			// If both diffs generated a remove, or if the new value is the same in both, merge is fine.
 			merged = apply(merged, aChange, aValue)
@@ -59,7 +75,7 @@ func threeWayOrderedSequenceMerge(parent types.Value, aChangeChan, bChangeChan <
 				return parent, newMergeConflict("Conflict:\n%s = %s\nvs\n%s = %s", describeChange(aChange), types.EncodedValue(aValue), describeChange(bChange), types.EncodedValue(bValue))
 			}
 			// TODO: Add concurrency.
-			mergedValue, err := threeWayMerge(aValue, bValue, pGetFunc(aChange.V), vwr)
+			mergedValue, err := threeWayMerge(aValue, bValue, pGet(aChange.V), vwr)
 			if err != nil {
 				return parent, err
 			}
@@ -68,6 +84,12 @@ func threeWayOrderedSequenceMerge(parent types.Value, aChangeChan, bChangeChan <
 		aChange, bChange = types.ValueChanged{}, types.ValueChanged{}
 	}
 	return merged, nil
+}
+
+func stopAndDrain(stop chan<- struct{}, drain <-chan types.ValueChanged) {
+	close(stop)
+	for range drain {
+	}
 }
 
 func describeChange(change types.ValueChanged) string {

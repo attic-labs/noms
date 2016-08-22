@@ -109,21 +109,12 @@ func threeWayMerge(a, b, parent types.Value, vwr types.ValueReadWriter) (merged 
 }
 
 func threeWayMapMerge(a, b, parent types.Map, vwr types.ValueReadWriter) (merged types.Value, err error) {
-	aChangeChan, bChangeChan := make(chan types.ValueChanged), make(chan types.ValueChanged)
-	aStopChan, bStopChan := make(chan struct{}, 1), make(chan struct{}, 1)
-
-	go func() {
-		a.DiffLeftRight(parent, aChangeChan, aStopChan)
-		close(aChangeChan)
-	}()
-	go func() {
-		b.DiffLeftRight(parent, bChangeChan, bStopChan)
-		close(bChangeChan)
-	}()
-
-	defer stopAndDrain(aStopChan, aChangeChan)
-	defer stopAndDrain(bStopChan, bChangeChan)
-
+	aDiff := func(change chan<- types.ValueChanged, stop <-chan struct{}) {
+		a.DiffLeftRight(parent, change, stop)
+	}
+	bDiff := func(change chan<- types.ValueChanged, stop <-chan struct{}) {
+		b.DiffLeftRight(parent, change, stop)
+	}
 	apply := func(target types.Value, change types.ValueChanged, newVal types.Value) types.Value {
 		switch change.ChangeType {
 		case types.DiffChangeAdded, types.DiffChangeModified:
@@ -134,32 +125,22 @@ func threeWayMapMerge(a, b, parent types.Map, vwr types.ValueReadWriter) (merged
 			panic("Not Reached")
 		}
 	}
-	return threeWayOrderedSequenceMerge(parent, aChangeChan, bChangeChan, a.Get, b.Get, parent.Get, apply, vwr)
+	return threeWayOrderedSequenceMerge(parent, aDiff, bDiff, a.Get, b.Get, parent.Get, apply, vwr)
 }
 
 func threeWayStructMerge(a, b, parent types.Struct, vwr types.ValueReadWriter) (merged types.Value, err error) {
-	aChangeChan, bChangeChan := make(chan types.ValueChanged), make(chan types.ValueChanged)
-	aStopChan, bStopChan := make(chan struct{}, 1), make(chan struct{}, 1)
-
-	go func() {
-		a.Diff(parent, aChangeChan, aStopChan)
-		close(aChangeChan)
-	}()
-	go func() {
-		b.Diff(parent, bChangeChan, bStopChan)
-		close(bChangeChan)
-	}()
-
-	defer stopAndDrain(aStopChan, aChangeChan)
-	defer stopAndDrain(bStopChan, bChangeChan)
+	aDiff := func(change chan<- types.ValueChanged, stop <-chan struct{}) {
+		a.Diff(parent, change, stop)
+	}
+	bDiff := func(change chan<- types.ValueChanged, stop <-chan struct{}) {
+		b.Diff(parent, change, stop)
+	}
 
 	makeGetFunc := func(s types.Struct) getFunc {
 		return func(key types.Value) types.Value {
 			if field, ok := key.(types.String); ok {
-				if val, present := s.MaybeGet(string(field)); present {
-					return val
-				}
-				return nil
+				val, _ := s.MaybeGet(string(field))
+				return val
 			}
 			panic(fmt.Errorf("Bad key type in diff: %s", key.Type().Describe()))
 		}
@@ -169,7 +150,6 @@ func threeWayStructMerge(a, b, parent types.Struct, vwr types.ValueReadWriter) (
 		// Right now, this always iterates over all fields to create a new Struct, because there's no API for adding/removing a field from an existing struct type.
 		if f, ok := change.V.(types.String); ok {
 			field := string(f)
-			// fmt.Println("Applying change", describeChange(change))
 			data := types.StructData{}
 			desc := target.Type().Desc.(types.StructDesc)
 			desc.IterFields(func(name string, t *types.Type) {
@@ -184,13 +164,7 @@ func threeWayStructMerge(a, b, parent types.Struct, vwr types.ValueReadWriter) (
 		}
 		panic(fmt.Errorf("Bad key type in diff: %s", change.V.Type().Describe()))
 	}
-	return threeWayOrderedSequenceMerge(parent, aChangeChan, bChangeChan, makeGetFunc(a), makeGetFunc(b), makeGetFunc(parent), apply, vwr)
-}
-
-func stopAndDrain(stop chan<- struct{}, drain <-chan types.ValueChanged) {
-	close(stop)
-	for range drain {
-	}
+	return threeWayOrderedSequenceMerge(parent, aDiff, bDiff, makeGetFunc(a), makeGetFunc(b), makeGetFunc(parent), apply, vwr)
 }
 
 func mapAssert(a, b, parent types.Value) (aMap, bMap, pMap types.Map, ok bool) {
