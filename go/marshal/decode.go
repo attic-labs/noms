@@ -365,25 +365,37 @@ func interfaceDecoder(t reflect.Type) decoderFunc {
 	}
 
 	return func(v types.Value, rv reflect.Value) {
-		var t reflect.Type
-		switch v.Type().Kind() {
-		case types.BoolKind:
-			t = reflect.TypeOf(false)
-		case types.NumberKind:
-			t = reflect.TypeOf(float64(0))
-		case types.StringKind:
-			t = reflect.TypeOf("")
-		case types.ListKind:
-			t = reflect.SliceOf(emptyInterface)
-		case types.MapKind:
-			t = reflect.MapOf(emptyInterface, emptyInterface)
-		// case types.StructKind:
-		// reflect.StructOf was not added until Go 1.7
-		default:
-			panic(&UnmarshalTypeMismatchError{Value: v, Type: t})
-		}
+		t := getGoTypeForNomsType(v.Type(), rv.Type(), v)
 		i := reflect.New(t).Elem()
 		typeDecoder(t)(v, i)
 		rv.Set(i)
+	}
+}
+
+func getGoTypeForNomsType(nt *types.Type, rt reflect.Type, v types.Value) reflect.Type {
+	switch nt.Kind() {
+	case types.BoolKind:
+		return reflect.TypeOf(false)
+	case types.NumberKind:
+		return reflect.TypeOf(float64(0))
+	case types.StringKind:
+		return reflect.TypeOf("")
+	case types.ListKind:
+		et := getGoTypeForNomsType(nt.Desc.(types.CompoundDesc).ElemTypes[0], rt, v)
+		return reflect.SliceOf(et)
+	case types.MapKind:
+		kt := getGoTypeForNomsType(nt.Desc.(types.CompoundDesc).ElemTypes[0], rt, v)
+		vt := getGoTypeForNomsType(nt.Desc.(types.CompoundDesc).ElemTypes[1], rt, v)
+		return reflect.MapOf(kt, vt)
+	case types.UnionKind:
+		// Visit union types to raise potential errors
+		for _, ut := range nt.Desc.(types.CompoundDesc).ElemTypes {
+			getGoTypeForNomsType(ut, rt, v)
+		}
+		return emptyInterface
+	// case types.StructKind:
+	// 	reflect.StructOf was not added until Go 1.7
+	default:
+		panic(&UnmarshalTypeMismatchError{Value: v, Type: rt})
 	}
 }

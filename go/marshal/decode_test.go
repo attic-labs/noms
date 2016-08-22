@@ -568,11 +568,19 @@ func TestDecodeOntoInterface(t *testing.T) {
 
 	err = Unmarshal(types.NewList(types.String("abc")), &i)
 	assert.NoError(err)
-	assert.Equal([]interface{}{"abc"}, i)
+	assert.Equal([]string{"abc"}, i)
 
 	err = Unmarshal(types.NewMap(types.String("abc"), types.Number(1)), &i)
 	assert.NoError(err)
-	assert.Equal(map[interface{}]interface{}{"abc": float64(1)}, i)
+	assert.Equal(map[string]float64{"abc": float64(1)}, i)
+
+	err = Unmarshal(types.NewList(types.String("a"), types.Bool(true), types.Number(42)), &i)
+	assert.NoError(err)
+	assert.Equal([]interface{}{"a", true, float64(42)}, i)
+
+	err = Unmarshal(types.NewMap(types.String("a"), types.Bool(true), types.Number(42), types.NewList()), &i)
+	assert.NoError(err)
+	assert.Equal(map[interface{}]interface{}{"a": true, float64(42): []interface{}{}}, i)
 }
 
 func TestDecodeOntoNonSupportedInterface(t *testing.T) {
@@ -586,5 +594,5 @@ func TestDecodeOntoNonSupportedInterface(t *testing.T) {
 func TestDecodeOntoInterfaceStruct(t *testing.T) {
 	// Not implemented because it requires Go 1.7.
 	var i interface{}
-	assertDecodeErrorMessage(t, types.NewStruct("", types.StructData{}), &i, "Cannot unmarshal struct {} into Go value of type nil")
+	assertDecodeErrorMessage(t, types.NewStruct("", types.StructData{}), &i, "Cannot unmarshal struct {} into Go value of type interface {}")
 }

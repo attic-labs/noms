@@ -141,6 +141,12 @@ func typeEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc {
 		return listEncoder(t, parentStructTypes)
 	case reflect.Map:
 		return mapEncoder(t, parentStructTypes)
+	case reflect.Interface:
+		return func(v reflect.Value) types.Value {
+			// Get the dynamic type.
+			v2 := reflect.ValueOf(v.Interface())
+			return typeEncoder(v2.Type(), parentStructTypes)(v2)
+		}
 	default:
 		panic(&UnsupportedTypeError{Type: t})
 	}
