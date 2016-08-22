@@ -15,7 +15,7 @@
     "yargs": "^4.7.1"
   },
   "scripts": {
-    "preinstall": "ln -sf ../.babelrc && ln -sf ../.flowconfig",
+    "preinstall": "pushd .. && npm install && popd && ln -sf ../.babelrc && ln -sf ../.flowconfig",
     "test": "exit 0"
   }
 }
