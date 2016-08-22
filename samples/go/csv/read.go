@@ -153,10 +153,11 @@ func readFieldsFromRow(row []string, headers []string, fieldOrder []int, kindMap
 // If kinds is non-empty, it will be used to type the fields in the generated structs; otherwise, they will be left as string-fields.
 func ReadToMap(r *csv.Reader, structName string, headersRaw []string, primaryKeys []string, kinds KindSlice, vrw types.ValueReadWriter) types.Map {
 	t, fieldOrder, kindMap := MakeStructTypeFromHeaders(headersRaw, structName, kinds)
-
 	pkIndices := getPkIndices(primaryKeys, headersRaw)
 
-	topMap := types.NewMap()
+	if len(primaryKeys) > 1 {
+		return readToNestedMap(r, structName, headersRaw, pkIndices, t, fieldOrder, kindMap, vrw)
+	}
 
 	kvChan := make(chan types.Value, 128)
 	mapChan := types.NewStreamingMap(vrw, kvChan)
@@ -169,39 +170,75 @@ func ReadToMap(r *csv.Reader, structName string, headersRaw []string, primaryKey
 		}
 
 		fields := readFieldsFromRow(row, headersRaw, fieldOrder, kindMap)
+		kvChan <- fields[fieldOrder[pkIndices[0]]]
+		kvChan <- types.NewStructWithType(t, fields)
+	}
+	close(kvChan)
+	return <-mapChan
+}
+
+type mapOrStruct struct {
+	goMap      map[types.Value]mapOrStruct
+	nomsStruct types.Struct
+}
+
+func goMaptoNomsMap(gm map[types.Value]mapOrStruct, vrw types.ValueReadWriter) types.Map {
+	var nomsValue types.Value
+	kvChan := make(chan types.Value, 128)
+	mapChan := types.NewStreamingMap(vrw, kvChan)
+	for k, v := range gm {
+		if v.goMap != nil {
+			nomsValue = goMaptoNomsMap(v.goMap, vrw)
+		} else {
+			nomsValue = v.nomsStruct
+		}
+		kvChan <- k
+		kvChan <- nomsValue
+	}
+	close(kvChan)
+	return <-mapChan
+}
+
+func readToNestedMap(r *csv.Reader, structName string, headersRaw []string, pkIndices []int, t *types.Type, fieldOrder []int, kindMap []types.NomsKind, vrw types.ValueReadWriter) types.Map {
+	goMap := make(map[types.Value]mapOrStruct)
+	for {
+		row, err := r.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			panic(err)
+		}
+
+		fields := readFieldsFromRow(row, headersRaw, fieldOrder, kindMap)
 		rowStruct := types.NewStructWithType(t, fields)
 
 		// needed to allow recursive calls to encloseInMap
-		var encloseInMapFunc func(m types.Map, keyLevel int) types.Map
-		encloseInMap := func(m types.Map, keyLevel int) types.Map {
+		var encloseInMapFunc func(m map[types.Value]mapOrStruct, keyLevel int) map[types.Value]mapOrStruct
+		encloseInMap := func(m map[types.Value]mapOrStruct, keyLevel int) map[types.Value]mapOrStruct {
 			fieldOrigIndex := fieldOrder[pkIndices[keyLevel]]
 			key := fields[fieldOrigIndex]
 
 			// at end of our indices, set the final key to point to this row
 			if keyLevel == len(pkIndices)-1 {
-				return m.Set(key, rowStruct)
+				m[key] = mapOrStruct{nil, rowStruct}
+				return m
 			}
 
 			// not at end of our indices, determine if we already have a map
 			// created for the next level and use it if so, otherwise create it
-			var subMap types.Map
-			if n, ok := m.MaybeGet(key); !ok {
-				subMap = types.NewMap()
+			var subMap map[types.Value]mapOrStruct
+			if n, ok := m[key]; !ok {
+				subMap = make(map[types.Value]mapOrStruct)
 			} else {
-				subMap = n.(types.Map)
+				subMap = n.goMap
 			}
-			return m.Set(key, encloseInMapFunc(subMap, keyLevel+1))
+			m[key] = mapOrStruct{encloseInMapFunc(subMap, keyLevel+1), types.Struct{}}
+			return m
 		}
 
 		encloseInMapFunc = encloseInMap
-		topMap = encloseInMap(topMap, 0)
+		goMap = encloseInMap(goMap, 0)
 	}
 
-	topMap.IterAll(func(k types.Value, v types.Value) {
-		kvChan <- k
-		kvChan <- v
-	})
-
-	close(kvChan)
-	return <-mapChan
+	return goMaptoNomsMap(goMap, vrw)
 }
