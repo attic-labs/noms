@@ -28,11 +28,13 @@ import (
 // To unmarshal a Noms map into a Go map, Unmarshal decodes Noms key and values into corresponding Go array elements. If the Go map was nil a new map is created.
 //
 // When unmarshalling onto `interface{}` the following rules are used:
-//  - types.Bool -> bool
-//  - types.List -> []interface{}
-//  - types.Map -> map[interface{}]interface{}
-//  - types.Number -> float64
-//  - types.String -> string
+//  - `types.Bool` -> `bool`
+//  - `types.List` -> `[]T`, where `T` is determined recursively using the same rules.
+//  - `types.Map` -> `map[T]V`, where `T` and `V` is determined recursively using the same rules.
+//  - `types.Number` -> `float64`
+//  - `types.String` -> `string`
+//  - `types.Union` -> `interface`
+//  - Everything else an error
 //
 // Unmarshal returns an UnmarshalTypeMismatchError if:
 //  - a Noms value is not appropriate for a given target type

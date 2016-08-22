@@ -52,7 +52,9 @@ import (
 //
 // Noms values (values implementing types.Value) are copied over without any change.
 //
-// Go pointers, complex, interface (non types.Value), function are not supported. Attempting to encode such a value causes Marshal to return an UnsupportedTypeError.
+// When marshalling `interface{}` the dynamic type is used.
+//
+// Go pointers, complex, function are not supported. Attempting to encode such a value causes Marshal to return an UnsupportedTypeError.
 //
 func Marshal(v interface{}) (nomsValue types.Value, err error) {
 	defer func() {
