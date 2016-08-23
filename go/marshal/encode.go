@@ -46,13 +46,17 @@ import (
 //
 // Unlike encoding/json Marshal, this does not support "omitempty".
 //
+// The name of the Noms struct is the name of the Go struct where the first character is changed to upper case.
+//
 // Anonymous struct fields are currently not supported.
 //
 // Embedded structs are currently not supported (which is the same as anonymous struct fields).
 //
 // Noms values (values implementing types.Value) are copied over without any change.
 //
-// Go pointers, complex, interface (non types.Value), function are not supported. Attempting to encode such a value causes Marshal to return an UnsupportedTypeError.
+// When marshalling `interface{}` the dynamic type is used.
+//
+// Go pointers, complex, function are not supported. Attempting to encode such a value causes Marshal to return an UnsupportedTypeError.
 //
 func Marshal(v interface{}) (nomsValue types.Value, err error) {
 	defer func() {
@@ -95,6 +99,7 @@ func (e *InvalidTagError) Error() string {
 }
 
 var nomsValueInterface = reflect.TypeOf((*types.Value)(nil)).Elem()
+var emptyInterface = reflect.TypeOf((*interface{})(nil)).Elem()
 
 type encoderFunc func(v reflect.Value) types.Value
 
@@ -140,6 +145,12 @@ func typeEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc {
 		return listEncoder(t, parentStructTypes)
 	case reflect.Map:
 		return mapEncoder(t, parentStructTypes)
+	case reflect.Interface:
+		return func(v reflect.Value) types.Value {
+			// Get the dynamic type.
+			v2 := reflect.ValueOf(v.Interface())
+			return typeEncoder(v2.Type(), parentStructTypes)(v2)
+		}
 	default:
 		panic(&UnsupportedTypeError{Type: t})
 	}
@@ -167,7 +178,7 @@ func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc
 		}
 	} else {
 		// Cannot precompute the Noms type since there are Noms collections.
-		name := t.Name()
+		name := strings.Title(t.Name())
 		e = func(v reflect.Value) types.Value {
 			data := make(types.StructData, len(fields))
 			for _, f := range fields {
@@ -264,7 +275,7 @@ func typeFields(t reflect.Type, parentStructTypes []reflect.Type) (fields fieldS
 			fieldNames[i] = fs.name
 			fieldTypes[i] = fs.nomsType
 		}
-		structType = types.MakeStructType(t.Name(), fieldNames, fieldTypes)
+		structType = types.MakeStructType(strings.Title(t.Name()), fieldNames, fieldTypes)
 	}
 	return
 }
