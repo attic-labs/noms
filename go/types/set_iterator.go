@@ -117,7 +117,6 @@ func (u *UnionIterator) Next() Value {
 		return u.bState.Next()
 	}
 	panic("Unreachable")
-	return nil
 }
 
 func (u *UnionIterator) NextFrom(v Value) Value {
@@ -144,7 +143,6 @@ func (u *UnionIterator) NextFrom(v Value) Value {
 		return u.bState.Next()
 	}
 	panic("Unreachable")
-	return nil
 }
 
 // IntersectionIterator only returns values that are returned in both of its child iterators.

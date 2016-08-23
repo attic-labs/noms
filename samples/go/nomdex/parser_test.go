@@ -28,20 +28,20 @@ func TestQueryScanner(t *testing.T) {
 	s := NewQueryScanner(`9 (99.9) "99.9" and or http://localhost:8000/cli-tour::yo <= >= < > = _`)
 
 	scannerResults := []scannerResult{
-		scannerResult{tok: scanner.Int, text: "9"},
-		scannerResult{tok: int('('), text: "("},
-		scannerResult{tok: scanner.Float, text: "99.9"},
-		scannerResult{tok: int(')'), text: ")"},
-		scannerResult{tok: scanner.String, text: `"99.9"`},
-		scannerResult{tok: scanner.Ident, text: "and"},
-		scannerResult{tok: scanner.Ident, text: "or"},
-		scannerResult{tok: scanner.Ident, text: "http://localhost:8000/cli-tour::yo"},
-		scannerResult{tok: scanner.Ident, text: "<="},
-		scannerResult{tok: scanner.Ident, text: ">="},
-		scannerResult{tok: scanner.Ident, text: "<"},
-		scannerResult{tok: scanner.Ident, text: ">"},
-		scannerResult{tok: int('='), text: "="},
-		scannerResult{tok: int('_'), text: "_"},
+		{tok: scanner.Int, text: "9"},
+		{tok: int('('), text: "("},
+		{tok: scanner.Float, text: "99.9"},
+		{tok: int(')'), text: ")"},
+		{tok: scanner.String, text: `"99.9"`},
+		{tok: scanner.Ident, text: "and"},
+		{tok: scanner.Ident, text: "or"},
+		{tok: scanner.Ident, text: "http://localhost:8000/cli-tour::yo"},
+		{tok: scanner.Ident, text: "<="},
+		{tok: scanner.Ident, text: ">="},
+		{tok: scanner.Ident, text: "<"},
+		{tok: scanner.Ident, text: ">"},
+		{tok: int('='), text: "="},
+		{tok: int('_'), text: "_"},
 	}
 
 	for _, sr := range scannerResults {
@@ -58,10 +58,10 @@ func TestPeek(t *testing.T) {
 
 	s := NewQueryScanner(`_ < "one"`)
 	scannerResults := []scannerResult{
-		scannerResult{tok: int('_'), text: "_"},
-		scannerResult{tok: scanner.Ident, text: "<"},
-		scannerResult{tok: scanner.String, text: `"one"`},
-		scannerResult{tok: scanner.EOF, text: ""},
+		{tok: int('_'), text: "_"},
+		{tok: scanner.Ident, text: "<"},
+		{tok: scanner.String, text: `"one"`},
+		{tok: scanner.EOF, text: ""},
 	}
 
 	for _, sr := range scannerResults {
@@ -81,17 +81,17 @@ func TestParsing(t *testing.T) {
 	re4 := compExpr{"_", lt, types.Number(2030)}
 
 	queries := []parseResult{
-		parseResult{`_ = 2015`, re1},
-		parseResult{`(_ = 2015 )`, re1},
-		parseResult{`(((_ = 2015 ) ))`, re1},
-		parseResult{`_ = 2015 or _ >= 2020`, logExpr{or, re1, re2}},
-		parseResult{`(_ = 2015) or _ >= 2020`, logExpr{or, re1, re2}},
-		parseResult{`_ = 2015 or (_ >= 2020)`, logExpr{or, re1, re2}},
-		parseResult{`(_ = 2015 or _ >= 2020)`, logExpr{or, re1, re2}},
-		parseResult{`(_ = 2015 or _ >= 2020) and _ <= 2022`, logExpr{and, logExpr{or, re1, re2}, re3}},
-		parseResult{`_ = 2015 or _ >= 2020 and _ <= 2022`, logExpr{or, re1, logExpr{and, re2, re3}}},
-		parseResult{`_ = 2015 or _ >= 2020 and _ <= 2022 or _ < 2030`, logExpr{or, re1, logExpr{and, re2, logExpr{or, re3, re4}}}},
-		parseResult{`(_ = 2015 or _ >= 2020) and (_ <= 2022 or _ < 2030)`, logExpr{and, logExpr{or, re1, re2}, logExpr{or, re3, re4}}},
+		{`_ = 2015`, re1},
+		{`(_ = 2015 )`, re1},
+		{`(((_ = 2015 ) ))`, re1},
+		{`_ = 2015 or _ >= 2020`, logExpr{or, re1, re2}},
+		{`(_ = 2015) or _ >= 2020`, logExpr{or, re1, re2}},
+		{`_ = 2015 or (_ >= 2020)`, logExpr{or, re1, re2}},
+		{`(_ = 2015 or _ >= 2020)`, logExpr{or, re1, re2}},
+		{`(_ = 2015 or _ >= 2020) and _ <= 2022`, logExpr{and, logExpr{or, re1, re2}, re3}},
+		{`_ = 2015 or _ >= 2020 and _ <= 2022`, logExpr{or, re1, logExpr{and, re2, re3}}},
+		{`_ = 2015 or _ >= 2020 and _ <= 2022 or _ < 2030`, logExpr{or, re1, logExpr{and, re2, logExpr{or, re3, re4}}}},
+		{`(_ = 2015 or _ >= 2020) and (_ <= 2022 or _ < 2030)`, logExpr{and, logExpr{or, re1, re2}, logExpr{or, re3, re4}}},
 	}
 
 	for _, pr := range queries {
