@@ -19,8 +19,8 @@ import {
   newStructWithType,
   numberType,
   stringType,
-} from '@attic/noms';
-import type {Collection, Value} from '@attic/noms';
+} from '../../../';
+import type {Collection, Value} from '../../../';
 
 const numberSize = 8;
 const strPrefix = 'i am a 32 bytes.....'; // TODO
@@ -43,9 +43,9 @@ const args = argv
   .argv;
 
 main().catch(ex => {
-  console.error('\nError:', ex);
+  console.error('\nError:', ex);  // eslint-disable-line no-console
   if (ex.stack) {
-    console.error(ex.stack);
+    console.error(ex.stack);  // eslint-disable-line no-console
   }
   process.exit(1);
 });

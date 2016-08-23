@@ -9,7 +9,7 @@ import fs from 'mz/fs';
 import humanize from 'humanize';
 import argv from 'yargs';
 
-import {BuzHash} from '@attic/noms';
+import {BuzHash} from '../../../';
 
 const clearLine = '\x1b[2K\r';
 

@@ -40,13 +40,15 @@ let numBytes = 0;
 let numIterations = 0;
 let startTime = 0;
 
-main().catch(ex => {
+try {
+  main();
+} catch (ex) {
   console.error('\nError:', ex);
   if (ex.stack) {
     console.error(ex.stack);
   }
   process.exit(1);
-});
+}
 
 function getEncoder(name) {
   if (name === 'string') {
@@ -64,7 +66,7 @@ function getEncoder(name) {
   throw new Error('unreachable');
 }
 
-async function main(): Promise<void> {
+function main(): void {
   startTime = Date.now();
   if (console.profile) {
     console.profile('encode');
