@@ -43,9 +43,9 @@ const args = argv
   .argv;
 
 main().catch(ex => {
-  console.error('\nError:', ex);  // eslint-disable-line no-console
+  console.error('\nError:', ex);
   if (ex.stack) {
-    console.error(ex.stack);  // eslint-disable-line no-console
+    console.error(ex.stack);
   }
   process.exit(1);
 });
