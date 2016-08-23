@@ -261,10 +261,7 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 			"reps":             types.NewList(reps...),
 		})
 
-		if *perfPrefixFlag != "" {
-			datasetID = *perfPrefixFlag + datasetID
-		}
-		ds := dataset.NewDataset(db, datasetID)
+		ds := dataset.NewDataset(db, *perfPrefixFlag+datasetID)
 		var err error
 		ds, err = ds.CommitValue(record)
 		assert.NoError(err)
