@@ -20,8 +20,9 @@ def pushd(path):
 def main():
   lsfiles = subprocess.check_output(['git', 'ls-files']).split('\n')
   lsfiles.sort(key = len) # Sort by shortest first to make sure we deal with parents first
+  currentDir = os.getcwd()
   for f in lsfiles:
-    path, name = os.path.split(f)
+    path, name = os.path.split(os.path.join(currentDir, f))
     if name == 'package.json':
       with pushd(path):
         subprocess.check_call(['npm', 'install'])

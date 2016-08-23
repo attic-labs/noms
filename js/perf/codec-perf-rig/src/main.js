@@ -19,8 +19,8 @@ import {
   newStructWithType,
   numberType,
   stringType,
-} from '@attic/noms';
-import type {Collection, Value} from '@attic/noms';
+} from '../../../';
+import type {Collection, Value} from '../../../';
 
 const numberSize = 8;
 const strPrefix = 'i am a 32 bytes.....'; // TODO
