@@ -52,51 +52,6 @@ func validateCSV(s *testSuite, l types.List) {
 	})
 }
 
-func validateSpecialCharCSV(s *testSuite, l types.List) {
-	//s.Equal(uint64(100), l.Len())
-
-	i := uint64(0)
-	l.IterAll(func(v types.Value, j uint64) {
-		s.Equal(i, j)
-		st := v.(types.Struct)
-		s.Equal(types.String("removeSpaces"), st.Get("a"))
-		s.Equal(types.Number(i), st.Get("b"))
-		i++
-	})
-}
-func (s *testSuite) TestCSVImporterSpecialCharacters() {
-	input, err := ioutil.TempFile(s.TempDir, "")
-	testStrings := [...]string{
-		"remove spaces",
-		"REMOVE SPACES",
-		"removeSpaces",
-		" remove     SPACES ",
-	}
-
-	_, err = input.WriteString("a,b\n")
-	d.Chk.NoError(err)
-	for i, testString := range testStrings {
-		_, err = input.WriteString(fmt.Sprintf("%s,%d\n", testString, i))
-		d.Chk.NoError(err)
-	}
-	defer input.Close()
-	defer os.Remove(input.Name())
-
-	setName := "csv"
-	dataspec := spec.CreateValueSpecString("ldb", s.LdbDir, setName)
-	stdout, stderr := s.Run(main, []string{"--no-progress", "--column-types", "String,Number", input.Name(), dataspec})
-	s.Equal("", stdout)
-	s.Equal("", stderr)
-
-	cs := chunks.NewLevelDBStore(s.LdbDir, "", 1, false)
-	ds := dataset.NewDataset(datas.NewDatabase(cs), setName)
-	defer ds.Database().Close()
-	defer os.RemoveAll(s.LdbDir)
-
-	validateSpecialCharCSV(s, ds.HeadValue().(types.List))
-
-}
-
 func (s *testSuite) TestCSVImporter() {
 	input, err := ioutil.TempFile(s.TempDir, "")
 	d.Chk.NoError(err)

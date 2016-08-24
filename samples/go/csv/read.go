@@ -8,7 +8,9 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/types"
@@ -43,6 +45,31 @@ func KindsToStrings(kinds KindSlice) []string {
 	return strs
 }
 
+//EscapeStructFieldForCSV removes special characters and replaces spaces with camelCasing (camel' case turns to camelCase)
+func EscapeStructFieldFromCSV(input string) string {
+
+	encode := func(s1 string, p *regexp.Regexp) string {
+		if p.MatchString(s1) {
+			return s1
+		}
+		return ""
+	}
+
+	splitFields := strings.Fields(input)
+	output := types.EscapeFields(splitFields[0], encode)
+
+	if len(splitFields) > 1 {
+		output = strings.ToLower(output)
+	}
+
+	for _, field := range splitFields[1:] {
+		output += strings.Title(strings.ToLower(types.EscapeFields(field, encode)))
+	}
+
+	types.IsValidStructFieldName(output)
+	return output
+}
+
 // MakeStructTypeFromHeaders creates a struct type from the headers using |kinds| as the type of each field. If |kinds| is empty, default to strings.
 func MakeStructTypeFromHeaders(headers []string, structName string, kinds KindSlice) (typ *types.Type, fieldOrder []int, kindMap []types.NomsKind) {
 	useStringType := len(kinds) == 0
@@ -53,7 +80,7 @@ func MakeStructTypeFromHeaders(headers []string, structName string, kinds KindSl
 	fieldNames := make(sort.StringSlice, len(headers))
 
 	for i, key := range headers {
-		fn := types.EscapeStructField(key)
+		fn := EscapeStructFieldFromCSV(key)
 		origOrder[fn] = i
 		kind := types.StringKind
 		if !useStringType {

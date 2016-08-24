@@ -169,18 +169,32 @@ func (s1 Struct) Diff(s2 Struct, changes chan<- ValueChanged, closeChan <-chan s
 }
 
 var escapeChar = "Q"
-var headPattern = regexp.MustCompile("[a-zA-PR-Z]")
-var tailPattern = regexp.MustCompile("[a-zA-PR-Z0-9_]")
-var completePattern = regexp.MustCompile("^" + headPattern.String() + tailPattern.String() + "*$")
+var headFieldNamePattern = regexp.MustCompile("[a-zA-Z]")
+var tailFieldNamePattern = regexp.MustCompile("[a-zA-Z0-9_]")
+var escapeRegex = regexp.MustCompile(escapeChar)
+
+var fieldNameComponentRe = regexp.MustCompile("^" + headFieldNamePattern.String() + tailFieldNamePattern.String() + "*")
+var fieldNameRe = regexp.MustCompile(fieldNameComponentRe.String() + "$")
+
+type encodingFunc func(string, *regexp.Regexp) string
+
+func EscapeFields(input string, encode encodingFunc) string {
+	output := ""
+	pattern := headFieldNamePattern
+	for _, ch := range input {
+		output += encode(string([]rune{ch}), pattern)
+		pattern = tailFieldNamePattern
+	}
+	return output
+}
 
 // Escapes names for use as noms structs. Disallowed characters are encoded as
 // 'Q<hex-encoded-utf8-bytes>'. Note that Q itself is also escaped since it is
-// the escape character.
 func EscapeStructField(input string) string {
-	if completePattern.MatchString(input) {
+
+	if !escapeRegex.MatchString(input) && IsValidStructFieldName(input) {
 		return input
 	}
-
 	encode := func(s1 string, p *regexp.Regexp) string {
 		if p.MatchString(s1) && s1 != escapeChar {
 			return s1
@@ -195,13 +209,45 @@ func EscapeStructField(input string) string {
 		buf.WriteString(hs)
 		return buf.String()
 	}
+	output := EscapeFields(input, encode)
+	verifyFieldName(output)
+	return output
 
-	output := ""
-	pattern := headPattern
-	for _, ch := range input {
-		output += encode(string([]rune{ch}), pattern)
-		pattern = tailPattern
+}
+
+// IsValidStructFieldName returns whether the name is valid without as a field name in a struct.
+// Valid names must start with `a-zA-Z` and after that `a-zA-Z0-9_`.
+func IsValidStructFieldName(name string) bool {
+	return fieldNameRe.MatchString(name)
+}
+
+func verifyFieldNames(names []string) {
+	if len(names) == 0 {
+		return
 	}
 
-	return output
+	last := names[0]
+	verifyFieldName(last)
+
+	for i := 1; i < len(names); i++ {
+		verifyFieldName(names[i])
+		if names[i] <= last {
+			d.Chk.Fail("Field names must be unique and ordered alphabetically")
+		}
+		last = names[i]
+	}
+}
+
+func verifyName(name, kind string) {
+	d.PanicIfTrue(!IsValidStructFieldName(name), `Invalid struct%s name: "%s"`, kind, name)
+}
+
+func verifyFieldName(name string) {
+	verifyName(name, " field")
+}
+
+func verifyStructName(name string) {
+	if name != "" {
+		verifyName(name, "")
+	}
 }
