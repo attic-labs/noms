@@ -73,6 +73,7 @@ async function load() {
   const getChartData = (testName: string) =>
     Promise.all(perfData.map(pd => getElapsed(testName, pd)));
 
+  // TODO: Scale the data to "max while < 1000" so that these all fit on the same graph (not 1e9)?
   const testChartData = await Promise.all(testNames.map(getChartData));
   for (let i = 0; i < testNames.length; i++) {
     chartDatasets.set(testNames[i], testChartData[i]);
