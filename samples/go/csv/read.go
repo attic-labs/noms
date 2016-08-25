@@ -214,7 +214,7 @@ func readToNestedMap(r *csv.Reader, structName string, headersRaw []string, pkIn
 
 		// needed to allow recursive calls to encloseInMap
 		var encloseInMapFunc func(m map[types.Value]mapOrStruct, keyLevel int) map[types.Value]mapOrStruct
-		encloseInMap := func(m map[types.Value]mapOrStruct, keyLevel int) map[types.Value]mapOrStruct {
+		encloseInMapFunc = func(m map[types.Value]mapOrStruct, keyLevel int) map[types.Value]mapOrStruct {
 			fieldOrigIndex := fieldOrder[pkIndices[keyLevel]]
 			key := fields[fieldOrigIndex]
 
@@ -236,8 +236,7 @@ func readToNestedMap(r *csv.Reader, structName string, headersRaw []string, pkIn
 			return m
 		}
 
-		encloseInMapFunc = encloseInMap
-		goMap = encloseInMap(goMap, 0)
+		goMap = encloseInMapFunc(goMap, 0)
 	}
 
 	return goMaptoNomsMap(goMap, vrw)

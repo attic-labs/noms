@@ -40,9 +40,9 @@ type testSuite struct {
 func (s *testSuite) SetupTest() {
 	input, err := ioutil.TempFile(s.TempDir, "")
 	d.Chk.NoError(err)
+	defer input.Close()
 	s.tmpFileName = input.Name()
 	writeCSV(input)
-	defer input.Close()
 }
 
 func (s *testSuite) TearDownTest() {
