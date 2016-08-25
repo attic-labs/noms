@@ -47,11 +47,16 @@ async function load() {
   chartLabels = gitRevs.map(rev => rev.slice(0, 6));
 
   // Gather all test names up ahead of time, since some commits may be missing results.
-  const testNames = uniq(flatten(await Promise.all(perfData.map(pd => {
+  const firstReps = await Promise.all(perfData.map(pd => {
     invariant(pd.reps instanceof List);
-    // All reps will have the same set of test names.
-    return pd.reps.get(0).then(firstRep => keys(firstRep));
-  }))));
+    return pd.reps.get(0);
+  }));
+  const testNamesSet = new Set();
+  for (const fr of firstReps) {
+    (await keys(fr)).forEach(testName => testNamesSet.add(testName));
+  }
+  // $FlowIssue: thinks Set is incompatible with spread operand... but it is.
+  const testNames = [...testNamesSet];
 
   const getElapsed = async (testName: string, pd: Struct) => {
     invariant(pd.reps instanceof List);
@@ -172,8 +177,7 @@ async function genLightAndDarkColors(str: string): Promise<[string, string]> {
   const hash = await window.crypto.subtle.digest('sha-256', strBuf);
   invariant(hash instanceof ArrayBuffer);
   const [r, g, b] = new Uint8Array(hash);
-  const [dr, dg, db] = [r, g, b].map(c => Math.ceil(c / 2));
-  return [`rgba(${r}, ${g}, ${b}, 0.3)`, `rgb(${dr}, ${dg}, ${db})`];
+  return [`rgba(${r}, ${g}, ${b}, 0.3)`, `rgb(${r}, ${g}, ${b})`];
 }
 
 // Returns the keys of `map`.
@@ -185,15 +189,4 @@ function keys<K: Value, V: Value>(map: NomsMap<K, V>): Promise<K[]> {
       return;
     }).then(() => res(keys));
   });
-}
-
-// Returns a single flat array from every array in `arrs` concatenated.
-function flatten<T>(arrs: (T[])[]): T[] {
-  return arrs.reduce((arr, res) => res.concat(arr), []);
-}
-
-// Returns `arr` with all duplicate values returned, without preserving order.
-function uniq<T>(arr: T[]): T[] {
-  // $FlowIssue: doesn't like my sneaky uniq.
-  return [...new Set(arr)];
 }
