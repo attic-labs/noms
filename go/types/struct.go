@@ -7,11 +7,11 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"regexp"
-	"sort"
-
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
+	"regexp"
+	"sort"
+	"strings"
 )
 
 var EmptyStructType = MakeStructType("", []string{}, []*Type{})
@@ -232,7 +232,7 @@ func verifyFieldNames(names []string) {
 
 	for i := 1; i < len(names); i++ {
 		verifyFieldName(names[i])
-		if names[i] <= last {
+		if strings.Compare(names[i], last) <= 0 {
 			d.Chk.Fail("Field names must be unique and ordered alphabetically")
 		}
 		last = names[i]
