@@ -188,8 +188,9 @@ func EscapeFields(input string, encode encodingFunc) string {
 	return output
 }
 
-// Escapes names for use as noms structs. Disallowed characters are encoded as
+// EscapeStructField escapes names for use as noms structs. Disallowed characters are encoded as
 // 'Q<hex-encoded-utf8-bytes>'. Note that Q itself is also escaped since it is
+// the escape character.
 func EscapeStructField(input string) string {
 
 	if !escapeRegex.MatchString(input) && IsValidStructFieldName(input) {
@@ -215,7 +216,7 @@ func EscapeStructField(input string) string {
 
 }
 
-// IsValidStructFieldName returns whether the name is valid without as a field name in a struct.
+// IsValidStructFieldName returns whether the name is valid as a field name in a struct.
 // Valid names must start with `a-zA-Z` and after that `a-zA-Z0-9_`.
 func IsValidStructFieldName(name string) bool {
 	return fieldNameRe.MatchString(name)
