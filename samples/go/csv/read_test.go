@@ -133,6 +133,7 @@ g,h,i,j
 `
 	testTrailingHelper(t, dataString)
 }
+
 func TestEscapeStructFieldFromCSV(t *testing.T) {
 	assert := assert.New(t)
 	cases := []string{
@@ -141,17 +142,24 @@ func TestEscapeStructFieldFromCSV(t *testing.T) {
 		"AaZz19_", "AaZz19_",
 		"Q", "Q",
 		"AQ", "AQ",
-		"$", "",
 		"_content", "content",
 		"Few ¢ents Short", "fewEntsShort",
-		"💩", "",
 		"CAMEL💩case letTerS", "camelcaseLetters",
 		"https://picasaweb.google.com/data", "httpspicasawebgooglecomdata",
+	}
+	panicCases := []string{
+		"💩",
+		"11 1💩",
+		"",
 	}
 
 	for i := 0; i < len(cases); i += 2 {
 		orig, expected := cases[i], cases[i+1]
 		assert.Equal(expected, EscapeStructFieldFromCSV(orig))
+	}
+
+	for _, c := range panicCases {
+		assert.Panics(func() { EscapeStructFieldFromCSV(c) })
 	}
 
 }

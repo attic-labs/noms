@@ -46,7 +46,7 @@ func KindsToStrings(kinds KindSlice) []string {
 	return strs
 }
 
-//EscapeStructFieldForCSV removes special characters and replaces spaces with camelCasing (camel' case turns to camelCase)
+//EscapeStructFieldFromCSV removes special characters and replaces spaces with camelCasing (camel case turns to camelCase)
 func EscapeStructFieldFromCSV(input string) string {
 
 	encode := func(s1 string, p *regexp.Regexp) string {
@@ -67,7 +67,7 @@ func EscapeStructFieldFromCSV(input string) string {
 		output += strings.Title(strings.ToLower(types.EscapeFields(field, encode)))
 	}
 
-	types.IsValidStructFieldName(output)
+	d.PanicIfTrue(!types.IsValidStructFieldName(output), `"Invalid field name: %s after escaping to %s"`, input, output)
 	return output
 }
 
