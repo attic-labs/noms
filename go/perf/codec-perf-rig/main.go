@@ -169,7 +169,6 @@ func buildListIncrementally(count uint64, createFn createValueFn) types.Collecti
 
 func readList(c types.Collection) {
 	c.(types.List).IterAll(func(v types.Value, idx uint64) {
-		_ = v
 	})
 }
 
@@ -193,7 +192,6 @@ func buildSetIncrementally(count uint64, createFn createValueFn) types.Collectio
 
 func readSet(c types.Collection) {
 	c.(types.Set).IterAll(func(v types.Value) {
-		_ = v
 	})
 }
 
@@ -218,6 +216,5 @@ func buildMapIncrementally(count uint64, createFn createValueFn) types.Collectio
 
 func readMap(c types.Collection) {
 	c.(types.Map).IterAll(func(k types.Value, v types.Value) {
-		_, _ = k, v
 	})
 }
