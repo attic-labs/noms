@@ -156,7 +156,6 @@ func TestEscapeStructFieldFromCSV(t *testing.T) {
 		fmt.Println(cases[i])
 		assert.Equal(expected, EscapeStructFieldFromCSV(orig))
 	}
-
 }
 
 func TestReadParseError(t *testing.T) {
