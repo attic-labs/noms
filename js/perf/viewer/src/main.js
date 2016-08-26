@@ -34,12 +34,13 @@ let chartLabels: string[];
 async function load() {
   const params = getParams();
   if (!params.ds) {
-    window.alert('Must provide a ?ds= param');
+    alert('Must provide a ?ds= param');
     return;
   }
 
   if (params.refresh) {
-    window.setTimeout(() => location.reload(), params.refresh);
+    // TODO: Poll Noms then refresh the graph, instead of reloading whole page.
+    setTimeout(() => location.reload(), Number(params.refresh));
   }
 
   const dsSpec = DatasetSpec.parse(params.ds);
