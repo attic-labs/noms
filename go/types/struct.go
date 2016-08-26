@@ -7,11 +7,12 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/hash"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/hash"
 )
 
 var EmptyStructType = MakeStructType("", []string{}, []*Type{})
@@ -178,24 +179,7 @@ var fieldNameRe = regexp.MustCompile(fieldNameComponentRe.String() + "$")
 
 type encodingFunc func(string, *regexp.Regexp) string
 
-func EscapeFields(input string, encode encodingFunc) string {
-	output := ""
-	pattern := headFieldNamePattern
-	for _, ch := range input {
-		output += encode(string([]rune{ch}), pattern)
-		pattern = tailFieldNamePattern
-	}
-	return output
-}
-
-// EscapeStructField escapes names for use as noms structs. Disallowed characters are encoded as
-// 'Q<hex-encoded-utf8-bytes>'. Note that Q itself is also escaped since it is
-// the escape character.
-func EscapeStructField(input string) string {
-
-	if !escapeRegex.MatchString(input) && IsValidStructFieldName(input) {
-		return input
-	}
+func QEncodeFieldName(input string) string {
 	encode := func(s1 string, p *regexp.Regexp) string {
 		if p.MatchString(s1) && s1 != escapeChar {
 			return s1
@@ -210,10 +194,52 @@ func EscapeStructField(input string) string {
 		buf.WriteString(hs)
 		return buf.String()
 	}
-	output := EscapeFields(input, encode)
-	verifyFieldName(output)
-	return output
+	return escapeFields(input, encode)
+}
 
+func CamelCaseFieldName(input string) string {
+	encode := func(s1 string, p *regexp.Regexp) string {
+		if p.MatchString(s1) {
+			return s1
+		}
+		return ""
+	}
+
+	splitFields := strings.Fields(input)
+	output := escapeFields(splitFields[0], encode)
+
+	if len(splitFields) > 1 {
+		output = strings.ToLower(output)
+	}
+
+	for _, field := range splitFields[1:] {
+		output += strings.Title(strings.ToLower(escapeFields(field, encode)))
+	}
+
+	if !IsValidStructFieldName(output) {
+		return ""
+	}
+	return output
+}
+
+func escapeFields(input string, encode encodingFunc) string {
+	output := ""
+	pattern := headFieldNamePattern
+	for _, ch := range input {
+		output += encode(string([]rune{ch}), pattern)
+		pattern = tailFieldNamePattern
+	}
+	return output
+}
+
+// EscapeStructField escapes names for use as noms structs. Disallowed characters are encoded as
+// 'Q<hex-encoded-utf8-bytes>'. Note that Q itself is also escaped since it is
+// the escape character.
+func EscapeStructField(input string) string {
+	if !escapeRegex.MatchString(input) && IsValidStructFieldName(input) {
+		return input
+	}
+	return QEncodeFieldName(input)
 }
 
 // IsValidStructFieldName returns whether the name is valid as a field name in a struct.

@@ -7,6 +7,7 @@ package csv
 import (
 	"bytes"
 	"encoding/csv"
+	"fmt"
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -146,20 +147,14 @@ func TestEscapeStructFieldFromCSV(t *testing.T) {
 		"Few ¢ents Short", "fewEntsShort",
 		"CAMEL💩case letTerS", "camelcaseLetters",
 		"https://picasaweb.google.com/data", "httpspicasawebgooglecomdata",
-	}
-	panicCases := []string{
-		"💩",
-		"11 1💩",
-		"",
+		"💩", "",
+		"11 1💩", "",
 	}
 
 	for i := 0; i < len(cases); i += 2 {
 		orig, expected := cases[i], cases[i+1]
+		fmt.Println(cases[i])
 		assert.Equal(expected, EscapeStructFieldFromCSV(orig))
-	}
-
-	for _, c := range panicCases {
-		assert.Panics(func() { EscapeStructFieldFromCSV(c) })
 	}
 
 }
