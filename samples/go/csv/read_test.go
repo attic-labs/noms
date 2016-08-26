@@ -7,7 +7,6 @@ package csv
 import (
 	"bytes"
 	"encoding/csv"
-	"fmt"
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -153,7 +152,6 @@ func TestEscapeStructFieldFromCSV(t *testing.T) {
 
 	for i := 0; i < len(cases); i += 2 {
 		orig, expected := cases[i], cases[i+1]
-		fmt.Println(cases[i])
 		assert.Equal(expected, EscapeStructFieldFromCSV(orig))
 	}
 }
