@@ -4,17 +4,19 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-/* global Chart */
-
 import {
   Dataset,
   DatasetSpec,
+  getHashOfValue,
   invariant,
   List,
   Map as NomsMap,
   Struct,
 } from '@attic/noms';
 import type {Value} from '@attic/noms';
+
+declare class Chart {
+}
 
 window.onload = load;
 window.onpopstate = load;
@@ -37,7 +39,7 @@ async function load() {
   }
 
   if (params.refresh) {
-    window.setTimeout(() => window.location.reload(), params.refresh);
+    window.setTimeout(() => location.reload(), params.refresh);
   }
 
   const dsSpec = DatasetSpec.parse(params.ds);
@@ -46,7 +48,8 @@ async function load() {
   chartDatasets = new Map();
   chartLabels = gitRevs.map(rev => rev.slice(0, 6));
 
-  // Gather all test names up ahead of time, since some commits may be missing results.
+  // Each Noms commit might have a different set of tests (e.g. tests may have been added or removed
+  // between git revisions), but they should all go on the graph. Find every test up-front.
   const firstReps = await Promise.all(perfData.map(pd => {
     invariant(pd.reps instanceof List);
     return pd.reps.get(0);
@@ -55,8 +58,7 @@ async function load() {
   for (const fr of firstReps) {
     (await keys(fr)).forEach(testName => testNamesSet.add(testName));
   }
-  // $FlowIssue: thinks Set is incompatible with spread operand... but it is.
-  const testNames = [...testNamesSet];
+  const testNames = [...Array.from(testNamesSet)];
 
   const getElapsed = async (testName: string, pd: Struct) => {
     invariant(pd.reps instanceof List);
@@ -65,7 +67,7 @@ async function load() {
       invariant(rep instanceof NomsMap);
       // Note: despite how this code is structured, either all reps should have test data for this
       // value, or none should. Ideally we'd be able to bail at this point.
-      return rep.get(testName).then(d => d !== null && d !== undefined ? d.elapsed / 1e9 : null);
+      return rep.get(testName).then(d => d ? d.elapsed / 1e9 : null);
     }));
     return elapsedOrNulls[0] !== null ? median(elapsedOrNulls) : null;
   };
@@ -130,7 +132,6 @@ async function render() {
     });
   }
 
-  // $FlowIssue: Chart is in modules, not imported, so Flow doesn't know about it.
   new Chart(document.getElementById('chart'), {
     type: 'line',
     data: {
@@ -174,20 +175,14 @@ function median(nums: number[]): number {
 
 // Generates a light and dark version of some color randomly (but stable) derived from `str`.
 async function genLightAndDarkColors(str: string): Promise<[string, string]> {
-  const strBuf = new window.TextEncoder().encode(str);
-  const hash = await window.crypto.subtle.digest('sha-256', strBuf);
-  invariant(hash instanceof ArrayBuffer);
-  const [r, g, b] = new Uint8Array(hash);
-  return [`rgba(${r}, ${g}, ${b}, 0.3)`, `rgb(${r}, ${g}, ${b})`];
+  const [r, g, b] = getHashOfValue(str).digest;
+  return [`rgba(${r}, ${g}, ${b}, 0.25)`, `rgb(${r}, ${g}, ${b})`];
 }
 
 // Returns the keys of `map`.
 function keys<K: Value, V: Value>(map: NomsMap<K, V>): Promise<K[]> {
-  return new Promise(res => {
-    const keys = [];
-    map.forEach((_, key) => {
-      keys.push(key);
-      return;
-    }).then(() => res(keys));
-  });
+  const keys = [];
+  return map.forEach((_, key) => {
+    keys.push(key);
+  }).then(() => keys);
 }

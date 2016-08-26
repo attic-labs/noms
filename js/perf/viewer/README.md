@@ -6,10 +6,10 @@ viewer for Noms perf data
 
 ```
 # First time only:
-npm i
+npm install
 
 # Every time js/noms changes:
-npm i @attic/noms
+npm install @attic/noms
 
 npm start
 ```
