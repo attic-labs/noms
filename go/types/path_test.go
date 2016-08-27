@@ -264,7 +264,7 @@ func TestPathParseErrors(t *testing.T) {
 	test(".foo#", "Invalid operator: #")
 	test(".foo#bar", "Invalid operator: #")
 	test(".foo[", "Path ends in [")
-	test(".foo[.bar", "[ is missing closing ]")
+	test(".foo[.bar", "Invalid index: .bar")
 	test(".foo]", "] is missing opening [")
 	test(".foo].bar", "] is missing opening [")
 	test(".foo[]", "Empty index value")
