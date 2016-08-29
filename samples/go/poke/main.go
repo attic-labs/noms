@@ -15,18 +15,15 @@ import (
 )
 
 func main() {
+	if !poke() {
+		exit(1)
+	}
+}
+
+func poke() (win bool) {
 	var outDSStr = flag.String("out-ds-name", "", "output dataset to write to - if empty, defaults to input dataset")
 
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Poke modifies a single value in a noms database.\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s [-out-ds-name=<name>] <ds> <path> <new-val>\n\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  <ds>      : Dataset to modify\n")
-		fmt.Fprintf(os.Stderr, "  <path>    : Path to a value within <ds> to modify\n")
-		fmt.Fprintf(os.Stderr, "  <new-val> : new value for <path>\n\n")
-		fmt.Fprintln(os.Stderr, "Flags:\n")
-		flag.PrintDefaults()
-	}
-
+	flag.Usage = usage
 	flag.Parse(false)
 
 	if flag.NArg() == 0 {
@@ -47,7 +44,7 @@ func main() {
 
 	inRoot, ok := inDS.MaybeHeadValue()
 	if !ok {
-		fmt.Fprintln(os.Stderr, "Input dataset has no data")
+		fmt.Fprintf(os.Stderr, "Input dataset '%s' does not exist\n", flag.Arg(0))
 		return
 	}
 
@@ -72,17 +69,13 @@ func main() {
 	var outDS dataset.Dataset
 	if *outDSStr == "" {
 		outDS = inDS
+	} else if !dataset.DatasetFullRe.MatchString(*outDSStr) {
+		fmt.Fprintf(os.Stderr, "Invalid output dataset name: %s\n", *outDSStr)
+		return
 	} else {
-		if !dataset.DatasetRe.MatchString(*outDSStr) {
-			err = fmt.Errorf("Invalid output dataset name: %s", *outDSStr)
-		} else {
-			outDS = dataset.NewDataset(inDS.Database(), *outDSStr)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Invalid output dataset '%s': %s\n", outDSStr, err)
-				return
-			}
-		}
+		outDS = dataset.NewDataset(inDS.Database(), *outDSStr)
 	}
+	defer outDS.Database().Close()
 
 	outRoot, err := update(inRoot, inPath, val)
 	if err != nil {
@@ -95,6 +88,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Could not commit: %s\n", err)
 		return
 	}
+
+	win = true
+	return
 }
 
 func update(subject types.Value, path types.Path, newVal types.Value) (types.Value, error) {
@@ -130,8 +126,22 @@ func updatePath(part types.PathPart, subject, newVal types.Value) (types.Value, 
 		case types.Set:
 			return subject.Remove(part.Index).Insert(newVal), nil
 		default:
-			return nil, fmt.Errorf("Indexing into noms type %s unsupported", subject.Type().Describe())
+			panic("Unexpected noms type:" + subject.Type().Describe())
 		}
 	}
 	return nil, fmt.Errorf("Unsupported path type: %#v", part)
+}
+
+func usage() {
+	fmt.Fprintf(os.Stderr, "Poke modifies a single value in a noms database.\n\n")
+	fmt.Fprintf(os.Stderr, "Usage: %s [-out-ds-name=<name>] <ds> <path> <new-val>\n\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  <ds>      : Dataset to modify\n")
+	fmt.Fprintf(os.Stderr, "  <path>    : Path to a value within <ds> to modify\n")
+	fmt.Fprintf(os.Stderr, "  <new-val> : new value for <path>\n\n")
+	fmt.Fprintln(os.Stderr, "Flags:\n")
+	flag.PrintDefaults()
+}
+
+var exit = func(status int) {
+	os.Exit(status)
 }

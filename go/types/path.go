@@ -265,6 +265,11 @@ func (hip HashIndexPath) String() string {
 	return fmt.Sprintf("[#%s]%s", hip.Hash.String(), ann)
 }
 
+// Parse a Noms value from the path index syntax.
+// 4 ->          types.Number
+// "4" ->        types.String
+// true|false -> types.Boolean
+// #<chars> ->   hash.Hash
 func ParsePathIndex(str string) (idx Value, h hash.Hash, rem string, err error) {
 Switch:
 	switch str[0] {

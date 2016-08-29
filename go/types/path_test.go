@@ -278,6 +278,7 @@ func TestPathParseErrors(t *testing.T) {
 	test(`.foo[\\]`, `Invalid index: \\`)
 	test(`.foo["hello]`, "[ is missing closing ]")
 	test(`.foo["hello`, "[ is missing closing ]")
+	test(`.foo["hello"`, "[ is missing closing ]")
 	test(`.foo["`, "[ is missing closing ]")
 	test(`.foo["\`, "[ is missing closing ]")
 	test(`.foo["]`, "[ is missing closing ]")
