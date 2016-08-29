@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/dataset"
-	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/perf/suite"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/samples/go/csv"
@@ -24,12 +23,9 @@ import (
 
 // CSV perf suites require the testdata directory to be checked out at $GOPATH/src/github.com/attic-labs/testdata (i.e. ../testdata relative to the noms directory).
 
-// TODO: Add ny-vehicle-registrations test when CSV importing is faster (testdata/ny-vehicle-registrations/20150218.*).
-
 type perfSuite struct {
 	suite.PerfSuite
 	csvImportExe string
-	sfcBlobHash  hash.Hash
 }
 
 func (s *perfSuite) SetupSuite() {
@@ -50,29 +46,57 @@ func (s *perfSuite) Test01ImportSfCrimeBlobFromTestdata() {
 	defer s.closeGlob(raw)
 
 	blob := types.NewBlob(io.MultiReader(raw...))
-	fmt.Fprintf(s.W, "csv/raw is %s\n", humanize.Bytes(blob.Len()))
+	fmt.Fprintf(s.W, "\tsf-crime is %s\n", humanize.Bytes(blob.Len()))
 
-	ds := dataset.NewDataset(s.Database, "csv/raw")
-	_, err := ds.CommitValue(blob)
-	assert.NoError(err)
+	// CommitValue is much faster the first time, so pause the test while it's happening.
+	s.Pause(func() {
+		ds := dataset.NewDataset(s.Database, "sf-crime/raw")
+		_, err := ds.CommitValue(blob)
+		assert.NoError(err)
+	})
 }
 
 func (s *perfSuite) Test02ImportSfCrimeCSVFromBlob() {
+	s.execCsvImportExe("sf-crime")
+}
+
+func (s *perfSuite) Test03ImportSfRegisteredBusinessesFromBlobAsMap() {
 	assert := s.NewAssert()
 
-	blobSpec := fmt.Sprintf("%s::csv/raw.value", s.DatabaseSpec)
-	destSpec := fmt.Sprintf("%s::csv", s.DatabaseSpec)
-	importCmd := exec.Command(s.csvImportExe, "-p", blobSpec, destSpec)
+	// Pause because blob import speed is already tested in ImportSfCrimeBlobFromTestdata, and besides, this is a much smaller dataset.
+	s.Pause(func() {
+		f, err := os.Open(path.Join(s.Testdata, "sf-registered-businesses", "2016-07-25.csv"))
+		assert.NoError(err)
+		defer f.Close()
+
+		blob := types.NewBlob(f)
+		fmt.Fprintf(s.W, "\tsf-reg-bus is %s\n", humanize.Bytes(blob.Len()))
+
+		ds := dataset.NewDataset(s.Database, "sf-reg-bus/raw")
+		_, err = ds.CommitValue(blob)
+		assert.NoError(err)
+	})
+
+	s.execCsvImportExe("sf-reg-bus", "--dest-type", "map:0")
+}
+
+func (s *perfSuite) execCsvImportExe(dsName string, args ...string) {
+	assert := s.NewAssert()
+
+	blobSpec := fmt.Sprintf("%s::%s/raw.value", s.DatabaseSpec, dsName)
+	destSpec := fmt.Sprintf("%s::%s", s.DatabaseSpec, dsName)
+	args = append(args, "-p", blobSpec, destSpec)
+	importCmd := exec.Command(s.csvImportExe, args...)
 	importCmd.Stdout = s.W
 	importCmd.Stderr = os.Stderr
 
 	assert.NoError(importCmd.Run())
 }
 
-func (s *perfSuite) TestParseNyVehicleRegistrations() {
+func (s *perfSuite) TestParseSfCrime() {
 	assert := s.NewAssert()
 
-	raw := s.openGlob(path.Join(s.Testdata, "ny-vehicle-registrations", "20150218.*"))
+	raw := s.openGlob(path.Join(s.Testdata, "sf-crime", "2016-07-28.*"))
 	defer s.closeGlob(raw)
 
 	reader := csv.NewCSVReader(io.MultiReader(raw...), ',')
