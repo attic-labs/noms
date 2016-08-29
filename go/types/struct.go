@@ -179,24 +179,6 @@ var fieldNameRe = regexp.MustCompile(fieldNameComponentRe.String() + "$")
 
 type encodingFunc func(string, *regexp.Regexp) string
 
-func QEncodeFieldName(input string) string {
-	encode := func(s1 string, p *regexp.Regexp) string {
-		if p.MatchString(s1) && s1 != escapeChar {
-			return s1
-		}
-
-		var hs = fmt.Sprintf("%X", s1)
-		var buf bytes.Buffer
-		buf.WriteString(escapeChar)
-		if len(hs) == 1 {
-			buf.WriteString("0")
-		}
-		buf.WriteString(hs)
-		return buf.String()
-	}
-	return escapeFields(input, encode)
-}
-
 func CamelCaseFieldName(input string) string {
 	encode := func(s1 string, p *regexp.Regexp) string {
 		if p.MatchString(s1) {
@@ -239,7 +221,21 @@ func EscapeStructField(input string) string {
 	if !escapeRegex.MatchString(input) && IsValidStructFieldName(input) {
 		return input
 	}
-	return QEncodeFieldName(input)
+	encode := func(s1 string, p *regexp.Regexp) string {
+		if p.MatchString(s1) && s1 != escapeChar {
+			return s1
+		}
+
+		var hs = fmt.Sprintf("%X", s1)
+		var buf bytes.Buffer
+		buf.WriteString(escapeChar)
+		if len(hs) == 1 {
+			buf.WriteString("0")
+		}
+		buf.WriteString(hs)
+		return buf.String()
+	}
+	return escapeFields(input, encode)
 }
 
 // IsValidStructFieldName returns whether the name is valid as a field name in a struct.
