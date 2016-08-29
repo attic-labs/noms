@@ -41,26 +41,28 @@ https://demo.noms.io/aa::music
 Value specifications take the form:
 
 ```
-<database>::<value-name><path>
+<database>::<root><path>
 ```
 
 See [spelling databases](#spelling-databases) for how to build the database part of the name.
 
-The `value-name` part can be either a hash or a dataset name. If `value-name` matches the pattern `^#[0-9a-v]{32}$`, it will be interpreted as a hash otherwise it will be interpreted as a dataset name. See [spelling datasets](#spelling-datasets) for how to build the dataset part of the name.
+The `root` part can be either a hash or a dataset name. If `root` begins with `#` it will be interpreted as a hash otherwise it is used as a dataset name. See [spelling datasets](#spelling-datasets) for how to build the dataset part of the name.
 
-The `path` part is relative to the hash or dataset provided in `value-name`. 
+The `path` part is relative to the `root` provided.
 
-### Spelling Items in Structs
-Elements of a Noms struct can be referenced using a period. For example, if the `value-name` is a dataset, then one can use `.value` to get the root of the data in the dataset. In this case `.value` selects the `value` field from the `Commit` struct at the top of the dataset. One could instead use `.meta` to select the `meta` struct from the `Commit` struct. The `value-name` does not need to be a dataset though, so if it is a hash that references a struct, the same notation still works: `#o38hugtf3l1e8rqtj89mijj1dq57eh4m.field`.
+### Specifying Struct Fields
+Elements of a Noms struct can be referenced using a period. For example, if the `root` is a dataset, then one can use `.value` to get the root of the data in the dataset. In this case `.value` selects the `value` field from the `Commit` struct at the top of the dataset. One could instead use `.meta` to select the `meta` struct from the `Commit` struct. The `root` does not need to be a dataset though, so if it is a hash that references a struct, the same notation still works: `#o38hugtf3l1e8rqtj89mijj1dq57eh4m.field`.
 
-### Spelling Items in Lists, Maps, or Sets
-Elements of a Noms list, map, or set can be retrieved using brackets. For example, if the dataset is a Noms map of number to struct then one could use `.value[42]` to get the Noms struct associated with the key 42. Similarly selecting the first element from a Noms list would be `.value[0]`. If the Noms map was keyed by string, then using `.value["10000002702001"]` would reference the Noms struct associated with key "10000002702001".
+### Indexing Into Collections
+Elements of a Noms list, map, or set can be retrieved using brackets. For example, if the dataset is a Noms map of number to struct then one could use `.value[42]` to get the Noms struct associated with the key 42. Similarly selecting the first element from a Noms list would be `.value[0]`. If the Noms map was keyed by string, then using `.value["0000024-02-999"]` would reference the Noms struct associated with key "0000024-02-999".  
+
+If the key of a Noms map or set is a Noms struct or a more complex value, then indexing into the collection can be done using the hash of that more complex value. For example, if the `root` of our dataset is a Noms set of Noms structs, then if you provide the hash of the struct element then you can index into the map using the brackets as described above. e.g. http://localhost:8000::dataset.value[#o38hugtf3l1e8rqtj89mijj1dq57eh4m].field
 
 ### Examples
 
 ```sh
-# “sf-crime” dataset at https://demo.noms.io/cli-tour
-https://demo.noms.io/cli-tour::sf-crime
+# “sf-registered-business” dataset at https://demo.noms.io/cli-tour
+https://demo.noms.io/cli-tour::sf-registered-business
 
 # value o38hugtf3l1e8rqtj89mijj1dq57eh4m at https://localhost:8000
 https://localhost:8000/monkey::#o38hugtf3l1e8rqtj89mijj1dq57eh4m
@@ -68,18 +70,21 @@ https://localhost:8000/monkey::#o38hugtf3l1e8rqtj89mijj1dq57eh4m
 # “bonk” dataset at /foo/bar
 /foo/bar::bonk
 
-# from https://demo.noms.io/cli-tour, select the "sf-crime" dataset, the root
-# value is a Noms map, select the value of the Noms map identified by string
-# key "10000002702001", then from that resulting struct select the Address field
-https://demo.noms.io/cli-tour::sf-crime.value["10000002702001"].Address
+# from https://demo.noms.io/cli-tour, select the "sf-registered-business" dataset, 
+# the root value is a Noms map, select the value of the Noms map identified by string
+# key "0000024-02-999", then from that resulting struct select the Ownership_Name field
+https://demo.noms.io/cli-tour::sf-registered-business.value["0000024-02-999"].Ownership_Name
 ```
 
-Be careful with shell escaping. Your shell might require escaping of the double quotes and other characters. e.g.:
+Be careful with shell escaping. Your shell might require escaping of the double quotes and other characters or use single quotes around the entire command line argument. e.g.:
 
 ```sh
-> noms show https://demo.noms.io/cli-tour::sf-crime.value["10000002702001"].Address
-Object not found: https://demo.noms.io/cli-tour::sf-crime.value[10000002702001].Address
+> noms show https://demo.noms.io/cli-tour::sf-registered-business.value["0000024-02-999"].Ownership_Name
+error: Invalid index: 0000024-02-999
 
-> noms show https://demo.noms.io/cli-tour::sf-crime.value[\"10000002702001\"].Address
-"3300 Block of 20TH ST"
+> noms show https://demo.noms.io/cli-tour::sf-registered-business.value[\"0000024-02-999\"].Ownership_Name
+"EASTMAN KODAK CO"
+
+> noms show 'https://demo.noms.io/cli-tour::sf-registered-business.value["0000024-02-999"].Ownership_Name'
+"EASTMAN KODAK CO"
 ```
