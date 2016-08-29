@@ -215,7 +215,7 @@ func CamelCaseFieldName(input string) string {
 	for _, field := range splitFields[1:] {
 		output += strings.Title(strings.ToLower(escapeFields(field, encode)))
 	}
-
+	//Because we are removing characters, we may generate an invalid field name
 	if !IsValidStructFieldName(output) {
 		return ""
 	}
@@ -232,9 +232,9 @@ func escapeFields(input string, encode encodingFunc) string {
 	return output
 }
 
-// EscapeStructField escapes names for use as noms structs. Disallowed characters are encoded as
-// 'Q<hex-encoded-utf8-bytes>'. Note that Q itself is also escaped since it is
-// the escape character.
+// EscapeStructField escapes names for use as noms structs with regards to non CSV imported data.
+// Disallowed characters are encoded as 'Q<hex-encoded-utf8-bytes>'.
+// Note that Q itself is also escaped since it is the escape character.
 func EscapeStructField(input string) string {
 	if !escapeRegex.MatchString(input) && IsValidStructFieldName(input) {
 		return input
