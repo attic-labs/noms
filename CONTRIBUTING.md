@@ -26,12 +26,12 @@ Due to legal reasons, all contributors must sign a contributor license agreement
 We follow a code review protocol dervied from the one that the [Chromium team](https://www.chromium.org/) uses:
 
 1. Create a fork of the repo you want to modify (e.g., fork `https://github.com/attic-labs/noms` to `https://github.com/<you>/noms`.
-2. Push your changes to a branch at your fork
+2. Push your changes to a branch at your fork.
 3. Create a PR using that branch against, e.g., `noms/master`.
 4. When you're ready for review, use Github's _assign_ UI to assign someone to review. Typically nobody will review until you assign someone (because we assume you're still getting it ready for review).
 5. Reviewer will make comments, then say either 'LGTM' (looks good to me) or 'BTY' (back to you).
 6. If the reviewer said LGTM, it means it is ready to merge. If you have commit writes to the respository, go ahead and land the PR. Otherwise the reviewer will land it.
-  * *Important*: Please squash the changes at this point into one commit. We like each commit in master to be a single logical piece of work that leaves the tree in a valid state.
+  * *Important*: Only squash merges are allowed, because we like each commit in master to be a single logical piece of work that leaves the tree in a valid state. _GitHub may generate an odd commit message_, so double check before clicking Confirm!
 7. If the reviewer said BTY, make the requested changes.
   * *Important*: Please make each round of review comments its own commit. This makes it easy for reviewers to see how your PR has evolved in response to feedback.
   * *Important*: Please do not rebase on top of master until the end of the review for the same reason - you're trying to make it easy for the reviewer to see your changes in isolation.
@@ -49,5 +49,16 @@ For JS code, We have a python script to run all js tests.
 
 * `python tools/run-all-js-tests.py`
 
-## Recommended Chrome extensions
-* Hides generated (Go) files from GitHub pull requests: [GitHub PR gen hider](https://chrome.google.com/webstore/detail/mhemmopgidccpkibohejfhlbkggdcmhf).
+Jenkins automatically runs the Go and JS tests on every PR.
+
+### Perf tests
+
+By default, neither `go test` nor Jenkins run the perf tests, because they take a while.
+
+To run the tests yourself, use the `-perf` and `-v` flag to `go test`, e.g.:
+
+* `go test -v ./samples/go/csv/... -perf mem`
+
+See [go/perf/suite/suite.go](https://github.com/attic-labs/noms/blob/master/go/perf/suite/suite.go) for full documentation and flags.
+
+To ask Jenkins to run the perf tests for you, reply (no quotes) "Perf this" to your PR. Yes, really.
