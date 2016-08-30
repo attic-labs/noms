@@ -85,6 +85,7 @@ func (suite *ClientTestSuite) Run(m func(), args []string) (stdout string, stder
 	return string(capturedOut), string(capturedErr)
 }
 
+// Mock os.Exit() implementation for use during testing.
 func (suite *ClientTestSuite) Exit(status int) {
 	suite.ExitStatus = status
 }
