@@ -66,18 +66,22 @@ func (s *testSuite) TestWin() {
 
 func (s *testSuite) TestLose() {
 	sp := fmt.Sprintf("ldb:%s::test", s.LdbDir)
-	cases := []interface{}{
-		[]string{"foo"}, "Incorrect number of arguments\n",
-		[]string{"foo", "bar"}, "Incorrect number of arguments\n",
-		[]string{"foo", "bar", "baz", "quux"}, "Incorrect number of arguments\n",
-		[]string{sp + "!!", ".foo", `"bar"`}, "Invalid input dataset '" + sp + "!!': Invalid dataset, must match [a-zA-Z0-9\\-_/]+: test!!\n",
-		[]string{sp + "2", ".foo", `"bar"`}, "Input dataset '" + sp + "2' does not exist\n",
-		[]string{sp, "[invalid", `"bar"`}, "Invalid path '[invalid': Invalid index: invalid\n",
-		[]string{sp, ".nothinghere", `"bar"`}, "No value at path '.nothinghere' - cannot update\n",
-		[]string{sp, ".foo", "bar"}, "Invalid new value: 'bar': Invalid index: bar\n",
-		[]string{"--out-ds-name", "!invalid", sp, ".foo", `"bar"`}, "Invalid output dataset name: !invalid\n",
-		[]string{sp, `.bar["baz"]@key`, "42"}, "Error updating path [\"baz\"]@key: @key paths not supported\n",
-		[]string{sp, `.bar[#00000000000000000000000000000000]`, "42"}, "Invalid path '.bar[#00000000000000000000000000000000]': Invalid hash: 00000000000000000000000000000000\n",
+	type c struct {
+		args []string
+		err  string
+	}
+	cases := []c{
+		{[]string{"foo"}, "Incorrect number of arguments\n"},
+		{[]string{"foo", "bar"}, "Incorrect number of arguments\n"},
+		{[]string{"foo", "bar", "baz", "quux"}, "Incorrect number of arguments\n"},
+		{[]string{sp + "!!", ".foo", `"bar"`}, "Invalid input dataset '" + sp + "!!': Invalid dataset, must match [a-zA-Z0-9\\-_/]+: test!!\n"},
+		{[]string{sp + "2", ".foo", `"bar"`}, "Input dataset '" + sp + "2' does not exist\n"},
+		{[]string{sp, "[invalid", `"bar"`}, "Invalid path '[invalid': Invalid index: invalid\n"},
+		{[]string{sp, ".nothinghere", `"bar"`}, "No value at path '.nothinghere' - cannot update\n"},
+		{[]string{sp, ".foo", "bar"}, "Invalid new value: 'bar': Invalid index: bar\n"},
+		{[]string{"--out-ds-name", "!invalid", sp, ".foo", `"bar"`}, "Invalid output dataset name: !invalid\n"},
+		{[]string{sp, `.bar["baz"]@key`, "42"}, "Error updating path [\"baz\"]@key: @key paths not supported\n"},
+		{[]string{sp, `.bar[#00000000000000000000000000000000]`, "42"}, "Invalid path '.bar[#00000000000000000000000000000000]': Invalid hash: 00000000000000000000000000000000\n"},
 	}
 
 	ds, _ := spec.GetDataset(sp)
@@ -87,12 +91,10 @@ func (s *testSuite) TestLose() {
 	}))
 	ds.Database().Close()
 
-	for i := 0; i < len(cases); i += 2 {
-		args := cases[i].([]string)
-		expected := cases[i+1].(string)
-		stdout, stderr := s.Run(main, args)
-		s.Empty(stdout, "Expected empty stdout for case: %#v", args)
-		s.Equal(expected, stderr, "Unexpected output for case: %#v\n", args)
+	for _, c := range cases {
+		stdout, stderr := s.Run(main, c.args)
+		s.Empty(stdout, "Expected empty stdout for case: %#v", c.args)
+		s.Equal(c.err, stderr, "Unexpected output for case: %#v\n", c.args)
 		s.Equal(1, s.ExitStatus)
 	}
 }
