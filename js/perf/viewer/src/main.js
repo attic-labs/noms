@@ -59,7 +59,7 @@ async function load() {
   for (const fr of firstReps) {
     (await keys(fr)).forEach(testName => testNamesSet.add(testName));
   }
-  const testNames = [...Array.from(testNamesSet)];
+  const testNames = Array.from(testNamesSet);
 
   const getElapsed = async (testName: string, pd: Struct) => {
     invariant(pd.reps instanceof List);
@@ -123,7 +123,7 @@ async function render() {
 
   const datasets = [];
   for (const [testName, elapsed] of chartDatasets) {
-    const [backgroundColor, borderColor] = await genLightAndDarkColors(testName);
+    const [borderColor, backgroundColor] = await getSolidAndAlphaColors(testName);
     datasets.push({
       backgroundColor,
       borderColor,
@@ -175,9 +175,11 @@ function median(nums: number[]): number {
 }
 
 // Generates a light and dark version of some color randomly (but stable) derived from `str`.
-async function genLightAndDarkColors(str: string): Promise<[string, string]> {
+async function getSolidAndAlphaColors(str: string): Promise<[string, string]> {
+  // getHashOfValue() returns a Uint8Array, so pull out the first 3 8-bit numbers - which will be in
+  // the range [0, 255] - to generate a full RGB colour.
   const [r, g, b] = getHashOfValue(str).digest;
-  return [`rgba(${r}, ${g}, ${b}, 0.25)`, `rgb(${r}, ${g}, ${b})`];
+  return [`rgb(${r}, ${g}, ${b})`, `rgba(${r}, ${g}, ${b}, 0.25)`];
 }
 
 // Returns the keys of `map`.
