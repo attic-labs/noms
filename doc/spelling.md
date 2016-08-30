@@ -53,10 +53,12 @@ The `path` part is relative to the `root` provided.
 ### Specifying Struct Fields
 Elements of a Noms struct can be referenced using a period. For example, if the `root` is a dataset, then one can use `.value` to get the root of the data in the dataset. In this case `.value` selects the `value` field from the `Commit` struct at the top of the dataset. One could instead use `.meta` to select the `meta` struct from the `Commit` struct. The `root` does not need to be a dataset though, so if it is a hash that references a struct, the same notation still works: `#o38hugtf3l1e8rqtj89mijj1dq57eh4m.field`.
 
-### Indexing Into Collections
+### Specifying Collection Items
 Elements of a Noms list, map, or set can be retrieved using brackets. For example, if the dataset is a Noms map of number to struct then one could use `.value[42]` to get the Noms struct associated with the key 42. Similarly selecting the first element from a Noms list would be `.value[0]`. If the Noms map was keyed by string, then using `.value["0000024-02-999"]` would reference the Noms struct associated with key "0000024-02-999".  
 
 If the key of a Noms map or set is a Noms struct or a more complex value, then indexing into the collection can be done using the hash of that more complex value. For example, if the `root` of our dataset is a Noms set of Noms structs, then if you provide the hash of the struct element then you can index into the map using the brackets as described above. e.g. http://localhost:8000::dataset.value[#o38hugtf3l1e8rqtj89mijj1dq57eh4m].field
+
+Similarly, the key is addressable using `@key` syntax. One use for this is when you have the hash of a complex value, but want need to retrieve the key (rather than or in addition to the value) in a Noms map. The syntax is to append `@key` after the closing bracket of the index specifier. e.g. http://localhost:8000::dataset.value[#o38hugtf3l1e8rqtj89mijj1dq57eh4m]@key would retrieve the key element specified by the hash key `#o38hugtf3l1e8rqtj89mijj1dq57eh4m` from the `dataset.value` collection.
 
 ### Examples
 
