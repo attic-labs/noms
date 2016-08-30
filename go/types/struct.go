@@ -191,18 +191,18 @@ func CamelCaseFieldName(input string) string {
 
 	strippedField := escapeField(input, encode)
 	splitField := strings.Fields(strippedField)
-	output := ""
+
+	if len(splitField) == 0 {
+		return ""
+	}
 
 	//Camelcase field
-	if len(splitField) == 1 {
-		output = strings.ToLower(splitField[0])
-	} else if len(splitField) > 1 {
-		output = strings.ToLower(splitField[0])
+	output := strings.ToLower(splitField[0])
+	if len(splitField) > 1 {
 		for _, field := range splitField[1:] {
 			output += strings.Title(strings.ToLower(field))
 		}
 	}
-
 	//Because we are removing characters, we may generate an invalid field name
 	//i.e. -- 1A B, we will remove the first bad chars and process until 1aB
 	//1aB is invalid struct field name so we will return ""
