@@ -27,7 +27,7 @@ func NewList(values ...Value) List {
 	return newList(seq.Done().(indexedSequence))
 }
 
-// NewStreamingList creates a new List, populated with values, chunking if and when needed. As chunks are created, they're written to vrw -- including the root chunk of the list. Once the caller has closed values, she can read the completed List from the returned channel.
+// NewStreamingList creates a new List, populated with values, chunking if and when needed. As chunks are created, they're written to vrw -- including the root chunk of the list. Caller should close the values channel to read completed list.
 func NewStreamingList(vrw ValueReadWriter, values <-chan Value) <-chan List {
 	out := make(chan List)
 	go func() {
@@ -75,11 +75,12 @@ func (l List) Hash() hash.Hash {
 	return *l.h
 }
 
-func (l List) ChildValues() (values []Value) {
+func (l List) ChildValues() []Value {
+	values := make([]Value, l.Len())
 	l.IterAll(func(v Value, idx uint64) {
-		values = append(values, v)
+		values[idx] = v
 	})
-	return
+	return values
 }
 
 func (l List) Chunks() []Ref {
@@ -134,7 +135,7 @@ func (l List) Splice(idx uint64, deleteCount uint64, vs ...Value) List {
 	d.Chk.True(idx+deleteCount <= l.Len())
 
 	cur := newCursorAtIndex(l.seq, idx)
-	ch := newSequenceChunker(cur, l.seq.valueReader(), nil, makeListLeafChunkFn(l.seq.valueReader()), newIndexedMetaSequenceChunkFn(ListKind, l.seq.valueReader()), hashValueBytes)
+	ch := l.newChunker(cur)
 	for deleteCount > 0 {
 		ch.Skip()
 		deleteCount--
@@ -148,6 +149,24 @@ func (l List) Splice(idx uint64, deleteCount uint64, vs ...Value) List {
 
 func (l List) Insert(idx uint64, vs ...Value) List {
 	return l.Splice(idx, 0, vs...)
+}
+
+// Concat returns new list comprised of this joined with other. It only needs to
+// visit the rightmost prolly tree chunks of this list, and the leftmost prolly
+// tree chunks of other.
+func (l List) Concat(other List) List {
+	if l.Empty() {
+		return other
+	}
+	if other.Empty() {
+		return l
+	}
+	d.Chk.Equal(l.seq.valueReader(), other.seq.valueReader())
+
+	seq := concat(l.seq, other.seq, func(cur *sequenceCursor) *sequenceChunker {
+		return l.newChunker(cur)
+	})
+	return newList(seq.(indexedSequence))
 }
 
 func (l List) Remove(start uint64, end uint64) List {
@@ -214,6 +233,10 @@ func (l List) DiffWithLimit(last List, changes chan<- Splice, closeChan <-chan s
 	lastCur := newCursorAtIndex(last.seq, 0)
 	lCur := newCursorAtIndex(l.seq, 0)
 	indexedSequenceDiff(last.seq, lastCur.depth(), 0, l.seq, lCur.depth(), 0, changes, closeChan, maxSpliceMatrixSize)
+}
+
+func (l List) newChunker(cur *sequenceCursor) *sequenceChunker {
+	return newSequenceChunker(cur, l.seq.valueReader(), nil, makeListLeafChunkFn(l.seq.valueReader()), newIndexedMetaSequenceChunkFn(ListKind, l.seq.valueReader()), hashValueBytes)
 }
 
 // If |sink| is not nil, chunks will be eagerly written as they're created. Otherwise they are
