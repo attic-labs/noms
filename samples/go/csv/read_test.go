@@ -148,6 +148,9 @@ func TestEscapeStructFieldFromCSV(t *testing.T) {
 		"https://picasaweb.google.com/data", "httpspicasawebgooglecomdata",
 		"💩", "",
 		"11 1💩", "",
+		"-- A B", "aB",
+		"-- A --", "A",
+		"-- A -- B", "aB",
 	}
 
 	for i := 0; i < len(cases); i += 2 {

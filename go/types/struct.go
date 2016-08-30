@@ -172,6 +172,7 @@ func (s1 Struct) Diff(s2 Struct, changes chan<- ValueChanged, closeChan <-chan s
 var escapeChar = "Q"
 var headFieldNamePattern = regexp.MustCompile("[a-zA-Z]")
 var tailFieldNamePattern = regexp.MustCompile("[a-zA-Z0-9_]")
+var spaceRegex = regexp.MustCompile("[ ]")
 var escapeRegex = regexp.MustCompile(escapeChar)
 
 var fieldNameComponentRe = regexp.MustCompile("^" + headFieldNamePattern.String() + tailFieldNamePattern.String() + "*")
@@ -180,31 +181,38 @@ var fieldNameRe = regexp.MustCompile(fieldNameComponentRe.String() + "$")
 type encodingFunc func(string, *regexp.Regexp) string
 
 func CamelCaseFieldName(input string) string {
+	//strip invalid struct characters and leave spaces
 	encode := func(s1 string, p *regexp.Regexp) string {
-		if p.MatchString(s1) {
+		if p.MatchString(s1) || spaceRegex.MatchString(s1) {
 			return s1
 		}
 		return ""
 	}
 
-	splitFields := strings.Fields(input)
-	output := escapeFields(splitFields[0], encode)
+	strippedField := escapeField(input, encode)
+	splitField := strings.Fields(strippedField)
+	output := ""
 
-	if len(splitFields) > 1 {
-		output = strings.ToLower(output)
+	//Camelcase field
+	if len(splitField) == 1 {
+		output = splitField[0]
+	} else if len(splitField) > 1 {
+		output = strings.ToLower(splitField[0])
+		for _, field := range splitField[1:] {
+			output += strings.Title(strings.ToLower(field))
+		}
 	}
 
-	for _, field := range splitFields[1:] {
-		output += strings.Title(strings.ToLower(escapeFields(field, encode)))
-	}
 	//Because we are removing characters, we may generate an invalid field name
+	//i.e. -- 1A B, we will remove the first bad chars and process until 1aB
+	//1aB is invalid struct field name so we will return ""
 	if !IsValidStructFieldName(output) {
 		return ""
 	}
 	return output
 }
 
-func escapeFields(input string, encode encodingFunc) string {
+func escapeField(input string, encode encodingFunc) string {
 	output := ""
 	pattern := headFieldNamePattern
 	for _, ch := range input {
@@ -235,7 +243,7 @@ func EscapeStructField(input string) string {
 		buf.WriteString(hs)
 		return buf.String()
 	}
-	return escapeFields(input, encode)
+	return escapeField(input, encode)
 }
 
 // IsValidStructFieldName returns whether the name is valid as a field name in a struct.
