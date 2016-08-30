@@ -201,8 +201,7 @@ func listAssert(a, b, parent types.Value) (aList, bList, pList types.List, ok bo
 	} else {
 		pList, pOk = types.NewList(), true
 	}
-	ok = aOk && bOk && pOk
-	return
+	return aList, bList, pList, aOk && bOk && pOk
 }
 
 func mapAssert(a, b, parent types.Value) (aMap, bMap, pMap types.Map, ok bool) {
@@ -214,8 +213,7 @@ func mapAssert(a, b, parent types.Value) (aMap, bMap, pMap types.Map, ok bool) {
 	} else {
 		pMap, pOk = types.NewMap(), true
 	}
-	ok = aOk && bOk && pOk
-	return
+	return aMap, bMap, pMap, aOk && bOk && pOk
 }
 
 func refAssert(a, b, parent types.Value, vwr types.ValueReadWriter) (aValue, bValue, pValue types.Value, ok bool) {
@@ -248,8 +246,7 @@ func setAssert(a, b, parent types.Value) (aSet, bSet, pSet types.Set, ok bool) {
 	} else {
 		pSet, pOk = types.NewSet(), true
 	}
-	ok = aOk && bOk && pOk
-	return
+	return aSet, bSet, pSet, aOk && bOk && pOk
 }
 
 func structAssert(a, b, parent types.Value) (aStruct, bStruct, pStruct types.Struct, ok bool) {

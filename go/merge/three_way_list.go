@@ -32,28 +32,29 @@ func threeWayListMerge(a, b, parent types.List) (merged types.List, err error) {
 	defer stopAndDrain(aStopChan, aSpliceChan)
 	defer stopAndDrain(bStopChan, bSpliceChan)
 
+	// The algorithm below relies on determining whether one splice "comes before" another, and whether the splices coming from the two diffs remove/add precisely the same elements. Unfortunately, the Golang zero-value for types.Splice (which is what gets read out of a/bSpliceChan when they're closed) is actaually a valid splice, albeit a meaningless one that indicates a no-op. It "comes before" any other splice, so having it in play really gums up the logic below. Rather than specifically checking for it all over the place, swap the zero-splice out for one full of SPLICE_UNASSIGNED, which is really the proper invalid splice value. That splice doesn't come before ANY valid splice, so the logic below can flow more clearly.
 	zeroSplice := types.Splice{}
-	zeroToEmpty := func(sp types.Splice) types.Splice {
+	zeroToInvalid := func(sp types.Splice) types.Splice {
 		if sp == zeroSplice {
 			return types.Splice{types.SPLICE_UNASSIGNED, types.SPLICE_UNASSIGNED, types.SPLICE_UNASSIGNED, types.SPLICE_UNASSIGNED}
 		}
 		return sp
 	}
+	invalidSplice := zeroToInvalid(types.Splice{})
 
 	merged = parent
 	offset := uint64(0)
-	emptySplice := zeroToEmpty(types.Splice{})
-	aSplice, bSplice := emptySplice, emptySplice
+	aSplice, bSplice := invalidSplice, invalidSplice
 	for {
-		// Get the next splice from both a and b. If either diff(a, parent) or diff(b, parent) is complete, aSplice or bSplice will get an empty types.Splice. Generally, though, this allows us to proceed through both diffs in (key) order, considering the "current" splice from both diffs at the same time.
-		if aSplice == emptySplice {
-			aSplice = zeroToEmpty(<-aSpliceChan)
+		// Get the next splice from both a and b. If either diff(a, parent) or diff(b, parent) is complete, aSplice or bSplice will get an invalid types.Splice. Generally, though, this allows us to proceed through both diffs in (index) order, considering the "current" splice from both diffs at the same time.
+		if aSplice == invalidSplice {
+			aSplice = zeroToInvalid(<-aSpliceChan)
 		}
-		if bSplice == emptySplice {
-			bSplice = zeroToEmpty(<-bSpliceChan)
+		if bSplice == invalidSplice {
+			bSplice = zeroToInvalid(<-bSpliceChan)
 		}
 		// Both channels are producing zero values, so we're done.
-		if aSplice == emptySplice && bSplice == emptySplice {
+		if aSplice == invalidSplice && bSplice == invalidSplice {
 			break
 		}
 		if overlap(aSplice, bSplice) {
@@ -61,7 +62,7 @@ func threeWayListMerge(a, b, parent types.List) (merged types.List, err error) {
 				splice := merge(aSplice, bSplice)
 				merged = apply(a, merged, offset, splice)
 				offset += splice.SpAdded - splice.SpRemoved
-				aSplice, bSplice = emptySplice, emptySplice
+				aSplice, bSplice = invalidSplice, invalidSplice
 				continue
 			}
 			return parent, newMergeConflict("Overlapping splices: %s vs %s", describeSplice(aSplice), describeSplice(bSplice))
@@ -69,12 +70,12 @@ func threeWayListMerge(a, b, parent types.List) (merged types.List, err error) {
 		if aSplice.SpAt < bSplice.SpAt {
 			merged = apply(a, merged, offset, aSplice)
 			offset += aSplice.SpAdded - aSplice.SpRemoved
-			aSplice = emptySplice
+			aSplice = invalidSplice
 			continue
 		}
 		merged = apply(b, merged, offset, bSplice)
 		offset += bSplice.SpAdded - bSplice.SpRemoved
-		bSplice = emptySplice
+		bSplice = invalidSplice
 	}
 
 	return merged, nil
@@ -88,6 +89,7 @@ func overlap(s1, s2 types.Splice) bool {
 	return s1.SpAt == s2.SpAt || earlier.SpAt+earlier.SpRemoved > later.SpAt
 }
 
+// canMerge returns whether aSplice and bSplice can be merged into a single splice that can be applied to parent. Currently, we're only willing to do this if the two splices do _precisely_ the same thing -- that is, remove the same number of elements from the same starting index and insert the exact same list of new elements.
 func canMerge(a, b types.List, aSplice, bSplice types.Splice) bool {
 	if aSplice != bSplice {
 		return false
@@ -101,6 +103,7 @@ func canMerge(a, b types.List, aSplice, bSplice types.Splice) bool {
 	return true
 }
 
+// Since merge() is only called when canMerge() is true, we know s1 and s2 are exactly equal.
 func merge(s1, s2 types.Splice) types.Splice {
 	return s1
 }
