@@ -149,7 +149,7 @@ func TestEscapeStructFieldFromCSV(t *testing.T) {
 		"💩", "",
 		"11 1💩", "",
 		"-- A B", "aB",
-		"-- A --", "A",
+		"-- A --", "a",
 		"-- A -- B", "aB",
 	}
 

@@ -195,7 +195,7 @@ func CamelCaseFieldName(input string) string {
 
 	//Camelcase field
 	if len(splitField) == 1 {
-		output = splitField[0]
+		output = strings.ToLower(splitField[0])
 	} else if len(splitField) > 1 {
 		output = strings.ToLower(splitField[0])
 		for _, field := range splitField[1:] {
