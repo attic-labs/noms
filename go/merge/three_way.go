@@ -40,7 +40,7 @@ func newMergeConflict(format string, args ...interface{}) *ErrMergeConflict {
 //
 // All other modifications are allowed.
 // ThreeWay() works on types.Map, types.Set, and types.Struct.
-func ThreeWay(a, b, parent types.Value, vwr types.ValueReadWriter) (merged types.Value, err error) {
+func ThreeWay(a, b, parent types.Value, aVWR, bVWR, pVWR types.ValueReadWriter) (merged types.Value, err error) {
 	if a == nil && b == nil {
 		return parent, nil
 	} else if a == nil {
@@ -51,7 +51,7 @@ func ThreeWay(a, b, parent types.Value, vwr types.ValueReadWriter) (merged types
 		return parent, newMergeConflict("Cannot merge %s with %s.", a.Type().Describe(), b.Type().Describe())
 	}
 
-	return threeWayMerge(a, b, parent, vwr)
+	return threeWayMerge(a, b, parent, mergeVWRs{aVWR, bVWR, pVWR})
 }
 
 // a and b cannot be merged if they are of different NomsKind, or if at least one of the two is nil, or if either is a Noms primitive.
@@ -63,7 +63,11 @@ func unmergeable(a, b types.Value) bool {
 	return true
 }
 
-func threeWayMerge(a, b, parent types.Value, vwr types.ValueReadWriter) (merged types.Value, err error) {
+type mergeVWRs struct {
+	a, b, p types.ValueReadWriter
+}
+
+func threeWayMerge(a, b, parent types.Value, vwrs mergeVWRs) (merged types.Value, err error) {
 	d.PanicIfTrue(a == nil || b == nil, "Merge candidates cannont be nil: a = %v, b = %v", a, b)
 	newTypeConflict := func() *ErrMergeConflict {
 		pDescription := "<nil>"
@@ -81,26 +85,26 @@ func threeWayMerge(a, b, parent types.Value, vwr types.ValueReadWriter) (merged 
 
 	case types.MapKind:
 		if aMap, bMap, pMap, ok := mapAssert(a, b, parent); ok {
-			return threeWayMapMerge(aMap, bMap, pMap, vwr)
+			return threeWayMapMerge(aMap, bMap, pMap, vwrs)
 		}
 
 	case types.RefKind:
-		if aValue, bValue, pValue, ok := refAssert(a, b, parent, vwr); ok {
-			merged, err := threeWayMerge(aValue, bValue, pValue, vwr)
+		if aValue, bValue, pValue, ok := refAssert(a, b, parent, vwrs); ok {
+			merged, err := threeWayMerge(aValue, bValue, pValue, vwrs)
 			if err != nil {
 				return parent, err
 			}
-			return vwr.WriteValue(merged), nil
+			return vwrs.p.WriteValue(merged), nil
 		}
 
 	case types.SetKind:
 		if aSet, bSet, pSet, ok := setAssert(a, b, parent); ok {
-			return threeWaySetMerge(aSet, bSet, pSet, vwr)
+			return threeWaySetMerge(aSet, bSet, pSet, vwrs)
 		}
 
 	case types.StructKind:
 		if aStruct, bStruct, pStruct, ok := structAssert(a, b, parent); ok {
-			return threeWayStructMerge(aStruct, bStruct, pStruct, vwr)
+			return threeWayStructMerge(aStruct, bStruct, pStruct, vwrs)
 		}
 
 	default:
@@ -110,7 +114,7 @@ func threeWayMerge(a, b, parent types.Value, vwr types.ValueReadWriter) (merged 
 	return parent, newTypeConflict()
 }
 
-func threeWayMapMerge(a, b, parent types.Map, vwr types.ValueReadWriter) (merged types.Value, err error) {
+func threeWayMapMerge(a, b, parent types.Map, vwrs mergeVWRs) (merged types.Value, err error) {
 	aDiff := func(change chan<- types.ValueChanged, stop <-chan struct{}) {
 		a.DiffLeftRight(parent, change, stop)
 	}
@@ -127,10 +131,10 @@ func threeWayMapMerge(a, b, parent types.Map, vwr types.ValueReadWriter) (merged
 			panic("Not Reached")
 		}
 	}
-	return threeWayOrderedSequenceMerge(parent, aDiff, bDiff, a.Get, b.Get, parent.Get, apply, vwr)
+	return threeWayOrderedSequenceMerge(parent, aDiff, bDiff, a.Get, b.Get, parent.Get, apply, vwrs)
 }
 
-func threeWaySetMerge(a, b, parent types.Set, vwr types.ValueReadWriter) (merged types.Value, err error) {
+func threeWaySetMerge(a, b, parent types.Set, vwrs mergeVWRs) (merged types.Value, err error) {
 	aDiff := func(change chan<- types.ValueChanged, stop <-chan struct{}) {
 		a.DiffLeftRight(parent, change, stop)
 	}
@@ -150,10 +154,10 @@ func threeWaySetMerge(a, b, parent types.Set, vwr types.ValueReadWriter) (merged
 			panic("Not Reached")
 		}
 	}
-	return threeWayOrderedSequenceMerge(parent, aDiff, bDiff, getSelf, getSelf, getSelf, apply, vwr)
+	return threeWayOrderedSequenceMerge(parent, aDiff, bDiff, getSelf, getSelf, getSelf, apply, vwrs)
 }
 
-func threeWayStructMerge(a, b, parent types.Struct, vwr types.ValueReadWriter) (merged types.Value, err error) {
+func threeWayStructMerge(a, b, parent types.Struct, vwrs mergeVWRs) (merged types.Value, err error) {
 	aDiff := func(change chan<- types.ValueChanged, stop <-chan struct{}) {
 		a.Diff(parent, change, stop)
 	}
@@ -189,7 +193,7 @@ func threeWayStructMerge(a, b, parent types.Struct, vwr types.ValueReadWriter) (
 		}
 		panic(fmt.Errorf("Bad key type in diff: %s", change.V.Type().Describe()))
 	}
-	return threeWayOrderedSequenceMerge(parent, aDiff, bDiff, makeGetFunc(a), makeGetFunc(b), makeGetFunc(parent), apply, vwr)
+	return threeWayOrderedSequenceMerge(parent, aDiff, bDiff, makeGetFunc(a), makeGetFunc(b), makeGetFunc(parent), apply, vwrs)
 }
 
 func listAssert(a, b, parent types.Value) (aList, bList, pList types.List, ok bool) {
@@ -216,7 +220,7 @@ func mapAssert(a, b, parent types.Value) (aMap, bMap, pMap types.Map, ok bool) {
 	return aMap, bMap, pMap, aOk && bOk && pOk
 }
 
-func refAssert(a, b, parent types.Value, vwr types.ValueReadWriter) (aValue, bValue, pValue types.Value, ok bool) {
+func refAssert(a, b, parent types.Value, vwrs mergeVWRs) (aVal, bVal, pVal types.Value, ok bool) {
 	var aOk, bOk, pOk bool
 	var aRef, bRef, pRef types.Ref
 	aRef, aOk = a.(types.Ref)
@@ -225,16 +229,16 @@ func refAssert(a, b, parent types.Value, vwr types.ValueReadWriter) (aValue, bVa
 		return
 	}
 
-	aValue = aRef.TargetValue(vwr)
-	bValue = bRef.TargetValue(vwr)
+	aVal = aRef.TargetValue(vwrs.a)
+	bVal = bRef.TargetValue(vwrs.b)
 	if parent != nil {
 		if pRef, pOk = parent.(types.Ref); pOk {
-			pValue = pRef.TargetValue(vwr)
+			pVal = pRef.TargetValue(vwrs.p)
 		}
 	} else {
-		pOk = true // parent == nil is still OK. It just leaves pValue as nil.
+		pOk = true // parent == nil is still OK. It just leaves pVal as nil.
 	}
-	return aValue, bValue, pValue, aOk && bOk && pOk
+	return aVal, bVal, pVal, aOk && bOk && pOk
 }
 
 func setAssert(a, b, parent types.Value) (aSet, bSet, pSet types.Set, ok bool) {

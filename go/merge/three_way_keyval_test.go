@@ -140,6 +140,27 @@ func (s *ThreeWayKeyValMergeSuite) TestThreeWayMerge_RefMerge() {
 	s.tryThreeWayMerge(mb, ma, m, mMerged, vs)
 }
 
+func (s *ThreeWayKeyValMergeSuite) TestThreeWayMerge_RefMergeAcrossDBs() {
+	avs := types.NewTestValueStore()
+	bvs := types.NewTestValueStore()
+	pvs := types.NewTestValueStore()
+
+	aStrRef := avs.WriteValue(types.NewStruct("Foo", types.StructData{"life": types.Number(42)}))
+	bStrRef := bvs.WriteValue(types.NewStruct("Foo", types.StructData{"life": types.Number(42)}))
+	pStrRef := pvs.WriteValue(types.NewStruct("Foo", types.StructData{"life": types.Number(42)}))
+
+	m := kvs{"r2", pvs.WriteValue(s.create(aa1))}
+	ma := kvs{"r1", aStrRef, "r2", avs.WriteValue(s.create(aa1a))}
+	mb := kvs{"r1", bStrRef, "r2", bvs.WriteValue(s.create(aa1b))}
+	mMerged := kvs{"r1", pStrRef, "r2", pvs.WriteValue(s.create(aaMerged))}
+	avs.Flush()
+	bvs.Flush()
+	pvs.Flush()
+
+	s.tryThreeWayMerge(ma, mb, m, mMerged, avs, bvs, pvs)
+	s.tryThreeWayMerge(mb, ma, m, mMerged, bvs, avs, pvs)
+}
+
 func (s *ThreeWayKeyValMergeSuite) TestThreeWayMerge_RecursiveMultiLevelMerge() {
 	vs := types.NewTestValueStore()
 

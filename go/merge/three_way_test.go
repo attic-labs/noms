@@ -19,8 +19,16 @@ type ThreeWayMergeSuite struct {
 	typeStr string
 }
 
-func (s *ThreeWayMergeSuite) tryThreeWayMerge(a, b, p, exp seq, vs types.ValueReadWriter) {
-	merged, err := ThreeWay(s.create(a), s.create(b), s.create(p), vs)
+func (s *ThreeWayMergeSuite) tryThreeWayMerge(a, b, p, exp seq, stores ...types.ValueReadWriter) {
+	var merged types.Value
+	var err error
+	if len(stores) == 1 {
+		merged, err = ThreeWay(s.create(a), s.create(b), s.create(p), stores[0], stores[0], stores[0])
+	} else if len(stores) == 3 {
+		merged, err = ThreeWay(s.create(a), s.create(b), s.create(p), stores[0], stores[1], stores[2])
+	} else {
+		s.Fail("Must try merge.ThreeWay() with either one or three ValueReadWriters")
+	}
 	if s.NoError(err) {
 		expected := s.create(exp)
 		s.True(expected.Equals(merged), "%s != %s", types.EncodedValue(expected), types.EncodedValue(merged))
@@ -28,7 +36,7 @@ func (s *ThreeWayMergeSuite) tryThreeWayMerge(a, b, p, exp seq, vs types.ValueRe
 }
 
 func (s *ThreeWayMergeSuite) tryThreeWayConflict(a, b, p types.Value, contained string) {
-	m, err := ThreeWay(a, b, p, nil)
+	m, err := ThreeWay(a, b, p, nil, nil, nil)
 	if s.Error(err) {
 		s.Contains(err.Error(), contained)
 		return
