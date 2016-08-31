@@ -14,6 +14,11 @@ import json
 import os
 import subprocess
 
+def call_with_env(cmd, env):
+    proc = subprocess.Popen(cmd, env=env)
+    proc.wait()
+    assert proc.returncode == 0
+
 def main():
     # Workspace is the root of the builder, e.g. "/var/lib/jenkins/workspace/builder".
     workspace = os.getenv('WORKSPACE')
@@ -38,9 +43,7 @@ def main():
         'PATH': '%s:%s' % (os.getenv('PATH'), node_bin),
     })
 
-    proc = subprocess.Popen(['npm', 'install', 'documentation'], env=env)
-    proc.wait()
-    assert proc.returncode == 0
+    call_with_env(['npm', 'install', 'documentation'], env)
 
     cmd = [
         os.path.join(workspace, 'node_modules', '.bin', 'documentation'), 'build',
@@ -53,9 +56,7 @@ def main():
         '--output', os.path.join(workspace, 'build', version),
         '--project-version', version
     ]
-    proc = subprocess.Popen(cmd, env=env)
-    proc.wait()
-    assert proc.returncode == 0
+    call_with_env(cmd, env)
 
 if __name__ == '__main__':
     main()
