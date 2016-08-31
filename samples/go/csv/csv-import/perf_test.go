@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -42,18 +43,13 @@ func (s *perfSuite) SetupSuite() {
 func (s *perfSuite) Test01ImportSfCrimeBlobFromTestdata() {
 	assert := s.NewAssert()
 
-	raw := s.openGlob(path.Join(s.Testdata, "sf-crime", "2016-07-28.*"))
-	defer s.closeGlob(raw)
-
-	blob := types.NewBlob(io.MultiReader(raw...))
+	raw := s.readGlob(s.Testdata, "sf-crime", "2016-07-28.*")
+	blob := types.NewBlob(raw)
 	fmt.Fprintf(s.W, "\tsf-crime is %s\n", humanize.Bytes(blob.Len()))
 
-	// CommitValue is much faster the first time, so pause the test while it's happening.
-	s.Pause(func() {
-		ds := dataset.NewDataset(s.Database, "sf-crime/raw")
-		_, err := ds.CommitValue(blob)
-		assert.NoError(err)
-	})
+	ds := dataset.NewDataset(s.Database, "sf-crime/raw")
+	_, err := ds.CommitValue(blob)
+	assert.NoError(err)
 }
 
 func (s *perfSuite) Test02ImportSfCrimeCSVFromBlob() {
@@ -63,19 +59,13 @@ func (s *perfSuite) Test02ImportSfCrimeCSVFromBlob() {
 func (s *perfSuite) Test03ImportSfRegisteredBusinessesFromBlobAsMap() {
 	assert := s.NewAssert()
 
-	// Pause because blob import speed is already tested in ImportSfCrimeBlobFromTestdata, and besides, this is a much smaller dataset.
-	s.Pause(func() {
-		f, err := os.Open(path.Join(s.Testdata, "sf-registered-businesses", "2016-07-25.csv"))
-		assert.NoError(err)
-		defer f.Close()
+	raw := s.readGlob(s.Testdata, "sf-registered-businesses", "2016-07-25.csv")
+	blob := types.NewBlob(raw)
+	fmt.Fprintf(s.W, "\tsf-reg-bus is %s\n", humanize.Bytes(blob.Len()))
 
-		blob := types.NewBlob(f)
-		fmt.Fprintf(s.W, "\tsf-reg-bus is %s\n", humanize.Bytes(blob.Len()))
-
-		ds := dataset.NewDataset(s.Database, "sf-reg-bus/raw")
-		_, err = ds.CommitValue(blob)
-		assert.NoError(err)
-	})
+	ds := dataset.NewDataset(s.Database, "sf-reg-bus/raw")
+	_, err := ds.CommitValue(blob)
+	assert.NoError(err)
 
 	s.execCsvImportExe("sf-reg-bus", "--dest-type", "map:0")
 }
@@ -96,10 +86,9 @@ func (s *perfSuite) execCsvImportExe(dsName string, args ...string) {
 func (s *perfSuite) TestParseSfCrime() {
 	assert := s.NewAssert()
 
-	raw := s.openGlob(path.Join(s.Testdata, "sf-crime", "2016-07-28.*"))
-	defer s.closeGlob(raw)
+	raw := s.readGlob(path.Join(s.Testdata, "sf-crime", "2016-07-28.*"))
+	reader := csv.NewCSVReader(raw, ',')
 
-	reader := csv.NewCSVReader(io.MultiReader(raw...), ',')
 	for {
 		_, err := reader.Read()
 		if err != nil {
@@ -109,32 +98,26 @@ func (s *perfSuite) TestParseSfCrime() {
 	}
 }
 
-// openGlob opens all files that match `pattern`. Large CSV files in testdata are broken up into foo.a, foo.b, etc to get around GitHub file size restrictions.
-func (s *perfSuite) openGlob(pattern string) (readers []io.Reader) {
+// readGlob returns a bytes.Buffer containing the concatenation of all files
+// that match `pattern`. Large CSV files in testdata are broken up into foo.a,
+// foo.b, etc to get around GitHub file size restrictions.
+func (s *perfSuite) readGlob(pattern ...string) *bytes.Buffer {
 	assert := s.NewAssert()
+	res := &bytes.Buffer{}
 
 	s.Pause(func() {
-		glob, err := filepath.Glob(pattern)
+		glob, err := filepath.Glob(path.Join(pattern...))
 		assert.NoError(err)
-		readers = make([]io.Reader, len(glob))
-		for i, m := range glob {
-			r, err := os.Open(m)
+
+		for _, m := range glob {
+			f, err := os.Open(m)
+			defer f.Close()
 			assert.NoError(err)
-			readers[i] = r
+			io.Copy(res, f)
 		}
 	})
-	return
-}
 
-// closeGlob closes `readers`. Intended to be used after `openGlob`.
-func (s *perfSuite) closeGlob(readers []io.Reader) {
-	assert := s.NewAssert()
-
-	s.Pause(func() {
-		for _, r := range readers {
-			assert.NoError(r.(io.ReadCloser).Close())
-		}
-	})
+	return res
 }
 
 func TestPerf(t *testing.T) {
