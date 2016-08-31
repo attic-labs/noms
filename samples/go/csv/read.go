@@ -48,27 +48,10 @@ func KindsToStrings(kinds KindSlice) []string {
 
 //EscapeStructFieldFromCSV removes special characters and replaces spaces with camelCasing (camel case turns to camelCase)
 func EscapeStructFieldFromCSV(input string) string {
-
-	encode := func(s1 string, p *regexp.Regexp) string {
-		if p.MatchString(s1) {
-			return s1
-		}
-		return ""
+	if types.IsValidStructFieldName(input) {
+		return input
 	}
-
-	splitFields := strings.Fields(input)
-	output := types.EscapeFields(splitFields[0], encode)
-
-	if len(splitFields) > 1 {
-		output = strings.ToLower(output)
-	}
-
-	for _, field := range splitFields[1:] {
-		output += strings.Title(strings.ToLower(types.EscapeFields(field, encode)))
-	}
-
-	d.PanicIfTrue(!types.IsValidStructFieldName(output), `"Invalid field name: %s after escaping to %s"`, input, output)
-	return output
+	return types.CamelCaseFieldName(input)
 }
 
 // MakeStructTypeFromHeaders creates a struct type from the headers using |kinds| as the type of each field. If |kinds| is empty, default to strings.

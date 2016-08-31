@@ -7,6 +7,10 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+	"sort"
+	"strings"
+
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"regexp"
@@ -171,6 +175,7 @@ func (s1 Struct) Diff(s2 Struct, changes chan<- ValueChanged, closeChan <-chan s
 var escapeChar = "Q"
 var headFieldNamePattern = regexp.MustCompile("[a-zA-Z]")
 var tailFieldNamePattern = regexp.MustCompile("[a-zA-Z0-9_]")
+var spaceRegex = regexp.MustCompile("[ ]")
 var escapeRegex = regexp.MustCompile(escapeChar)
 
 var fieldNameComponentRe = regexp.MustCompile("^" + headFieldNamePattern.String() + tailFieldNamePattern.String() + "*")
@@ -178,7 +183,39 @@ var fieldNameRe = regexp.MustCompile(fieldNameComponentRe.String() + "$")
 
 type encodingFunc func(string, *regexp.Regexp) string
 
-func EscapeFields(input string, encode encodingFunc) string {
+func CamelCaseFieldName(input string) string {
+	//strip invalid struct characters and leave spaces
+	encode := func(s1 string, p *regexp.Regexp) string {
+		if p.MatchString(s1) || spaceRegex.MatchString(s1) {
+			return s1
+		}
+		return ""
+	}
+
+	strippedField := escapeField(input, encode)
+	splitField := strings.Fields(strippedField)
+
+	if len(splitField) == 0 {
+		return ""
+	}
+
+	//Camelcase field
+	output := strings.ToLower(splitField[0])
+	if len(splitField) > 1 {
+		for _, field := range splitField[1:] {
+			output += strings.Title(strings.ToLower(field))
+		}
+	}
+	//Because we are removing characters, we may generate an invalid field name
+	//i.e. -- 1A B, we will remove the first bad chars and process until 1aB
+	//1aB is invalid struct field name so we will return ""
+	if !IsValidStructFieldName(output) {
+		return ""
+	}
+	return output
+}
+
+func escapeField(input string, encode encodingFunc) string {
 	output := ""
 	pattern := headFieldNamePattern
 	for _, ch := range input {
@@ -188,11 +225,10 @@ func EscapeFields(input string, encode encodingFunc) string {
 	return output
 }
 
-// EscapeStructField escapes names for use as noms structs. Disallowed characters are encoded as
-// 'Q<hex-encoded-utf8-bytes>'. Note that Q itself is also escaped since it is
-// the escape character.
+// EscapeStructField escapes names for use as noms structs with regards to non CSV imported data.
+// Disallowed characters are encoded as 'Q<hex-encoded-utf8-bytes>'.
+// Note that Q itself is also escaped since it is the escape character.
 func EscapeStructField(input string) string {
-
 	if !escapeRegex.MatchString(input) && IsValidStructFieldName(input) {
 		return input
 	}
@@ -210,10 +246,7 @@ func EscapeStructField(input string) string {
 		buf.WriteString(hs)
 		return buf.String()
 	}
-	output := EscapeFields(input, encode)
-	verifyFieldName(output)
-	return output
-
+	return escapeField(input, encode)
 }
 
 // IsValidStructFieldName returns whether the name is valid as a field name in a struct.

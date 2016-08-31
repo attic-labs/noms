@@ -16,10 +16,11 @@ import (
 
 type ClientTestSuite struct {
 	suite.Suite
-	TempDir string
-	LdbDir  string
-	out     *os.File
-	err     *os.File
+	TempDir    string
+	LdbDir     string
+	ExitStatus int
+	out        *os.File
+	err        *os.File
 }
 
 func (suite *ClientTestSuite) SetupSuite() {
@@ -86,7 +87,13 @@ func (suite *ClientTestSuite) RunSafe(m func(), args []string) (stdout string, s
 		stdout, stderr = string(capturedOut), string(capturedErr)
 	}()
 
+	suite.ExitStatus = 0
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	m()
 	return
+}
+
+// Mock os.Exit() implementation for use during testing.
+func (suite *ClientTestSuite) Exit(status int) {
+	suite.ExitStatus = status
 }

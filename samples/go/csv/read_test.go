@@ -146,22 +146,17 @@ func TestEscapeStructFieldFromCSV(t *testing.T) {
 		"Few ¢ents Short", "fewEntsShort",
 		"CAMEL💩case letTerS", "camelcaseLetters",
 		"https://picasaweb.google.com/data", "httpspicasawebgooglecomdata",
-	}
-	panicCases := []string{
-		"💩",
-		"11 1💩",
-		"",
+		"💩", "",
+		"11 1💩", "",
+		"-- A B", "aB",
+		"-- A --", "a",
+		"-- A -- B", "aB",
 	}
 
 	for i := 0; i < len(cases); i += 2 {
 		orig, expected := cases[i], cases[i+1]
 		assert.Equal(expected, EscapeStructFieldFromCSV(orig))
 	}
-
-	for _, c := range panicCases {
-		assert.Panics(func() { EscapeStructFieldFromCSV(c) })
-	}
-
 }
 
 func TestReadParseError(t *testing.T) {
