@@ -43,6 +43,14 @@ func (suite *ClientTestSuite) TearDownSuite() {
 }
 
 func (suite *ClientTestSuite) Run(m func(), args []string) (stdout string, stderr string) {
+	var err interface{}
+	if stdout, stderr, err = suite.RunSafe(m, args); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (suite *ClientTestSuite) RunSafe(m func(), args []string) (stdout string, stderr string, mainErr interface{}) {
 	origArgs := os.Args
 	origOut := os.Stdout
 	origErr := os.Stderr
@@ -52,33 +60,33 @@ func (suite *ClientTestSuite) Run(m func(), args []string) (stdout string, stder
 	os.Stderr = suite.err
 
 	defer func() {
+		mainErr = recover()
+		_, err := suite.out.Seek(0, 0)
+		d.Chk.NoError(err)
+		capturedOut, err := ioutil.ReadAll(os.Stdout)
+		d.Chk.NoError(err)
+
+		_, err = suite.out.Seek(0, 0)
+		d.Chk.NoError(err)
+		err = suite.out.Truncate(0)
+		d.Chk.NoError(err)
+
+		_, err = suite.err.Seek(0, 0)
+		d.Chk.NoError(err)
+		capturedErr, err := ioutil.ReadAll(os.Stderr)
+		d.Chk.NoError(err)
+
+		_, err = suite.err.Seek(0, 0)
+		d.Chk.NoError(err)
+		err = suite.err.Truncate(0)
+		d.Chk.NoError(err)
 		os.Args = origArgs
 		os.Stdout = origOut
 		os.Stderr = origErr
+		stdout, stderr = string(capturedOut), string(capturedErr)
 	}()
 
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	m()
-
-	_, err := suite.out.Seek(0, 0)
-	d.Chk.NoError(err)
-	capturedOut, err := ioutil.ReadAll(os.Stdout)
-	d.Chk.NoError(err)
-
-	_, err = suite.out.Seek(0, 0)
-	d.Chk.NoError(err)
-	err = suite.out.Truncate(0)
-	d.Chk.NoError(err)
-
-	_, err = suite.err.Seek(0, 0)
-	d.Chk.NoError(err)
-	capturedErr, err := ioutil.ReadAll(os.Stderr)
-	d.Chk.NoError(err)
-
-	_, err = suite.err.Seek(0, 0)
-	d.Chk.NoError(err)
-	err = suite.err.Truncate(0)
-	d.Chk.NoError(err)
-
-	return string(capturedOut), string(capturedErr)
+	return
 }
