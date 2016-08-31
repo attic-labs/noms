@@ -9,6 +9,7 @@ import (
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/noms/go/util/status"
 )
 
 // ErrMergeConflict indicates that a merge attempt failed and must be resolved manually for the provided reason.
@@ -41,6 +42,8 @@ func newMergeConflict(format string, args ...interface{}) *ErrMergeConflict {
 // All other modifications are allowed.
 // ThreeWay() works on types.Map, types.Set, and types.Struct.
 func ThreeWay(a, b, parent types.Value, vwr types.ValueReadWriter) (merged types.Value, err error) {
+	defer status.Done()
+
 	if a == nil && b == nil {
 		return parent, nil
 	} else if a == nil {
@@ -63,7 +66,15 @@ func unmergeable(a, b types.Value) bool {
 	return true
 }
 
+var count = 0
+
+func updateProgress() {
+	count++
+	status.Printf("Applied %d changes...", count)
+}
+
 func threeWayMerge(a, b, parent types.Value, vwr types.ValueReadWriter) (merged types.Value, err error) {
+	defer updateProgress()
 	d.PanicIfTrue(a == nil || b == nil, "Merge candidates cannont be nil: a = %v, b = %v", a, b)
 	newTypeConflict := func() *ErrMergeConflict {
 		pDescription := "<nil>"
@@ -118,6 +129,7 @@ func threeWayMapMerge(a, b, parent types.Map, vwr types.ValueReadWriter) (merged
 		b.Diff(parent, change, stop)
 	}
 	apply := func(target types.Value, change types.ValueChanged, newVal types.Value) types.Value {
+		defer updateProgress()
 		switch change.ChangeType {
 		case types.DiffChangeAdded, types.DiffChangeModified:
 			return target.(types.Map).Set(change.V, newVal)
@@ -141,6 +153,7 @@ func threeWaySetMerge(a, b, parent types.Set, vwr types.ValueReadWriter) (merged
 		return v
 	}
 	apply := func(target types.Value, change types.ValueChanged, ignored types.Value) types.Value {
+		defer updateProgress()
 		switch change.ChangeType {
 		case types.DiffChangeAdded, types.DiffChangeModified:
 			return target.(types.Set).Insert(change.V)
@@ -172,6 +185,7 @@ func threeWayStructMerge(a, b, parent types.Struct, vwr types.ValueReadWriter) (
 	}
 
 	apply := func(target types.Value, change types.ValueChanged, newVal types.Value) types.Value {
+		defer updateProgress()
 		// Right now, this always iterates over all fields to create a new Struct, because there's no API for adding/removing a field from an existing struct type.
 		if f, ok := change.V.(types.String); ok {
 			field := string(f)
