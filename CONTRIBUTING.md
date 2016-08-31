@@ -59,6 +59,6 @@ To run the tests yourself, use the `-perf` and `-v` flag to `go test`, e.g.:
 
 * `go test -v ./samples/go/csv/... -perf mem`
 
-See [go/perf/suite/suite.go](https://github.com/attic-labs/noms/blob/master/go/perf/suite/suite.go) for full documentation and flags.
+See https://godoc.org/github.com/attic-labs/noms/go/perf/suite for full documentation and flags.
 
 To ask Jenkins to run the perf tests for you, reply (no quotes) "Perf this" to your PR. Yes, really.
