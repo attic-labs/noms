@@ -6,10 +6,10 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 
+	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/merge"
 	"github.com/attic-labs/noms/go/spec"
@@ -20,72 +20,66 @@ import (
 var datasetRe = regexp.MustCompile("^" + dataset.DatasetRe.String() + "$")
 
 func main() {
-	var outDSStr = flag.String("out-ds-name", "", "output dataset to write to - if empty, defaults to <right-ds-name>")
-	var parentStr = flag.String("parent", "", "common ancestor of <left-ds-name> and <right-ds-name> (currently required; soon to be optional)")
-
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Attempts to merge the two datasets in the provided database and commit the merge to either <right-ds-name> or another dataset of your choice.\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s [--out-ds-name=<name>] [--parent=<name>] <db-spec> <left-ds-name> <right-ds-name>\n\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  <db-spec>       : database in which named datasets live\n")
-		fmt.Fprintf(os.Stderr, "  <left-ds-name>  : name of a dataset descending from <parent>\n")
-		fmt.Fprintf(os.Stderr, "  <right-ds-name> : name of another dataset descending from <parent>\n\n")
-		fmt.Fprintf(os.Stderr, "Flags:\n\n")
-		flag.PrintDefaults()
+	if err := nomsMerge(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
+}
 
-	flag.Parse(false)
+func nomsMerge() error {
+	outDSStr := flag.String("out-ds-name", "", "output dataset to write to - if empty, defaults to <right-ds-name>")
+	parentStr := flag.String("parent", "", "common ancestor of <left-ds-name> and <right-ds-name> (currently required; soon to be optional)")
+	flag.Usage = usage
 
-	if flag.NArg() == 0 {
-		flag.Usage()
-		return
-	}
+	return d.Unwrap(d.Try(func() {
+		flag.Parse(false)
 
-	if flag.NArg() != 3 {
-		log.Fatalln("Incorrect number of arguments")
-	}
-
-	db, err := spec.GetDatabase(flag.Arg(0))
-	if err != nil {
-		log.Fatalf("Invalid database '%s': %s\n", flag.Arg(0), err)
-	}
-	defer db.Close()
-
-	makeDS := func(dsName string) dataset.Dataset {
-		if !datasetRe.MatchString(dsName) {
-			log.Fatalf("Invalid dataset %s, must match %s\n", dsName, dataset.DatasetRe.String())
+		if flag.NArg() == 0 {
+			flag.Usage()
+			d.PanicIfTrue(true, "")
 		}
-		return dataset.NewDataset(db, dsName)
-	}
 
-	leftDS := makeDS(flag.Arg(1))
-	rightDS := makeDS(flag.Arg(2))
-	parentDS := makeDS(*parentStr)
+		d.PanicIfTrue(flag.NArg() != 3, "Incorrect number of arguments\n")
 
-	parent, ok := parentDS.MaybeHeadValue()
-	if !ok {
-		log.Fatalln("Parent dataset has no data")
-	}
-	left, ok := leftDS.MaybeHeadValue()
-	if !ok {
-		log.Fatalln("left dataset has no data")
-	}
-	right, ok := rightDS.MaybeHeadValue()
-	if !ok {
-		log.Fatalln("right dataset has no data")
-	}
+		db, err := spec.GetDatabase(flag.Arg(0))
+		defer db.Close()
+		d.PanicIfError(err)
 
-	outDS := rightDS
-	if *outDSStr != "" {
-		outDS = makeDS(*outDSStr)
-	}
+		makeDS := func(dsName string) dataset.Dataset {
+			d.PanicIfTrue(!datasetRe.MatchString(dsName), "Invalid dataset %s, must match %s\n", dsName, dataset.DatasetRe.String())
+			return dataset.NewDataset(db, dsName)
+		}
 
-	merged, err := merge.ThreeWay(left, right, parent, db)
-	if err != nil {
-		log.Fatalln(err)
-	}
+		leftDS := makeDS(flag.Arg(1))
+		rightDS := makeDS(flag.Arg(2))
+		parentDS := makeDS(*parentStr)
 
-	_, err = outDS.Commit(merged, dataset.CommitOptions{Parents: types.NewSet(leftDS.HeadRef(), rightDS.HeadRef())})
-	if err != nil {
-		log.Fatalln(err)
-	}
+		parent, ok := parentDS.MaybeHeadValue()
+		d.PanicIfTrue(!ok, "Parent dataset has no data\n")
+		left, ok := leftDS.MaybeHeadValue()
+		d.PanicIfTrue(!ok, "left dataset has no data\n")
+		right, ok := rightDS.MaybeHeadValue()
+		d.PanicIfTrue(!ok, "right dataset has no data\n")
+
+		outDS := rightDS
+		if *outDSStr != "" {
+			outDS = makeDS(*outDSStr)
+		}
+
+		merged, err := merge.ThreeWay(left, right, parent, db)
+		d.PanicIfError(err)
+
+		_, err = outDS.Commit(merged, dataset.CommitOptions{Parents: types.NewSet(leftDS.HeadRef(), rightDS.HeadRef())})
+		d.PanicIfError(err)
+	}))
+}
+
+func usage() {
+	fmt.Fprintf(os.Stderr, "Attempts to merge the two datasets in the provided database and commit the merge to either <right-ds-name> or another dataset of your choice.\n\n")
+	fmt.Fprintf(os.Stderr, "Usage: %s [--out-ds-name=<name>] [--parent=<name>] <db-spec> <left-ds-name> <right-ds-name>\n\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  <db-spec>       : database in which named datasets live\n")
+	fmt.Fprintf(os.Stderr, "  <left-ds-name>  : name of a dataset descending from <parent>\n")
+	fmt.Fprintf(os.Stderr, "  <right-ds-name> : name of another dataset descending from <parent>\n\n")
+	fmt.Fprintf(os.Stderr, "Flags:\n\n")
+	flag.PrintDefaults()
 }
