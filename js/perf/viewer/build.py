@@ -13,9 +13,6 @@ def main():
     with pushd('../../../js/noms'):
         subprocess.check_call(['npm', 'install'], shell=False)
 
-    with pushd('../'):
-        subprocess.check_call(['npm', 'install'], shell=False)
-
     subprocess.check_call(['npm', 'install'], shell=False)
 
 if __name__ == "__main__":
