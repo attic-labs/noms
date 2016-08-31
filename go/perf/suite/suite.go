@@ -337,7 +337,7 @@ func (suite *PerfSuite) Pause(fn func()) {
 
 func callSafe(name string, fun reflect.Value, args ...interface{}) (err interface{}) {
 	defer func() {
-		//err = recover()
+		err = recover()
 	}()
 	funArgs := make([]reflect.Value, len(args))
 	for i, arg := range args {
