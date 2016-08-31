@@ -69,13 +69,13 @@ async function load() {
   const getDataForTest = async (testName: string, pd: Struct) => {
     invariant(pd.reps instanceof List);
     const reps = await pd.reps.toJS();
-    const dataOrNulls = await Promise.all(reps.map(rep => {
+    const elapsedOrNulls = await Promise.all(reps.map(rep => {
       invariant(rep instanceof NomsMap);
       // Note: despite how this code is structured, either all reps should have test data for this
       // value, or none should. Ideally we'd be able to bail at this point.
       return rep.get(testName).then(d => d ? d.elapsed / 1e9 : null);
     }));
-    return dataOrNulls[0] !== null ? makeDataPoint(dataOrNulls) : null;
+    return elapsedOrNulls[0] !== null ? makeDataPoint(elapsedOrNulls) : null;
   };
 
   const getChartData = (testName: string) =>
