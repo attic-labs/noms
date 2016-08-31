@@ -13,6 +13,9 @@ import (
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
+	"regexp"
+	"sort"
+	"strings"
 )
 
 var EmptyStructType = MakeStructType("", []string{}, []*Type{})
