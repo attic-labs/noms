@@ -10,6 +10,7 @@ import (
 	"regexp"
 
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/merge"
 	"github.com/attic-labs/noms/go/spec"
@@ -79,16 +80,50 @@ func nomsMerge() error {
 				}
 			}
 		}()
-		merged, err := merge.ThreeWay(left, right, parent, db, pc)
+		merged, err := merge.ThreeWay(left, right, parent, db, resolve, pc)
 		d.PanicIfError(err)
 
-		_, err = outDS.Commit(merged, dataset.CommitOptions{Parents: types.NewSet(leftDS.HeadRef(), rightDS.HeadRef())})
+		_, err = outDS.Commit(merged, dataset.CommitOptions{
+			Parents: types.NewSet(leftDS.HeadRef(), rightDS.HeadRef()),
+			Meta:    parentDS.Head().Get(datas.MetaField).(types.Struct),
+		})
 		d.PanicIfError(err)
 		if !*quiet {
 			status.Printf("Done")
 			status.Done()
 		}
 	}))
+}
+
+func resolve(aChange, bChange types.ValueChanged, a, b types.Value, path types.Path) (change types.ValueChanged, merged types.Value, ok bool) {
+	stringer := func(v types.Value) (s string, success bool) {
+		switch v := v.(type) {
+		case types.Bool, types.Number, types.String:
+			return fmt.Sprintf("%v", v), true
+		}
+		return "", false
+	}
+	left, lOk := stringer(a)
+	right, rOk := stringer(b)
+	if !lOk || !rOk {
+		return change, merged, false
+	}
+
+	// TODO: Handle removes as well.
+	fmt.Printf("\nConflict at: %s\n", path.String())
+	fmt.Printf("Left:  %s\nRight: %s\n\n", left, right)
+	fmt.Println("Enter 'l' to accept the left value, 'r' to accept the right value")
+	var choice rune
+	for {
+		_, err := fmt.Scanf("%c", &choice)
+		d.PanicIfError(err)
+		switch choice {
+		case 'l', 'L':
+			return aChange, a, true
+		case 'r', 'R':
+			return bChange, b, true
+		}
+	}
 }
 
 func usage() {
