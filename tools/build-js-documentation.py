@@ -16,7 +16,8 @@ import subprocess
 from noms.pushd import pushd
 
 def call_with_env(cmd, env):
-    proc = subprocess.Popen(cmd, env=env)
+    print(cmd)
+    proc = subprocess.Popen(cmd, env=env, shell=False)
     proc.wait()
     assert proc.returncode == 0
 
@@ -39,7 +40,7 @@ def main():
         })
 
         call_with_env(['npm', 'install'], env)
-        call_with_env(['npm', 'run-script' 'build-docs'], env)
+        call_with_env(['npm', 'run' 'build-docs'], env)
 
 if __name__ == '__main__':
     main()
