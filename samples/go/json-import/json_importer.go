@@ -8,9 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
-	"math/big"
 	"net/http"
 	"os"
 	"time"
@@ -18,56 +16,11 @@ import (
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/util/jsontonoms"
+	"github.com/attic-labs/noms/go/util/progressreader"
 	"github.com/attic-labs/noms/go/util/status"
 	"github.com/dustin/go-humanize"
 	flag "github.com/juju/gnuflag"
 )
-
-func newProgressReader(r io.Reader) io.Reader {
-	timer := time.NewTimer(status.Rate)
-	progress := make(chan int)
-	done := make(chan bool)
-	go func() {
-		start := time.Now()
-		completed := int64(0)
-		reportProgress := func() {
-			elapsed := time.Since(start)
-			rate := float64(completed) * (float64(time.Second) / float64(elapsed))
-			status.Printf("%s decoded at %s/S", humanize.BigBytes(big.NewInt(int64(completed))), humanize.BigBytes(big.NewInt(int64(rate))))
-		}
-		for {
-			select {
-			case p := <-progress:
-				completed += int64(p)
-			case <-timer.C:
-				timer.Reset(status.Rate)
-				reportProgress()
-			case <-done:
-				timer.Stop()
-				reportProgress()
-				status.Done()
-				return
-			}
-		}
-	}()
-	return &progressReader{r, progress, done}
-}
-
-type progressReader struct {
-	R        io.Reader // underlying reader
-	progress chan<- int
-	done     chan<- bool
-}
-
-func (l *progressReader) Read(p []byte) (n int, err error) {
-	n, err = l.R.Read(p)
-	l.progress <- n
-	if err == io.EOF {
-		l.done <- true
-		close(l.progress)
-	}
-	return
-}
 
 func main() {
 	flag.Usage = func() {
@@ -99,10 +52,17 @@ func main() {
 	defer res.Body.Close()
 
 	var jsonObject interface{}
-	err = json.NewDecoder(newProgressReader(res.Body)).Decode(&jsonObject)
+	start := time.Now()
+	r := progressreader.New(res.Body, func(seen uint64) {
+		elapsed := time.Since(start).Seconds()
+		rate := uint64(float64(seen) / elapsed)
+		status.Printf("%s decoded in %ds (%s/s)...", humanize.Bytes(seen), int(elapsed), humanize.Bytes(rate))
+	})
+	err = json.NewDecoder(r).Decode(&jsonObject)
 	if err != nil {
 		log.Fatalln("Error decoding JSON: ", err)
 	}
+	status.Done()
 
 	_, err = ds.CommitValue(jsontonoms.NomsValueFromDecodedJSON(jsonObject, true))
 	d.PanicIfError(err)
