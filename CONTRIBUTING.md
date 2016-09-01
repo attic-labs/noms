@@ -62,4 +62,4 @@ To run the tests yourself, use the `-perf` and `-v` flag to `go test`, e.g.:
 
 See https://godoc.org/github.com/attic-labs/noms/go/perf/suite for full documentation and flags.
 
-To ask Jenkins to run the perf tests for you, reply (no quotes) "Jenkins: perf this" to your PR. Your results will be viewable at http://perf.noms.io/?ds=http://demo.noms.io/perf::pr_<your-pull-request-number>/csv-import. Again, only a committer can do this.
+To ask Jenkins to run the perf tests for you, reply (no quotes) "Jenkins: perf this" to your PR. Your results will be viewable at http://perf.noms.io/?ds=http://demo.noms.io/perf::pr_$your-pull-request-number/csv-import. Again, only a committer can do this.
