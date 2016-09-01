@@ -40,7 +40,7 @@ func nomsMerge() error {
 		}
 
 		d.PanicIfTrue(flag.NArg() != 3, "Incorrect number of arguments\n")
-		d.PanicIfTrue(*parentStr == "", "--parent is currently required\n")
+		d.PanicIfTrue(*parentStr == "", "--parent is required\n")
 
 		db, err := spec.GetDatabase(flag.Arg(0))
 		defer db.Close()
