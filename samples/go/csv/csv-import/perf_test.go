@@ -5,7 +5,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -43,8 +42,10 @@ func (s *perfSuite) SetupSuite() {
 func (s *perfSuite) Test01ImportSfCrimeBlobFromTestdata() {
 	assert := s.NewAssert()
 
-	raw := s.readGlob(s.Testdata, "sf-crime", "2016-07-28.*")
-	blob := types.NewBlob(raw)
+	files := s.openGlob(s.Testdata, "sf-crime", "2016-07-28.*")
+	defer s.closeGlob(files)
+
+	blob := types.NewBlob(io.MultiReader(files...))
 	fmt.Fprintf(s.W, "\tsf-crime is %s\n", humanize.Bytes(blob.Len()))
 
 	ds := dataset.NewDataset(s.Database, "sf-crime/raw")
@@ -59,8 +60,10 @@ func (s *perfSuite) Test02ImportSfCrimeCSVFromBlob() {
 func (s *perfSuite) Test03ImportSfRegisteredBusinessesFromBlobAsMap() {
 	assert := s.NewAssert()
 
-	raw := s.readGlob(s.Testdata, "sf-registered-businesses", "2016-07-25.csv")
-	blob := types.NewBlob(raw)
+	files := s.openGlob(s.Testdata, "sf-registered-businesses", "2016-07-25.csv")
+	defer s.closeGlob(files)
+
+	blob := types.NewBlob(io.MultiReader(files...))
 	fmt.Fprintf(s.W, "\tsf-reg-bus is %s\n", humanize.Bytes(blob.Len()))
 
 	ds := dataset.NewDataset(s.Database, "sf-reg-bus/raw")
@@ -86,8 +89,10 @@ func (s *perfSuite) execCsvImportExe(dsName string, args ...string) {
 func (s *perfSuite) TestParseSfCrime() {
 	assert := s.NewAssert()
 
-	raw := s.readGlob(path.Join(s.Testdata, "sf-crime", "2016-07-28.*"))
-	reader := csv.NewCSVReader(raw, ',')
+	files := s.openGlob(path.Join(s.Testdata, "sf-crime", "2016-07-28.*"))
+	defer s.closeGlob(files)
+
+	reader := csv.NewCSVReader(io.MultiReader(files...), ',')
 
 	for {
 		_, err := reader.Read()
@@ -98,26 +103,32 @@ func (s *perfSuite) TestParseSfCrime() {
 	}
 }
 
-// readGlob returns a bytes.Buffer containing the concatenation of all files
-// that match `pattern`. Large CSV files in testdata are broken up into foo.a,
-// foo.b, etc to get around GitHub file size restrictions.
-func (s *perfSuite) readGlob(pattern ...string) *bytes.Buffer {
+// openGlob opens the concatenation of all files that match `pattern`, returned
+// as []io.Reader so it can be used immediately with io.MultiReader.
+//
+// Large CSV files in testdata are broken up into foo.a, foo.b, etc to get
+// around GitHub file size restrictions.
+func (s *perfSuite) openGlob(pattern ...string) (files []io.Reader) {
 	assert := s.NewAssert()
-	res := &bytes.Buffer{}
 
-	s.Pause(func() {
-		glob, err := filepath.Glob(path.Join(pattern...))
+	glob, err := filepath.Glob(path.Join(pattern...))
+	assert.NoError(err)
+
+	for _, m := range glob {
+		f, err := os.Open(m)
 		assert.NoError(err)
+		files = append(files, io.Reader(f))
+	}
+	return
+}
 
-		for _, m := range glob {
-			f, err := os.Open(m)
-			defer f.Close()
-			assert.NoError(err)
-			io.Copy(res, f)
-		}
-	})
+// closeGlob closes all of the files, designed to be used with openGlob.
+func (s *perfSuite) closeGlob(files []io.Reader) {
+	assert := s.NewAssert()
 
-	return res
+	for _, f := range files {
+		assert.NoError(f.(*os.File).Close())
+	}
 }
 
 func TestPerf(t *testing.T) {
