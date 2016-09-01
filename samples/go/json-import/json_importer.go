@@ -8,15 +8,67 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"math/big"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/util/jsontonoms"
+	"github.com/dustin/go-humanize"
 	flag "github.com/juju/gnuflag"
 )
+
+func newProgressReader(r io.Reader) io.Reader {
+	duration := time.Second / 10
+	timer := time.NewTimer(duration)
+	progress := make(chan int)
+	done := make(chan bool)
+	go func() {
+		start := time.Now()
+		completed := int64(0)
+		reportProgress := func() {
+			elapsed := time.Since(start)
+			rate := float64(completed) * (float64(time.Second) / float64(elapsed))
+			clearLine := "\x1b[2K\r"
+			fmt.Fprintf(os.Stderr, "%s %s decoded at %s/S", clearLine, humanize.BigBytes(big.NewInt(int64(completed))), humanize.BigBytes(big.NewInt(int64(rate))))
+		}
+		for {
+			select {
+			case p := <-progress:
+				completed += int64(p)
+			case <-timer.C:
+				timer.Reset(duration)
+				reportProgress()
+			case <-done:
+				timer.Stop()
+				reportProgress()
+				fmt.Fprintf(os.Stderr, "\n")
+				return
+			}
+		}
+	}()
+	return &progressReader{r, progress, done}
+}
+
+type progressReader struct {
+	R        io.Reader // underlying reader
+	progress chan<- int
+	done     chan<- bool
+}
+
+func (l *progressReader) Read(p []byte) (n int, err error) {
+	n, err = l.R.Read(p)
+	l.progress <- n
+	if err == io.EOF {
+		l.done <- true
+		close(l.progress)
+	}
+	return
+}
 
 func main() {
 	flag.Usage = func() {
@@ -48,7 +100,7 @@ func main() {
 	defer res.Body.Close()
 
 	var jsonObject interface{}
-	err = json.NewDecoder(res.Body).Decode(&jsonObject)
+	err = json.NewDecoder(newProgressReader(res.Body)).Decode(&jsonObject)
 	if err != nil {
 		log.Fatalln("Error decoding JSON: ", err)
 	}
