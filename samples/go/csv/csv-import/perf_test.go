@@ -93,7 +93,6 @@ func (s *perfSuite) TestParseSfCrime() {
 	defer s.closeGlob(files)
 
 	reader := csv.NewCSVReader(io.MultiReader(files...), ',')
-
 	for {
 		_, err := reader.Read()
 		if err != nil {
@@ -108,18 +107,20 @@ func (s *perfSuite) TestParseSfCrime() {
 //
 // Large CSV files in testdata are broken up into foo.a, foo.b, etc to get
 // around GitHub file size restrictions.
-func (s *perfSuite) openGlob(pattern ...string) (files []io.Reader) {
+func (s *perfSuite) openGlob(pattern ...string) []io.Reader {
 	assert := s.NewAssert()
 
 	glob, err := filepath.Glob(path.Join(pattern...))
 	assert.NoError(err)
 
-	for _, m := range glob {
+	files := make([]io.Reader, len(glob))
+	for i, m := range glob {
 		f, err := os.Open(m)
 		assert.NoError(err)
-		files = append(files, io.Reader(f))
+		files[i] = f
 	}
-	return
+
+	return files
 }
 
 // closeGlob closes all of the files, designed to be used with openGlob.
