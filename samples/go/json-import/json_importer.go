@@ -18,13 +18,13 @@ import (
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/util/jsontonoms"
+	"github.com/attic-labs/noms/go/util/status"
 	"github.com/dustin/go-humanize"
 	flag "github.com/juju/gnuflag"
 )
 
 func newProgressReader(r io.Reader) io.Reader {
-	duration := time.Second / 10
-	timer := time.NewTimer(duration)
+	timer := time.NewTimer(status.Rate)
 	progress := make(chan int)
 	done := make(chan bool)
 	go func() {
@@ -33,20 +33,19 @@ func newProgressReader(r io.Reader) io.Reader {
 		reportProgress := func() {
 			elapsed := time.Since(start)
 			rate := float64(completed) * (float64(time.Second) / float64(elapsed))
-			clearLine := "\x1b[2K\r"
-			fmt.Fprintf(os.Stderr, "%s %s decoded at %s/S", clearLine, humanize.BigBytes(big.NewInt(int64(completed))), humanize.BigBytes(big.NewInt(int64(rate))))
+			status.Printf("%s decoded at %s/S", humanize.BigBytes(big.NewInt(int64(completed))), humanize.BigBytes(big.NewInt(int64(rate))))
 		}
 		for {
 			select {
 			case p := <-progress:
 				completed += int64(p)
 			case <-timer.C:
-				timer.Reset(duration)
+				timer.Reset(status.Rate)
 				reportProgress()
 			case <-done:
 				timer.Stop()
 				reportProgress()
-				fmt.Fprintf(os.Stderr, "\n")
+				status.Done()
 				return
 			}
 		}
