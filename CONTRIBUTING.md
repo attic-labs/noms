@@ -31,8 +31,8 @@ We follow a code review protocol dervied from the one that the [Chromium team](h
 4. Create a PR using the branch you just created. Usually you can do this by just navigating to https://github.com/attic-labs/noms in a browser - GitHub recognizes the new branch and offers to create a PR for you.
 5. When you're ready for review, use GitHub's _assign_ UI to assign someone to review. Typically nobody will review until you assign someone (because we assume you're still getting it ready for review).
 6. Reviewer will make comments, then say either 'LGTM' (looks good to me) or 'BTY' (back to you).
-7. If the reviewer said LGTM, it means it is ready to merge. If you have commit writes to the respository, go ahead and land the PR. Otherwise the reviewer will land it.
-  * *Important*: Only squash merges are allowed, because we like each commit in master to be a single logical piece of work. _GitHub may generate an odd commit message_, so double check before clicking Comfirm!
+7. If the reviewer said LGTM, it means it is ready to merge. If you have commit rights to the respository, go ahead and land the PR. Otherwise the reviewer will land it.
+  * *Important*: Only squash merges are allowed, because we like each commit in master to be a single logical piece of work. _GitHub may generate an odd commit message_, so double check before clicking Confirm!
 8. If the reviewer said BTY, make the requested changes.
   * *Important*: Please make each round of review comments its own commit. This makes it easy for reviewers to see how your PR has evolved in response to feedback.
   * *Important*: Please do not rebase on top of master until the end of the review for the same reason - you're trying to make it easy for the reviewer to see your changes in isolation.
@@ -50,7 +50,7 @@ For JS code, We have a python script to run all js tests.
 
 * `python tools/run-all-js-tests.py`
 
-Jenkins automatically runs the Go and JS tests on every PR, then every subsequent patch. To ask Jenkins to immediately re-run, reply (no quotes) "Jenkins: test this" to your PR.
+If you have commit rights, Jenkins automatically runs the Go and JS tests on every PR, then every subsequent patch. To ask Jenkins to immediately run, any committer can reply (no quotes) "Jenkins: test this" to your PR.
 
 ### Perf tests
 
@@ -62,4 +62,4 @@ To run the tests yourself, use the `-perf` and `-v` flag to `go test`, e.g.:
 
 See https://godoc.org/github.com/attic-labs/noms/go/perf/suite for full documentation and flags.
 
-To ask Jenkins to run the perf tests for you, reply (no quotes) "Jenkins: perf this" to your PR. Your results will be viewable at http://perf.noms.io/?ds=http://demo.noms.io/perf::pr_<your-pull-request-number>/csv-import
+To ask Jenkins to run the perf tests for you, reply (no quotes) "Jenkins: perf this" to your PR. Your results will be viewable at http://perf.noms.io/?ds=http://demo.noms.io/perf::pr_<your-pull-request-number>/csv-import. Again, only a committer can do this.
