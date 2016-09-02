@@ -11,9 +11,9 @@ class LinkError(Exception):
     pass
 
 def Force(source, linkName):
-    """Force forces linkName to be a symlink to source, as long as its not a dir.
-
-        Creates a symlink from linkName to source, clobbering linkName as long as its not a directory.
+    """
+    Force forces linkName to be a symlink to source, as long as its not a dir.
+    Creates a symlink from linkName to source, clobbering linkName as long as its not a directory.
     """
     if not os.path.lexists(linkName):
         os.symlink(source, linkName)
