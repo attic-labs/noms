@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath('../../../tools'))
 import noms.staging as staging
 
 if __name__ == '__main__':
-    staging.Main('perf', staging.GlobCopier(
+    staging.Main('perf', staging.HashGlobCopier(
         'index.html',
         'main.css',
         'modules/Chart.bundle.min.js',

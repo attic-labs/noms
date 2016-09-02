@@ -6,8 +6,10 @@
 
 import argparse
 import glob
+import hashlib
 import os
 import os.path
+import re
 import shutil
 
 def Main(projectName, stagingFunction):
@@ -51,13 +53,54 @@ def GlobCopier(*globs):
             for f in glob.glob(pattern):
                 if os.path.isdir(f):
                     continue
-                fromDir, name = os.path.split(f)
+                from_dir, name = os.path.split(f)
                 if name in exclude:
                     continue
-                toDir = os.path.join(stagingDir, fromDir)
-                if not os.path.exists(toDir):
-                    os.makedirs(toDir)
-                shutil.copy2(f, toDir)
+                to_dir = os.path.join(stagingDir, from_dir)
+                if not os.path.exists(to_dir):
+                    os.makedirs(to_dir)
+                shutil.copy2(f, to_dir)
+    return stage
+
+def HashGlobCopier(index_file, *globs):
+    exclude = ('webpack.config.js',)
+    def stage(stagingDir):
+        rename_dict = dict()
+        for pattern in globs:
+            for f in glob.glob(pattern):
+                if os.path.isdir(f):
+                    continue
+                from_dir, name = os.path.split(f)
+                if name in exclude:
+                    continue
+                to_dir = os.path.join(stagingDir, from_dir)
+                if not os.path.exists(to_dir):
+                    os.makedirs(to_dir)
+
+                digest = ''
+                with open(f) as fh:
+                    sha = hashlib.sha256()
+                    sha.update(fh.read())
+                    digest = sha.hexdigest()
+                    # print digest[:20]
+                basename = os.path.basename(f)
+                name, ext = os.path.splitext(basename)
+                new_name = name + '.' + digest[:20] + ext
+                rename_dict[basename] = new_name
+                shutil.copy2(f, to_dir)
+                shutil.move(os.path.join(to_dir, basename), os.path.join(to_dir, new_name))
+
+        from_dir, name = os.path.split(index_file)
+        to_dir = os.path.join(stagingDir, from_dir)
+        data = None
+        with open(index_file, 'r') as f:
+            data = f.read()
+        for old_name, new_name in rename_dict.iteritems():
+            r = re.compile(r'(\W)' + re.escape(old_name) + r'(\W)')
+            data = r.sub('\g<1>' + new_name + '\g<2>', data)
+        with open(os.path.join(to_dir, name), 'w') as f:
+            f.write(data)
+
     return stage
 
 
