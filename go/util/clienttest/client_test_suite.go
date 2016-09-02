@@ -48,15 +48,15 @@ func (suite *ClientTestSuite) TearDownSuite() {
 	defer d.Chk.NoError(os.RemoveAll(suite.TempDir))
 }
 
-func (suite *ClientTestSuite) Run(m func(), args []string) (stdout string, stderr string) {
+func (suite *ClientTestSuite) MustRun(m func(), args []string) (stdout string, stderr string) {
 	var err interface{}
-	if stdout, stderr, err = suite.RunSafe(m, args); err != nil {
+	if stdout, stderr, err = suite.Run(m, args); err != nil {
 		panic(err)
 	}
 	return
 }
 
-func (suite *ClientTestSuite) RunSafe(m func(), args []string) (stdout string, stderr string, mainErr interface{}) {
+func (suite *ClientTestSuite) Run(m func(), args []string) (stdout string, stderr string, mainErr interface{}) {
 	origArgs := os.Args
 	origOut := os.Stdout
 	origErr := os.Stderr

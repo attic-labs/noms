@@ -41,7 +41,7 @@ func (s *nomsSyncTestSuite) TestSyncValidation() {
 		s.Equal(clienttest.ExitError{-1}, err)
 	}()
 
-	s.Run(main, []string{"sync", sourceSpecMissingHashSymbol, sinkDatasetSpec})
+	s.MustRun(main, []string{"sync", sourceSpecMissingHashSymbol, sinkDatasetSpec})
 }
 
 func (s *nomsSyncTestSuite) TestSync() {
@@ -56,7 +56,7 @@ func (s *nomsSyncTestSuite) TestSync() {
 	sourceSpec := spec.CreateValueSpecString("ldb", s.LdbDir, "#"+source1HeadRef.String())
 	ldb2dir := path.Join(s.TempDir, "ldb2")
 	sinkDatasetSpec := spec.CreateValueSpecString("ldb", ldb2dir, "dest")
-	sout, _ := s.Run(main, []string{"sync", sourceSpec, sinkDatasetSpec})
+	sout, _ := s.MustRun(main, []string{"sync", sourceSpec, sinkDatasetSpec})
 
 	s.Regexp("Created", sout)
 	dest := dataset.NewDataset(datas.NewDatabase(chunks.NewLevelDBStore(ldb2dir, "", 1, false)), "dest")
@@ -64,14 +64,14 @@ func (s *nomsSyncTestSuite) TestSync() {
 	dest.Database().Close()
 
 	sourceDataset := spec.CreateValueSpecString("ldb", s.LdbDir, "src")
-	sout, _ = s.Run(main, []string{"sync", sourceDataset, sinkDatasetSpec})
+	sout, _ = s.MustRun(main, []string{"sync", sourceDataset, sinkDatasetSpec})
 	s.Regexp("Synced", sout)
 
 	dest = dataset.NewDataset(datas.NewDatabase(chunks.NewLevelDBStore(ldb2dir, "", 1, false)), "dest")
 	s.True(types.Number(43).Equals(dest.HeadValue()))
 	dest.Database().Close()
 
-	sout, _ = s.Run(main, []string{"sync", sourceDataset, sinkDatasetSpec})
+	sout, _ = s.MustRun(main, []string{"sync", sourceDataset, sinkDatasetSpec})
 	s.Regexp("up to date", sout)
 }
 
@@ -87,7 +87,7 @@ func (s *nomsSyncTestSuite) TestRewind() {
 
 	sourceSpec := spec.CreateValueSpecString("ldb", s.LdbDir, "#"+rewindRef.String())
 	sinkDatasetSpec := spec.CreateValueSpecString("ldb", s.LdbDir, "foo")
-	s.Run(main, []string{"sync", sourceSpec, sinkDatasetSpec})
+	s.MustRun(main, []string{"sync", sourceSpec, sinkDatasetSpec})
 
 	dest := dataset.NewDataset(datas.NewDatabase(chunks.NewLevelDBStore(s.LdbDir, "", 1, false)), "foo")
 	s.True(types.Number(42).Equals(dest.HeadValue()))
