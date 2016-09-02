@@ -6,8 +6,10 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"regexp"
+	"time"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
@@ -80,6 +82,7 @@ func nomsMerge() error {
 				}
 			}
 		}()
+		rand.Seed(time.Now().UnixNano())
 		merged, err := merge.ThreeWay(left, right, parent, db, resolve, pc)
 		d.PanicIfError(err)
 
@@ -112,18 +115,41 @@ func resolve(aChange, bChange types.ValueChanged, a, b types.Value, path types.P
 	// TODO: Handle removes as well.
 	fmt.Printf("\nConflict at: %s\n", path.String())
 	fmt.Printf("Left:  %s\nRight: %s\n\n", left, right)
-	fmt.Println("Enter 'l' to accept the left value, 'r' to accept the right value")
 	var choice rune
 	for {
-		_, err := fmt.Scanf("%c", &choice)
+		fmt.Println("Enter 'l' to accept the left value, 'r' to accept the right value, or 'm' to mash them together")
+		_, err := fmt.Scanf("%c\n", &choice)
 		d.PanicIfError(err)
 		switch choice {
 		case 'l', 'L':
 			return aChange, a, true
 		case 'r', 'R':
 			return bChange, b, true
+		case 'm', 'M':
+			if !a.Type().Equals(b.Type()) {
+				fmt.Printf("Sorry, can't smush a %s with a %s\n", a.Type().Describe(), b.Type().Describe())
+			}
+			switch a := a.(type) {
+			case types.Bool:
+				return aChange, types.Bool(bool(a) || bool(b.(types.Bool))), true
+			case types.Number:
+				return aChange, types.Number(float64(a) + float64(b.(types.Number))), true
+			case types.String:
+				mashed := mash(a, b.(types.String))
+				fmt.Println("Replacing with", mashed)
+				return aChange, mashed, true
+			}
 		}
 	}
+}
+
+func mash(a, b types.String) types.String {
+	out := append([]byte(a), []byte(b)...)
+	for i := range out {
+		j := rand.Intn(i + 1)
+		out[i], out[j] = out[j], out[i]
+	}
+	return types.String(string(out))
 }
 
 func usage() {
