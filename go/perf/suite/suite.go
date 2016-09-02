@@ -166,16 +166,19 @@ func (r nopWriter) Write(p []byte) (int, error) {
 
 // Run runs suiteT and writes results to dataset datasetID in the database given by the -perf command line flag.
 func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
-	if *perfFlag == "" {
-		return
-	}
-
 	assert := assert.New(t)
 
 	// Piggy-back off the go test -v flag.
 	verboseFlag := flag.Lookup("test.v")
 	assert.NotNil(verboseFlag)
 	verbose := verboseFlag.Value.(flag.Getter).Get().(bool)
+
+	if *perfFlag == "" {
+		if verbose {
+			fmt.Printf("(perf) Skipping %s, -perf flag not set\n", datasetID)
+		}
+		return
+	}
 
 	suite := suiteT.Suite()
 	suite.T = t
@@ -206,37 +209,6 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 	// This is the database the perf test results are written to.
 	db, err := spec.GetDatabase(*perfFlag)
 	assert.NoError(err)
-
-	// This is the temporary database for tests to use.
-	//
-	// * Why not use a local database + memory store?
-	// Firstly, because the spec would be "mem", and the spec library doesn't know how to reuse stores.
-	// Secondly, because it's an unrealistic performance measurement.
-	//
-	// * Why use a remote (HTTP) database?
-	// It's more realistic to exercise the HTTP stack, even if it's just talking over localhost.
-	//
-	// * Why provide an option for leveldb vs memory underlying store?
-	// Again, leveldb is more realistic than memory, and in common cases disk space > memory space.
-	// However, on this developer's laptop, there is actually very little disk space, and a lot of memory;
-	// plus making the test run a little bit faster locally is nice.
-	var chunkStore chunks.ChunkStore
-	if *perfMemFlag {
-		chunkStore = chunks.NewMemoryStore()
-	} else {
-		ldbDir := suite.TempDir("suite.suite")
-		chunkStore = chunks.NewLevelDBStoreUseFlags(ldbDir, "")
-	}
-
-	server := datas.NewRemoteDatabaseServer(chunkStore, 0)
-	portChan := make(chan int)
-	server.Ready = func() { portChan <- server.Port() }
-	go server.Run()
-	defer server.Stop()
-
-	port := <-portChan
-	suite.DatabaseSpec = fmt.Sprintf("http://localhost:%d", port)
-	suite.Database = datas.NewRemoteDatabase(suite.DatabaseSpec, "")
 
 	// List of test runs, each a map of test name => timing info.
 	testReps := make([]testRep, *perfRepeatFlag)
@@ -275,6 +247,10 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 
 	for repIdx := 0; repIdx < *perfRepeatFlag; repIdx++ {
 		testReps[repIdx] = testRep{}
+
+		serverHost, stopServerFn := suite.startServer()
+		suite.DatabaseSpec = serverHost
+		suite.Database = datas.NewRemoteDatabase(serverHost, "")
 
 		if t, ok := suiteT.(SetupRepSuite); ok {
 			t.SetupRep()
@@ -322,6 +298,8 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 		if t, ok := suiteT.(TearDownRepSuite); ok {
 			t.TearDownRep()
 		}
+
+		stopServerFn()
 	}
 
 	if t, ok := suiteT.(testifySuite.TearDownAllSuite); ok {
@@ -363,9 +341,7 @@ func (suite *PerfSuite) Pause(fn func()) {
 
 func callSafe(name string, fun reflect.Value, args ...interface{}) (err interface{}) {
 	defer func() {
-		if r := recover(); r != nil {
-			err = r
-		}
+		err = recover()
 	}()
 	funArgs := make([]reflect.Value, len(args))
 	for i, arg := range args {
@@ -421,4 +397,37 @@ func (suite *PerfSuite) getGitHead(dir string) string {
 		return ""
 	}
 	return strings.TrimSpace(stdout.String())
+}
+
+func (suite *PerfSuite) startServer() (host string, stopFn func()) {
+	// This is the temporary database for tests to use.
+	//
+	// * Why not use a local database + memory store?
+	// Firstly, because the spec would be "mem", and the spec library doesn't know how to reuse stores.
+	// Secondly, because it's an unrealistic performance measurement.
+	//
+	// * Why use a remote (HTTP) database?
+	// It's more realistic to exercise the HTTP stack, even if it's just talking over localhost.
+	//
+	// * Why provide an option for leveldb vs memory underlying store?
+	// Again, leveldb is more realistic than memory, and in common cases disk space > memory space.
+	// However, on this developer's laptop, there is actually very little disk space, and a lot of memory;
+	// plus making the test run a little bit faster locally is nice.
+	var chunkStore chunks.ChunkStore
+	if *perfMemFlag {
+		chunkStore = chunks.NewMemoryStore()
+	} else {
+		ldbDir := suite.TempDir("suite.suite")
+		chunkStore = chunks.NewLevelDBStoreUseFlags(ldbDir, "")
+	}
+
+	server := datas.NewRemoteDatabaseServer(chunkStore, 0)
+	portChan := make(chan int)
+	server.Ready = func() { portChan <- server.Port() }
+	go server.Run()
+
+	port := <-portChan
+	host = fmt.Sprintf("http://localhost:%d", port)
+	stopFn = func() { server.Stop() }
+	return
 }
