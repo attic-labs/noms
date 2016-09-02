@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/spec"
@@ -19,7 +18,6 @@ import (
 )
 
 func TestSync(t *testing.T) {
-	d.UtilExiter = testExiter{}
 	suite.Run(t, &nomsSyncTestSuite{})
 }
 
@@ -40,7 +38,7 @@ func (s *nomsSyncTestSuite) TestSyncValidation() {
 
 	defer func() {
 		err := recover()
-		s.Equal(exitError{-1}, err)
+		s.Equal(clienttest.ExitError{-1}, err)
 	}()
 
 	s.Run(main, []string{"sync", sourceSpecMissingHashSymbol, sinkDatasetSpec})

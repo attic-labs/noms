@@ -5,10 +5,8 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 
-	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
@@ -18,21 +16,7 @@ import (
 	"github.com/attic-labs/testify/suite"
 )
 
-type testExiter struct{}
-type exitError struct {
-	code int
-}
-
-func (e exitError) Error() string {
-	return fmt.Sprintf("Exiting with code: %d", e.code)
-}
-
-func (testExiter) Exit(code int) {
-	panic(exitError{code})
-}
-
 func TestNomsLog(t *testing.T) {
-	d.UtilExiter = testExiter{}
 	suite.Run(t, &nomsLogTestSuite{})
 }
 

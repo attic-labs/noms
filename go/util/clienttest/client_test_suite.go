@@ -23,6 +23,10 @@ type ClientTestSuite struct {
 	err        *os.File
 }
 
+type ExitError struct {
+	Code int
+}
+
 func (suite *ClientTestSuite) SetupSuite() {
 	dir, err := ioutil.TempDir(os.TempDir(), "nomstest")
 	d.Chk.NoError(err)
@@ -35,6 +39,7 @@ func (suite *ClientTestSuite) SetupSuite() {
 	suite.LdbDir = path.Join(dir, "ldb")
 	suite.out = stdOutput
 	suite.err = errOutput
+	d.UtilExiter = suite
 }
 
 func (suite *ClientTestSuite) TearDownSuite() {
@@ -95,5 +100,5 @@ func (suite *ClientTestSuite) RunSafe(m func(), args []string) (stdout string, s
 
 // Mock os.Exit() implementation for use during testing.
 func (suite *ClientTestSuite) Exit(status int) {
-	suite.ExitStatus = status
+	panic(ExitError{status})
 }

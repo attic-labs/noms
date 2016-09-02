@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/spec"
@@ -18,7 +17,6 @@ import (
 )
 
 func TestDs(t *testing.T) {
-	d.UtilExiter = testExiter{}
 	suite.Run(t, &nomsDsTestSuite{})
 }
 
