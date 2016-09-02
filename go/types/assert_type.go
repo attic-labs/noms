@@ -87,8 +87,10 @@ func isSubtype(requiredType, concreteType *Type, parentStructTypes []*Type) bool
 	panic("unreachable")
 }
 
+// compoundSubtype is called when comparing the element types of two compound types. This is the only case
+// where a concrete type may have be a union type.
 func compoundSubtype(requiredType, concreteType *Type, parentStructTypes []*Type) bool {
-	// If a compound type's ElemTypes is a union then all of them must be subtypes. This also means that a compound type with an empty union is going to be a subtype of all compounds, List<> is a subtype of List<T> for all T.
+	// If the concrete type is a union then all the types in the union must be subtypes of the required typ. This also means that a compound type with an empty union is going to be a subtype of all compounds, List<> is a subtype of List<T> for all T.
 	if concreteType.Kind() == UnionKind {
 		for _, ct := range concreteType.Desc.(CompoundDesc).ElemTypes {
 			if !isSubtype(requiredType, ct, parentStructTypes) {
