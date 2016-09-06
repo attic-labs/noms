@@ -63,7 +63,7 @@ func (suite *ClientTestSuite) MustRun(m func(), args []string) (stdout string, s
 }
 
 //Run will execute a function passing args as commandline args, and recovers the function
-//on Panic or os.Exit() and will return ExitError or any error from Panic
+//on Panic or os.Exit()
 func (suite *ClientTestSuite) Run(m func(), args []string) (stdout string, stderr string, mainErr interface{}) {
 	origArgs := os.Args
 	origOut := os.Stdout
