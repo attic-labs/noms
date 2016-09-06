@@ -141,7 +141,7 @@ func main() {
 		headers, err = cr.Read()
 		d.PanicIfError(err)
 	} else {
-		headers = strings.Split(*header, string(comma))
+		headers = strings.Split(*header, string(","))
 	}
 
 	kinds := []types.NomsKind{}
