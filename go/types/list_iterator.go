@@ -10,15 +10,15 @@ import (
 
 // ListIterator can be used to efficiently iterate through a Noms List starting at an index of your choice.
 type ListIterator struct {
-	*sequenceCursor
+	cursor *sequenceCursor
 }
 
 // Next returns subsequent Values from a List, starting with the index at which the iterator was created. If there are no more Values, Next() returns nil.
 func (li ListIterator) Next() (out Value) {
-	d.Chk.True(li.sequenceCursor != nil, "Cannot use a nil ListIterator")
-	if li.valid() {
-		out = li.current().(Value)
-		li.advance()
+	d.Chk.True(li.cursor != nil, "Cannot use a nil ListIterator")
+	if li.cursor.valid() {
+		out = li.cursor.current().(Value)
+		li.cursor.advance()
 	}
 	return
 }
