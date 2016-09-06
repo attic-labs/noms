@@ -48,7 +48,7 @@ func (suite *ClientTestSuite) TearDownSuite() {
 	defer d.Chk.NoError(os.RemoveAll(suite.TempDir))
 }
 
-//MustRun is a wrapper around Run that will panic on Exit or Panic
+// MustRun is a wrapper around Run that will panic on Exit or Panic
 func (suite *ClientTestSuite) MustRun(m func(), args []string) (stdout string, stderr string) {
 	var err interface{}
 	if stdout, stderr, err = suite.Run(m, args); err != nil {
@@ -57,9 +57,9 @@ func (suite *ClientTestSuite) MustRun(m func(), args []string) (stdout string, s
 	return
 }
 
-//Run will execute a function passing to it commandline args, and captures stdout,stderr.
-//If m()  panics the panic is caught, and returned with recoveredError
-//If m() calls os.Exit() m() will panic and return ExitError with recoveredError
+// Run will execute a function passing to it commandline args, and captures stdout,stderr.
+// If m()  panics the panic is caught, and returned with recoveredError
+// If m() calls os.Exit() m() will panic and return ExitError with recoveredError
 func (suite *ClientTestSuite) Run(m func(), args []string) (stdout string, stderr string, recoveredErr interface{}) {
 	origArgs := os.Args
 	origOut := os.Stdout
