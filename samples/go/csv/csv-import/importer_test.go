@@ -277,7 +277,13 @@ func (s *testSuite) TestCSVImportSkipRecords() {
 
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("ldb", s.LdbDir, setName)
-	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--skip-records", "2", input.Name(), dataspec})
+
+	stdout, stderr, recoveredErr := s.Run(main, []string{"--no-progress", "--skip-records", "100", input.Name(), dataspec})
+	s.Equal("", stdout)
+	s.Equal("error: skip-records skipped past EOF\n", stderr)
+	s.Equal(clienttest.ExitError{-1}, recoveredErr)
+
+	stdout, stderr = s.MustRun(main, []string{"--no-progress", "--skip-records", "2", input.Name(), dataspec})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
