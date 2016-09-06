@@ -115,11 +115,12 @@ function isSubtypeInternal(requiredType: Type<any>, concreteType: Type<any>,
   invariant(false);
 }
 
-// compoundSubtype is called when comparing the element types of two compound types. This is the
-// only case where a concrete type may have be a union type.
+/**
+ * compoundSubtype is called when comparing the element types of two compound types.
+ * This is the only case where a concrete type may have be a union type.
+ */
 function compoundSubtype(requiredType: Type<any>, concreteType: Type<any>,
                          parentStructTypes: Type<any>[]): boolean {
-  // In a compound type it is OK to have an empty union.
   if (concreteType.kind === Kind.Union) {
     for (let i = 0; i < concreteType.desc.elemTypes.length; i++) {
       if (!isSubtypeInternal(requiredType, concreteType.desc.elemTypes[i], parentStructTypes)) {
