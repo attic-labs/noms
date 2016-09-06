@@ -114,7 +114,7 @@ func main() {
 		r = progressreader.New(r, getStatusPrinter(size))
 	}
 
-	parsedDelimiter, err := csv.StringToRune(*delimiter)
+	delim, err := csv.StringToRune(*delimiter)
 	d.CheckErrorNoUsage(err)
 
 	var dest int
@@ -133,7 +133,7 @@ func main() {
 		return
 	}
 
-	cr := csv.NewCSVReader(r, parsedDelimiter)
+	cr := csv.NewCSVReader(r, delim)
 	csv.SkipRecords(cr, *skipRecords)
 
 	var headers []string
