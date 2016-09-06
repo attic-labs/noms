@@ -82,6 +82,13 @@ func (l List) ChildValues() (values []Value) {
 	return
 }
 
+func (l List) WalkValues(cb ValueCallback) {
+	l.IterAll(func(v Value, idx uint64) {
+		cb(v)
+	})
+	return
+}
+
 func (l List) WalkRefs(cb RefCallback) {
 	l.seq.WalkRefs(cb)
 }

@@ -92,6 +92,11 @@ func (b Blob) Hash() hash.Hash {
 func (b Blob) ChildValues() []Value {
 	return []Value{}
 }
+
+func (b Blob) WalkValues(cb ValueCallback) {
+
+}
+
 func (b Blob) WalkRefs(cb RefCallback) {
 	b.seq.WalkRefs(cb)
 }

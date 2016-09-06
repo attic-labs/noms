@@ -116,6 +116,14 @@ func (m Map) ChildValues() (values []Value) {
 	return
 }
 
+func (m Map) WalkValues(cb ValueCallback) {
+	m.IterAll(func(k, v Value) {
+		cb(k)
+		cb(v)
+	})
+	return
+}
+
 func (m Map) WalkRefs(cb RefCallback) {
 	m.seq.WalkRefs(cb)
 }

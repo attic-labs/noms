@@ -41,6 +41,7 @@ func (sl setLeafSequence) WalkRefs(cb RefCallback) {
 		v.WalkRefs(cb)
 	}
 }
+
 func (sl setLeafSequence) Chunks() (chunks []Ref) {
 	for _, v := range sl.data {
 		chunks = append(chunks, v.Chunks()...)

@@ -57,7 +57,9 @@ func (ts testSequence) Less(other Value) bool {
 func (ts testSequence) Hash() hash.Hash {
 	panic("not reached")
 }
-
+func (ts testSequence) WalkValues(cb ValueCallback) {
+	panic("not reached")
+}
 func (ts testSequence) ChildValues() []Value {
 	panic("not reached")
 }

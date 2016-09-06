@@ -70,6 +70,9 @@ func (r Ref) Hash() hash.Hash {
 func (r Ref) ChildValues() []Value {
 	return nil
 }
+func (r Ref) WalkValues(cb ValueCallback) {
+
+}
 
 func (r Ref) WalkRefs(cb RefCallback) {
 	// TODO check

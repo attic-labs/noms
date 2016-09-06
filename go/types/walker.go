@@ -61,6 +61,57 @@ func WalkValues(target Value, vr ValueReader, cb ValueCallback, concurrency int,
 	return
 }
 
+func walkRefP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep bool) {
+	rq := newRefQueue()
+	f := newFailure()
+
+	visited := map[hash.Hash]bool{}
+	mu := sync.Mutex{}
+	wg := sync.WaitGroup{}
+	var valueCb func(v Value)
+	processVal := func(v Value, next bool) {
+		if sr, ok := v.(Ref); ok {
+			wg.Add(1)
+			rq.tail() <- sr
+		}
+		if next == true {
+			v.WalkValues(valueCb)
+		}
+	}
+	valueCb = func(v Value) {
+		processVal(v, deep)
+	}
+	processRef := func(r Ref) {
+		defer wg.Done()
+
+		mu.Lock()
+		skip := visited[r.TargetHash()]
+		visited[r.TargetHash()] = true
+		mu.Unlock()
+
+		if skip || f.didFail() {
+			return
+		}
+
+		target := r.TargetHash()
+		v := vr.ReadValue(target)
+		if v == nil {
+			f.fail(fmt.Errorf("Attempt to visit absent ref:%s", target.String()))
+			return
+		}
+
+		if !deep {
+			cb(v, &r)
+			return
+		} else {
+			fmt.Println("never call this")
+			processVal(v, &r, deep, 99)
+		}
+
+	}
+
+}
+
 func doRefWalkP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep bool) {
 	rq := newRefQueue()
 	f := newFailure()
@@ -108,9 +159,7 @@ func doRefWalkP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep 
 					processVal(c, nil, true, count+1)
 				}
 			default:
-				for _, c := range v.ChildValues() {
-					processVal(c, nil, deep, count+1)
-				}
+				v.WalkRefs(cb)
 			}
 		}
 	}

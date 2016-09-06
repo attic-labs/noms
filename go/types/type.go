@@ -101,6 +101,24 @@ func (t *Type) ChildValues() (res []Value) {
 	return
 }
 
+func (t *Type) WalkValues(cb ValueCallback) {
+	switch desc := t.Desc.(type) {
+	case CompoundDesc:
+		for _, t := range desc.ElemTypes {
+			cb(t)
+		}
+	case StructDesc:
+		desc.IterFields(func(name string, t *Type) {
+			cb(t)
+		})
+	case PrimitiveDesc:
+		// Nothing, these have no child values
+	default:
+		d.Chk.Fail("Unexpected type desc implementation: %#v", t)
+	}
+	return
+}
+
 func (t *Type) WalkRefs(cb RefCallback) {
 
 }

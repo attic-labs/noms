@@ -25,6 +25,10 @@ func (v Bool) Hash() hash.Hash {
 	return getHash(v)
 }
 
+func (v Bool) WalkValues(cb ValueCallback) {
+
+}
+
 func (v Bool) ChildValues() []Value {
 	return nil
 }
