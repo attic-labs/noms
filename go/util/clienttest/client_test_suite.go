@@ -23,6 +23,10 @@ type ClientTestSuite struct {
 	err        *os.File
 }
 
+type ExitError struct {
+	Code int
+}
+
 func (suite *ClientTestSuite) SetupSuite() {
 	dir, err := ioutil.TempDir(os.TempDir(), "nomstest")
 	d.Chk.NoError(err)
@@ -35,6 +39,7 @@ func (suite *ClientTestSuite) SetupSuite() {
 	suite.LdbDir = path.Join(dir, "ldb")
 	suite.out = stdOutput
 	suite.err = errOutput
+	d.UtilExiter = suite
 }
 
 func (suite *ClientTestSuite) TearDownSuite() {
@@ -43,15 +48,19 @@ func (suite *ClientTestSuite) TearDownSuite() {
 	defer d.Chk.NoError(os.RemoveAll(suite.TempDir))
 }
 
-func (suite *ClientTestSuite) Run(m func(), args []string) (stdout string, stderr string) {
+// MustRun is a wrapper around Run that will panic on Exit or Panic
+func (suite *ClientTestSuite) MustRun(m func(), args []string) (stdout string, stderr string) {
 	var err interface{}
-	if stdout, stderr, err = suite.RunSafe(m, args); err != nil {
+	if stdout, stderr, err = suite.Run(m, args); err != nil {
 		panic(err)
 	}
 	return
 }
 
-func (suite *ClientTestSuite) RunSafe(m func(), args []string) (stdout string, stderr string, mainErr interface{}) {
+// Run will execute a function passing to it commandline args, and captures stdout,stderr.
+// If m()  panics the panic is caught, and returned with recoveredError
+// If m() calls os.Exit() m() will panic and return ExitError with recoveredError
+func (suite *ClientTestSuite) Run(m func(), args []string) (stdout string, stderr string, recoveredErr interface{}) {
 	origArgs := os.Args
 	origOut := os.Stdout
 	origErr := os.Stderr
@@ -61,7 +70,7 @@ func (suite *ClientTestSuite) RunSafe(m func(), args []string) (stdout string, s
 	os.Stderr = suite.err
 
 	defer func() {
-		mainErr = recover()
+		recoveredErr = recover()
 		_, err := suite.out.Seek(0, 0)
 		d.Chk.NoError(err)
 		capturedOut, err := ioutil.ReadAll(os.Stdout)
@@ -95,5 +104,5 @@ func (suite *ClientTestSuite) RunSafe(m func(), args []string) (stdout string, s
 
 // Mock os.Exit() implementation for use during testing.
 func (suite *ClientTestSuite) Exit(status int) {
-	suite.ExitStatus = status
+	panic(ExitError{status})
 }
