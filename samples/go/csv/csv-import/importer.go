@@ -136,10 +136,8 @@ func main() {
 	cr := csv.NewCSVReader(r, comma)
 	err = csv.SkipRecords(cr, *skipRecords)
 
-	if err != nil {
-		if err.Error() == "EOF" {
-			err = fmt.Errorf("skip-records skipped past EOF")
-		}
+	if err == io.EOF {
+		err = fmt.Errorf("skip-records skipped past EOF")
 	}
 	d.CheckErrorNoUsage(err)
 
