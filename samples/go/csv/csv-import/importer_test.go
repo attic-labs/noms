@@ -262,7 +262,7 @@ func (s *testSuite) TestCSVImporterWithInvalidExternalHeader() {
 	defer input.Close()
 	defer os.Remove(input.Name())
 
-	_, err = input.WriteString("7,8\n")
+	_, err = input.WriteString("7#8\n")
 	d.Chk.NoError(err)
 
 	setName := "csv"
