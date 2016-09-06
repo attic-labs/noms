@@ -36,7 +36,7 @@ func (s *bgSuite) TestBlobGet() {
 
 	hashSpec := fmt.Sprintf("%s::#%s", s.TempDir, hash.TargetHash().String())
 	filePath := filepath.Join(s.TempDir, "out")
-	s.Run(main, []string{hashSpec, filePath})
+	s.MustRun(main, []string{hashSpec, filePath})
 
 	fileBytes, err := ioutil.ReadFile(filePath)
 	s.NoError(err)
