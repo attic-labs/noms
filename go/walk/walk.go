@@ -33,7 +33,6 @@ func AllP(v types.Value, vr types.ValueReader, cb AllCallback, concurrency int) 
 		return
 	}, concurrency)
 }
-
 func doTreeWalkP(v types.Value, vr types.ValueReader, cb SomeCallback, concurrency int) {
 	rq := newRefQueue()
 	f := newFailure()

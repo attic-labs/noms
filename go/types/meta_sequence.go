@@ -120,6 +120,13 @@ func (ms metaSequenceObject) valueReader() ValueReader {
 	return ms.vr
 }
 
+func (ms metaSequenceObject) WalkRefs(cb RefCallback) {
+	for _, tuple := range ms.tuples {
+		cb(&tuple.ref)
+	}
+
+}
+
 func (ms metaSequenceObject) Chunks() []Ref {
 	chunks := make([]Ref, len(ms.tuples))
 	for i, tuple := range ms.tuples {
@@ -262,6 +269,10 @@ func (es emptySequence) numLeaves() uint64 {
 
 func (es emptySequence) valueReader() ValueReader {
 	return nil
+}
+
+func (es emptySequence) WalkRefs(cb RefCallback) {
+
 }
 
 func (es emptySequence) Chunks() (chunks []Ref) {

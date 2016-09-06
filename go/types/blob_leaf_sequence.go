@@ -42,6 +42,10 @@ func (bl blobLeafSequence) valueReader() ValueReader {
 	return bl.vr
 }
 
+func (bl blobLeafSequence) WalkRefs(cb RefCallback) {
+
+}
+
 func (bl blobLeafSequence) Chunks() []Ref {
 	return []Ref{}
 }

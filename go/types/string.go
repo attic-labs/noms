@@ -27,7 +27,9 @@ func (s String) Hash() hash.Hash {
 func (fs String) ChildValues() []Value {
 	return nil
 }
+func (fs String) WalkRefs(RefCallback) {
 
+}
 func (fs String) Chunks() []Ref {
 	return nil
 }

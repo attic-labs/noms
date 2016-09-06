@@ -101,6 +101,10 @@ func (s Set) ChildValues() (values []Value) {
 	return
 }
 
+func (s Set) WalkRefs(cb RefCallback) {
+	s.seq.WalkRefs(cb)
+}
+
 func (s Set) Chunks() []Ref {
 	return s.seq.Chunks()
 }

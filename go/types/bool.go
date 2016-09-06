@@ -21,13 +21,16 @@ func (v Bool) Less(other Value) bool {
 	}
 	return true
 }
-
 func (v Bool) Hash() hash.Hash {
 	return getHash(v)
 }
 
 func (v Bool) ChildValues() []Value {
 	return nil
+}
+
+func (v Bool) WalkRefs(cb RefCallback) {
+
 }
 
 func (v Bool) Chunks() []Ref {

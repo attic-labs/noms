@@ -116,6 +116,10 @@ func (m Map) ChildValues() (values []Value) {
 	return
 }
 
+func (m Map) WalkRefs(cb RefCallback) {
+	m.seq.WalkRefs(cb)
+}
+
 func (m Map) Chunks() []Ref {
 	return m.seq.Chunks()
 }

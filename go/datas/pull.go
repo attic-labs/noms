@@ -5,6 +5,7 @@
 package datas
 
 import (
+	"fmt"
 	"sort"
 	"sync"
 
@@ -231,6 +232,20 @@ func traverseSource(srcRef types.Ref, srcDB, sinkDB Database) traverseResult {
 		v := types.DecodeValue(c, srcDB)
 		d.Chk.True(v != nil, "Expected decoded chunk to be non-nil.")
 		sinkDB.validatingBatchStore().SchedulePut(c, srcRef.Height(), types.Hints{})
+		//return traverseResult{h, v.Chunks(), len(c.Data())}j
+		var chunks []types.Ref
+		callback := func(ref *types.Ref) {
+			chunks = append(chunks, *ref)
+		}
+		types.WalkRefs(v, srcDB, callback, 1, false)
+		fmt.Println("Same Chunk Count", len(chunks), len(v.Chunks()))
+		for _, r := range chunks {
+			fmt.Println("new chunks", r.TargetHash().String())
+		}
+		for _, r := range v.Chunks() {
+			fmt.Println("old chunks", r.TargetHash().String())
+		}
+		//return traverseResult{h, chunks, len(c.Data())}
 		return traverseResult{h, v.Chunks(), len(c.Data())}
 	}
 	return traverseResult{}

@@ -101,6 +101,10 @@ func (t *Type) ChildValues() (res []Value) {
 	return
 }
 
+func (t *Type) WalkRefs(cb RefCallback) {
+
+}
+
 func (t *Type) Chunks() (chunks []Ref) {
 	return
 }

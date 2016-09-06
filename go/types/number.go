@@ -34,6 +34,10 @@ func (v Number) Chunks() []Ref {
 	return nil
 }
 
+func (v Number) WalkRefs(RefCallback) {
+
+}
+
 func (v Number) Type() *Type {
 	return NumberType
 }

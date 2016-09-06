@@ -82,6 +82,10 @@ func (l List) ChildValues() (values []Value) {
 	return
 }
 
+func (l List) WalkRefs(cb RefCallback) {
+	l.seq.WalkRefs(cb)
+}
+
 func (l List) Chunks() []Ref {
 	return l.seq.Chunks()
 }

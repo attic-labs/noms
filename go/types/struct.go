@@ -80,6 +80,13 @@ func (s Struct) ChildValues() []Value {
 	return s.values
 }
 
+func (s Struct) WalkRefs(cb RefCallback) {
+	for _, v := range s.values {
+		v.WalkRefs(cb)
+	}
+
+}
+
 func (s Struct) Chunks() (chunks []Ref) {
 	chunks = append(chunks, s.t.Chunks()...)
 	for _, v := range s.values {

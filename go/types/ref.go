@@ -71,6 +71,11 @@ func (r Ref) ChildValues() []Value {
 	return nil
 }
 
+func (r Ref) WalkRefs(cb RefCallback) {
+	// TODO check
+	cb(&r)
+}
+
 func (r Ref) Chunks() (chunks []Ref) {
 	return append(chunks, r)
 }
