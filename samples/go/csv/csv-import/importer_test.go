@@ -228,6 +228,7 @@ func (s *testSuite) TestCSVImporterWithPipe() {
 	s.Equal(types.String("1"), st.Get("a"))
 	s.Equal(types.Number(2), st.Get("b"))
 }
+
 func (s *testSuite) TestCSVImporterWithExternalHeader() {
 	input, err := ioutil.TempFile(s.TempDir, "")
 	d.Chk.NoError(err)
@@ -288,7 +289,6 @@ func (s *testSuite) TestCSVImporterWithInvalidNumColumnTypeSpec() {
 	s.Equal("", stdout)
 	s.Equal("error: Invalid column-types specified, column types do not correspond to number of headers\n", stderr)
 	s.Equal(clienttest.ExitError{-1}, exitErr)
-
 }
 
 func (s *testSuite) TestCSVImportSkipRecords() {
