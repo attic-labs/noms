@@ -114,6 +114,12 @@ func walkRefP(v Value, vr ValueReader, cb RefCallback, concurrency int, deep boo
 
 }
 
+//addToWorkQueue
+//processWork
+//paralellism
+//initialize
+
+//initialize()
 func DoTreeWalkP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep bool) {
 	rq := newRefQueue()
 	f := newFailure()
