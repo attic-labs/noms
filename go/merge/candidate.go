@@ -11,12 +11,15 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
-// candidate represents a collection that is a candidate to be merged. This interface exists to wrap Maps, Sets and Structs with a common API so that threeWayOrderedSequenceMerge() can remain agnostic to which kind of collections it's actually working with.
+// candidate represents a collection that is a candidate to be merged. This
+// interface exists to wrap Maps, Sets and Structs with a common API so that
+// threeWayOrderedSequenceMerge() can remain agnostic to which kind of
+// collections it's actually working with.
 type candidate interface {
 	diff(parent candidate, change chan<- types.ValueChanged, stop <-chan struct{})
 	get(k types.Value) types.Value
 	pathConcat(change types.ValueChanged, path types.Path) (out types.Path)
-	toValue() types.Value
+	getValue() types.Value
 }
 
 type mapCandidate struct {
@@ -41,7 +44,7 @@ func (mc mapCandidate) pathConcat(change types.ValueChanged, path types.Path) (o
 	return
 }
 
-func (mc mapCandidate) toValue() types.Value {
+func (mc mapCandidate) getValue() types.Value {
 	return mc.m
 }
 
@@ -67,7 +70,7 @@ func (sc setCandidate) pathConcat(change types.ValueChanged, path types.Path) (o
 	return
 }
 
-func (sc setCandidate) toValue() types.Value {
+func (sc setCandidate) getValue() types.Value {
 	return sc.s
 }
 
@@ -94,6 +97,6 @@ func (sc structCandidate) pathConcat(change types.ValueChanged, path types.Path)
 	return append(out, types.NewFieldPath(string(str)))
 }
 
-func (sc structCandidate) toValue() types.Value {
+func (sc structCandidate) getValue() types.Value {
 	return sc.s
 }

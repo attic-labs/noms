@@ -133,14 +133,14 @@ func cliResolve(in io.Reader, out io.Writer, aType, bType types.DiffChangeType, 
 			}
 			switch a := a.(type) {
 			case types.Bool:
-				return aType, types.Bool(bool(a) || bool(b.(types.Bool))), true
+				merged = types.Bool(bool(a) || bool(b.(types.Bool)))
 			case types.Number:
-				return aType, types.Number(float64(a) + float64(b.(types.Number))), true
+				merged = types.Number(float64(a) + float64(b.(types.Number)))
 			case types.String:
-				concatenated := string(a) + string(b.(types.String))
-				fmt.Fprintln(out, "Replacing with", concatenated)
-				return aType, types.String(concatenated), true
+				merged = types.String(string(a) + string(b.(types.String)))
 			}
+			fmt.Fprintln(out, "Replacing with", types.EncodedValue(merged))
+			return aType, merged, true
 		}
 	}
 }

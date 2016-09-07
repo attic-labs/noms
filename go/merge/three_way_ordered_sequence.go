@@ -60,12 +60,12 @@ func (m *merger) threeWayOrderedSequenceMerge(a, b, parent candidate, apply appl
 
 		change, mergedVal, err := m.mergeChanges(aChange, bChange, a, b, parent, apply, path)
 		if err != nil {
-			return parent.toValue(), err
+			return parent.getValue(), err
 		}
 		merged = apply(merged, change, mergedVal)
 		aChange, bChange = types.ValueChanged{}, types.ValueChanged{}
 	}
-	return merged.toValue(), nil
+	return merged.getValue(), nil
 }
 
 func (m *merger) mergeChanges(aChange, bChange types.ValueChanged, a, b, p candidate, apply applyFunc, path types.Path) (change types.ValueChanged, mergedVal types.Value, err error) {
