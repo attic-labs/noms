@@ -25,28 +25,20 @@ type RefCallback func(r *Ref)
 
 // SomeP recursively walks over all Values reachable from r and calls cb on them. If cb ever returns true, the walk will stop recursing on the current ref. If |concurrency| > 1, it is the callers responsibility to make ensure that |cb| is threadsafe.
 func SomeP(v Value, vr ValueReader, cb SomeCallback, concurrency int) {
-	doTreeWalkP(v, vr, cb, concurrency, true)
+	DoTreeWalkP(v, vr, cb, concurrency, true)
 }
 
 // AllP recursively walks over all Values reachable from r and calls cb on them. If |concurrency| > 1, it is the callers responsibility to make ensure that |cb| is threadsafe.
 func AllP(v Value, vr ValueReader, cb AllCallback, concurrency int) {
-	doTreeWalkP(v, vr, func(v Value, r *Ref) (skip bool) {
+	DoTreeWalkP(v, vr, func(v Value, r *Ref) (skip bool) {
 		cb(v, r)
 		return
 	}, concurrency, true)
 }
 
 func WalkRefs(target Value, vr ValueReader, cb RefCallback, concurrency int, deep bool) {
-	callback := func(v Value, r *Ref) bool {
-		if !target.Equals(v) {
-			if sr, ok := v.(Ref); ok {
-				fmt.Println("ref found")
-				cb(&sr)
-			}
-		}
-		return false
-	}
-	doRefWalkP(target, vr, callback, 1, true)
+
+	walkRefP(target, vr, cb, 1, deep)
 
 }
 
@@ -57,30 +49,27 @@ func WalkValues(target Value, vr ValueReader, cb ValueCallback, concurrency int,
 		}
 		return false
 	}
-	doTreeWalkP(target, vr, callback, concurrency, deep)
+	DoTreeWalkP(target, vr, callback, concurrency, deep)
 	return
 }
 
-func walkRefP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep bool) {
+func walkRefP(v Value, vr ValueReader, cb RefCallback, concurrency int, deep bool) {
 	rq := newRefQueue()
 	f := newFailure()
 
 	visited := map[hash.Hash]bool{}
 	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
-	var valueCb func(v Value)
+
 	processVal := func(v Value, next bool) {
-		if sr, ok := v.(Ref); ok {
-			wg.Add(1)
-			rq.tail() <- sr
-		}
-		if next == true {
-			v.WalkValues(valueCb)
+		if next {
+			v.WalkRefs(func(ref *Ref) {
+				wg.Add(1)
+				rq.tail() <- *ref
+			})
 		}
 	}
-	valueCb = func(v Value) {
-		processVal(v, deep)
-	}
+
 	processRef := func(r Ref) {
 		defer wg.Done()
 
@@ -93,103 +82,14 @@ func walkRefP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep bo
 			return
 		}
 
-		target := r.TargetHash()
-		v := vr.ReadValue(target)
-		if v == nil {
-			f.fail(fmt.Errorf("Attempt to visit absent ref:%s", target.String()))
-			return
-		}
-
 		if !deep {
-			cb(v, &r)
+			cb(&r)
 			return
 		} else {
-			fmt.Println("never call this")
-			processVal(v, &r, deep, 99)
-		}
-
-	}
-
-}
-
-func doRefWalkP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep bool) {
-	rq := newRefQueue()
-	f := newFailure()
-
-	visited := map[hash.Hash]bool{}
-	mu := sync.Mutex{}
-	wg := sync.WaitGroup{}
-	fmt.Println("head item processing this: ", KindToString[v.Type().Kind()])
-	var processVal func(v Value, r *Ref, next bool, count int)
-	processVal = func(v Value, r *Ref, next bool, count int) {
-		if cb(v, r) || !next {
-			return
-		}
-
-		if sr, ok := v.(Ref); ok {
-			wg.Add(1)
-			rq.tail() <- sr
-		} else {
-			switch coll := v.(type) {
-			case List:
-				coll.IterAll(func(c Value, index uint64) {
-					fmt.Println("list processing this: ", KindToString[c.Type().Kind()], index)
-					processVal(c, nil, deep, count+1)
-				})
-			case Set:
-				index := 0
-				coll.IterAll(func(c Value) {
-					index++
-					fmt.Println("set processing this: ", KindToString[c.Type().Kind()], index)
-					processVal(c, nil, deep, count+1)
-				})
-			case Map:
-				index := 0
-				coll.IterAll(func(k, c Value) {
-					index++
-					fmt.Println("map processing this: ", KindToString[c.Type().Kind()], index)
-					processVal(k, nil, deep, count+1)
-					processVal(c, nil, deep, count+1)
-				})
-			case Struct:
-				index := 0
-				for _, c := range coll.values {
-					index++
-					fmt.Println("struct processing this: ", KindToString[c.Type().Kind()], index)
-					processVal(c, nil, true, count+1)
-				}
-			default:
-				v.WalkRefs(cb)
-			}
-		}
-	}
-
-	processRef := func(r Ref) {
-		defer wg.Done()
-		fmt.Println("found ref")
-
-		mu.Lock()
-		skip := visited[r.TargetHash()]
-		visited[r.TargetHash()] = true
-		mu.Unlock()
-
-		if skip || f.didFail() {
-			return
-		}
-
-		target := r.TargetHash()
-		v := vr.ReadValue(target)
-		if v == nil {
-			f.fail(fmt.Errorf("Attempt to visit absent ref:%s", target.String()))
-			return
-		}
-
-		if !deep {
-			cb(v, &r)
-			return
-		} else {
-			fmt.Println("never call this")
-			processVal(v, &r, deep, 99)
+			cb(&r)
+			target := r.TargetHash()
+			v := vr.ReadValue(target)
+			processVal(v, deep)
 		}
 
 	}
@@ -203,16 +103,18 @@ func doRefWalkP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep 
 	for i := 0; i < concurrency; i++ {
 		go iter()
 	}
+	//Process initial value
+	processVal(v, true)
 
-	processVal(v, nil, true, 0)
 	wg.Wait()
 
 	rq.close()
 
 	f.checkNotFailed()
+
 }
 
-func doTreeWalkP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep bool) {
+func DoTreeWalkP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep bool) {
 	rq := newRefQueue()
 	f := newFailure()
 
@@ -220,8 +122,14 @@ func doTreeWalkP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep
 	mu := sync.Mutex{}
 	wg := sync.WaitGroup{}
 	fmt.Println("head item processing this: ", KindToString[v.Type().Kind()])
-	var processVal func(v Value, r *Ref, next bool, count int)
-	processVal = func(v Value, r *Ref, next bool, count int) {
+
+	var processVal func(v Value, r *Ref, next bool)
+
+	valueCb := func(v Value) {
+		processVal(v, nil, deep)
+	}
+
+	processVal = func(v Value, r *Ref, next bool) {
 		if cb(v, r) || !next {
 			return
 		}
@@ -230,39 +138,8 @@ func doTreeWalkP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep
 			wg.Add(1)
 			rq.tail() <- sr
 		} else {
-			switch coll := v.(type) {
-			case List:
-				coll.IterAll(func(c Value, index uint64) {
-					fmt.Println("list processing this: ", KindToString[c.Type().Kind()], index)
-					processVal(c, nil, deep, count+1)
-				})
-			case Set:
-				index := 0
-				coll.IterAll(func(c Value) {
-					index++
-					fmt.Println("set processing this: ", KindToString[c.Type().Kind()], index)
-					processVal(c, nil, deep, count+1)
-				})
-			case Map:
-				index := 0
-				coll.IterAll(func(k, c Value) {
-					index++
-					fmt.Println("map processing this: ", KindToString[c.Type().Kind()], index)
-					processVal(k, nil, deep, count+1)
-					processVal(c, nil, deep, count+1)
-				})
-			case Struct:
-				index := 0
-				for _, c := range coll.values {
-					index++
-					fmt.Println("struct processing this: ", KindToString[c.Type().Kind()], index)
-					processVal(c, nil, true, count+1)
-				}
-			default:
-				for _, c := range v.ChildValues() {
-					processVal(c, nil, deep, count+1)
-				}
-			}
+			v.WalkValues(valueCb)
+
 		}
 	}
 
@@ -290,8 +167,7 @@ func doTreeWalkP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep
 			cb(v, &r)
 			return
 		} else {
-			fmt.Println("never call this")
-			processVal(v, &r, deep, 99)
+			processVal(v, &r, deep)
 		}
 
 	}
@@ -306,7 +182,7 @@ func doTreeWalkP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep
 		go iter()
 	}
 
-	processVal(v, nil, true, 0)
+	processVal(v, nil, true)
 	wg.Wait()
 
 	rq.close()
