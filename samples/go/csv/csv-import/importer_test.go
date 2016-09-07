@@ -257,6 +257,40 @@ func (s *testSuite) TestCSVImporterWithExternalHeader() {
 	s.Equal(types.Number(8), st.Get("y"))
 }
 
+func (s *testSuite) TestCSVImporterWithInvalidExternalHeader() {
+	input, err := ioutil.TempFile(s.TempDir, "")
+	d.Chk.NoError(err)
+	defer input.Close()
+	defer os.Remove(input.Name())
+
+	_, err = input.WriteString("7#8\n")
+	d.Chk.NoError(err)
+
+	setName := "csv"
+	dataspec := spec.CreateValueSpecString("ldb", s.LdbDir, setName)
+	stdout, stderr, exitErr := s.Run(main, []string{"--no-progress", "--column-types", "String,Number", "--header", "x,x", input.Name(), dataspec})
+	s.Equal("", stdout)
+	s.Equal("error: Invalid headers specified, headers must be unique\n", stderr)
+	s.Equal(clienttest.ExitError{-1}, exitErr)
+}
+
+func (s *testSuite) TestCSVImporterWithInvalidNumColumnTypeSpec() {
+	input, err := ioutil.TempFile(s.TempDir, "")
+	d.Chk.NoError(err)
+	defer input.Close()
+	defer os.Remove(input.Name())
+
+	_, err = input.WriteString("7,8\n")
+	d.Chk.NoError(err)
+
+	setName := "csv"
+	dataspec := spec.CreateValueSpecString("ldb", s.LdbDir, setName)
+	stdout, stderr, exitErr := s.Run(main, []string{"--no-progress", "--column-types", "String", "--header", "x,y", input.Name(), dataspec})
+	s.Equal("", stdout)
+	s.Equal("error: Invalid column-types specified, column types do not correspond to number of headers\n", stderr)
+	s.Equal(clienttest.ExitError{-1}, exitErr)
+}
+
 func (s *testSuite) TestCSVImportSkipRecords() {
 	input, err := ioutil.TempFile(s.TempDir, "")
 	d.Chk.NoError(err)

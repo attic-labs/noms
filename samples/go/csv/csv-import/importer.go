@@ -114,7 +114,7 @@ func main() {
 		r = progressreader.New(r, getStatusPrinter(size))
 	}
 
-	comma, err := csv.StringToRune(*delimiter)
+	delim, err := csv.StringToRune(*delimiter)
 	d.CheckErrorNoUsage(err)
 
 	var dest int
@@ -133,7 +133,7 @@ func main() {
 		return
 	}
 
-	cr := csv.NewCSVReader(r, comma)
+	cr := csv.NewCSVReader(r, delim)
 	err = csv.SkipRecords(cr, *skipRecords)
 
 	if err == io.EOF {
@@ -146,12 +146,23 @@ func main() {
 		headers, err = cr.Read()
 		d.PanicIfError(err)
 	} else {
-		headers = strings.Split(*header, string(comma))
+		headers = strings.Split(*header, ",")
+	}
+
+	uniqueHeaders := make(map[string]bool)
+	for _, header := range headers {
+		uniqueHeaders[header] = true
+	}
+	if len(uniqueHeaders) != len(headers) {
+		d.CheckErrorNoUsage(fmt.Errorf("Invalid headers specified, headers must be unique"))
 	}
 
 	kinds := []types.NomsKind{}
 	if *columnTypes != "" {
 		kinds = csv.StringsToKinds(strings.Split(*columnTypes, ","))
+		if len(kinds) != len(uniqueHeaders) {
+			d.CheckErrorNoUsage(fmt.Errorf("Invalid column-types specified, column types do not correspond to number of headers"))
+		}
 	}
 
 	ds, err := spec.GetDataset(flag.Arg(dataSetArgN))
