@@ -61,12 +61,10 @@ def run_globs(staging_dir, globs, exclude):
 
 
 def rename_with_hash(f, to_dir, rename_dict):
-    digest = ''
     with open(f) as fh:
         sha = hashlib.sha256()
         sha.update(fh.read())
         digest = sha.hexdigest()
-        # print digest[:20]
     basename = os.path.basename(f)
     name, ext = os.path.splitext(basename)
     new_name = '%s.%s%s' % (name, digest[:20], ext)
