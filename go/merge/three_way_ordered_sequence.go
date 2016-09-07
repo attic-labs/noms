@@ -11,9 +11,9 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
-type applyFunc func(types.Value, types.ValueChanged, types.Value) types.Value
+type applyFunc func(candidate, types.ValueChanged, types.Value) candidate
 
-func (m *merger) threeWayOrderedSequenceMerge(a, b, parent candidate, apply applyFunc, path types.Path) (merged types.Value, err error) {
+func (m *merger) threeWayOrderedSequenceMerge(a, b, parent candidate, apply applyFunc, path types.Path) (types.Value, error) {
 	aChangeChan, bChangeChan := make(chan types.ValueChanged), make(chan types.ValueChanged)
 	aStopChan, bStopChan := make(chan struct{}, 1), make(chan struct{}, 1)
 
@@ -29,7 +29,7 @@ func (m *merger) threeWayOrderedSequenceMerge(a, b, parent candidate, apply appl
 	defer stopAndDrain(aStopChan, aChangeChan)
 	defer stopAndDrain(bStopChan, bChangeChan)
 
-	merged = parent
+	merged := parent
 	aChange, bChange := types.ValueChanged{}, types.ValueChanged{}
 	for {
 		// Get the next change from both a and b. If either diff(a, parent) or diff(b, parent) is complete, aChange or bChange will get an empty types.ValueChanged containing a nil Value. Generally, though, this allows us to proceed through both diffs in (key) order, considering the "current" change from both diffs at the same time.
@@ -60,12 +60,12 @@ func (m *merger) threeWayOrderedSequenceMerge(a, b, parent candidate, apply appl
 
 		change, mergedVal, err := m.mergeChanges(aChange, bChange, a, b, parent, apply, path)
 		if err != nil {
-			return parent, err
+			return parent.toValue(), err
 		}
 		merged = apply(merged, change, mergedVal)
 		aChange, bChange = types.ValueChanged{}, types.ValueChanged{}
 	}
-	return merged, nil
+	return merged.toValue(), nil
 }
 
 func (m *merger) mergeChanges(aChange, bChange types.ValueChanged, a, b, p candidate, apply applyFunc, path types.Path) (change types.ValueChanged, mergedVal types.Value, err error) {
@@ -73,8 +73,8 @@ func (m *merger) mergeChanges(aChange, bChange types.ValueChanged, a, b, p candi
 	aValue, bValue := a.get(aChange.V), b.get(bChange.V)
 	// If the two diffs generate different kinds of changes at the same key, conflict.
 	if aChange.ChangeType != bChange.ChangeType {
-		if change, mergedVal, ok := m.resolve(aChange, bChange, aValue, bValue, path); ok {
-			return change, mergedVal, nil
+		if change, mergedVal, ok := m.resolve(aChange.ChangeType, bChange.ChangeType, aValue, bValue, path); ok {
+			return types.ValueChanged{change, aChange.V}, mergedVal, nil
 		}
 		return change, nil, newMergeConflict("Conflict:\n%s\nvs\n%s\n", describeChange(aChange), describeChange(bChange))
 	}
@@ -94,8 +94,8 @@ func (m *merger) mergeChanges(aChange, bChange types.ValueChanged, a, b, p candi
 		return change, nil, err
 	}
 
-	if change, mergedVal, ok := m.resolve(aChange, bChange, aValue, bValue, path); ok {
-		return change, mergedVal, nil
+	if change, mergedVal, ok := m.resolve(aChange.ChangeType, bChange.ChangeType, aValue, bValue, path); ok {
+		return types.ValueChanged{change, aChange.V}, mergedVal, nil
 	}
 	return change, nil, newMergeConflict("Conflict:\n%s = %s\nvs\n%s = %s", describeChange(aChange), types.EncodedValue(aValue), describeChange(bChange), types.EncodedValue(bValue))
 }

@@ -11,9 +11,19 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
-type ResolveFunc func(aChange, bChange types.ValueChanged, a, b types.Value, path types.Path) (change types.ValueChanged, merged types.Value, ok bool)
+// ResolveFunc is the type for custom merge-conflict resolution callbacks.
+// When the merge algorithm encounters two non-mergeable changes (aChange and
+// bChange) at the same path, it calls the ResolveFunc passed into ThreeWay().
+// The callback gets the types of the two incompatible changes (added, changed
+// or removed) and the two Values that could not be merged (if any). If the
+// ResolveFunc cannot device a resolution, ok should be false upon return and
+// the other return values are undefined. If the conflict can be resolved, the
+// function should return the appropriate type of change to apply, the new value
+// to be used (if any), and true.
+type ResolveFunc func(aChange, bChange types.DiffChangeType, a, b types.Value, path types.Path) (change types.DiffChangeType, merged types.Value, ok bool)
 
-// ErrMergeConflict indicates that a merge attempt failed and must be resolved manually for the provided reason.
+// ErrMergeConflict indicates that a merge attempt failed and must be resolved
+// manually for the provided reason.
 type ErrMergeConflict struct {
 	msg string
 }
@@ -26,23 +36,25 @@ func newMergeConflict(format string, args ...interface{}) *ErrMergeConflict {
 	return &ErrMergeConflict{fmt.Sprintf(format, args...)}
 }
 
-// ThreeWay attempts a three-way merge between two candidates and a common ancestor.
-// It considers the three of them recursively, applying some simple rules to identify conflicts:
-//  - If any of the three nodes are different NomsKinds: conflict
+// ThreeWay attempts a three-way merge between two candidates and a common
+// ancestor.
+// It considers the three of them recursively, applying some simple rules to
+// identify conflicts:
+//  - If any of the three nodes are different NomsKinds
 //  - If we are dealing with a map:
-//    - If the same key is both removed and inserted wrt parent: conflict
-//    - If the same key is inserted wrt parent, but with different values: conflict
+//    - same key is both removed and inserted wrt parent: conflict
+//    - same key is inserted wrt parent, but with different values: conflict
 //  - If we are dealing with a struct:
-//    - If the same field is both removed and inserted wrt parent: conflict
-//    - If the same field is inserted wrt parent, but with different values: conflict
+//    - same field is both removed and inserted wrt parent: conflict
+//    - same field is inserted wrt parent, but with different values: conflict
 //  - If we are dealing with a list:
-//    - If the same index is both removed and inserted wrt parent: conflict
-//    - If the same index is inserted wrt parent, but with different values: conflict
+//    - same index is both removed and inserted wrt parent: conflict
+//    - same index is inserted wrt parent, but with different values: conflict
 //  - If we are dealing with a set:
 //    - `merged` is essentially union(a, b, parent)
 //
 // All other modifications are allowed.
-// ThreeWay() works on types.Map, types.Set, and types.Struct.
+// ThreeWay() works on types.List, types.Map, types.Set, and types.Struct.
 func ThreeWay(a, b, parent types.Value, vwr types.ValueReadWriter, resolve ResolveFunc, progress chan struct{}) (merged types.Value, err error) {
 	if a == nil && b == nil {
 		return parent, nil
@@ -76,7 +88,7 @@ type merger struct {
 	progress chan<- struct{}
 }
 
-func defaultResolve(aChange, bChange types.ValueChanged, a, b types.Value, p types.Path) (change types.ValueChanged, merged types.Value, ok bool) {
+func defaultResolve(aChange, bChange types.DiffChangeType, a, b types.Value, p types.Path) (change types.DiffChangeType, merged types.Value, ok bool) {
 	return
 }
 
@@ -130,17 +142,13 @@ func (m *merger) threeWay(a, b, parent types.Value, path types.Path) (merged typ
 }
 
 func (m *merger) threeWayMapMerge(a, b, parent types.Map, path types.Path) (merged types.Value, err error) {
-	type mapLike interface {
-		Set(k, v types.Value) types.Map
-		Remove(k types.Value) types.Map
-	}
-	apply := func(target types.Value, change types.ValueChanged, newVal types.Value) types.Value {
+	apply := func(target candidate, change types.ValueChanged, newVal types.Value) candidate {
 		defer updateProgress(m.progress)
 		switch change.ChangeType {
 		case types.DiffChangeAdded, types.DiffChangeModified:
-			return target.(mapLike).Set(change.V, newVal)
+			return mapCandidate{target.toValue().(types.Map).Set(change.V, newVal)}
 		case types.DiffChangeRemoved:
-			return target.(mapLike).Remove(change.V)
+			return mapCandidate{target.toValue().(types.Map).Remove(change.V)}
 		default:
 			panic("Not Reached")
 		}
@@ -149,17 +157,13 @@ func (m *merger) threeWayMapMerge(a, b, parent types.Map, path types.Path) (merg
 }
 
 func (m *merger) threeWaySetMerge(a, b, parent types.Set, path types.Path) (merged types.Value, err error) {
-	type setLike interface {
-		Insert(values ...types.Value) types.Set
-		Remove(valus ...types.Value) types.Set
-	}
-	apply := func(target types.Value, change types.ValueChanged, ignored types.Value) types.Value {
+	apply := func(target candidate, change types.ValueChanged, newVal types.Value) candidate {
 		defer updateProgress(m.progress)
 		switch change.ChangeType {
 		case types.DiffChangeAdded, types.DiffChangeModified:
-			return target.(setLike).Insert(change.V)
+			return setCandidate{target.toValue().(types.Set).Insert(newVal)}
 		case types.DiffChangeRemoved:
-			return target.(setLike).Remove(change.V)
+			return setCandidate{target.toValue().(types.Set).Remove(newVal)}
 		default:
 			panic("Not Reached")
 		}
@@ -168,103 +172,27 @@ func (m *merger) threeWaySetMerge(a, b, parent types.Set, path types.Path) (merg
 }
 
 func (m *merger) threeWayStructMerge(a, b, parent types.Struct, path types.Path) (merged types.Value, err error) {
-	type structLike interface {
-		Get(string) types.Value
-	}
-	apply := func(target types.Value, change types.ValueChanged, newVal types.Value) types.Value {
+	apply := func(target candidate, change types.ValueChanged, newVal types.Value) candidate {
 		defer updateProgress(m.progress)
 		// Right now, this always iterates over all fields to create a new Struct, because there's no API for adding/removing a field from an existing struct type.
+		targetVal := target.toValue().(types.Struct)
 		if f, ok := change.V.(types.String); ok {
 			field := string(f)
 			data := types.StructData{}
-			desc := target.Type().Desc.(types.StructDesc)
+			desc := targetVal.Type().Desc.(types.StructDesc)
 			desc.IterFields(func(name string, t *types.Type) {
 				if name != field {
-					data[name] = target.(structLike).Get(name)
+					data[name] = targetVal.Get(name)
 				}
 			})
 			if change.ChangeType == types.DiffChangeAdded || change.ChangeType == types.DiffChangeModified {
 				data[field] = newVal
 			}
-			return types.NewStruct(desc.Name, data)
+			return structCandidate{types.NewStruct(desc.Name, data)}
 		}
 		panic(fmt.Errorf("Bad key type in diff: %s", change.V.Type().Describe()))
 	}
 	return m.threeWayOrderedSequenceMerge(structCandidate{a}, structCandidate{b}, structCandidate{parent}, apply, path)
-}
-
-type candidate interface {
-	types.Value
-	diff(parent types.Value, change chan<- types.ValueChanged, stop <-chan struct{})
-	get(k types.Value) types.Value
-	pathConcat(change types.ValueChanged, path types.Path) (out types.Path)
-}
-
-type mapCandidate struct {
-	types.Map
-}
-
-func (mc mapCandidate) diff(p types.Value, change chan<- types.ValueChanged, stop <-chan struct{}) {
-	mc.Diff(p.(mapCandidate).Map, change, stop)
-}
-
-func (mc mapCandidate) get(k types.Value) types.Value {
-	return mc.Get(k)
-}
-
-func (mc mapCandidate) pathConcat(change types.ValueChanged, path types.Path) (out types.Path) {
-	out = append(out, path...)
-	if kind := change.V.Type().Kind(); kind == types.BoolKind || kind == types.StringKind || kind == types.NumberKind {
-		out = append(out, types.NewIndexPath(change.V))
-	} else {
-		out = append(out, types.NewHashIndexPath(change.V.Hash()))
-	}
-	return
-}
-
-type setCandidate struct {
-	types.Set
-}
-
-func (sc setCandidate) diff(p types.Value, change chan<- types.ValueChanged, stop <-chan struct{}) {
-	sc.Diff(p.(setCandidate).Set, change, stop)
-}
-
-func (sc setCandidate) get(k types.Value) types.Value {
-	return k
-}
-
-func (sc setCandidate) pathConcat(change types.ValueChanged, path types.Path) (out types.Path) {
-	out = append(out, path...)
-	if kind := change.V.Type().Kind(); kind == types.BoolKind || kind == types.StringKind || kind == types.NumberKind {
-		out = append(out, types.NewIndexPath(change.V))
-	} else {
-		out = append(out, types.NewHashIndexPath(change.V.Hash()))
-	}
-	return
-}
-
-type structCandidate struct {
-	types.Struct
-}
-
-func (sc structCandidate) diff(p types.Value, change chan<- types.ValueChanged, stop <-chan struct{}) {
-	sc.Diff(p.(structCandidate).Struct, change, stop)
-}
-
-func (sc structCandidate) get(key types.Value) types.Value {
-	if field, ok := key.(types.String); ok {
-		val, _ := sc.MaybeGet(string(field))
-		return val
-	}
-	panic(fmt.Errorf("Bad key type in diff: %s", key.Type().Describe()))
-}
-
-func (sc structCandidate) pathConcat(change types.ValueChanged, path types.Path) (out types.Path) {
-	out = append(out, path...)
-	str, ok := change.V.(types.String)
-	d.PanicIfTrue(!ok, "Field names must be strings, not %s", change.V.Type().Describe())
-	return append(out, types.NewFieldPath(string(str)))
 }
 
 func listAssert(a, b, parent types.Value) (aList, bList, pList types.List, ok bool) {

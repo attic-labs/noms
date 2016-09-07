@@ -6,10 +6,9 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
+	"io"
 	"os"
 	"regexp"
-	"time"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
@@ -82,7 +81,9 @@ func nomsMerge() error {
 				}
 			}
 		}()
-		rand.Seed(time.Now().UnixNano())
+		resolve := func(aType, bType types.DiffChangeType, a, b types.Value, path types.Path) (change types.DiffChangeType, merged types.Value, ok bool) {
+			return cliResolve(os.Stdin, os.Stdout, aType, bType, a, b, path)
+		}
 		merged, err := merge.ThreeWay(left, right, parent, db, resolve, pc)
 		d.PanicIfError(err)
 
@@ -98,7 +99,7 @@ func nomsMerge() error {
 	}))
 }
 
-func resolve(aChange, bChange types.ValueChanged, a, b types.Value, path types.Path) (change types.ValueChanged, merged types.Value, ok bool) {
+func cliResolve(in io.Reader, out io.Writer, aType, bType types.DiffChangeType, a, b types.Value, path types.Path) (change types.DiffChangeType, merged types.Value, ok bool) {
 	stringer := func(v types.Value) (s string, success bool) {
 		switch v := v.(type) {
 		case types.Bool, types.Number, types.String:
@@ -113,43 +114,35 @@ func resolve(aChange, bChange types.ValueChanged, a, b types.Value, path types.P
 	}
 
 	// TODO: Handle removes as well.
-	fmt.Printf("\nConflict at: %s\n", path.String())
-	fmt.Printf("Left:  %s\nRight: %s\n\n", left, right)
+	fmt.Fprintf(out, "\nConflict at: %s\n", path.String())
+	fmt.Fprintf(out, "Left:  %s\nRight: %s\n\n", left, right)
 	var choice rune
 	for {
-		fmt.Println("Enter 'l' to accept the left value, 'r' to accept the right value, or 'm' to mash them together")
-		_, err := fmt.Scanf("%c\n", &choice)
+		fmt.Fprintln(out, "Enter 'l' to accept the left value, 'r' to accept the right value, or 'm' to mash them together")
+		_, err := fmt.Fscanf(in, "%c\n", &choice)
 		d.PanicIfError(err)
 		switch choice {
 		case 'l', 'L':
-			return aChange, a, true
+			return aType, a, true
 		case 'r', 'R':
-			return bChange, b, true
+			return bType, b, true
 		case 'm', 'M':
 			if !a.Type().Equals(b.Type()) {
-				fmt.Printf("Sorry, can't smush a %s with a %s\n", a.Type().Describe(), b.Type().Describe())
+				fmt.Fprintf(out, "Sorry, can't merge a %s with a %s\n", a.Type().Describe(), b.Type().Describe())
+				return change, merged, false
 			}
 			switch a := a.(type) {
 			case types.Bool:
-				return aChange, types.Bool(bool(a) || bool(b.(types.Bool))), true
+				return aType, types.Bool(bool(a) || bool(b.(types.Bool))), true
 			case types.Number:
-				return aChange, types.Number(float64(a) + float64(b.(types.Number))), true
+				return aType, types.Number(float64(a) + float64(b.(types.Number))), true
 			case types.String:
-				mashed := mash(a, b.(types.String))
-				fmt.Println("Replacing with", mashed)
-				return aChange, mashed, true
+				concatenated := string(a) + string(b.(types.String))
+				fmt.Fprintln(out, "Replacing with", concatenated)
+				return aType, types.String(concatenated), true
 			}
 		}
 	}
-}
-
-func mash(a, b types.String) types.String {
-	out := append([]byte(a), []byte(b)...)
-	for i := range out {
-		j := rand.Intn(i + 1)
-		out[i], out[j] = out[j], out[i]
-	}
-	return types.String(string(out))
 }
 
 func usage() {

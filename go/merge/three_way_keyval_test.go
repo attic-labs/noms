@@ -163,9 +163,9 @@ func (s *ThreeWayKeyValMergeSuite) TestThreeWayMerge_CustomMerge() {
 
 	expectedConflictPaths := [][]string{{"k1"}, {"n1", "a"}}
 	conflictPaths := []types.Path{}
-	resolve := func(aChange, bChange types.ValueChanged, aVal, bVal types.Value, p types.Path) (change types.ValueChanged, merged types.Value, ok bool) {
+	resolve := func(aChange, bChange types.DiffChangeType, aVal, bVal types.Value, p types.Path) (change types.DiffChangeType, merged types.Value, ok bool) {
 		conflictPaths = append(conflictPaths, p)
-		if _, ok := aVal.(types.Map); ok || bChange.ChangeType == types.DiffChangeRemoved {
+		if _, ok := aVal.(types.Map); ok || bChange == types.DiffChangeRemoved {
 			return bChange, bVal, true
 		}
 		return aChange, aVal, true
