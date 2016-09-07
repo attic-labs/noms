@@ -46,50 +46,47 @@ def Main(projectName, stagingFunction):
     stagingFunction(normalized)
 
 
+def run_globs(staging_dir, globs, exclude):
+    for pattern in globs:
+        for f in glob.glob(pattern):
+            if os.path.isdir(f):
+                continue
+            from_dir, name = os.path.split(f)
+            if name in exclude:
+                continue
+            to_dir = os.path.join(staging_dir, from_dir)
+            if not os.path.exists(to_dir):
+                os.makedirs(to_dir)
+            yield (f, to_dir)
+
+
 def GlobCopier(*globs):
-    exclude = ('webpack.config.js',)
+    exclude = ['webpack.config.js']
     def stage(staging_dir):
-        for pattern in globs:
-            for f in glob.glob(pattern):
-                if os.path.isdir(f):
-                    continue
-                from_dir, name = os.path.split(f)
-                if name in exclude:
-                    continue
-                to_dir = os.path.join(staging_dir, from_dir)
-                if not os.path.exists(to_dir):
-                    os.makedirs(to_dir)
-                shutil.copy2(f, to_dir)
+        for f, to_dir in run_globs(staging_dir, globs, exclude):
+            shutil.copy2(f, to_dir)
     return stage
+
 
 def HashGlobCopier(index_file, *globs):
     exclude = ('webpack.config.js',)
     def stage(staging_dir):
         rename_dict = dict()
-        for pattern in globs:
-            for f in glob.glob(pattern):
-                if os.path.isdir(f):
-                    continue
-                from_dir, name = os.path.split(f)
-                if name in exclude:
-                    continue
-                to_dir = os.path.join(staging_dir, from_dir)
-                if not os.path.exists(to_dir):
-                    os.makedirs(to_dir)
+        for f, to_dir in run_globs(staging_dir, globs, exclude):
+            digest = ''
+            with open(f) as fh:
+                sha = hashlib.sha256()
+                sha.update(fh.read())
+                digest = sha.hexdigest()
+                # print digest[:20]
+            basename = os.path.basename(f)
+            name, ext = os.path.splitext(basename)
+            new_name = '%s.%s%s' % (name, digest[:20], ext)
+            rename_dict[basename] = new_name
+            shutil.copy2(f, to_dir)
+            shutil.move(os.path.join(to_dir, basename), os.path.join(to_dir, new_name))
 
-                digest = ''
-                with open(f) as fh:
-                    sha = hashlib.sha256()
-                    sha.update(fh.read())
-                    digest = sha.hexdigest()
-                    # print digest[:20]
-                basename = os.path.basename(f)
-                name, ext = os.path.splitext(basename)
-                new_name = '%s.%s%s' % (name, digest[:20], ext)
-                rename_dict[basename] = new_name
-                shutil.copy2(f, to_dir)
-                shutil.move(os.path.join(to_dir, basename), os.path.join(to_dir, new_name))
-
+        # Update index_file
         from_dir, name = os.path.split(index_file)
         to_dir = os.path.join(staging_dir, from_dir)
         with open(index_file, 'r') as f:
