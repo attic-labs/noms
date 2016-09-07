@@ -96,7 +96,7 @@ class TestStaging(unittest.TestCase):
         self.assertEqual(['aaa.js', 'bbb.js'], os.listdir(os.path.join(self.nested, 'x/xx')))
         self.assertEqual(['aaaa.js', 'bbbb.js'], os.listdir(os.path.join(self.nested, 'y')))
 
-    def test_HashGlobCopier(self):
+    def test_GlobCopierWithRename(self):
         files = (
                 'a.js',
                 'b.js',
@@ -140,8 +140,10 @@ class TestStaging(unittest.TestCase):
         cwd = os.getcwd()
         try:
             os.chdir(self.tempdir)
-            staging.HashGlobCopier('index.html',
-                '*.js', 'c.html', 'x/*.js', 'x/xx/*', 'y/*', 'y/*')(self.nested)
+            staging.GlobCopier(
+                '*.js', 'c.html', 'x/*.js', 'x/xx/*', 'y/*', 'y/*',
+                index_file='index.html',
+                rename=True)(self.nested)
         finally:
             os.chdir(cwd)
 

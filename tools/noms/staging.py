@@ -60,40 +60,43 @@ def run_globs(staging_dir, globs, exclude):
             yield (f, to_dir)
 
 
-def GlobCopier(*globs):
-    exclude = ['webpack.config.js']
-    def stage(staging_dir):
-        for f, to_dir in run_globs(staging_dir, globs, exclude):
-            shutil.copy2(f, to_dir)
-    return stage
+def rename_with_hash(f, to_dir, rename_dict):
+    digest = ''
+    with open(f) as fh:
+        sha = hashlib.sha256()
+        sha.update(fh.read())
+        digest = sha.hexdigest()
+        # print digest[:20]
+    basename = os.path.basename(f)
+    name, ext = os.path.splitext(basename)
+    new_name = '%s.%s%s' % (name, digest[:20], ext)
+    rename_dict[basename] = new_name
+    shutil.move(os.path.join(to_dir, basename), os.path.join(to_dir, new_name))
 
 
-def HashGlobCopier(index_file, *globs):
+def GlobCopier(*globs, **kwargs):
     exclude = ('webpack.config.js',)
+    rename = 'rename' in kwargs and kwargs['rename']
     def stage(staging_dir):
-        rename_dict = dict()
+        if rename:
+            rename_dict = dict()
         for f, to_dir in run_globs(staging_dir, globs, exclude):
-            digest = ''
-            with open(f) as fh:
-                sha = hashlib.sha256()
-                sha.update(fh.read())
-                digest = sha.hexdigest()
-                # print digest[:20]
-            basename = os.path.basename(f)
-            name, ext = os.path.splitext(basename)
-            new_name = '%s.%s%s' % (name, digest[:20], ext)
-            rename_dict[basename] = new_name
             shutil.copy2(f, to_dir)
-            shutil.move(os.path.join(to_dir, basename), os.path.join(to_dir, new_name))
+            if rename:
+                rename_with_hash(f, to_dir, rename_dict)
 
-        # Update index_file
+        # Update index_file and write it to to_dir.
+        if 'index_file' not in kwargs:
+            return
+        index_file = kwargs['index_file']
         from_dir, name = os.path.split(index_file)
         to_dir = os.path.join(staging_dir, from_dir)
         with open(index_file, 'r') as f:
             data = f.read()
-        for old_name, new_name in rename_dict.iteritems():
-            r = re.compile(r'\b%s\b' % re.escape(old_name))
-            data = r.sub(new_name, data)
+        if rename:
+            for old_name, new_name in rename_dict.iteritems():
+                r = re.compile(r'\b%s\b' % re.escape(old_name))
+                data = r.sub(new_name, data)
         with open(os.path.join(to_dir, name), 'w') as f:
             f.write(data)
 
