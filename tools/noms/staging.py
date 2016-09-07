@@ -30,16 +30,16 @@ def Main(projectName, stagingFunction):
         staging.Main('nerdosphere', staging.GlobCopier('index.html', 'styles.css', '*.js'))
     """
     parser = argparse.ArgumentParser(description='Stage build products from this directory.')
-    parser.add_argument('stagingDir',
+    parser.add_argument('staging_dir',
                         metavar='path/to/staging/directory',
                         type=_dir_path,
                         help='top-level dir into which project build products are staged')
     args = parser.parse_args()
-    projectStagingDir = os.path.join(args.stagingDir, projectName)
+    project_staging_dir = os.path.join(args.staging_dir, projectName)
 
-    normalized = os.path.realpath(projectStagingDir)
-    if not _is_sub_dir(projectStagingDir, args.stagingDir):
-        raise Exception(projectStagingDir + ' must be a subdir of ' + args.stagingDir)
+    normalized = os.path.realpath(project_staging_dir)
+    if not _is_sub_dir(project_staging_dir, args.staging_dir):
+        raise Exception(project_staging_dir + ' must be a subdir of ' + args.staging_dir)
 
     if not os.path.exists(normalized):
         os.makedirs(normalized)
@@ -48,7 +48,7 @@ def Main(projectName, stagingFunction):
 
 def GlobCopier(*globs):
     exclude = ('webpack.config.js',)
-    def stage(stagingDir):
+    def stage(staging_dir):
         for pattern in globs:
             for f in glob.glob(pattern):
                 if os.path.isdir(f):
@@ -56,7 +56,7 @@ def GlobCopier(*globs):
                 from_dir, name = os.path.split(f)
                 if name in exclude:
                     continue
-                to_dir = os.path.join(stagingDir, from_dir)
+                to_dir = os.path.join(staging_dir, from_dir)
                 if not os.path.exists(to_dir):
                     os.makedirs(to_dir)
                 shutil.copy2(f, to_dir)
@@ -64,7 +64,7 @@ def GlobCopier(*globs):
 
 def HashGlobCopier(index_file, *globs):
     exclude = ('webpack.config.js',)
-    def stage(stagingDir):
+    def stage(staging_dir):
         rename_dict = dict()
         for pattern in globs:
             for f in glob.glob(pattern):
@@ -73,7 +73,7 @@ def HashGlobCopier(index_file, *globs):
                 from_dir, name = os.path.split(f)
                 if name in exclude:
                     continue
-                to_dir = os.path.join(stagingDir, from_dir)
+                to_dir = os.path.join(staging_dir, from_dir)
                 if not os.path.exists(to_dir):
                     os.makedirs(to_dir)
 
@@ -85,19 +85,18 @@ def HashGlobCopier(index_file, *globs):
                     # print digest[:20]
                 basename = os.path.basename(f)
                 name, ext = os.path.splitext(basename)
-                new_name = name + '.' + digest[:20] + ext
+                new_name = '%s.%s%s' % (name, digest[:20], ext)
                 rename_dict[basename] = new_name
                 shutil.copy2(f, to_dir)
                 shutil.move(os.path.join(to_dir, basename), os.path.join(to_dir, new_name))
 
         from_dir, name = os.path.split(index_file)
-        to_dir = os.path.join(stagingDir, from_dir)
-        data = None
+        to_dir = os.path.join(staging_dir, from_dir)
         with open(index_file, 'r') as f:
             data = f.read()
         for old_name, new_name in rename_dict.iteritems():
-            r = re.compile(r'(\W)' + re.escape(old_name) + r'(\W)')
-            data = r.sub('\g<1>' + new_name + '\g<2>', data)
+            r = re.compile(r'\b%s\b' % re.escape(old_name))
+            data = r.sub(new_name, data)
         with open(os.path.join(to_dir, name), 'w') as f:
             f.write(data)
 
