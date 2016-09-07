@@ -22,18 +22,19 @@ type SomeCallback func(v types.Value, r *types.Ref) bool
 type AllCallback func(v types.Value, r *types.Ref)
 
 // SomeP recursively walks over all types.Values reachable from r and calls cb on them. If cb ever returns true, the walk will stop recursing on the current ref. If |concurrency| > 1, it is the callers responsibility to make ensure that |cb| is threadsafe.
-func SomeP(v types.Value, vr types.ValueReader, cb SomeCallback, concurrency int) {
-	doTreeWalkP(v, vr, cb, concurrency)
+func SomeP(v types.Value, vr types.ValueReader, cb types.SomeCallback, concurrency int) {
+	types.DoTreeWalkP(v, vr, cb, concurrency, true)
 }
 
 // AllP recursively walks over all types.Values reachable from r and calls cb on them. If |concurrency| > 1, it is the callers responsibility to make ensure that |cb| is threadsafe.
 func AllP(v types.Value, vr types.ValueReader, cb AllCallback, concurrency int) {
-	doTreeWalkP(v, vr, func(v types.Value, r *types.Ref) (skip bool) {
+	types.DoTreeWalkP(v, vr, func(v types.Value, r *types.Ref) (skip bool) {
 		cb(v, r)
 		return
-	}, concurrency)
+	}, concurrency, true)
 }
 func doTreeWalkP(v types.Value, vr types.ValueReader, cb SomeCallback, concurrency int) {
+	d.PanicIfTrue(true, "screwedup")
 	rq := newRefQueue()
 	f := newFailure()
 
