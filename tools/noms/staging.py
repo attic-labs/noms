@@ -75,6 +75,18 @@ def rename_with_hash(f, to_dir, rename_dict):
 
 
 def GlobCopier(*globs, **kwargs):
+    '''
+    Returns a function that copies files defined by globs into a staging dir.
+
+    Arguments:
+    - Zero or more globs used to determine which files to copy.
+
+    Keyword arguments:
+    - rename (bool) - If True then the files gets renamed to name.%%hash.ext
+    - index_file (str) - If present then this file is copied to the staging dir
+      and its content is updated where the paths to the files are updated to the
+      renamed file paths.
+    '''
     exclude = ('webpack.config.js',)
     rename = 'rename' in kwargs and kwargs['rename']
     def stage(staging_dir):
