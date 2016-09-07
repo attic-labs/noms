@@ -8,7 +8,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/spec"
@@ -22,7 +21,6 @@ type nomsCommitTestSuite struct {
 }
 
 func TestNomsCommit(t *testing.T) {
-	d.UtilExiter = testExiter{}
 	suite.Run(t, &nomsCommitTestSuite{})
 }
 
@@ -60,7 +58,7 @@ func (s *nomsCommitTestSuite) TestNomsCommitReadPathFromStdin() {
 		stdinWriter.Write([]byte("#" + ref.TargetHash().String() + "\n"))
 		stdinWriter.Close()
 	}()
-	stdoutString, stderrString := s.Run(main, []string{"commit", dsStr})
+	stdoutString, stderrString := s.MustRun(main, []string{"commit", dsStr})
 	s.Empty(stderrString)
 	s.Contains(stdoutString, "New head #")
 
@@ -82,7 +80,7 @@ func (s *nomsCommitTestSuite) TestNomsCommitToDatasetWithoutHead() {
 	_, ok := ds.MaybeHead()
 	s.False(ok, "should not have a commit")
 
-	stdoutString, stderrString := s.Run(main, []string{"commit", "#" + ref.TargetHash().String(), dsStr})
+	stdoutString, stderrString := s.MustRun(main, []string{"commit", "#" + ref.TargetHash().String(), dsStr})
 	s.Empty(stderrString)
 	s.Contains(stdoutString, "New head #")
 
@@ -116,7 +114,7 @@ func (s *nomsCommitTestSuite) runDuplicateTest(allowDuplicate bool) {
 	}
 	cliOptions = append(cliOptions, "#"+ref.TargetHash().String(), dsStr)
 
-	stdoutString, stderrString := s.Run(main, cliOptions)
+	stdoutString, stderrString := s.MustRun(main, cliOptions)
 	s.Empty(stderrString)
 	if allowDuplicate {
 		s.NotContains(stdoutString, "Commit aborted")
@@ -141,7 +139,7 @@ func (s *nomsCommitTestSuite) TestNomsCommitMetadata() {
 	ds, dsStr, ref := s.setupDataset("commitTestMetadata", true)
 	metaOld := ds.Head().Get(datas.MetaField).(types.Struct)
 
-	stdoutString, stderrString := s.Run(main, []string{"commit", "--allow-dupe=1", "--message=foo", "#" + ref.TargetHash().String(), dsStr})
+	stdoutString, stderrString := s.MustRun(main, []string{"commit", "--allow-dupe=1", "--message=foo", "#" + ref.TargetHash().String(), dsStr})
 	s.Empty(stderrString)
 	s.Contains(stdoutString, "New head #")
 
@@ -155,7 +153,7 @@ func (s *nomsCommitTestSuite) TestNomsCommitMetadata() {
 	s.True(metaNew.Get("message").Equals(types.String("foo")), "message wasn't set")
 
 	metaOld = metaNew
-	stdoutString, stderrString = s.Run(main, []string{"commit", "--allow-dupe=1", "--meta=message=bar", "--date=" + spec.CommitMetaDateFormat, "#" + ref.TargetHash().String(), dsStr})
+	stdoutString, stderrString = s.MustRun(main, []string{"commit", "--allow-dupe=1", "--meta=message=bar", "--date=" + spec.CommitMetaDateFormat, "#" + ref.TargetHash().String(), dsStr})
 	s.Empty(stderrString)
 	s.Contains(stdoutString, "New head #")
 
@@ -168,11 +166,9 @@ func (s *nomsCommitTestSuite) TestNomsCommitMetadata() {
 	s.True(metaNew.Get("message").Equals(types.String("bar")), "message wasn't set")
 }
 
-/*
-// TODO - re-enable once the fixes are in place for client_test_suite to read all of stderr/stdout even on panic/exit
 func (s *nomsCommitTestSuite) TestNomsCommitHashNotFound() {
 	s.Panics(func() {
-		s.Run(main, []string{"commit", "#9ei6fbrs0ujo51vifd3f2eebufo4lgdu", "f::b"})
+		s.MustRun(main, []string{"commit", "#9ei6fbrs0ujo51vifd3f2eebufo4lgdu", "f::b"})
 	})
 }
 
@@ -181,7 +177,7 @@ func (s *nomsCommitTestSuite) TestNomsCommitMetadataBadDateFormat() {
 	defer ds.Database().Close()
 
 	s.Panics(func() {
-		s.Run(main, []string{"commit", "--allow-dupe=1", "--date=a", "#" + ref.TargetHash().String(), dsStr})
+		s.MustRun(main, []string{"commit", "--allow-dupe=1", "--date=a", "#" + ref.TargetHash().String(), dsStr})
 	})
 }
 
@@ -190,7 +186,7 @@ func (s *nomsCommitTestSuite) TestNomsCommitInvalidMetadataPaths() {
 	defer ds.Database().Close()
 
 	s.Panics(func() {
-		s.Run(main, []string{"commit", "--allow-dupe=1", "--meta-p=#beef", "#" + ref.TargetHash().String(), dsStr})
+		s.MustRun(main, []string{"commit", "--allow-dupe=1", "--meta-p=#beef", "#" + ref.TargetHash().String(), dsStr})
 	})
 }
 
@@ -199,7 +195,6 @@ func (s *nomsCommitTestSuite) TestNomsCommitInvalidMetadataFieldName() {
 	defer ds.Database().Close()
 
 	s.Panics(func() {
-		s.Run(main, []string{"commit", "--allow-dupe=1", "--meta=_foo=bar", "#" + ref.TargetHash().String(), dsStr})
+		s.MustRun(main, []string{"commit", "--allow-dupe=1", "--meta=_foo=bar", "#" + ref.TargetHash().String(), dsStr})
 	})
 }
-*/
