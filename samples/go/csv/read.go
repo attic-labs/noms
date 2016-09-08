@@ -94,7 +94,7 @@ func MakeStructTypeFromHeaders(headers []string, structName string, kinds KindSl
 // ReadToList takes a CSV reader and reads data into a typed List of structs. Each row gets read into a struct named structName, described by headers. If the original data contained headers it is expected that the input reader has already read those and are pointing at the first data row.
 // If kinds is non-empty, it will be used to type the fields in the generated structs; otherwise, they will be left as string-fields.
 // In addition to the list, ReadToList returns the typeDef of the structs in the list.
-func ReadToList(r *csv.Reader, structName string, headers []string, kinds KindSlice, vrw types.ValueReadWriter) (l types.List, t *types.Type) {
+func ReadToList(r *csv.Reader, structName string, headers []string, kinds KindSlice, vrw types.ValueReadWriter) (l types.List, t *types.Type, err error) {
 	t, fieldOrder, kindMap := MakeStructTypeFromHeaders(headers, structName, kinds)
 	valueChan := make(chan types.Value, 128) // TODO: Make this a function param?
 	listChan := types.NewStreamingList(vrw, valueChan)
@@ -108,11 +108,14 @@ func ReadToList(r *csv.Reader, structName string, headers []string, kinds KindSl
 			panic(err)
 		}
 
-		fields := readFieldsFromRow(row, headers, fieldOrder, kindMap)
+		fields, err := readFieldsFromRow(row, headers, fieldOrder, kindMap)
+		if err != nil {
+			return types.List{}, nil, err
+		}
 		valueChan <- types.NewStructWithType(t, fields)
 	}
 
-	return <-listChan, t
+	return <-listChan, t, err
 }
 
 // getFieldIndexByHeaderName takes the collection of headers and the name to search for and returns the index of name within the headers or -1 if not found
@@ -126,7 +129,8 @@ func getFieldIndexByHeaderName(headers []string, name string) int {
 }
 
 // getPkIndices takes collection of primary keys as strings and determines if they are integers, if so then use those ints as the indices, otherwise it looks up the strings in the headers to find the indices; returning the collection of int indices representing the primary keys maintaining the order of strPks to the return collection
-func getPkIndices(strPks []string, headers []string) []int {
+func getPkIndices(strPks []string, headers []string) ([]int, error) {
+	var err error
 	result := make([]int, len(strPks))
 	for i, pk := range strPks {
 		pkIdx, ok := strconv.Atoi(pk)
@@ -135,34 +139,36 @@ func getPkIndices(strPks []string, headers []string) []int {
 		} else {
 			result[i] = getFieldIndexByHeaderName(headers, pk)
 		}
-		if result[i] < 0 {
-			d.Chk.Fail(fmt.Sprintf("Invalid pk: %v", pk))
+		if result[i] < 0 || result[i] >= len(headers) {
+			err = fmt.Errorf("Invalid pk: %v", pk)
 		}
 	}
-	return result
+	return result, err
 }
 
-func readFieldsFromRow(row []string, headers []string, fieldOrder []int, kindMap []types.NomsKind) types.ValueSlice {
+func readFieldsFromRow(row []string, headers []string, fieldOrder []int, kindMap []types.NomsKind) (types.ValueSlice, error) {
 	fields := make(types.ValueSlice, len(headers))
 	for i, v := range row {
 		if i < len(headers) {
 			fieldOrigIndex := fieldOrder[i]
 			val, err := StringToValue(v, kindMap[fieldOrigIndex])
 			if err != nil {
-				d.Chk.Fail(fmt.Sprintf("Error parsing value for column '%s': %s", headers[i], err))
+				return nil, fmt.Errorf("Error parsing value for column '%s': %s", headers[i], err)
 			}
 			fields[fieldOrigIndex] = val
 		}
 	}
-	return fields
+	return fields, nil
 }
 
 // ReadToMap takes a CSV reader and reads data into a typed Map of structs. Each row gets read into a struct named structName, described by headers. If the original data contained headers it is expected that the input reader has already read those and are pointing at the first data row.
 // If kinds is non-empty, it will be used to type the fields in the generated structs; otherwise, they will be left as string-fields.
-func ReadToMap(r *csv.Reader, structName string, headersRaw []string, primaryKeys []string, kinds KindSlice, vrw types.ValueReadWriter) types.Map {
+func ReadToMap(r *csv.Reader, structName string, headersRaw []string, primaryKeys []string, kinds KindSlice, vrw types.ValueReadWriter) (types.Map, error) {
 	t, fieldOrder, kindMap := MakeStructTypeFromHeaders(headersRaw, structName, kinds)
-	pkIndices := getPkIndices(primaryKeys, headersRaw)
-
+	pkIndices, err := getPkIndices(primaryKeys, headersRaw)
+	if err != nil {
+		return types.Map{}, err
+	}
 	if len(primaryKeys) > 1 {
 		return readToNestedMap(r, structName, headersRaw, pkIndices, t, fieldOrder, kindMap, vrw)
 	}
@@ -177,12 +183,15 @@ func ReadToMap(r *csv.Reader, structName string, headersRaw []string, primaryKey
 			panic(err)
 		}
 
-		fields := readFieldsFromRow(row, headersRaw, fieldOrder, kindMap)
+		fields, err := readFieldsFromRow(row, headersRaw, fieldOrder, kindMap)
+		if err != nil {
+			return types.Map{}, err
+		}
 		kvChan <- fields[fieldOrder[pkIndices[0]]]
 		kvChan <- types.NewStructWithType(t, fields)
 	}
 	close(kvChan)
-	return <-mapChan
+	return <-mapChan, err
 }
 
 type mapOrStruct struct {
@@ -207,7 +216,7 @@ func goMaptoNomsMap(gm map[types.Value]mapOrStruct, vrw types.ValueReadWriter) t
 	return <-mapChan
 }
 
-func readToNestedMap(r *csv.Reader, structName string, headersRaw []string, pkIndices []int, t *types.Type, fieldOrder []int, kindMap []types.NomsKind, vrw types.ValueReadWriter) types.Map {
+func readToNestedMap(r *csv.Reader, structName string, headersRaw []string, pkIndices []int, t *types.Type, fieldOrder []int, kindMap []types.NomsKind, vrw types.ValueReadWriter) (types.Map, error) {
 	goMap := make(map[types.Value]mapOrStruct)
 	for {
 		row, err := r.Read()
@@ -217,7 +226,7 @@ func readToNestedMap(r *csv.Reader, structName string, headersRaw []string, pkIn
 			panic(err)
 		}
 
-		fields := readFieldsFromRow(row, headersRaw, fieldOrder, kindMap)
+		fields, err := readFieldsFromRow(row, headersRaw, fieldOrder, kindMap)
 		rowStruct := types.NewStructWithType(t, fields)
 
 		// needed to allow recursive calls to encloseInMap
@@ -247,5 +256,5 @@ func readToNestedMap(r *csv.Reader, structName string, headersRaw []string, pkIn
 		goMap = encloseInMapFunc(goMap, 0)
 	}
 
-	return goMaptoNomsMap(goMap, vrw)
+	return goMaptoNomsMap(goMap, vrw), nil
 }
