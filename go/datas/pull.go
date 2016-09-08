@@ -120,8 +120,8 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 					reachableChunks.Insert(reachable.TargetHash())
 					// Refs received on this channel represent chunks to be written to the sink. To
 					// estimate bytes written, take a sample of these chunks and measure their serialized size.
-					// Since each sample requires reading a chunk from the source, so it's important to manage
-					// the sampling rate so that sampling slows things down.
+					// Since each sample requires reading a chunk from the source, it's important to manage
+					// the sampling rate to avoid slow down.
 					if putCounter += 1; putCounter >= nextSample {
 						sampleSize += serializedChunkSize(srcDB, reachable.TargetHash())
 						sampleCount += 1
