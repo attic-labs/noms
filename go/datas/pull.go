@@ -5,16 +5,19 @@
 package datas
 
 import (
+	"math"
+	"math/rand"
 	"sort"
 	"sync"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/golang/snappy"
 )
 
 type PullProgress struct {
-	DoneCount, KnownCount, DoneBytes uint64
+	DoneCount, KnownCount, DoneBytes, ApproxWrittenBytes uint64
 }
 
 // Pull objects that descends from sourceRef from srcDB to sinkDB. sinkHeadRef should point to a Commit (in sinkDB) that's an ancestor of sourceRef. This allows the algorithm to figure out which portions of data are already present in sinkDB and skip copying them.
@@ -80,23 +83,27 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 		traverseWorker()
 	}
 
-	var doneCount, knownCount, doneBytes uint64
-	updateProgress := func(moreDone, moreKnown, moreBytes uint64) {
+	var doneCount, knownCount, doneBytes, approxBytesWritten uint64
+	updateProgress := func(moreDone, moreKnown, moreBytesRead, moreApproxBytesWritten uint64) {
 		if progressCh == nil {
 			return
 		}
-		doneCount, knownCount, doneBytes = doneCount+moreDone, knownCount+moreKnown, doneBytes+moreBytes
-		progressCh <- PullProgress{doneCount, knownCount + uint64(srcQ.Len()), doneBytes}
+		doneCount, knownCount, doneBytes, approxBytesWritten = doneCount+moreDone, knownCount+moreKnown, doneBytes+moreBytesRead, approxBytesWritten+moreApproxBytesWritten
+		progressCh <- PullProgress{doneCount, knownCount + uint64(srcQ.Len()), doneBytes, approxBytesWritten /*sinkDB.validatingBatchStore().(*localBatchStore).BytesWritten()*/}
 	}
 
 	// hc and reachableChunks aren't goroutine-safe, so only write them here.
 	hc := hintCache{}
 	reachableChunks := hash.HashSet{}
+	nextSample := uint64(0)
+	putCounter := uint64(0)
+	sampleSize := uint64(0)
+	sampleCount := uint64(0)
 	for !srcQ.Empty() {
 		srcRefs, sinkRefs, comRefs := planWork(srcQ, sinkQ)
 		srcWork, sinkWork, comWork := len(srcRefs), len(sinkRefs), len(comRefs)
 		if srcWork+comWork > 0 {
-			updateProgress(0, uint64(srcWork+comWork), 0)
+			updateProgress(0, uint64(srcWork+comWork), 0, 0)
 		}
 
 		// These goroutines send work to traverseWorkers, blocking when all are busy. They self-terminate when they've sent all they have.
@@ -111,12 +118,22 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 				for _, reachable := range res.reachables {
 					srcQ.PushBack(reachable)
 					reachableChunks.Insert(reachable.TargetHash())
+					// Refs received on this channel represent chunks to be written to the sink. To
+					// estimate bytes written, take a sample of these chunks and measure their serialized size.
+					// Since each sample requires reading a chunk from the source, so it's important to manage
+					// the sampling rate so that sampling slows things down.
+					if putCounter += 1; putCounter >= nextSample {
+						sampleSize += serializedChunkSize(srcDB, reachable.TargetHash())
+						sampleCount += 1
+						nextSample = nextSampleIndex(putCounter)
+					}
+
 				}
 				if !res.readHash.IsEmpty() {
 					reachableChunks.Remove(res.readHash)
 				}
 				srcWork--
-				updateProgress(1, 0, uint64(res.readBytes))
+				updateProgress(1, 0, uint64(res.readBytes), sampleSize/sampleCount)
 			case res := <-sinkResChan:
 				for _, reachable := range res.reachables {
 					sinkQ.PushBack(reachable)
@@ -133,7 +150,7 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 					hc[reachable.TargetHash()] = res.readHash
 				}
 				comWork--
-				updateProgress(1, 0, uint64(res.readBytes))
+				updateProgress(1, 0, uint64(res.readBytes), 0)
 			}
 		}
 		sort.Sort(sinkQ)
@@ -252,4 +269,36 @@ func traverseCommon(comRef, sinkHead types.Ref, db Database) traverseResult {
 		return traverseResult{comRef.TargetHash(), chunks, 0}
 	}
 	return traverseResult{}
+}
+
+// Returns the serialzed size of the referenced chunk
+// TODO: Consider moving this method to Database or BatchStore
+func serializedChunkSize(db Database, hash hash.Hash) uint64 {
+	c := db.validatingBatchStore().Get(hash)
+	return uint64(len(snappy.Encode(nil, c.Data())))
+}
+
+// Returns the next index at which to take a sample.
+//
+// The algorithm increases the sampling increment (hence decreasing the sampling rate) in steps as the curIdx
+// gets larger. It caps the increment (currently at 1000) when the cost of sampling becomes insignficant
+// compared to the cost of chunk transfers.
+//
+// THe output for a given curIdx i is:
+//
+//   i < 10    -> i + rand(3 + 3/2)       ~33%
+//   i < 100   -> i + rand(10 + 10/2)     10%
+//   i < 1000  -> i + rand(100 + 100/2)   1%
+//   i < 10000 -> i + rand(1000 + 1000/2) .1%
+//
+// Note that this does not try to produce a statistically accurate sample.
+func nextSampleIndex(curIdx uint64) uint64 {
+	mag := math.Log10(float64(curIdx))
+	num := math.Pow10(int(mag + 1))
+	denom := float64(10)
+	increment := math.Min(1000, math.Max(3.0, num / denom))
+	// choose the increment randomly with increment as the midpoint
+	randIncrement := uint64(rand.Int63n(int64(increment + increment / 2))) + 1
+	//fmt.Printf("next increment from %d: rand(%d) = %d\n", curIdx, uint64(increment), randIncrement)
+	return curIdx + randIncrement
 }
