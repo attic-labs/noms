@@ -87,20 +87,20 @@ func startReadingCsvTestExpectationFile(s *csvWriteTestSuite) (cr *csv.Reader, h
 	return
 }
 
-func createTestList(s *csvWriteTestSuite) types.List {
+func createTestList(s *csvWriteTestSuite) (types.List, error) {
 	ds := datas.NewDatabase(chunks.NewMemoryStore())
 	cr, headers := startReadingCsvTestExpectationFile(s)
-	l, _ := ReadToList(cr, TEST_ROW_STRUCT_NAME, headers, typesToKinds(s.fieldTypes), ds)
-	return l
+	l, _, err := ReadToList(cr, TEST_ROW_STRUCT_NAME, headers, typesToKinds(s.fieldTypes), ds)
+	return l, err
 }
 
-func createTestMap(s *csvWriteTestSuite) types.Map {
+func createTestMap(s *csvWriteTestSuite) (types.Map, error) {
 	ds := datas.NewDatabase(chunks.NewMemoryStore())
 	cr, headers := startReadingCsvTestExpectationFile(s)
 	return ReadToMap(cr, TEST_ROW_STRUCT_NAME, headers, []string{"anid"}, typesToKinds(s.fieldTypes), ds)
 }
 
-func createTestNestedMap(s *csvWriteTestSuite) types.Map {
+func createTestNestedMap(s *csvWriteTestSuite) (types.Map, error) {
 	ds := datas.NewDatabase(chunks.NewMemoryStore())
 	cr, headers := startReadingCsvTestExpectationFile(s)
 	return ReadToMap(cr, TEST_ROW_STRUCT_NAME, headers, []string{"anid", "year"}, typesToKinds(s.fieldTypes), ds)
@@ -117,24 +117,27 @@ func verifyOutput(s *csvWriteTestSuite, r io.Reader) {
 }
 
 func (s *csvWriteTestSuite) TestCSVWriteList() {
-	l := createTestList(s)
+	l, err := createTestList(s)
 	w := new(bytes.Buffer)
+	s.NoError(err)
 	s.True(TEST_DATA_SIZE == l.Len(), "list length")
 	WriteList(l, s.rowStructDesc, s.comma, w)
 	verifyOutput(s, w)
 }
 
 func (s *csvWriteTestSuite) TestCSVWriteMap() {
-	m := createTestMap(s)
+	m, err := createTestMap(s)
 	w := new(bytes.Buffer)
 	s.True(TEST_DATA_SIZE == m.Len(), "map length")
+	s.NoError(err)
 	WriteMap(m, s.rowStructDesc, s.comma, w)
 	verifyOutput(s, w)
 }
 
 func (s *csvWriteTestSuite) TestCSVWriteNestedMap() {
-	m := createTestNestedMap(s)
+	m, err := createTestNestedMap(s)
 	w := new(bytes.Buffer)
+	s.NoError(err)
 	s.True(TEST_DATA_SIZE == m.Len(), "nested map length")
 	WriteMap(m, s.rowStructDesc, s.comma, w)
 	verifyOutput(s, w)

@@ -169,6 +169,17 @@ func (s *testSuite) TestCSVImporterToMap() {
 	validateMap(s, m)
 }
 
+func (s *testSuite) TestCSVImporterToMapInvalidPk() {
+	setName := "csv"
+	dataspec := spec.CreateValueSpecString("ldb", s.LdbDir, setName)
+	stdout, stderr, err := s.Run(main, []string{"--no-progress", "--column-types", TEST_FIELDS, "--dest-type", "map:5", s.tmpFileName, dataspec})
+	s.Equal("", stdout)
+	s.Equal("error: Could not parse csv to map, encountered the following issue: Invalid pk: 5\n", stderr)
+	s.Equal(clienttest.ExitError{-1}, err)
+
+	defer os.RemoveAll(s.LdbDir)
+}
+
 func (s *testSuite) TestCSVImporterToNestedMap() {
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("ldb", s.LdbDir, setName)
