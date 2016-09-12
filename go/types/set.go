@@ -94,13 +94,6 @@ func (s Set) Hash() hash.Hash {
 	return *s.h
 }
 
-func (s Set) ChildValues() (values []Value) {
-	s.IterAll(func(v Value) {
-		values = append(values, v)
-	})
-	return
-}
-
 func (s Set) WalkValues(cb ValueCallback) {
 	s.IterAll(func(v Value) {
 		cb(v)
@@ -109,10 +102,6 @@ func (s Set) WalkValues(cb ValueCallback) {
 
 func (s Set) WalkRefs(cb RefCallback) {
 	s.seq.WalkRefs(cb)
-}
-
-func (s Set) Chunks() []Ref {
-	return s.seq.Chunks()
 }
 
 func (s Set) Type() *Type {

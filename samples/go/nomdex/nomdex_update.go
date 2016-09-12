@@ -16,7 +16,6 @@ import (
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/status"
-	"github.com/attic-labs/noms/go/walk"
 	humanize "github.com/dustin/go-humanize"
 	flag "github.com/juju/gnuflag"
 )
@@ -85,7 +84,7 @@ func runUpdate(args []string) int {
 	typeCache := map[*types.Type]bool{}
 
 	index := Index{m: IndexMap{}}
-	walk.AllP(rootObject, db, func(v types.Value, r *types.Ref) {
+	types.AllP(rootObject, db, func(v types.Value, r *types.Ref) {
 		typ := v.Type()
 		typeCacheMutex.Lock()
 		hasPath, ok := typeCache[typ]

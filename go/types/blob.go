@@ -100,9 +100,6 @@ func (b Blob) WalkValues(cb ValueCallback) {
 func (b Blob) WalkRefs(cb RefCallback) {
 	b.seq.WalkRefs(cb)
 }
-func (b Blob) Chunks() []Ref {
-	return b.seq.Chunks()
-}
 
 func (b Blob) Type() *Type {
 	return b.seq.Type()

@@ -54,13 +54,6 @@ func (ll listLeafSequence) WalkRefs(cb RefCallback) {
 	}
 }
 
-func (ll listLeafSequence) Chunks() (chunks []Ref) {
-	for _, v := range ll.values {
-		chunks = append(chunks, v.Chunks()...)
-	}
-	return
-}
-
 func (ll listLeafSequence) Type() *Type {
 	return ll.t
 }

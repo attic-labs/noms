@@ -76,10 +76,6 @@ func (s Struct) Hash() hash.Hash {
 	return *s.h
 }
 
-func (s Struct) ChildValues() []Value {
-	return s.values
-}
-
 func (s Struct) WalkValues(cb ValueCallback) {
 	for _, v := range s.values {
 		cb(v)
@@ -91,15 +87,6 @@ func (s Struct) WalkRefs(cb RefCallback) {
 		v.WalkRefs(cb)
 	}
 
-}
-
-func (s Struct) Chunks() (chunks []Ref) {
-	chunks = append(chunks, s.t.Chunks()...)
-	for _, v := range s.values {
-		chunks = append(chunks, v.Chunks()...)
-	}
-
-	return
 }
 
 func (s Struct) Type() *Type {

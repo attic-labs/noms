@@ -5,7 +5,6 @@
 package datas
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 
@@ -238,22 +237,20 @@ func traverseSource(srcRef types.Ref, srcDB, sinkDB Database) traverseResult {
 			chunks = append(chunks, *ref)
 		}
 		types.WalkRefs(v, srcDB, callback, 1, false)
-		fmt.Println("Same Chunk Count", len(chunks), len(v.Chunks()))
-		for _, r := range chunks {
-			fmt.Println("new chunks", r.TargetHash().String())
-		}
-		for _, r := range v.Chunks() {
-			fmt.Println("old chunks", r.TargetHash().String())
-		}
-		//return traverseResult{h, chunks, len(c.Data())}
-		return traverseResult{h, v.Chunks(), len(c.Data())}
+		return traverseResult{h, chunks, len(c.Data())}
 	}
 	return traverseResult{}
 }
 
 func traverseSink(sinkRef types.Ref, db Database) traverseResult {
+	var chunks []types.Ref
+	callback := func(ref *types.Ref) {
+		chunks = append(chunks, *ref)
+	}
+
 	if sinkRef.Height() > 1 {
-		return traverseResult{sinkRef.TargetHash(), sinkRef.TargetValue(db).Chunks(), 0}
+		types.WalkRefs(sinkRef.TargetValue(db), db, callback, 1, false)
+		return traverseResult{sinkRef.TargetHash(), chunks, 0}
 	}
 	return traverseResult{}
 }
@@ -266,7 +263,13 @@ func traverseCommon(comRef, sinkHead types.Ref, db Database) traverseResult {
 		if comRef.Equals(sinkHead) {
 			exclusionSet = commit.Get(ParentsField).(types.Set)
 		}
-		chunks := types.RefSlice(commit.Chunks())
+		var chunky []types.Ref
+		callback := func(ref *types.Ref) {
+			chunky = append(chunky, *ref)
+		}
+		types.WalkRefs(commit, db, callback, 1, false)
+
+		chunks := types.RefSlice(chunky)
 		for i := 0; i < len(chunks); {
 			if exclusionSet.Has(chunks[i]) {
 				end := len(chunks) - 1

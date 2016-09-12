@@ -69,14 +69,6 @@ func (ml mapLeafSequence) WalkRefs(cb RefCallback) {
 	}
 }
 
-func (ml mapLeafSequence) Chunks() (chunks []Ref) {
-	for _, entry := range ml.data {
-		chunks = append(chunks, entry.key.Chunks()...)
-		chunks = append(chunks, entry.value.Chunks()...)
-	}
-	return
-}
-
 func (ml mapLeafSequence) Type() *Type {
 	return ml.t
 }

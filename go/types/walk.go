@@ -25,12 +25,12 @@ type RefCallback func(r *Ref)
 
 // SomeP recursively walks over all Values reachable from r and calls cb on them. If cb ever returns true, the walk will stop recursing on the current ref. If |concurrency| > 1, it is the callers responsibility to make ensure that |cb| is threadsafe.
 func SomeP(v Value, vr ValueReader, cb SomeCallback, concurrency int) {
-	DoTreeWalkP(v, vr, cb, concurrency, true)
+	walkTreeP(v, vr, cb, concurrency, true)
 }
 
 // AllP recursively walks over all Values reachable from r and calls cb on them. If |concurrency| > 1, it is the callers responsibility to make ensure that |cb| is threadsafe.
 func AllP(v Value, vr ValueReader, cb AllCallback, concurrency int) {
-	DoTreeWalkP(v, vr, func(v Value, r *Ref) (skip bool) {
+	walkTreeP(v, vr, func(v Value, r *Ref) (skip bool) {
 		cb(v, r)
 		return
 	}, concurrency, true)
@@ -38,7 +38,7 @@ func AllP(v Value, vr ValueReader, cb AllCallback, concurrency int) {
 
 func WalkRefs(target Value, vr ValueReader, cb RefCallback, concurrency int, deep bool) {
 
-	walkRefP(target, vr, cb, 1, deep)
+	walkRefP(target, vr, cb, concurrency, deep)
 
 }
 
@@ -49,36 +49,94 @@ func WalkValues(target Value, vr ValueReader, cb ValueCallback, concurrency int,
 		}
 		return false
 	}
-	DoTreeWalkP(target, vr, callback, concurrency, deep)
+	walkTreeP(target, vr, callback, concurrency, deep)
 	return
 }
 
-func walkRefP(v Value, vr ValueReader, cb RefCallback, concurrency int, deep bool) {
-	rq := newRefQueue()
-	f := newFailure()
+type refWorkP struct {
+	rq          refQueue
+	f           *failure
+	concurrency int
+	mu          sync.Mutex
+	wg          sync.WaitGroup
+	visited     map[hash.Hash]bool
+	work        func(ref Ref)
+}
 
-	visited := map[hash.Hash]bool{}
-	mu := sync.Mutex{}
-	wg := sync.WaitGroup{}
+func newRefWorkP(concurrency int, work func(ref Ref)) refWorkP {
+	refWork := refWorkP{}
+	refWork.rq = newRefQueue()
+	refWork.f = newFailure()
+	refWork.mu = sync.Mutex{}
+	refWork.wg = sync.WaitGroup{}
+	refWork.concurrency = concurrency
+	refWork.visited = map[hash.Hash]bool{}
+	refWork.work = work
+	return refWork
+}
+
+func (r *refWorkP) addToWorkQueue(ref Ref) {
+	r.wg.Add(1)
+	r.rq.tail() <- ref
+}
+
+func (r *refWorkP) didProcessRef(ref Ref) bool {
+	return r.visited[ref.TargetHash()]
+}
+
+func (r *refWorkP) didFail() bool {
+	return r.f.didFail()
+}
+
+func (r *refWorkP) process(ref Ref) {
+	defer r.wg.Done()
+	r.work(ref)
+	r.mu.Lock()
+	r.visited[ref.TargetHash()] = true
+	r.mu.Unlock()
+}
+
+func (r *refWorkP) start() {
+	iter := func() {
+		for ref := range r.rq.head() {
+			r.process(ref)
+		}
+	}
+
+	for i := 0; i < r.concurrency; i++ {
+		go iter()
+	}
+
+}
+
+//waitAndCleanup waits for the work to finish and closes the channel and finally fails if there was an error
+func (r *refWorkP) waitAndCleanup() {
+	r.wg.Wait()
+	r.rq.close()
+	r.f.checkNotFailed()
+}
+
+//addToQueue()
+//setRefWorker(func)
+//didProcessRef(r Ref))
+//didFail()
+//cleanup()
+//start()
+
+func walkRefP(v Value, vr ValueReader, cb RefCallback, concurrency int, deep bool) {
+	var processRef func(r Ref)
+	var refWorkGroup refWorkP
 
 	processVal := func(v Value, next bool) {
 		if next {
 			v.WalkRefs(func(ref *Ref) {
-				wg.Add(1)
-				rq.tail() <- *ref
+				refWorkGroup.addToWorkQueue(*ref)
 			})
 		}
 	}
 
-	processRef := func(r Ref) {
-		defer wg.Done()
-
-		mu.Lock()
-		skip := visited[r.TargetHash()]
-		visited[r.TargetHash()] = true
-		mu.Unlock()
-
-		if skip || f.didFail() {
+	processRef = func(r Ref) {
+		if refWorkGroup.didProcessRef(r) || refWorkGroup.didFail() {
 			return
 		}
 
@@ -94,23 +152,60 @@ func walkRefP(v Value, vr ValueReader, cb RefCallback, concurrency int, deep boo
 
 	}
 
-	iter := func() {
-		for r := range rq.head() {
-			processRef(r)
-		}
-	}
-
-	for i := 0; i < concurrency; i++ {
-		go iter()
-	}
+	refWorkGroup = newRefWorkP(concurrency, processRef)
+	refWorkGroup.start()
 	//Process initial value
 	processVal(v, true)
+	refWorkGroup.waitAndCleanup()
+}
 
-	wg.Wait()
+func walkTreeP(v Value, vr ValueReader, cb SomeCallback, concurrency int, deep bool) {
+	var processRef func(r Ref)
+	var refWorkGroup refWorkP
 
-	rq.close()
+	var processVal func(v Value, r *Ref, next bool)
 
-	f.checkNotFailed()
+	valueCb := func(v Value) {
+		processVal(v, nil, deep)
+	}
+
+	processVal = func(v Value, r *Ref, next bool) {
+		if cb(v, r) || !next {
+			return
+		}
+
+		if sr, ok := v.(Ref); ok {
+			refWorkGroup.addToWorkQueue(sr)
+		} else {
+			v.WalkValues(valueCb)
+		}
+	}
+	processRef = func(r Ref) {
+
+		if refWorkGroup.didProcessRef(r) || refWorkGroup.didFail() {
+			return
+		}
+
+		target := r.TargetHash()
+		v := vr.ReadValue(target)
+		if v == nil {
+			refWorkGroup.f.fail(fmt.Errorf("Attempt to visit absent ref:%s", target.String()))
+			return
+		}
+
+		if !deep {
+			cb(v, &r)
+			return
+		} else {
+			processVal(v, &r, deep)
+		}
+
+	}
+	refWorkGroup = newRefWorkP(concurrency, processRef)
+	//Process initial value
+	refWorkGroup.start()
+	processVal(v, nil, true)
+	refWorkGroup.waitAndCleanup()
 
 }
 
@@ -212,6 +307,11 @@ func SomeChunksP(r Ref, bs BatchStore, stopCb SomeChunksStopCallback, chunkCb So
 	mu := sync.Mutex{}
 	visitedRefs := map[hash.Hash]bool{}
 
+	addToChunkQueue := func(r *Ref) {
+		wg.Add(1)
+		rq.tail() <- *r
+	}
+
 	walkChunk := func(r Ref) {
 		defer wg.Done()
 
@@ -243,10 +343,7 @@ func SomeChunksP(r Ref, bs BatchStore, stopCb SomeChunksStopCallback, chunkCb So
 		}
 
 		v := DecodeValue(c, nil)
-		for _, r1 := range v.Chunks() {
-			wg.Add(1)
-			rq.tail() <- r1
-		}
+		v.WalkRefs(addToChunkQueue)
 	}
 
 	iter := func() {

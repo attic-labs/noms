@@ -138,12 +138,13 @@ func (lvs *ValueStore) Close() error {
 
 // cacheChunks looks at the Chunks reachable from v and, for each one checks if there's a hint in the cache. If there isn't, or if the hint is a self-reference, the chunk gets r set as its new hint.
 func (lvs *ValueStore) cacheChunks(v Value, r hash.Hash) {
-	for _, reachable := range v.Chunks() {
+	cacheChunk := func(reachable *Ref) {
 		hash := reachable.TargetHash()
 		if cur := lvs.check(hash); cur == nil || cur.Hint().IsEmpty() || cur.Hint() == hash {
-			lvs.set(hash, hintedChunk{getTargetType(reachable), r})
+			lvs.set(hash, hintedChunk{getTargetType(*reachable), r})
 		}
 	}
+	v.WalkRefs(cacheChunk)
 }
 
 func (lvs *ValueStore) isPresent(r hash.Hash) (present bool) {
@@ -188,7 +189,7 @@ func (lvs *ValueStore) opCache() opCache {
 
 func (lvs *ValueStore) checkChunksInCache(v Value, readValues bool) Hints {
 	hints := map[hash.Hash]struct{}{}
-	for _, reachable := range v.Chunks() {
+	collectHints := func(reachable *Ref) {
 		// First, check the type cache to see if reachable is already known to be valid.
 		targetHash := reachable.TargetHash()
 		entry := lvs.check(targetHash)
@@ -209,9 +210,10 @@ func (lvs *ValueStore) checkChunksInCache(v Value, readValues bool) Hints {
 			hints[hint] = struct{}{}
 		}
 
-		targetType := getTargetType(reachable)
+		targetType := getTargetType(*reachable)
 		d.PanicIfTrue(!entry.Type().Equals(targetType), "Value to write contains ref %s, which points to a value of a different type: %+v != %+v", reachable.TargetHash(), entry.Type(), targetType)
 	}
+	v.WalkRefs(collectHints)
 	return hints
 }
 

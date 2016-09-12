@@ -28,13 +28,12 @@ func constructRef(t *Type, target hash.Hash, height uint64) Ref {
 }
 
 func maxChunkHeight(v Value) (max uint64) {
-	if chunks := v.Chunks(); chunks != nil {
-		for _, r := range chunks {
-			if height := r.Height(); height > max {
-				max = height
-			}
+	maxHeight := func(r *Ref) {
+		if height := r.Height(); height > max {
+			max = height
 		}
 	}
+	v.WalkRefs(maxHeight)
 	return
 }
 

@@ -109,13 +109,6 @@ func (m Map) Hash() hash.Hash {
 	return *m.h
 }
 
-func (m Map) ChildValues() (values []Value) {
-	m.IterAll(func(k, v Value) {
-		values = append(values, k, v)
-	})
-	return
-}
-
 func (m Map) WalkValues(cb ValueCallback) {
 	m.IterAll(func(k, v Value) {
 		cb(k)
@@ -126,10 +119,6 @@ func (m Map) WalkValues(cb ValueCallback) {
 
 func (m Map) WalkRefs(cb RefCallback) {
 	m.seq.WalkRefs(cb)
-}
-
-func (m Map) Chunks() []Ref {
-	return m.seq.Chunks()
 }
 
 func (m Map) Type() *Type {

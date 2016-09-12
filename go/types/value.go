@@ -15,10 +15,8 @@ type Value interface {
 
 	Hash() hash.Hash
 	// Returns the immediate children of this value in the DAG, if any, not including Type().
-	ChildValues() []Value
 	WalkValues(ValueCallback)
 	WalkRefs(RefCallback)
-	Chunks() []Ref
 	Type() *Type
 }
 
