@@ -165,7 +165,6 @@ func (suite *PullSuite) TestPullEverything() {
 	suite.True(l.Equals(v.Get(ValueField)))
 }
 
-/*
 // Source: -6-> C3(L5) -1-> N
 //               .  \  -5-> L4 -1-> N
 //                .          \ -4-> L3 -1-> N
@@ -307,7 +306,7 @@ func (suite *PullSuite) TestPullUpdates() {
 	suite.NotNil(v)
 	suite.True(srcL.Equals(v.Get(ValueField)))
 }
-*/
+
 func (suite *PullSuite) commitToSource(v types.Value, p types.Set) types.Ref {
 	var err error
 	suite.source, err = suite.source.Commit(dsID, NewCommit(v, p, types.EmptyStruct))
