@@ -89,7 +89,7 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 			return
 		}
 		doneCount, knownCount, doneBytes, approxBytesWritten = doneCount+moreDone, knownCount+moreKnown, doneBytes+moreBytesRead, approxBytesWritten+moreApproxBytesWritten
-		progressCh <- PullProgress{doneCount, knownCount + uint64(srcQ.Len()), doneBytes, approxBytesWritten /*sinkDB.validatingBatchStore().(*localBatchStore).BytesWritten()*/}
+		progressCh <- PullProgress{doneCount, knownCount + uint64(srcQ.Len()), doneBytes, approxBytesWritten}
 	}
 
 	// hc and reachableChunks aren't goroutine-safe, so only write them here.
@@ -121,7 +121,7 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 					// Refs received on this channel represent chunks to be written to the sink. To
 					// estimate bytes written, take a sample of these chunks and measure their serialized size.
 					// Since each sample requires reading a chunk from the source, it's important to manage
-					// the sampling rate to avoid slow down.
+					// the sampling rate to avoid slowdown.
 					if putCounter += 1; putCounter >= nextSample {
 						sampleSize += serializedChunkSize(srcDB, reachable.TargetHash())
 						sampleCount += 1
@@ -299,6 +299,5 @@ func nextSampleIndex(curIdx uint64) uint64 {
 	increment := math.Min(1000, math.Max(3.0, num / denom))
 	// choose the increment randomly with increment as the midpoint
 	randIncrement := uint64(rand.Int63n(int64(increment + increment / 2))) + 1
-	//fmt.Printf("next increment from %d: rand(%d) = %d\n", curIdx, uint64(increment), randIncrement)
 	return curIdx + randIncrement
 }
