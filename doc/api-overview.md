@@ -1,13 +1,13 @@
 # Noms API Overview
 
-Noms provides SDKs for Go and JavaScript development. This overview introduces the basic types and APIs available to Go and Javascript developers. The SDKs are equivalent in terms of feature parity with the differences being to enable more natural development by the platform specific developer.
+Noms provides SDKs for Go and JavaScript development. This overview introduces the basic types and APIs available to Go and JavaScript developers. The SDKs are equivalent in terms of feature parity with the differences being to enable more natural development by the platform specific developer.
 
 ## Generated API Documentation
 
 The API documentation that is derived from the source code automatically can be found by following these links: 
 
 * [Go Docs](https://godoc.org/github.com/attic-labs/noms)
-* [JavaScript Docs](https://docs.noms.io)
+* [JavaScript Docs](https://docs.noms.io/js)
 
 ## Noms Setup
 
@@ -22,7 +22,7 @@ In order to store or retrieve data you will need to connect to a database and sp
 Once you have a database/dataset specified, you can store and retrieve data. A dataset, like a `git` repository has a `HEAD` revision - or a marker for the current version of the data. You can access a Noms dataset `HEAD` using the dataset API - [Head](https://godoc.org/github.com/attic-labs/noms/go/dataset#Dataset.Head). If you want to set a different version of your data to be `HEAD` then you would use the dataset [`Commit`](https://godoc.org/github.com/attic-labs/noms/go/dataset#Dataset.Commit) method.
 
 ## Noms Types
-Noms supports [several data types](intro.md#types). Most of these types will be familiar and behave as you expect. Most Noms types are [immutable](https://en.wikipedia.org/wiki/Immutable_object). For example, at the end of the last section when calling `Commit` on dataset, the dataset you were holding was not updated. Instead `Commit` returned a new `dataset` for the new `HEAD` you created.
+Noms supports [several data types](intro.md#types). Most of these types will be familiar and behave as you expect. Noms types are [immutable](https://en.wikipedia.org/wiki/Immutable_object). For example, at the end of the last section when calling `Commit` on dataset, the dataset you were holding was not updated. Instead `Commit` returned a new `dataset` for the new `HEAD` you created.
 
 ### Noms Values
 
@@ -30,7 +30,7 @@ All Noms values implement the [Value](https://godoc.org/github.com/attic-labs/no
 
 ### Noms Lists
 
-Lists are one of the value collection types supported in Noms - [Go](https://godoc.org/github.com/attic-labs/noms/go/types#List) and [JavaScript](https://docs.noms.io/59.0.2/#list). Lists are similar to arrays or vectors in most languages. 
+Lists are one of the value collection types supported in Noms - [Go](https://godoc.org/github.com/attic-labs/noms/go/types#List) and [JavaScript](https://docs.noms.io/js/#list). Lists are similar to arrays or vectors in most languages. 
 
 - `Empty` returns a boolean and enables you to test if a list is empty
 - `Len` returns the number of values in the list 
@@ -39,17 +39,17 @@ Lists are one of the value collection types supported in Noms - [Go](https://god
 - `Append` allows for adding additional Noms values to the end of the list.
 - `Insert` allows for adding Noms values at a specific index.
 - Similarly `Splice` supports removing items at an index and inserting Noms values at the same index.
-- Iterating over Noms values in the list can be done by calling `Iterator` or `IteratorAt` and using the [ListIterator](https://godoc.org/github.com/attic-labs/noms/go/types#ListIterator) returned to call `Next` to retrieve the values in order by their index.
+- Iterating over Noms values in the list can be done by calling `Iterator` or `IteratorAt` and using the [ListIterator](https://godoc.org/github.com/attic-labs/noms/go/types#ListIterator) returned to call `Next` to retrieve the values in order by their index. These methods for iterating are recommended over a typical C-style `for` loop calling `Get` on an increasing index value.
 - Alternatively you can execute code on each item by using `Iter` or `IterAll`.
 - `Diff` provides an implementation to easily calculate the differences between two Noms lists
 
 ### Noms Sets
 
-If you need to store and retrieve Noms values by their value instead of by their index then you could use a Noms set - [Go](https://godoc.org/github.com/attic-labs/noms/go/types#Set) and [JavaScript](https://docs.noms.io/59.0.2/#set). Since the storage and retrieval is based on the contents of the Noms values this eliminates duplicate values and the potential of having to scan Noms lists to determine if a value already exists in the collection.
+If you need to store and retrieve Noms values by their value instead of by their index then you could use a Noms set - [Go](https://godoc.org/github.com/attic-labs/noms/go/types#Set) and [JavaScript](https://docs.noms.io/js/#set). Since the storage and retrieval is based on the contents of the Noms values this eliminates duplicate values and the potential of having to scan Noms lists to determine if a value already exists in the collection.
 
 ### Noms Maps
 
-Noms provides a data structure that is similar to a hash table - called `Map` - [Go](https://godoc.org/github.com/attic-labs/noms/go/types#Map) and [JavaScript](https://docs.noms.io/59.0.2/#map). Noms maps store keys and values. The keys and values in Noms maps are Noms values. Noms maps provide many similar methods to Noms lists and sets:
+Noms provides a data structure that is similar to a hash table - called `Map` - [Go](https://godoc.org/github.com/attic-labs/noms/go/types#Map) and [JavaScript](https://docs.noms.io/js/#map). Noms maps store keys and values. The keys and values in Noms maps are Noms values. Noms maps provide many similar methods to Noms lists and sets:
 
 - `Empty` can be used to test for an empty Noms map
 - `Len` returns the number of keys in the Noms map
@@ -78,7 +78,7 @@ Noms structs provide a data structure to store and retrieve Noms values similar 
 
 ### Flow, Promises, Unicorns, Oh My!
 
-Noms uses several JavaScript packages to improve source code quality, readability and performance.  You can see the dependencies by reviewing [package.json](https://github.com/attic-labs/noms/blob/master/js/noms/package.json). Many of these will not affect you, but a few definitely will. The usage of [Promises](https://www.promisejs.org/) and [Flow](https://flowtype.org/) type annotations will be noticeable in every JavaScript file and most APIs. If you are not already familiar with these projects or concepts it is worth your time to go learn the basics as it will make it easier for you to develop using the Noms JavaScript SDK.
+Noms uses several JavaScript packages to improve source code quality, readability and performance.  You can see the dependencies by reviewing [package.json](https://github.com/attic-labs/noms/blob/master/js/noms/package.json). Many of these will not affect you, but a few definitely will. The usage of [Promises](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) and [Flow](https://flowtype.org/) type annotations will be noticeable in every JavaScript file and most APIs. If you are not already familiar with these projects or concepts it is worth your time to go learn the basics as it will make it easier for you to develop using the Noms JavaScript SDK. You do not need to use Flow in your projects if you are building a JavaScript client that depends on Noms though.
 
 ## Go Specifics
 
