@@ -161,7 +161,7 @@ func (l List) Concat(other List) List {
 	if other.Empty() {
 		return l
 	}
-	d.Chk.Equal(l.seq.valueReader(), other.seq.valueReader())
+	d.Chk.True(l.seq.valueReader() == other.seq.valueReader())
 
 	seq := concat(l.seq, other.seq, func(cur *sequenceCursor) *sequenceChunker {
 		return l.newChunker(cur)

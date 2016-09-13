@@ -59,12 +59,13 @@ func concat(fst, snd sequence, newSequenceChunker newSequenceChunkerFn) sequence
 func appendCursorToChunker(chunker *sequenceChunker, cur *sequenceCursor) {
 	// Append beyond the chunk window, then through to the next definite chunk
 	// boundary.
-	for i := uint32(0); cur.valid() && (i < chunkWindow || cur.indexInChunk() != 0); i++ {
-		chunker.Append(cur.current())
+	hashWindow := chunkWindow
+	for cur.valid() && (hashWindow > 0 || cur.indexInChunk() != 0) {
+		hashWindow -= chunker.Append(cur.current())
 		cur.advance()
 	}
 
-	// There may not be a chunk bounary beyond the chunk window - terminate.
+	// There may not be a chunk boundary beyond the chunk window - terminate.
 	if !cur.valid() {
 		return
 	}
