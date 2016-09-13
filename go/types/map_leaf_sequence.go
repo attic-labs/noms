@@ -62,12 +62,11 @@ func (ml mapLeafSequence) valueReader() ValueReader {
 	return ml.vr
 }
 
-func (ml mapLeafSequence) Chunks() (chunks []Ref) {
+func (ml mapLeafSequence) WalkRefs(cb RefCallback) {
 	for _, entry := range ml.data {
-		chunks = append(chunks, entry.key.Chunks()...)
-		chunks = append(chunks, entry.value.Chunks()...)
+		entry.key.WalkRefs(cb)
+		entry.value.WalkRefs(cb)
 	}
-	return
 }
 
 func (ml mapLeafSequence) Type() *Type {

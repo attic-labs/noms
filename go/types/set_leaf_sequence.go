@@ -36,11 +36,10 @@ func (sl setLeafSequence) valueReader() ValueReader {
 	return sl.vr
 }
 
-func (sl setLeafSequence) Chunks() (chunks []Ref) {
+func (sl setLeafSequence) WalkRefs(cb RefCallback) {
 	for _, v := range sl.data {
-		chunks = append(chunks, v.Chunks()...)
+		v.WalkRefs(cb)
 	}
-	return
 }
 
 func (sl setLeafSequence) Type() *Type {

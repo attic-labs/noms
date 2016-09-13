@@ -48,11 +48,10 @@ func (ll listLeafSequence) valueReader() ValueReader {
 	return ll.vr
 }
 
-func (ll listLeafSequence) Chunks() (chunks []Ref) {
+func (ll listLeafSequence) WalkRefs(cb RefCallback) {
 	for _, v := range ll.values {
-		chunks = append(chunks, v.Chunks()...)
+		v.WalkRefs(cb)
 	}
-	return
 }
 
 func (ll listLeafSequence) Type() *Type {

@@ -92,9 +92,17 @@ func (ds *Dataset) Commit(v types.Value, opts CommitOptions) (Dataset, error) {
 	}
 
 	meta := opts.Meta
+
+	numChildren := func(val types.Value) uint64 {
+		var childrenCount uint64
+		meta.WalkValues(func(val types.Value) {
+			childrenCount++
+		})
+		return childrenCount
+	}
 	// Ideally, would like to do 'if meta == types.Struct{}' but types.Struct is not comparable in Go
 	// since it contains a slice.
-	if meta.Type() == nil && len(meta.ChildValues()) == 0 {
+	if meta.Type() == nil && numChildren(meta) == 0 {
 		meta = types.EmptyStruct
 	}
 	newCommit := datas.NewCommit(v, parents, meta)

@@ -223,6 +223,14 @@ func sendWork(ch chan<- types.Ref, refs types.RefSlice) {
 
 type hintCache map[hash.Hash]hash.Hash
 
+func getChunks(v types.Value) []types.Ref {
+	var chunks []types.Ref
+	v.WalkRefs(func(ref types.Ref) {
+		chunks = append(chunks, ref)
+	})
+	return chunks
+}
+
 func traverseSource(srcRef types.Ref, srcDB, sinkDB Database) traverseResult {
 	h := srcRef.TargetHash()
 	if !sinkDB.has(h) {
@@ -231,14 +239,14 @@ func traverseSource(srcRef types.Ref, srcDB, sinkDB Database) traverseResult {
 		v := types.DecodeValue(c, srcDB)
 		d.Chk.True(v != nil, "Expected decoded chunk to be non-nil.")
 		sinkDB.validatingBatchStore().SchedulePut(c, srcRef.Height(), types.Hints{})
-		return traverseResult{h, v.Chunks(), len(c.Data())}
+		return traverseResult{h, getChunks(v), len(c.Data())}
 	}
 	return traverseResult{}
 }
 
 func traverseSink(sinkRef types.Ref, db Database) traverseResult {
 	if sinkRef.Height() > 1 {
-		return traverseResult{sinkRef.TargetHash(), sinkRef.TargetValue(db).Chunks(), 0}
+		return traverseResult{sinkRef.TargetHash(), getChunks(sinkRef.TargetValue(db)), 0}
 	}
 	return traverseResult{}
 }
@@ -251,7 +259,7 @@ func traverseCommon(comRef, sinkHead types.Ref, db Database) traverseResult {
 		if comRef.Equals(sinkHead) {
 			exclusionSet = commit.Get(ParentsField).(types.Set)
 		}
-		chunks := types.RefSlice(commit.Chunks())
+		chunks := types.RefSlice(getChunks(commit))
 		for i := 0; i < len(chunks); {
 			if exclusionSet.Has(chunks[i]) {
 				end := len(chunks) - 1
