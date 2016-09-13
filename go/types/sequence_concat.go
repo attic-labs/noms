@@ -9,10 +9,10 @@ import "github.com/attic-labs/noms/go/d"
 type newSequenceChunkerFn func(cur *sequenceCursor, vr ValueReader) *sequenceChunker
 
 func concat(fst, snd sequence, newSequenceChunker newSequenceChunkerFn) sequence {
-	if _, ok := fst.(emptySequence); ok {
+	if fst.numLeaves() == 0 {
 		return snd
 	}
-	if _, ok := snd.(emptySequence); ok {
+	if snd.numLeaves() == 0 {
 		return fst
 	}
 
@@ -32,7 +32,7 @@ func concat(fst, snd sequence, newSequenceChunker newSequenceChunkerFn) sequence
 		if ch.parent == nil {
 			ch.createParent()
 		}
-		ch.cur = cur
+		ch.cur = cur.clone()
 		ch = ch.parent
 	}
 

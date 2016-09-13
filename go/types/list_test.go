@@ -1069,7 +1069,6 @@ func TestListConcat(t *testing.T) {
 	assert := assert.New(t)
 
 	smallTestChunks()
-	chunkPattern = defaultChunkPattern
 	defer normalProductionChunks()
 
 	vs := NewTestValueStore()
