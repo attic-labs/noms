@@ -10,6 +10,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
@@ -44,7 +45,7 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 	srcChan := make(chan types.Ref)
 	sinkChan := make(chan types.Ref)
 	comChan := make(chan types.Ref)
-	srcResChan := make(chan traverseResult)
+	srcResChan := make(chan traverseSourceResult)
 	sinkResChan := make(chan traverseResult)
 	comResChan := make(chan traverseResult)
 	done := make(chan struct{})
@@ -67,7 +68,15 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 			for {
 				select {
 				case srcRef := <-srcChan:
-					srcResChan <- traverseSource(srcRef, srcDB, sinkDB)
+					// Hook in here to estimate the bytes written to disk during pull (since
+					// srcChan contains all chunks to be written to the sink). Rather than measuring
+					// the serialized, compressed bytes of each chunk, we take a 10% sample.
+					// TODO: There's no measurable difference in wall time between 10% sampling and
+					// 100% sampling across the demo server datasets. Need to profile to determine if
+					// there's any finer grained performance advantage. Regardless, 10% sampling provides
+					// good estimates, so there's no compelling reason to remove it for now.
+					takeSample := rand.Float64() < .10
+					srcResChan <- traverseSource(srcRef, srcDB, sinkDB, takeSample)
 				case sinkRef := <-sinkChan:
 					sinkResChan <- traverseSink(sinkRef, mostLocalDB)
 				case comRef := <-comChan:
@@ -95,8 +104,6 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 	// hc and reachableChunks aren't goroutine-safe, so only write them here.
 	hc := hintCache{}
 	reachableChunks := hash.HashSet{}
-	nextSample := uint64(0)
-	putCounter := uint64(0)
 	sampleSize := uint64(0)
 	sampleCount := uint64(0)
 	for !srcQ.Empty() {
@@ -118,22 +125,17 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 				for _, reachable := range res.reachables {
 					srcQ.PushBack(reachable)
 					reachableChunks.Insert(reachable.TargetHash())
-					// Refs received on this channel represent chunks to be written to the sink. To
-					// estimate bytes written, take a sample of these chunks and measure their serialized size.
-					// Since each sample requires reading a chunk from the source, it's important to manage
-					// the sampling rate to avoid slowdown.
-					if putCounter += 1; putCounter >= nextSample {
-						sampleSize += serializedChunkSize(srcDB, reachable.TargetHash())
-						sampleCount += 1
-						nextSample = nextSampleIndex(putCounter)
-					}
-
+				}
+				if res.writeBytes > 0 {
+					sampleSize += uint64(res.writeBytes)
+					sampleCount += 1
 				}
 				if !res.readHash.IsEmpty() {
 					reachableChunks.Remove(res.readHash)
 				}
 				srcWork--
-				updateProgress(1, 0, uint64(res.readBytes), sampleSize/sampleCount)
+
+				updateProgress(1, 0, uint64(res.readBytes), sampleSize/uint64(math.Max(1, float64(sampleCount))))
 			case res := <-sinkResChan:
 				for _, reachable := range res.reachables {
 					sinkQ.PushBack(reachable)
@@ -172,6 +174,11 @@ type traverseResult struct {
 	readHash   hash.Hash
 	reachables types.RefSlice
 	readBytes  int
+}
+
+type traverseSourceResult struct {
+	traverseResult
+	writeBytes int
 }
 
 // planWork deals with three possible situations:
@@ -228,7 +235,7 @@ func sendWork(ch chan<- types.Ref, refs types.RefSlice) {
 
 type hintCache map[hash.Hash]hash.Hash
 
-func traverseSource(srcRef types.Ref, srcDB, sinkDB Database) traverseResult {
+func traverseSource(srcRef types.Ref, srcDB, sinkDB Database, estimateBytesWritten bool) traverseSourceResult {
 	h := srcRef.TargetHash()
 	if !sinkDB.has(h) {
 		srcBS := srcDB.validatingBatchStore()
@@ -236,9 +243,43 @@ func traverseSource(srcRef types.Ref, srcDB, sinkDB Database) traverseResult {
 		v := types.DecodeValue(c, srcDB)
 		d.PanicIfFalse(v != nil, "Expected decoded chunk to be non-nil.")
 		sinkDB.validatingBatchStore().SchedulePut(c, srcRef.Height(), types.Hints{})
-		return traverseResult{h, v.Chunks(), len(c.Data())}
+		bytesWritten := 0
+		if estimateBytesWritten {
+			bytesWritten = estBytesWritten(v, c)
+		}
+		ts := traverseSourceResult{traverseResult{h, v.Chunks(), len(c.Data())}, bytesWritten}
+		return ts
 	}
-	return traverseResult{}
+	return traverseSourceResult{}
+}
+
+// Estimates # bytes to be written to disk for the given chunk. Returns 0 if the chunk should
+// be ignored.
+//
+// TODO: Estimation is more accurate when ignoring certain non-leaf chunks. The reason for
+// for this is not yet understood. The best results so far come from sampling only
+// leaf chunks and commits (see below).
+//
+//                              all-chunks       leaf-chunks     leaf-chunks+commits
+// -----------------------------------------------------------------------
+// sync sf-crime                782m/726m (+7%)  722m/726m       724m/726m
+// sync sf-film-locations      451k/448k (+1%)  407k/448k (-9%) 447k/448k
+// sync sf-fire-inspections     125m/108m (+15%) 106m/108m (-2%) 108m/108m
+// sync ny-vehicle-registration 4.2g/3.8g (+11%) 3.9g/3.8g (+3%) 3.9g/3.8g (+3%)
+
+func estBytesWritten(v types.Value, c chunks.Chunk) int {
+	ignore := false
+	if len(v.Chunks()) > 0 {
+		ignore = true
+		if s, ok := v.Type().Desc.(types.StructDesc); ok {
+			ignore = s.Name != "Commit"
+		}
+	}
+	if ignore {
+		return 0
+	} else {
+		return len(snappy.Encode(nil, c.Data()))
+	}
 }
 
 func traverseSink(sinkRef types.Ref, db Database) traverseResult {
@@ -269,35 +310,4 @@ func traverseCommon(comRef, sinkHead types.Ref, db Database) traverseResult {
 		return traverseResult{comRef.TargetHash(), chunks, 0}
 	}
 	return traverseResult{}
-}
-
-// Returns the serialzed size of the referenced chunk
-// TODO: Consider moving this method to Database or BatchStore
-func serializedChunkSize(db Database, hash hash.Hash) uint64 {
-	c := db.validatingBatchStore().Get(hash)
-	return uint64(len(snappy.Encode(nil, c.Data())))
-}
-
-// Returns the next index at which to take a sample.
-//
-// The algorithm increases the sampling increment (hence decreasing the sampling rate) in steps as the curIdx
-// gets larger. It caps the increment (currently at 1000) when the cost of sampling becomes insignficant
-// compared to the cost of chunk transfers.
-//
-// THe output for a given curIdx i is:
-//
-//   i < 10    -> i + rand(3 + 3/2)       ~33%
-//   i < 100   -> i + rand(10 + 10/2)     10%
-//   i < 1000  -> i + rand(100 + 100/2)   1%
-//   i < 10000 -> i + rand(1000 + 1000/2) .1%
-//
-// Note that this does not try to produce a statistically accurate sample.
-func nextSampleIndex(curIdx uint64) uint64 {
-	mag := math.Log10(float64(curIdx))
-	num := math.Pow10(int(mag + 1))
-	denom := float64(10)
-	increment := math.Min(1000, math.Max(3.0, num / denom))
-	// choose the increment randomly with increment as the midpoint
-	randIncrement := uint64(rand.Int63n(int64(increment + increment / 2))) + 1
-	return curIdx + randIncrement
 }

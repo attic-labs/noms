@@ -71,7 +71,7 @@ func runSync(args []string) int {
 			last = info
 			if status.WillPrint() {
 				pct := 100.0 * float64(info.DoneCount) / float64(info.KnownCount)
-				status.Printf("Syncing - %.2f%% (~%s/s)", pct, bytesPerSec(info.ApproxWrittenBytes, start))
+				status.Printf("Syncing - %.2f%% (%s/s)", pct, bytesPerSec(info.ApproxWrittenBytes, start))
 			}
 		}
 
@@ -100,7 +100,7 @@ func runSync(args []string) int {
 
 	close(progressCh)
 	if last := <-lastProgressCh; last.DoneCount > 0 {
-		status.Printf("Done - Synced ~%s in %s (~%s/s)",
+		status.Printf("Done - Synced %s in %s (%s/s)",
 			humanize.Bytes(last.ApproxWrittenBytes), since(start), bytesPerSec(last.ApproxWrittenBytes, start))
 		status.Done()
 	} else if !sinkExists {
