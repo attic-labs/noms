@@ -73,12 +73,25 @@ func (s *perfSuite) Test04Read10mStructs() {
 
 func (s *perfSuite) Test05Concat10mValues2kTimes() {
 	assert := s.NewAssert()
+
+	last := func(v types.List) types.Value {
+		return v.Get(v.Len() - 1)
+	}
+
 	l1 := s.headList("BuildList10mNumbers")
 	l2 := s.headList("BuildList10mStructs")
+	l1Len, l2Len := l1.Len(), l2.Len()
+	l1Last, l2Last := last(l1), last(l2)
 
 	l3 := types.NewList()
-	for i := 0; i < 1e3; i++ { // 1000 iterations * 2 concat ops = 2k times
-		l3 = l3.Concat(l1).Concat(l2)
+	for i := uint64(0); i < 1e3; i++ { // 1k iterations * 2 concat ops = 2k times
+		// Include some basic sanity checks.
+		l3 = l3.Concat(l1)
+		assert.True(l1Last.Equals(last(l3)))
+		assert.Equal(i*(l1Len+l2Len)+l1Len, l3.Len())
+		l3 = l3.Concat(l2)
+		assert.True(l2Last.Equals(last(l3)))
+		assert.Equal((i+1)*(l1Len+l2Len), l3.Len())
 	}
 
 	ds := dataset.NewDataset(s.Database, "Concat10mValues2kTimes")
@@ -87,28 +100,6 @@ func (s *perfSuite) Test05Concat10mValues2kTimes() {
 
 	assert.NoError(err)
 	s.Database = ds.Database()
-
-	// Quick sanity check that this was actually correct. Don't count this
-	// towards the measurement because reading is way slower than concat, and it
-	// will pollute the results.
-	s.Pause(func() {
-		l3 := l1.Concat(l2)
-		assert.Equal(l1.Len()+l2.Len(), l3.Len())
-
-		testIters := func(i1, i2 types.ListIterator) {
-			for v1, v2 := i1.Next(), i2.Next(); v1 != nil && v2 != nil; v1, v2 = i1.Next(), i2.Next() {
-				assert.True(v1.Equals(v2))
-			}
-		}
-
-		l1Iter, l2Iter, l3Iter := l1.Iterator(), l2.Iterator(), l3.Iterator()
-		testIters(l1Iter, l3Iter)
-		testIters(l2Iter, l3Iter)
-
-		assert.Nil(l1Iter.Next())
-		assert.Nil(l2Iter.Next())
-		assert.Nil(l3Iter.Next())
-	})
 }
 
 func (s *perfSuite) headList(dsName string) types.List {
