@@ -155,14 +155,6 @@ func (l List) Insert(idx uint64, vs ...Value) List {
 // visit the rightmost prolly tree chunks of this list, and the leftmost prolly
 // tree chunks of other.
 func (l List) Concat(other List) List {
-	if l.Empty() {
-		return other
-	}
-	if other.Empty() {
-		return l
-	}
-	d.Chk.True(l.seq.valueReader() == other.seq.valueReader())
-
 	seq := concat(l.seq, other.seq, func(cur *sequenceCursor, vr ValueReader) *sequenceChunker {
 		return l.newChunker(cur, vr)
 	})
