@@ -4,13 +4,24 @@
 
 package types
 
-type newSequenceChunkerFn func(cur *sequenceCursor) *sequenceChunker
+import "github.com/attic-labs/noms/go/d"
+
+type newSequenceChunkerFn func(cur *sequenceCursor, vr ValueReader) *sequenceChunker
 
 func concat(fst, snd sequence, newSequenceChunker newSequenceChunkerFn) sequence {
+	if _, ok := fst.(emptySequence); ok {
+		return snd
+	}
+	if _, ok := snd.(emptySequence); ok {
+		return fst
+	}
+
 	// concat works by tricking the sequenceChunker into resuming chunking at a
 	// cursor to the end of fst, then finalizing chunking to the start of snd - by
 	// swapping fst cursors for snd cursors in the middle of chunking.
-	chunker := newSequenceChunker(newCursorAtIndex(fst, fst.numLeaves()))
+	vr := fst.valueReader()
+	d.PanicIfTrue(vr != snd.valueReader(), "cannot concat sequences from different databases")
+	chunker := newSequenceChunker(newCursorAtIndex(fst, fst.numLeaves()), vr)
 
 	for cur, ch := newCursorAtIndex(snd, 0), chunker; cur != nil; cur = cur.parent {
 		// If fst is shallower than snd, its cur will have a parent whereas the

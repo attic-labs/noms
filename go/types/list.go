@@ -135,7 +135,7 @@ func (l List) Splice(idx uint64, deleteCount uint64, vs ...Value) List {
 	d.Chk.True(idx+deleteCount <= l.Len())
 
 	cur := newCursorAtIndex(l.seq, idx)
-	ch := l.newChunker(cur)
+	ch := l.newChunker(cur, l.seq.valueReader())
 	for deleteCount > 0 {
 		ch.Skip()
 		deleteCount--
@@ -163,8 +163,8 @@ func (l List) Concat(other List) List {
 	}
 	d.Chk.True(l.seq.valueReader() == other.seq.valueReader())
 
-	seq := concat(l.seq, other.seq, func(cur *sequenceCursor) *sequenceChunker {
-		return l.newChunker(cur)
+	seq := concat(l.seq, other.seq, func(cur *sequenceCursor, vr ValueReader) *sequenceChunker {
+		return l.newChunker(cur, vr)
 	})
 	return newList(seq.(indexedSequence))
 }
@@ -235,8 +235,8 @@ func (l List) DiffWithLimit(last List, changes chan<- Splice, closeChan <-chan s
 	indexedSequenceDiff(last.seq, lastCur.depth(), 0, l.seq, lCur.depth(), 0, changes, closeChan, maxSpliceMatrixSize)
 }
 
-func (l List) newChunker(cur *sequenceCursor) *sequenceChunker {
-	return newSequenceChunker(cur, l.seq.valueReader(), nil, makeListLeafChunkFn(l.seq.valueReader()), newIndexedMetaSequenceChunkFn(ListKind, l.seq.valueReader()), hashValueBytes)
+func (l List) newChunker(cur *sequenceCursor, vr ValueReader) *sequenceChunker {
+	return newSequenceChunker(cur, vr, nil, makeListLeafChunkFn(vr), newIndexedMetaSequenceChunkFn(ListKind, vr), hashValueBytes)
 }
 
 // If |sink| is not nil, chunks will be eagerly written as they're created. Otherwise they are

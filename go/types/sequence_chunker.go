@@ -128,17 +128,14 @@ func (sc *sequenceChunker) resume() {
 	}
 }
 
-// Append appends an item to chunker, and returns the size of the item in bytes.
-func (sc *sequenceChunker) Append(item sequenceItem) (bytesHashed uint32) {
+func (sc *sequenceChunker) Append(item sequenceItem) {
 	d.Chk.True(item != nil)
 	sc.current = append(sc.current, item)
 	sc.rv.ClearLastBoundary()
 	sc.hashValueBytes(item, sc.rv)
-	bytesHashed = sc.rv.bytesHashed
 	if sc.rv.crossedBoundary {
 		sc.handleChunkBoundary()
 	}
-	return
 }
 
 func (sc *sequenceChunker) Skip() {
