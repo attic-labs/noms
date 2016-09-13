@@ -70,12 +70,12 @@ func appendCursorToChunker(chunker *sequenceChunker, cur *sequenceCursor) {
 		return
 	}
 
-	d.Chk.True(len(chunker.current) == 0)
+	d.PanicIfTrue(len(chunker.current) > 0, "there were unchunked items")
 
 	// sequenceChunker's implementation will create parent chunkers while the
 	// cursor has a parent, and only trim then when Done is called.
-	d.Chk.NotNil(cur.parent)
-	d.Chk.NotNil(chunker.parent)
+	d.PanicIfTrue(cur.parent == nil, "parent is nil")
+	d.PanicIfTrue(chunker.parent == nil, "chunker.parent is nil")
 
 	appendCursorToChunker(chunker.parent, cur.parent)
 }
