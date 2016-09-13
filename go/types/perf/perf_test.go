@@ -77,16 +77,38 @@ func (s *perfSuite) Test05Concat10mValues2kTimes() {
 	l2 := s.headList("BuildList10mStructs")
 
 	l3 := types.NewList()
-	for i := 0; i < 1e3; i++ {
+	for i := 0; i < 1e3; i++ { // 1000 iterations * 2 concat ops = 2k times
 		l3 = l3.Concat(l1).Concat(l2)
 	}
 
-	ds := dataset.NewDataset(s.Database, "Concat10mValues2000Times")
+	ds := dataset.NewDataset(s.Database, "Concat10mValues2kTimes")
 	var err error
 	ds, err = ds.CommitValue(l3)
 
 	assert.NoError(err)
 	s.Database = ds.Database()
+
+	// Quick sanity check that this was actually correct. Don't count this
+	// towards the measurement because reading is way slower than concat, and it
+	// will pollute the results.
+	s.Pause(func() {
+		l3 := l1.Concat(l2)
+		assert.Equal(l1.Len()+l2.Len(), l3.Len())
+
+		testIters := func(i1, i2 types.ListIterator) {
+			for v1, v2 := i1.Next(), i2.Next(); v1 != nil && v2 != nil; v1, v2 = i1.Next(), i2.Next() {
+				assert.True(v1.Equals(v2))
+			}
+		}
+
+		l1Iter, l2Iter, l3Iter := l1.Iterator(), l2.Iterator(), l3.Iterator()
+		testIters(l1Iter, l3Iter)
+		testIters(l2Iter, l3Iter)
+
+		assert.Nil(l1Iter.Next())
+		assert.Nil(l2Iter.Next())
+		assert.Nil(l3Iter.Next())
+	})
 }
 
 func (s *perfSuite) headList(dsName string) types.List {
