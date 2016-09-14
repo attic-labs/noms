@@ -74,6 +74,10 @@ func (ml mapLeafSequence) Type() *Type {
 	return ml.t
 }
 
+func (ml mapLeafSequence) cumulativeNumberOfLeaves(idx int) uint64 {
+	return uint64(idx) + 1
+}
+
 // orderedSequence interface
 func (ml mapLeafSequence) getKey(idx int) orderedKey {
 	return newOrderedKey(ml.data[idx].key)

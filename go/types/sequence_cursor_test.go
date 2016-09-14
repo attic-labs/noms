@@ -39,6 +39,10 @@ func (ts testSequence) valueReader() ValueReader {
 	panic("not reached")
 }
 
+func (ts testSequence) cumulativeNumberOfLeaves(idx int) uint64 {
+	return uint64(idx) + 1
+}
+
 // metaSequence interface
 func (ts testSequence) getChildSequence(idx int) sequence {
 	child := ts.items[idx]

@@ -101,6 +101,18 @@ type metaSequenceObject struct {
 	t         *Type
 	vr        ValueReader
 	leafCount uint64
+	offsets   []uint64
+}
+
+func newMetaSequenceObject(tuples metaSequenceData, t *Type, vr ValueReader) metaSequenceObject {
+	var offsets []uint64
+	cum := uint64(0)
+	for _, mt := range tuples {
+		cum += mt.numLeaves
+		offsets = append(offsets, cum)
+	}
+	leafCount := offsets[len(offsets)-1]
+	return metaSequenceObject{tuples, t, vr, leafCount, offsets}
 }
 
 func (ms metaSequenceObject) data() metaSequenceData {
@@ -134,6 +146,10 @@ func (ms metaSequenceObject) Type() *Type {
 
 func (ms metaSequenceObject) numLeaves() uint64 {
 	return ms.leafCount
+}
+
+func (ms metaSequenceObject) cumulativeNumberOfLeaves(idx int) uint64 {
+	return ms.offsets[idx]
 }
 
 // metaSequence interface

@@ -47,9 +47,8 @@ func (sl setLeafSequence) Type() *Type {
 	return sl.t
 }
 
-// orderedSequence interface
-func (sl setLeafSequence) getKey(idx int) orderedKey {
-	return newOrderedKey(sl.data[idx])
+func (sl setLeafSequence) cumulativeNumberOfLeaves(idx int) uint64 {
+	return uint64(idx) + 1
 }
 
 func (sl setLeafSequence) getCompareFn(other sequence) compareFn {
@@ -58,4 +57,9 @@ func (sl setLeafSequence) getCompareFn(other sequence) compareFn {
 		entry := sl.data[idx]
 		return entry.Equals(osl.data[otherIdx])
 	}
+}
+
+// orderedSequence interface
+func (sl setLeafSequence) getKey(idx int) orderedKey {
+	return newOrderedKey(sl.data[idx])
 }

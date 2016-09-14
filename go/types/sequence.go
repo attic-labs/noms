@@ -16,4 +16,5 @@ type sequence interface {
 	Chunks() []Ref
 	Type() *Type
 	getCompareFn(other sequence) compareFn
+	cumulativeNumberOfLeaves(idx int) uint64 // returns the total number of leaf values reachable from this sequence for all sub-trees from 0 to |idx|
 }

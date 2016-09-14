@@ -4,7 +4,11 @@
 
 package types
 
-import "github.com/attic-labs/noms/go/d"
+import (
+	"sort"
+
+	"github.com/attic-labs/noms/go/d"
+)
 
 // sequenceCursor explores a tree of sequence items.
 type sequenceCursor struct {
@@ -140,4 +144,20 @@ func newCursorAtIndex(seq sequence, idx uint64) *sequenceCursor {
 
 	d.PanicIfTrue(cur == nil)
 	return cur
+}
+
+func advanceCursorToOffset(cur *sequenceCursor, idx uint64) uint64 {
+	seq := cur.seq
+	cur.idx = sort.Search(seq.seqLen(), func(i int) bool {
+		return uint64(idx) < seq.cumulativeNumberOfLeaves(i)
+	})
+	if _, ok := seq.(metaSequence); ok {
+		if cur.idx == seq.seqLen() {
+			cur.idx = seq.seqLen() - 1
+		}
+	}
+	if cur.idx == 0 {
+		return 0
+	}
+	return seq.cumulativeNumberOfLeaves(cur.idx - 1)
 }

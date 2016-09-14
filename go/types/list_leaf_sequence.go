@@ -19,7 +19,6 @@ func newListLeafSequence(vr ValueReader, v ...Value) indexedSequence {
 	return listLeafSequence{v, t, vr}
 }
 
-// indexedSequence interface
 func (ll listLeafSequence) cumulativeNumberOfLeaves(idx int) uint64 {
 	return uint64(idx) + 1
 }
