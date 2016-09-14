@@ -10,7 +10,6 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
@@ -71,23 +70,8 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 				// Hook in here to estimate the bytes written to disk during pull (since
 				// srcChan contains all chunks to be written to the sink). Rather than measuring
 				// the serialized, compressed bytes of each chunk, we take a 10% sample.
-				//
-				// TODO: There's no measurable difference in wall time between 10% sampling and
-				// 100% sampling across the demo server datasets. Need to profile to determine if
-				// there's any finer grained performance advantage. Regardless, 10% sampling provides
-				// good estimates, so there's no compelling reason to remove it for now. The following
-				// compares 100% and 10% sampling for some representative datasets in
-				// http://demo.noms.io/cli-tour. The numerator is the estimate and the denomintator
-				// is the observed size on disk.
-				//
-                                //
-				// Sampling                       100%       10%
-				// -----------------------------------------------------------------------
-				// sync sf-crime                724m/726m  724m/726m
-				// sync sf-film-locations       447k/448k  331k/448k
-				// sync sf-fire-inspections     108m/108m  111m/108m
-				// sync ny-vehicle-registration 3.9g/3.8g  3.9g/3.8g
-				//
+				// There's no immediately observable performance benefit to sampling here, but there's
+				// also no appreciable loss in accuracy, so we'll keep it around.
 					takeSample := rand.Float64() < .10
 					srcResChan <- traverseSource(srcRef, srcDB, sinkDB, takeSample)
 				case sinkRef := <-sinkChan:
@@ -258,41 +242,14 @@ func traverseSource(srcRef types.Ref, srcDB, sinkDB Database, estimateBytesWritt
 		sinkDB.validatingBatchStore().SchedulePut(c, srcRef.Height(), types.Hints{})
 		bytesWritten := 0
 		if estimateBytesWritten {
-			bytesWritten = estBytesWritten(v, c)
+			// TODO: Probably better to hide this behind the BatchStore abstraction since
+			// write size is implementation specific.
+			bytesWritten = len(snappy.Encode(nil, c.Data()))
 		}
 		ts := traverseSourceResult{traverseResult{h, v.Chunks(), len(c.Data())}, bytesWritten}
 		return ts
 	}
 	return traverseSourceResult{}
-}
-
-// Estimates # bytes to be written to disk for the given chunk. Returns 0 if the chunk should
-// be ignored.
-//
-// TODO: Estimation is more accurate when ignoring certain non-leaf chunks. The reason for
-// for this is not yet understood. The best results so far come from sampling only
-// leaf chunks and commits (see below).
-//
-//                              all-chunks       leaf-chunks     leaf-chunks+commits
-// -----------------------------------------------------------------------
-// sync sf-crime                782m/726m (+7%)  722m/726m       724m/726m
-// sync sf-film-locations       451k/448k (+1%)  407k/448k (-9%) 447k/448k
-// sync sf-fire-inspections     125m/108m (+15%) 106m/108m (-2%) 108m/108m
-// sync ny-vehicle-registration 4.2g/3.8g (+11%) 3.9g/3.8g (+3%) 3.9g/3.8g (+3%)
-//
-func estBytesWritten(v types.Value, c chunks.Chunk) int {
-	ignore := false
-	if len(v.Chunks()) > 0 {
-		ignore = true
-		if s, ok := v.Type().Desc.(types.StructDesc); ok {
-			ignore = s.Name != "Commit"
-		}
-	}
-	if ignore {
-		return 0
-	} else {
-		return len(snappy.Encode(nil, c.Data()))
-	}
 }
 
 func traverseSink(sinkRef types.Ref, db Database) traverseResult {
