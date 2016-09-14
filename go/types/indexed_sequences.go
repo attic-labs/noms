@@ -92,7 +92,7 @@ func newIndexedMetaSequenceChunkFn(kind NomsKind, source ValueReader) makeChunkF
 		if kind == ListKind {
 			col = newList(newListMetaSequence(tuples, source))
 		} else {
-			d.Chk.True(BlobKind == kind)
+			d.PanicIfFalse(BlobKind == kind)
 			col = newBlob(newBlobMetaSequence(tuples, source))
 		}
 		return col, orderedKeyFromSum(tuples), numLeaves
