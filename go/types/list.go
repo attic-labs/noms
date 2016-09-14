@@ -151,7 +151,7 @@ func (l List) Append(vs ...Value) List {
 
 // Splice returns a new list where deleteCount values have been removed at idx and vs have been
 // inserted instead.
-// This function panics if idx is out of bounds or too many items are tried to be removed.
+// This function panics if idx or deleteCount is out of bounds.
 func (l List) Splice(idx uint64, deleteCount uint64, vs ...Value) List {
 	if deleteCount == 0 && len(vs) == 0 {
 		return l
