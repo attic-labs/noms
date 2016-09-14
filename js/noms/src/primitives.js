@@ -13,7 +13,7 @@ export type primitive =
     boolean;
 
 /**
- * Whether a value is consider to be a primitive Noms value.
+ * Whether a value is considered to be a primitive Noms value.
  */
 export function isPrimitive(v: any): boolean {
   switch (typeof v) {
