@@ -138,6 +138,6 @@ func newCursorAtIndex(seq sequence, idx uint64) *sequenceCursor {
 		seq = cs
 	}
 
-	d.Chk.True(cur != nil)
+	d.PanicIfTrue(cur == nil)
 	return cur
 }
