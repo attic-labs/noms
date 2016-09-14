@@ -33,22 +33,22 @@ func PanicIfError(err error) {
 	}
 }
 
+func argsToError(def string, args ...interface{}) error {
+	if len(args) == 0 {
+		return errors.New(def)
+	}
+	msg := args[0].(string)
+	if len(args) > 1 {
+		return fmt.Errorf(msg, args[1:]...)
+	}
+	return errors.New(msg)
+}
+
 // If b is true, creates an error using args, wraps it and panics. If args is provided the first
 // value must be a string.
 func PanicIfTrue(b bool, args ...interface{}) {
 	if b {
-		var err error
-		if len(args) == 0 {
-			err = errors.New("Expected true")
-		} else {
-			msg := args[0].(string)
-			if len(args) > 1 {
-				err = fmt.Errorf(msg, args[1:]...)
-			} else {
-				err = errors.New(args[0].(string))
-			}
-		}
-		panic(Wrap(err))
+		panic(Wrap(argsToError("Expected true", args...)))
 	}
 }
 
@@ -56,11 +56,7 @@ func PanicIfTrue(b bool, args ...interface{}) {
 // value must be a string.
 func PanicIfFalse(b bool, args ...interface{}) {
 	if !b {
-		if len(args) == 0 {
-			PanicIfTrue(!b, "Expected false")
-		} else {
-			PanicIfTrue(!b, args...)
-		}
+		panic(Wrap(argsToError("Expected false", args...)))
 	}
 }
 
