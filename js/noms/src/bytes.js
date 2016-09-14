@@ -87,6 +87,10 @@ export function encodeUtf8(str: string, buff: Uint8Array, dv: DataView, offset: 
   return offset;
 }
 
+export function utf8ByteLength(str: string): number {
+  return Buffer.byteLength(str);
+}
+
 export function compare(b1: Uint8Array, b2: Uint8Array): number {
   // $FlowIssue
   return b1.compare(b2);
