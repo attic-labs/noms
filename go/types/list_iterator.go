@@ -8,8 +8,7 @@ import (
 	"github.com/attic-labs/noms/go/d"
 )
 
-// ListIterator can be used to efficiently iterate through a Noms List starting at an index of your
-// choice.
+// ListIterator can be used to efficiently iterate through a Noms List.
 type ListIterator struct {
 	cursor *sequenceCursor
 }

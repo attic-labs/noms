@@ -116,8 +116,10 @@ func (l List) Get(idx uint64) Value {
 
 type MapFunc func(v Value, index uint64) interface{}
 
+// Deprecated: This API may change in the future. Use IterAll or Iterator instead.
 func (l List) Map(mf MapFunc) []interface{} {
 	// TODO: This is bad API. It should have returned another List.
+	// https://github.com/attic-labs/noms/issues/2557
 	idx := uint64(0)
 	cur := newCursorAtIndex(l.seq, idx)
 
@@ -142,7 +144,7 @@ func (l List) Set(idx uint64, v Value) List {
 	return l.Splice(idx, 1, v)
 }
 
-// Append returns a new list where vs have bben appended to the resulting list.
+// Append returns a new list where vs have been appended to the resulting list.
 func (l List) Append(vs ...Value) List {
 	return l.Splice(l.Len(), 0, vs...)
 }
@@ -177,7 +179,7 @@ func (l List) Insert(idx uint64, vs ...Value) List {
 }
 
 // Remove returns a new list where the items at index start (inclusive) through end (exclusive) have
-// been removed.
+// been removed. This panics if end is smaller than start.
 func (l List) Remove(start uint64, end uint64) List {
 	d.Chk.True(start <= end)
 	return l.Splice(start, end-start)
@@ -207,7 +209,7 @@ func (l List) Iter(f listIterFunc) {
 type listIterAllFunc func(v Value, index uint64)
 
 // IterAll iterates over the list and calls f for every element in the list. Unlike Iter there is no
-// way to stop the iteration and all elements are visited no matter what.
+// way to stop the iteration and all elements are visited.
 func (l List) IterAll(f listIterAllFunc) {
 	// TODO: Consider removing this and have Iter behave like IterAll.
 	idx := uint64(0)
@@ -224,17 +226,20 @@ func (l List) Iterator() ListIterator {
 	return l.IteratorAt(0)
 }
 
-// IteratorAt returns a ListIterator starting at index.
+// IteratorAt returns a ListIterator starting at index. If index is out of bound the iterator will
+// have reached its end on creation.
 func (l List) IteratorAt(index uint64) ListIterator {
 	return ListIterator{newCursorAtIndex(l.seq, index)}
 }
 
-// Diff returns the diff of two different lists.
+// Diff streams the diff from last to the current list to the changes channel. Caller can close
+// closeChan to cancel the diff operation.
 func (l List) Diff(last List, changes chan<- Splice, closeChan <-chan struct{}) {
 	l.DiffWithLimit(last, changes, closeChan, DEFAULT_MAX_SPLICE_MATRIX_SIZE)
 }
 
-// DiffWithLimit returns a partial diff of two different lists.
+// DiffithLimit streams the diff from last to the current list to the changes channel. Caller can
+// close closeChan to cancel the diff operation.
 func (l List) DiffWithLimit(last List, changes chan<- Splice, closeChan <-chan struct{}, maxSpliceMatrixSize uint64) {
 	if l.Equals(last) {
 		return

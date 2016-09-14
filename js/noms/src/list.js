@@ -93,7 +93,7 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
   }
 
   /**
-   * This returns a new list where `values` have bben appended to the resulting list.
+   * This returns a new list where `values` have been appended to the resulting list.
    */
   append(...values: Array<T>): Promise<List<T>> {
     return this.splice(this.length, 0, ...values);
