@@ -129,8 +129,9 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
   }
 
   /**
-   * Diff returns the diff of two different lists. If `maxSpliceMatrixSize` is provided then a
-   * partial diff might be returned.
+   * Diff returns the diff of two different lists. If `maxSpliceMatrixSize` is provided then that
+   * determines the how big of an edit distance matrix we are willing to compute versus just saying
+   * the thing changed.
    */
   diff(last: List<T>,
        maxSpliceMatrixSize: number = DEFAULT_MAX_SPLICE_MATRIX_SIZE): Promise<Array<Splice>> {
