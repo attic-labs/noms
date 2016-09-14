@@ -14,6 +14,7 @@ import os
 import os.path
 import shutil
 import subprocess
+import sys
 
 # The list of platforms for which we should execute builds on the following packages
 PLATFORMS = [
@@ -55,25 +56,25 @@ def main():
     assert workspace
 
     # Git SHA revision identifier to insert into built binaries
+    # following lead of `git describe --always` in abbreviating to first 7 characters
     noms_rev = os.getenv('NOMS_REVISION')
     assert noms_rev
-    if len(noms_rev) > 7:
-        noms_rev = noms_rev[:7]
+    noms_rev = noms_rev[:7]
 
     noms_src_dir = os.path.join(workspace, 'src/github.com/attic-labs/noms')
-    assert os.path.exists(noms_src_dir)
+    assert os.path.isdir(noms_src_dir)
 
     noms_output_dir = os.path.join(noms_src_dir, 'build_output')
     if os.path.exists(noms_output_dir):
         shutil.rmtree(noms_output_dir)
     os.mkdir(noms_output_dir)
-    assert os.path.exists(noms_output_dir)
+    assert os.path.isdir(noms_output_dir)
 
     for osname, cpuarch in PLATFORMS:
         osarch = '%s-%s' % (osname, cpuarch)
         platform_output_dir = os.path.join(noms_output_dir, osarch)
         os.mkdir(platform_output_dir)
-        assert os.path.exists(platform_output_dir)
+        assert os.path.isdir(platform_output_dir)
 
         env = copy.copy(os.environ)
         env.update({
@@ -85,17 +86,23 @@ def main():
         # Using 'go build' instead of 'go install' per the recommendation:
         # http://dave.cheney.net/2015/08/22/cross-compilation-with-go-1-5
         for pkg in PACKAGES:
-            # cmd: go build -o outputFile -ldFlags "-X file.Constant=value" package
-            cmd = ['go', 'build', '-o',
-                   os.path.join(platform_output_dir, os.path.basename(pkg)),
-                   '-ldflags',
+            pkg_output_file = os.path.join(platform_output_dir, os.path.basename(pkg))
+            # cmd: go build -o pkg_output_file -ldFlags "-X file.Constant=value" package
+            cmd = ['go', 'build', '-o', pkg_output_file, '-ldflags',
                    '-X github.com/attic-labs/noms/go/constants.NomsGitSHA=' + noms_rev,
                    pkg]
             call_with_env_and_cwd(cmd, env, noms_src_dir)
+            if not os.path.isfile(pkg_output_file):
+                print 'Unable to find built binary - %s' % pkg_output_file
+                sys.exit(1)
 
-        platform_targz_file = os.path.join(noms_output_dir, 'noms-%s-%s' % (noms_rev, osarch))
+        platform_targz_file = os.path.join(noms_output_dir,
+                                           'noms-%s-%s' % (noms_rev, osarch))
         shutil.make_archive(platform_targz_file, 'gztar', platform_output_dir)
         shutil.rmtree(platform_output_dir)
+        if not os.path.isfile(platform_targz_file + '.tar.gz'):
+            print 'Unable to find built archive - %s' % platform_targz_file
+            sys.exit(1)
 
 if __name__ == '__main__':
     main()
