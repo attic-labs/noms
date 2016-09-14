@@ -212,6 +212,7 @@ type listIterAllFunc func(v Value, index uint64)
 // way to stop the iteration and all elements are visited.
 func (l List) IterAll(f listIterAllFunc) {
 	// TODO: Consider removing this and have Iter behave like IterAll.
+	// https://github.com/attic-labs/noms/issues/2558
 	idx := uint64(0)
 	cur := newCursorAtIndex(l.seq, idx)
 	cur.iter(func(v interface{}) bool {
@@ -238,8 +239,10 @@ func (l List) Diff(last List, changes chan<- Splice, closeChan <-chan struct{}) 
 	l.DiffWithLimit(last, changes, closeChan, DEFAULT_MAX_SPLICE_MATRIX_SIZE)
 }
 
-// DiffithLimit streams the diff from last to the current list to the changes channel. Caller can
+// DiffWithLimit streams the diff from last to the current list to the changes channel. Caller can
 // close closeChan to cancel the diff operation.
+// The maxSpliceMatrixSize determines the how big of an edit distance matrix we are willing to
+// compute versus just saying the thing changed.
 func (l List) DiffWithLimit(last List, changes chan<- Splice, closeChan <-chan struct{}, maxSpliceMatrixSize uint64) {
 	if l.Equals(last) {
 		return

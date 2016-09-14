@@ -41,7 +41,7 @@ function newListLeafChunkFn<T: Value>(vr: ?ValueReader): makeChunkFn<any, any> {
  * example:
  *
  *  const l = new List([1, true]);
- *  console.log(l.type.escribe());
+ *  console.log(l.type.describe());
  *  // outputs List<Bool | Number>
  *
  * Lists, like all Noms values are immutable so the "mutation" methods return a new list.
@@ -181,8 +181,11 @@ export class ListLeafSequence<T: Value> extends IndexedSequence<T> {
     return getValueChunks(this.items);
   }
 
+  /**
+   * This method is for internal use of sequences. It returns how many leaf items there are up to an
+   * index within its sequence.
+   */
   cumulativeNumberOfLeaves(idx: number): number {
-    // TODO: What does this do? Document me!
     return idx + 1;
   }
 
