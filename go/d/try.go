@@ -6,10 +6,9 @@
 package d
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
-
-	"errors"
 
 	"github.com/attic-labs/testify/assert"
 )
@@ -34,16 +33,34 @@ func PanicIfError(err error) {
 	}
 }
 
-// If b evaluates to true, creates an error using msg and args, wraps it and panics.
-func PanicIfTrue(b bool, msg string, args ...interface{}) {
+// If b is true, creates an error using args, wraps it and panics. If args is provided the first
+// value must be a string.
+func PanicIfTrue(b bool, args ...interface{}) {
 	if b {
 		var err error
-		if len(args) > 0 {
-			err = fmt.Errorf(msg, args...)
+		if len(args) == 0 {
+			err = errors.New("Expected true")
 		} else {
-			err = errors.New(msg)
+			msg := args[0].(string)
+			if len(args) > 1 {
+				err = fmt.Errorf(msg, args[1:]...)
+			} else {
+				err = errors.New(args[0].(string))
+			}
 		}
 		panic(Wrap(err))
+	}
+}
+
+// If b is false, creates an error using args, wraps it and panics. If args is provided the first
+// value must be a string.
+func PanicIfFalse(b bool, args ...interface{}) {
+	if !b {
+		if len(args) == 0 {
+			PanicIfTrue(!b, "Expected false")
+		} else {
+			PanicIfTrue(!b, args...)
+		}
 	}
 }
 
