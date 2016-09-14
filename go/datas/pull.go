@@ -18,7 +18,7 @@ import (
 )
 
 type PullProgress struct {
-	DoneCount, KnownCount, DoneBytes, ApproxWrittenBytes uint64
+	DoneCount, KnownCount, ApproxWrittenBytes uint64
 }
 
 // Pull objects that descends from sourceRef from srcDB to sinkDB. sinkHeadRef should point to a Commit (in sinkDB) that's an ancestor of sourceRef. This allows the algorithm to figure out which portions of data are already present in sinkDB and skip copying them.
@@ -68,13 +68,26 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 			for {
 				select {
 				case srcRef := <-srcChan:
-					// Hook in here to estimate the bytes written to disk during pull (since
-					// srcChan contains all chunks to be written to the sink). Rather than measuring
-					// the serialized, compressed bytes of each chunk, we take a 10% sample.
-					// TODO: There's no measurable difference in wall time between 10% sampling and
-					// 100% sampling across the demo server datasets. Need to profile to determine if
-					// there's any finer grained performance advantage. Regardless, 10% sampling provides
-					// good estimates, so there's no compelling reason to remove it for now.
+				// Hook in here to estimate the bytes written to disk during pull (since
+				// srcChan contains all chunks to be written to the sink). Rather than measuring
+				// the serialized, compressed bytes of each chunk, we take a 10% sample.
+				//
+				// TODO: There's no measurable difference in wall time between 10% sampling and
+				// 100% sampling across the demo server datasets. Need to profile to determine if
+				// there's any finer grained performance advantage. Regardless, 10% sampling provides
+				// good estimates, so there's no compelling reason to remove it for now. The following
+				// compares 100% and 10% sampling for some representative datasets in
+				// http://demo.noms.io/cli-tour. The numerator is the estimate and the denomintator
+				// is the observed size on disk.
+				//
+                                //
+				// Sampling                       100%       10%
+				// -----------------------------------------------------------------------
+				// sync sf-crime                724m/726m  724m/726m
+				// sync sf-film-locations       447k/448k  331k/448k
+				// sync sf-fire-inspections     108m/108m  111m/108m
+				// sync ny-vehicle-registration 3.9g/3.8g  3.9g/3.8g
+				//
 					takeSample := rand.Float64() < .10
 					srcResChan <- traverseSource(srcRef, srcDB, sinkDB, takeSample)
 				case sinkRef := <-sinkChan:
@@ -92,13 +105,13 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 		traverseWorker()
 	}
 
-	var doneCount, knownCount, doneBytes, approxBytesWritten uint64
+	var doneCount, knownCount, approxBytesWritten uint64
 	updateProgress := func(moreDone, moreKnown, moreBytesRead, moreApproxBytesWritten uint64) {
 		if progressCh == nil {
 			return
 		}
-		doneCount, knownCount, doneBytes, approxBytesWritten = doneCount+moreDone, knownCount+moreKnown, doneBytes+moreBytesRead, approxBytesWritten+moreApproxBytesWritten
-		progressCh <- PullProgress{doneCount, knownCount + uint64(srcQ.Len()), doneBytes, approxBytesWritten}
+		doneCount, knownCount, approxBytesWritten = doneCount+moreDone, knownCount+moreKnown,  approxBytesWritten+moreApproxBytesWritten
+		progressCh <- PullProgress{doneCount, knownCount + uint64(srcQ.Len()), approxBytesWritten}
 	}
 
 	// hc and reachableChunks aren't goroutine-safe, so only write them here.
@@ -263,10 +276,10 @@ func traverseSource(srcRef types.Ref, srcDB, sinkDB Database, estimateBytesWritt
 //                              all-chunks       leaf-chunks     leaf-chunks+commits
 // -----------------------------------------------------------------------
 // sync sf-crime                782m/726m (+7%)  722m/726m       724m/726m
-// sync sf-film-locations      451k/448k (+1%)  407k/448k (-9%) 447k/448k
+// sync sf-film-locations       451k/448k (+1%)  407k/448k (-9%) 447k/448k
 // sync sf-fire-inspections     125m/108m (+15%) 106m/108m (-2%) 108m/108m
 // sync ny-vehicle-registration 4.2g/3.8g (+11%) 3.9g/3.8g (+3%) 3.9g/3.8g (+3%)
-
+//
 func estBytesWritten(v types.Value, c chunks.Chunk) int {
 	ignore := false
 	if len(v.Chunks()) > 0 {
