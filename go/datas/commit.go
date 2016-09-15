@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
 )
 
@@ -73,21 +74,12 @@ func CommitDescendsFrom(commit types.Struct, ancestor types.Ref, vr types.ValueR
 func FindCommonAncestor(c1, c2 types.Struct, vr types.ValueReader) (a types.Struct, ok bool) {
 	c1Q, c2Q := &types.RefByHeight{types.NewRef(c1)}, &types.RefByHeight{types.NewRef(c2)}
 
-	makeSet := func(refs types.RefSlice) types.Set {
-		vals := make(types.ValueSlice, refs.Len())
-		for i, r := range refs {
-			vals[i] = r
-		}
-		return types.NewSet(vals...)
-	}
-
 	for !c1Q.Empty() && !c2Q.Empty() {
 		c1Ht, c2Ht := c1Q.MaxHeight(), c2Q.MaxHeight()
 		if c1Ht == c2Ht {
 			c1Parents, c2Parents := c1Q.PopRefsOfHeight(c1Ht), c2Q.PopRefsOfHeight(c2Ht)
-			intersection := types.NewIntersectionIterator(makeSet(c1Parents).Iterator(), makeSet(c2Parents).Iterator())
-			if common := intersection.Next(); common != nil {
-				return common.(types.Ref).TargetValue(vr).(types.Struct), true
+			if common := findCommonRef(c1Parents, c2Parents); (common != types.Ref{}) {
+				return common.TargetValue(vr).(types.Struct), true
 			}
 
 			parentsToQueue(c1Parents, c1Q, vr)
@@ -110,6 +102,24 @@ func parentsToQueue(refs types.RefSlice, q *types.RefByHeight, vr types.ValueRea
 		})
 	}
 	sort.Sort(q)
+}
+
+func findCommonRef(a, b types.RefSlice) types.Ref {
+	toRefSet := func(s types.RefSlice) map[hash.Hash]types.Ref {
+		out := map[hash.Hash]types.Ref{}
+		for _, r := range s {
+			out[r.TargetHash()] = r
+		}
+		return out
+	}
+
+	aSet, bSet := toRefSet(a), toRefSet(b)
+	for s, r := range aSet {
+		if _, present := bSet[s]; present {
+			return r
+		}
+	}
+	return types.Ref{}
 }
 
 // getAncestors returns set of direct ancestors with height >= minHeight
