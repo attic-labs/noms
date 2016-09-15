@@ -20,7 +20,8 @@ GO_LIST="$(go list ./... | grep -v /vendor/ | grep -v /samples/js/)"
 go build ${GO_LIST}
 
 # go test plus build coverage data for upload codecov.io
-echo "" > coverage.txt
+rm -rf coverage.txt
+touch coverage.txt
 for d in ${GO_LIST}; do
     go test -coverprofile=profile.out -covermode=atomic $d
     if [ -f profile.out ]; then
