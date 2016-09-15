@@ -70,10 +70,13 @@ func CommitDescendsFrom(commit types.Struct, ancestor types.Ref, vr types.ValueR
 }
 
 // FindCommonAncestor returns the most recent common ancestor of c1 and c2, if
-// one exists, setting ok to true. If there is no common ancestor, ok is set to false.
+// one exists, setting ok to true. If there is no common ancestor, ok is set
+// to false.
 func FindCommonAncestor(c1, c2 types.Struct, vr types.ValueReader) (a types.Struct, ok bool) {
-	c1Q, c2Q := &types.RefByHeight{types.NewRef(c1)}, &types.RefByHeight{types.NewRef(c2)}
+	d.PanicIfFalse(IsCommitType(c1.Type()), "FindCommonAncestor() called on %s", c1.Type().Describe())
+	d.PanicIfFalse(IsCommitType(c2.Type()), "FindCommonAncestor() called on %s", c2.Type().Describe())
 
+	c1Q, c2Q := &types.RefByHeight{types.NewRef(c1)}, &types.RefByHeight{types.NewRef(c2)}
 	for !c1Q.Empty() && !c2Q.Empty() {
 		c1Ht, c2Ht := c1Q.MaxHeight(), c2Q.MaxHeight()
 		if c1Ht == c2Ht {
@@ -81,7 +84,6 @@ func FindCommonAncestor(c1, c2 types.Struct, vr types.ValueReader) (a types.Stru
 			if common := findCommonRef(c1Parents, c2Parents); (common != types.Ref{}) {
 				return common.TargetValue(vr).(types.Struct), true
 			}
-
 			parentsToQueue(c1Parents, c1Q, vr)
 			parentsToQueue(c2Parents, c2Q, vr)
 		} else if c1Ht > c2Ht {
