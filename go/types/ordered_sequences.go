@@ -43,14 +43,7 @@ func newMapMetaSequence(tuples metaSequenceData, vr ValueReader) orderedMetaSequ
 }
 
 func newOrderedMetaSequence(tuples metaSequenceData, t *Type, vr ValueReader) orderedMetaSequence {
-	leafCount := uint64(0)
-	for _, mt := range tuples {
-		leafCount += mt.numLeaves
-	}
-
-	return orderedMetaSequence{
-		metaSequenceObject{tuples, t, vr, leafCount},
-	}
+	return orderedMetaSequence{newMetaSequenceObject(tuples, t, vr)}
 }
 
 func (oms orderedMetaSequence) getKey(idx int) orderedKey {

@@ -13,7 +13,6 @@ func newBlobLeafSequence(vr ValueReader, data []byte) indexedSequence {
 	return blobLeafSequence{data, vr}
 }
 
-// indexedSequence interface
 func (bl blobLeafSequence) cumulativeNumberOfLeaves(idx int) uint64 {
 	return uint64(idx) + 1
 }

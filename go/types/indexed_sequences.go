@@ -4,20 +4,14 @@
 
 package types
 
-import (
-	"sort"
-
-	"github.com/attic-labs/noms/go/d"
-)
+import "github.com/attic-labs/noms/go/d"
 
 type indexedSequence interface {
 	sequence
-	cumulativeNumberOfLeaves(idx int) uint64 // returns the total number of leaf values reachable from this sequence for all sub-trees from 0 to |idx|
 }
 
 type indexedMetaSequence struct {
 	metaSequenceObject
-	offsets []uint64
 }
 
 func newListMetaSequence(tuples metaSequenceData, vr ValueReader) indexedMetaSequence {
@@ -35,21 +29,7 @@ func newBlobMetaSequence(tuples metaSequenceData, vr ValueReader) indexedMetaSeq
 }
 
 func newIndexedMetaSequence(tuples metaSequenceData, t *Type, vr ValueReader) indexedMetaSequence {
-	var offsets []uint64
-	cum := uint64(0)
-	for _, mt := range tuples {
-		cum += mt.key.uint64Value()
-		offsets = append(offsets, cum)
-	}
-	leafCount := offsets[len(offsets)-1]
-	return indexedMetaSequence{
-		metaSequenceObject{tuples, t, vr, leafCount},
-		offsets,
-	}
-}
-
-func (ims indexedMetaSequence) cumulativeNumberOfLeaves(idx int) uint64 {
-	return ims.offsets[idx]
+	return indexedMetaSequence{newMetaSequenceObject(tuples, t, vr)}
 }
 
 func (ims indexedMetaSequence) getCompareFn(other sequence) compareFn {
@@ -57,22 +37,6 @@ func (ims indexedMetaSequence) getCompareFn(other sequence) compareFn {
 	return func(idx, otherIdx int) bool {
 		return ims.tuples[idx].ref.TargetHash() == oms.tuples[otherIdx].ref.TargetHash()
 	}
-}
-
-func advanceCursorToOffset(cur *sequenceCursor, idx uint64) uint64 {
-	seq := cur.seq.(indexedSequence)
-	cur.idx = sort.Search(seq.seqLen(), func(i int) bool {
-		return uint64(idx) < seq.cumulativeNumberOfLeaves(i)
-	})
-	if _, ok := seq.(metaSequence); ok {
-		if cur.idx == seq.seqLen() {
-			cur.idx = seq.seqLen() - 1
-		}
-	}
-	if cur.idx == 0 {
-		return 0
-	}
-	return seq.cumulativeNumberOfLeaves(cur.idx - 1)
 }
 
 // If |sink| is not nil, chunks will be eagerly written as they're created. Otherwise they are
