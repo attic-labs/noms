@@ -16,6 +16,11 @@ import {
 import type {Value} from '@attic/noms';
 
 declare class Chart {
+  static defaults: {
+    global: {
+      defaultFontColor: string;
+    };
+  };
 }
 
 type DataPoint = {
