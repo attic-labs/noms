@@ -246,7 +246,10 @@ func (w *hrsWriter) writeType(t *Type, parentStructTypes []*Type) {
 		w.write("<")
 		for i, et := range t.Desc.(CompoundDesc).ElemTypes {
 			if i != 0 {
-				w.write(", ")
+				w.write(",")
+				if et.Kind() != UnionKind {
+					w.write(" ")
+				}
 			}
 			w.writeType(et, parentStructTypes)
 			if w.err != nil {
