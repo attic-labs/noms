@@ -43,6 +43,10 @@ type Database interface {
 	// SetHead sets the Commit that datasetID in this database points at. All Values that have been written to this Database are guaranteed to be persistent after SetHead(). If the update cannot be performed, e.g., because of a conflict, error will be non-nil. The newest snapshot of the database is always returned.
 	SetHead(datasetID string, commit types.Struct) (Database, error)
 
+	// ProgressChannel returns a channel that progress information is sent to. If this is nil then
+	// the underlying database implementation does not report progress.
+	ProgressChannel() chan DatabaseProgress
+
 	has(hash hash.Hash) bool
 	validatingBatchStore() types.BatchStore
 }

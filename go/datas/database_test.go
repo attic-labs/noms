@@ -49,7 +49,7 @@ func (suite *RemoteDatabaseSuite) SetupTest() {
 	suite.cs = chunks.NewTestStore()
 	suite.makeDb = func(cs chunks.ChunkStore) Database {
 		hbs := newHTTPBatchStoreForTest(cs)
-		return &RemoteDatabaseClient{newDatabaseCommon(newCachingChunkHaver(hbs), types.NewValueStore(hbs), hbs)}
+		return &RemoteDatabaseClient{newDatabaseCommon(newCachingChunkHaver(hbs), types.NewValueStore(hbs), hbs), hbs}
 	}
 	suite.db = suite.makeDb(suite.cs)
 }
@@ -443,4 +443,32 @@ func (suite *DatabaseSuite) TestDatabaseHeightOfCollections() {
 	andMore = append(andMore, setOfStringType, setOfRefOfStringType)
 
 	suite.db.WriteValue(types.NewList(andMore...))
+}
+
+func (suite *DatabaseSuite) TestDatabaseCommitProgress() {
+	var waitChan chan struct{}
+	progressReported := false
+	progressChan := suite.db.ProgressChannel()
+	if progressChan == nil {
+		return
+	}
+
+	suite.NotNil(progressChan)
+	waitChan = make(chan struct{})
+	go func() {
+		for range progressChan {
+			progressReported = true
+			break
+		}
+		waitChan <- struct{}{}
+	}()
+
+	a := types.String("a")
+	c := NewCommit(a, types.NewSet(), types.EmptyStruct)
+	_, err := suite.db.Commit("dsid", c)
+	suite.NoError(err)
+
+	<-waitChan
+
+	suite.True(progressReported)
 }

@@ -35,6 +35,7 @@ func newOrderedChunkCache() *orderedChunkCache {
 		orderedChunks: db,
 		chunkIndex:    map[hash.Hash][]byte{},
 		dbDir:         dir,
+		size:          0,
 		mu:            &sync.RWMutex{},
 	}
 }
@@ -44,6 +45,7 @@ type orderedChunkCache struct {
 	orderedChunks *leveldb.DB
 	chunkIndex    map[hash.Hash][]byte
 	dbDir         string
+	size          uint64
 	mu            *sync.RWMutex
 }
 
@@ -62,7 +64,11 @@ func (p *orderedChunkCache) Insert(c chunks.Chunk, refHeight uint64) bool {
 
 	if !present {
 		compressed := snappy.Encode(nil, c.Data())
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		p.size += uint64(len(compressed))
 		d.Chk.NoError(p.orderedChunks.Put(dbKey, compressed, nil))
+
 		return true
 	}
 	return false
@@ -100,6 +106,7 @@ func (p *orderedChunkCache) Clear(hashes hash.HashSet) {
 		deleteBatch.Delete(p.chunkIndex[hash])
 		delete(p.chunkIndex, hash)
 	}
+	p.size = 0
 	p.mu.Unlock()
 	d.Chk.NoError(p.orderedChunks.Write(deleteBatch, nil))
 	return
