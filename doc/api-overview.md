@@ -1,6 +1,6 @@
 # Noms API Overview
 
-Noms provides SDKs for Go and JavaScript development. This overview introduces the basic types and APIs available to Go and JavaScript developers. The SDKs are equivalent in terms of feature parity with the differences being to enable more natural development by the platform specific developer.
+Noms provides SDKs for Go and JavaScript development. This overview introduces the basic types and APIs available to Go and JavaScript developers.
 
 ## Generated API Documentation
 
