@@ -86,9 +86,9 @@ func doTreeWalkP(v types.Value, vr types.ValueReader, cb SomeCallback, deep bool
 		processVal(v, &r, deep)
 
 	}
+
 	//Process initial value
 	processVal(v, nil, true)
-
 }
 
 func doRefWalkP(v types.Value, vr types.ValueReader, cb types.RefCallback, deep bool) {
@@ -117,7 +117,6 @@ func doRefWalkP(v types.Value, vr types.ValueReader, cb types.RefCallback, deep 
 		}
 	}
 
-	processVal(v, true)
-
 	//Process initial value
+	processVal(v, true)
 }
