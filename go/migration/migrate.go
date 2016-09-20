@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package migrate
+package migration
 
 import (
 	"github.com/attic-labs/noms/go/d"
@@ -10,7 +10,8 @@ import (
 	v7types "github.com/attic-labs/noms/go/types"
 )
 
-func Value(source v7types.Value, sourceStore v7types.ValueReadWriter, sinkStore types.ValueReadWriter) (dest types.Value, err error) {
+// Migrate converts a Noms value from one version to another version.
+func MigrateFromVersion7(source v7types.Value, sourceStore v7types.ValueReadWriter, sinkStore types.ValueReadWriter) (dest types.Value, err error) {
 	switch source := source.(type) {
 	case v7types.Bool:
 		return types.Bool(bool(source)), nil
@@ -25,7 +26,7 @@ func Value(source v7types.Value, sourceStore v7types.ValueReadWriter, sinkStore 
 		lc := types.NewStreamingList(sinkStore, vc)
 		for i := uint64(0); i < source.Len(); i++ {
 			var nv types.Value
-			nv, err = Value(source.Get(i), sourceStore, sinkStore)
+			nv, err = MigrateFromVersion7(source.Get(i), sourceStore, sinkStore)
 			if err != nil {
 				break
 			}
@@ -39,9 +40,9 @@ func Value(source v7types.Value, sourceStore v7types.ValueReadWriter, sinkStore 
 		mc := types.NewStreamingMap(sinkStore, kvc)
 		source.Iter(func(k, v v7types.Value) (stop bool) {
 			var nk, nv types.Value
-			nk, err = Value(k, sourceStore, sinkStore)
+			nk, err = MigrateFromVersion7(k, sourceStore, sinkStore)
 			if err == nil {
-				nv, err = Value(v, sourceStore, sinkStore)
+				nv, err = MigrateFromVersion7(v, sourceStore, sinkStore)
 			}
 			if err != nil {
 				stop = true
@@ -59,7 +60,7 @@ func Value(source v7types.Value, sourceStore v7types.ValueReadWriter, sinkStore 
 		sc := types.NewStreamingSet(sinkStore, vc)
 		source.Iter(func(v v7types.Value) (stop bool) {
 			var nv types.Value
-			nv, err = Value(v, sourceStore, sinkStore)
+			nv, err = MigrateFromVersion7(v, sourceStore, sinkStore)
 			if err != nil {
 				stop = true
 			} else {
@@ -77,7 +78,7 @@ func Value(source v7types.Value, sourceStore v7types.ValueReadWriter, sinkStore 
 		sd.IterFields(func(name string, _ *v7types.Type) {
 			if err == nil {
 				var fv types.Value
-				fv, err = Value(source.Get(name), sourceStore, sinkStore)
+				fv, err = MigrateFromVersion7(source.Get(name), sourceStore, sinkStore)
 				fields = append(fields, fv)
 			}
 		})
@@ -90,7 +91,7 @@ func Value(source v7types.Value, sourceStore v7types.ValueReadWriter, sinkStore 
 	case v7types.Ref:
 		var val types.Value
 		v7val := source.TargetValue(sourceStore)
-		val, err = Value(v7val, sourceStore, sinkStore)
+		val, err = MigrateFromVersion7(v7val, sourceStore, sinkStore)
 		if err == nil {
 			dest = sinkStore.WriteValue(val)
 		}

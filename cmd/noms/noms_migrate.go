@@ -7,10 +7,10 @@ package main
 import (
 	"fmt"
 
-	"github.com/attic-labs/noms/cmd/noms/migrate"
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/d"
 	v7datas "github.com/attic-labs/noms/go/datas"
+	"github.com/attic-labs/noms/go/migration"
 	"github.com/attic-labs/noms/go/spec"
 	v7spec "github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
@@ -50,7 +50,7 @@ func runMigrate(args []string) int {
 	d.CheckError(err)
 	defer sinkDataset.Database().Close()
 
-	sinkObj, err := migrate.Value(sourceObj, sourceStore, sinkDataset.Database())
+	sinkObj, err := migration.MigrateFromVersion7(sourceObj, sourceStore, sinkDataset.Database())
 	d.CheckError(err)
 
 	if isCommit {

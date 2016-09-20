@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package migrate
+package migration
 
 import (
 	"bytes"
@@ -17,12 +17,12 @@ import (
 	"github.com/attic-labs/testify/assert"
 )
 
-func TestPrimitives(t *testing.T) {
+func TestMigrateFromVersion7(t *testing.T) {
 	sourceStore := v7datas.NewDatabase(v7chunks.NewMemoryStore())
 	sinkStore := datas.NewDatabase(chunks.NewMemoryStore())
 
 	test := func(expected types.Value, source v7types.Value) {
-		actual, err := Value(source, sourceStore, sinkStore)
+		actual, err := MigrateFromVersion7(source, sourceStore, sinkStore)
 		assert.NoError(t, err)
 		assert.True(t, actual.Equals(expected))
 	}
