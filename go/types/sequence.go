@@ -16,4 +16,5 @@ type sequence interface {
 	WalkRefs(cb RefCallback)
 	Type() *Type
 	getCompareFn(other sequence) compareFn
+	getChildSequence(idx int) sequence
 }

@@ -5,9 +5,8 @@
 package types
 
 type setLeafSequence struct {
+	leafSequence
 	data []Value // sorted by Hash()
-	t    *Type
-	vr   ValueReader
 }
 
 func newSetLeafSequence(vr ValueReader, v ...Value) orderedSequence {
@@ -16,10 +15,11 @@ func newSetLeafSequence(vr ValueReader, v ...Value) orderedSequence {
 		ts[i] = v.Type()
 	}
 	t := MakeSetType(MakeUnionType(ts...))
-	return setLeafSequence{v, t, vr}
+	return setLeafSequence{leafSequence{vr, len(v), t}, v}
 }
 
 // sequence interface
+
 func (sl setLeafSequence) getItem(idx int) sequenceItem {
 	return sl.data[idx]
 }
@@ -42,19 +42,16 @@ func (sl setLeafSequence) WalkRefs(cb RefCallback) {
 	}
 }
 
-func (sl setLeafSequence) Type() *Type {
-	return sl.t
-}
-
-// orderedSequence interface
-func (sl setLeafSequence) getKey(idx int) orderedKey {
-	return newOrderedKey(sl.data[idx])
-}
-
 func (sl setLeafSequence) getCompareFn(other sequence) compareFn {
 	osl := other.(setLeafSequence)
 	return func(idx, otherIdx int) bool {
 		entry := sl.data[idx]
 		return entry.Equals(osl.data[otherIdx])
 	}
+}
+
+// orderedSequence interface
+
+func (sl setLeafSequence) getKey(idx int) orderedKey {
+	return newOrderedKey(sl.data[idx])
 }

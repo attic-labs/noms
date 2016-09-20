@@ -46,13 +46,13 @@ func (ds *Dataset) MaybeHeadRef() (types.Ref, bool) {
 // Head returns the current head Commit, which contains the current root of the Dataset's value tree.
 func (ds *Dataset) Head() types.Struct {
 	c, ok := ds.MaybeHead()
-	d.Chk.True(ok, "Dataset \"%s\" does not exist", ds.id)
+	d.PanicIfFalse(ok, "Dataset \"%s\" does not exist", ds.id)
 	return c
 }
 
 func (ds *Dataset) HeadRef() types.Ref {
 	r, ok := ds.MaybeHeadRef()
-	d.Chk.True(ok, "Dataset \"%s\" does not exist", ds.id)
+	d.PanicIfFalse(ok, "Dataset \"%s\" does not exist", ds.id)
 	return r
 }
 
@@ -120,17 +120,17 @@ func (ds *Dataset) Pull(sourceDB datas.Database, sourceRef types.Ref, concurrenc
 }
 
 // FastForward takes a types.Ref to a Commit object and makes it the new Head of ds iff it is a descendant of the current Head. Intended to be used e.g. after a call to Pull(). If the update cannot be performed, e.g., because another process moved the current Head out from under you, err will be non-nil. The newest snapshot of the Dataset is always returned, so the caller an easily retry using the latest.
-func (ds *Dataset) FastForward(newHeadRef types.Ref) (sink Dataset, err error) {
-	sink = *ds
+func (ds *Dataset) FastForward(newHeadRef types.Ref) (Dataset, error) {
+	sink := *ds
 	if currentHeadRef, ok := sink.MaybeHeadRef(); ok && newHeadRef == currentHeadRef {
-		return
+		return sink, nil
 	} else if newHeadRef.Height() <= currentHeadRef.Height() {
 		return sink, datas.ErrMergeNeeded
 	}
 
-	for err = datas.ErrOptimisticLockFailed; err == datas.ErrOptimisticLockFailed; sink, err = sink.commitNewHead(newHeadRef) {
-	}
-	return
+	commit := ds.validateRefAsCommit(newHeadRef)
+	store, err := ds.Database().Commit(ds.id, commit)
+	return Dataset{store, ds.id}, err
 }
 
 // SetHead takes a types.Ref to a Commit object and makes it the new Head of ds. Intended to be used e.g. when rewinding in ds' Commit history. If the update cannot be performed, e.g., because the state of ds.Database() changed out from under you, err will be non-nil. The newest snapshot of the Dataset is always returned, so the caller an easily retry using the latest.
@@ -152,14 +152,7 @@ func (ds *Dataset) validateRefAsCommit(r types.Ref) types.Struct {
 		panic(r.TargetHash().String() + " not found")
 	}
 	if !datas.IsCommitType(v.Type()) {
-		panic("Not a commit: " + types.EncodedValue(v))
+		panic("Not a commit: " + types.EncodedValueMaxLines(v, 10) + "  ...\n")
 	}
 	return v.(types.Struct)
-}
-
-// commitNewHead attempts to make the object pointed to by newHeadRef the new Head of ds. First, it checks that the object exists in ds and validates that it decodes to the correct type of value. Next, it attempts to commit the object to ds.Database(). This may fail if, for instance, the Head of ds has been changed by another goroutine or process. In the event that the commit fails, the error from Database().Commit() is returned along with a new Dataset that's at it's proper, current Head. The caller should take any necessary corrective action and try again using this new Dataset.
-func (ds *Dataset) commitNewHead(newHeadRef types.Ref) (Dataset, error) {
-	commit := ds.validateRefAsCommit(newHeadRef)
-	store, err := ds.Database().Commit(ds.id, commit)
-	return Dataset{store, ds.id}, err
 }

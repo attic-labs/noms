@@ -406,9 +406,20 @@ func TestEmptyCollections(t *testing.T) {
 	c := MakeMapType(BlobType, NumberType)
 	assertWriteTaggedHRSEqual(t, "Type(Map<Blob, Number>)", c)
 	d := NewMap()
-	assertWriteTaggedHRSEqual(t, "Map<, >({})", d)
+	assertWriteTaggedHRSEqual(t, "Map<>({})", d)
 	e := MakeSetType(StringType)
 	assertWriteTaggedHRSEqual(t, "Type(Set<String>)", e)
 	f := NewSet()
 	assertWriteTaggedHRSEqual(t, "Set<>({})", f)
+}
+
+func TestEncodedValueMaxLines(t *testing.T) {
+	assert := assert.New(t)
+	l1 := NewList(generateNumbersAsValues(11)...)
+	expected := strings.Join(strings.SplitAfterN(EncodedValue(l1), "\n", 6)[:5], "")
+	assert.Equal(expected, EncodedValueMaxLines(l1, 5))
+
+	buf := bytes.Buffer{}
+	WriteEncodedValueMaxLines(&buf, l1, 5)
+	assert.Equal(expected, buf.String())
 }

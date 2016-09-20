@@ -5,18 +5,15 @@
 package types
 
 type blobLeafSequence struct {
+	leafSequence
 	data []byte
-	vr   ValueReader
 }
 
-func newBlobLeafSequence(vr ValueReader, data []byte) indexedSequence {
-	return blobLeafSequence{data, vr}
+func newBlobLeafSequence(vr ValueReader, data []byte) sequence {
+	return blobLeafSequence{leafSequence{vr, len(data), BlobType}, data}
 }
 
-// indexedSequence interface
-func (bl blobLeafSequence) cumulativeNumberOfLeaves(idx int) uint64 {
-	return uint64(idx) + 1
-}
+// sequence interface
 
 func (bl blobLeafSequence) getCompareFn(other sequence) compareFn {
 	otherbl := other.(blobLeafSequence)
@@ -25,7 +22,6 @@ func (bl blobLeafSequence) getCompareFn(other sequence) compareFn {
 	}
 }
 
-// sequence interface
 func (bl blobLeafSequence) getItem(idx int) sequenceItem {
 	return bl.data[idx]
 }
@@ -43,8 +39,4 @@ func (bl blobLeafSequence) valueReader() ValueReader {
 }
 
 func (bl blobLeafSequence) WalkRefs(cb RefCallback) {
-}
-
-func (bl blobLeafSequence) Type() *Type {
-	return BlobType
 }

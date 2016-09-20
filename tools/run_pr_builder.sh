@@ -18,7 +18,17 @@ node --version
 # go list is expensive, only do it once.
 GO_LIST="$(go list ./... | grep -v /vendor/ | grep -v /samples/js/)"
 go build ${GO_LIST}
-go test ${GO_LIST}
+
+# go test plus build coverage data for upload codecov.io
+rm -rf coverage.txt
+touch coverage.txt
+for d in ${GO_LIST}; do
+    go test -coverprofile=profile.out -covermode=atomic $d
+    if [ -f profile.out ]; then
+        cat profile.out >> coverage.txt
+        rm profile.out
+    fi
+done
 
 pushd ${NOMS_DIR}
 python tools/run-all-js-tests.py
@@ -28,3 +38,7 @@ popd
 pushd ${NOMS_DIR}/samples/js
 go test ./...
 popd
+
+python -m unittest discover -p "*_test.py" -s $GOPATH/src/github.com/attic-labs/noms/tools
+
+bash <(curl -s https://codecov.io/bash) -t ${COVERALLS_TOKEN}

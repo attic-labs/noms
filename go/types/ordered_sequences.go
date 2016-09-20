@@ -15,21 +15,17 @@ type orderedSequence interface {
 	getKey(idx int) orderedKey
 }
 
-type orderedMetaSequence struct {
-	metaSequenceObject
-}
-
-func newSetMetaSequence(tuples metaSequenceData, vr ValueReader) orderedMetaSequence {
+func newSetMetaSequence(tuples []metaTuple, vr ValueReader) metaSequence {
 	ts := make([]*Type, len(tuples))
 	for i, mt := range tuples {
 		// Ref<Set<T>>
 		ts[i] = mt.ref.Type().Desc.(CompoundDesc).ElemTypes[0].Desc.(CompoundDesc).ElemTypes[0]
 	}
 	t := MakeSetType(MakeUnionType(ts...))
-	return newOrderedMetaSequence(tuples, t, vr)
+	return newMetaSequence(tuples, t, vr)
 }
 
-func newMapMetaSequence(tuples metaSequenceData, vr ValueReader) orderedMetaSequence {
+func newMapMetaSequence(tuples []metaTuple, vr ValueReader) metaSequence {
 	kts := make([]*Type, len(tuples))
 	vts := make([]*Type, len(tuples))
 	for i, mt := range tuples {
@@ -39,29 +35,7 @@ func newMapMetaSequence(tuples metaSequenceData, vr ValueReader) orderedMetaSequ
 		vts[i] = ets[1]
 	}
 	t := MakeMapType(MakeUnionType(kts...), MakeUnionType(vts...))
-	return newOrderedMetaSequence(tuples, t, vr)
-}
-
-func newOrderedMetaSequence(tuples metaSequenceData, t *Type, vr ValueReader) orderedMetaSequence {
-	leafCount := uint64(0)
-	for _, mt := range tuples {
-		leafCount += mt.numLeaves
-	}
-
-	return orderedMetaSequence{
-		metaSequenceObject{tuples, t, vr, leafCount},
-	}
-}
-
-func (oms orderedMetaSequence) getKey(idx int) orderedKey {
-	return oms.tuples[idx].key
-}
-
-func (oms orderedMetaSequence) getCompareFn(other sequence) compareFn {
-	ooms := other.(orderedMetaSequence)
-	return func(idx, otherIdx int) bool {
-		return oms.tuples[idx].ref.TargetHash() == ooms.tuples[otherIdx].ref.TargetHash()
-	}
+	return newMetaSequence(tuples, t, vr)
 }
 
 func newCursorAtValue(seq orderedSequence, val Value, forInsertion bool, last bool) *sequenceCursor {
@@ -94,7 +68,7 @@ func newCursorAt(seq orderedSequence, key orderedKey, forInsertion bool, last bo
 		seq = cs.(orderedSequence)
 	}
 
-	d.Chk.True(cur != nil)
+	d.PanicIfFalse(cur != nil)
 	return cur
 }
 
@@ -107,7 +81,7 @@ func seekTo(cur *sequenceCursor, key orderedKey, lastPositionIfNotFound bool) bo
 	})
 
 	if cur.idx == seq.seqLen() && lastPositionIfNotFound {
-		d.Chk.True(cur.idx > 0)
+		d.PanicIfFalse(cur.idx > 0)
 		cur.idx--
 	}
 
@@ -117,7 +91,7 @@ func seekTo(cur *sequenceCursor, key orderedKey, lastPositionIfNotFound bool) bo
 // Gets the key used for ordering the sequence at current index.
 func getCurrentKey(cur *sequenceCursor) orderedKey {
 	seq, ok := cur.seq.(orderedSequence)
-	d.Chk.True(ok, "need an ordered sequence here")
+	d.PanicIfFalse(ok, "need an ordered sequence here")
 	return seq.getKey(cur.idx)
 }
 
@@ -125,7 +99,7 @@ func getCurrentKey(cur *sequenceCursor) orderedKey {
 // written when the root is written.
 func newOrderedMetaSequenceChunkFn(kind NomsKind, vr ValueReader) makeChunkFn {
 	return func(items []sequenceItem) (Collection, orderedKey, uint64) {
-		tuples := make(metaSequenceData, len(items))
+		tuples := make([]metaTuple, len(items))
 		numLeaves := uint64(0)
 
 		for i, v := range items {
@@ -138,9 +112,10 @@ func newOrderedMetaSequenceChunkFn(kind NomsKind, vr ValueReader) makeChunkFn {
 		if kind == SetKind {
 			col = newSet(newSetMetaSequence(tuples, vr))
 		} else {
-			d.Chk.True(MapKind == kind)
+			d.PanicIfFalse(MapKind == kind)
 			col = newMap(newMapMetaSequence(tuples, vr))
 		}
-		return col, tuples.last().key, numLeaves
+
+		return col, tuples[len(tuples)-1].key, numLeaves
 	}
 }

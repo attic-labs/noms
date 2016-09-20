@@ -5,24 +5,20 @@
 package types
 
 type listLeafSequence struct {
+	leafSequence
 	values []Value
-	t      *Type
-	vr     ValueReader
 }
 
-func newListLeafSequence(vr ValueReader, v ...Value) indexedSequence {
+func newListLeafSequence(vr ValueReader, v ...Value) sequence {
 	ts := make([]*Type, len(v))
 	for i, v := range v {
 		ts[i] = v.Type()
 	}
 	t := MakeListType(MakeUnionType(ts...))
-	return listLeafSequence{v, t, vr}
+	return listLeafSequence{leafSequence{vr, len(v), t}, v}
 }
 
-// indexedSequence interface
-func (ll listLeafSequence) cumulativeNumberOfLeaves(idx int) uint64 {
-	return uint64(idx) + 1
-}
+// sequence interface
 
 func (ll listLeafSequence) getCompareFn(other sequence) compareFn {
 	oll := other.(listLeafSequence)
@@ -31,7 +27,6 @@ func (ll listLeafSequence) getCompareFn(other sequence) compareFn {
 	}
 }
 
-// sequence interface
 func (ll listLeafSequence) getItem(idx int) sequenceItem {
 	return ll.values[idx]
 }
@@ -52,8 +47,4 @@ func (ll listLeafSequence) WalkRefs(cb RefCallback) {
 	for _, v := range ll.values {
 		v.WalkRefs(cb)
 	}
-}
-
-func (ll listLeafSequence) Type() *Type {
-	return ll.t
 }

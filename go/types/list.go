@@ -9,25 +9,37 @@ import (
 	"github.com/attic-labs/noms/go/hash"
 )
 
+// List represents a list or an array of Noms values. A list can contain zero or more values of zero
+// or more types. The type of the list will reflect the type of the elements in the list. For
+// example:
+//
+//  l := NewList(Number(1), Bool(true))
+//  fmt.Println(l.Type().Describe())
+//  // outputs List<Bool | Number>
+//
+// Lists, like all Noms values are immutable so the "mutation" methods return a new list.
 type List struct {
-	seq indexedSequence
+	seq sequence
 	h   *hash.Hash
 }
 
-func newList(seq indexedSequence) List {
+func newList(seq sequence) List {
 	return List{seq, &hash.Hash{}}
 }
 
-// NewList creates a new List where the type is computed from the elements in the list, populated with values, chunking if and when needed.
+// NewList creates a new List where the type is computed from the elements in the list, populated
+// with values, chunking if and when needed.
 func NewList(values ...Value) List {
 	seq := newEmptySequenceChunker(nil, nil, makeListLeafChunkFn(nil), newIndexedMetaSequenceChunkFn(ListKind, nil), hashValueBytes)
 	for _, v := range values {
 		seq.Append(v)
 	}
-	return newList(seq.Done().(indexedSequence))
+	return newList(seq.Done())
 }
 
-// NewStreamingList creates a new List, populated with values, chunking if and when needed. As chunks are created, they're written to vrw -- including the root chunk of the list. Once the caller has closed values, she can read the completed List from the returned channel.
+// NewStreamingList creates a new List, populated with values, chunking if and when needed. As
+// chunks are created, they're written to vrw -- including the root chunk of the list. Once the
+// caller has closed values, the caller can read the completed List from the returned channel.
 func NewStreamingList(vrw ValueReadWriter, values <-chan Value) <-chan List {
 	out := make(chan List)
 	go func() {
@@ -35,17 +47,20 @@ func NewStreamingList(vrw ValueReadWriter, values <-chan Value) <-chan List {
 		for v := range values {
 			seq.Append(v)
 		}
-		out <- newList(seq.Done().(indexedSequence))
+		out <- newList(seq.Done())
 		close(out)
 	}()
 	return out
 }
 
 // Collection interface
+
+// Len returns the number of elements in the list.
 func (l List) Len() uint64 {
 	return l.seq.numLeaves()
 }
 
+// Empty returns true if the list is empty (length is zero).
 func (l List) Empty() bool {
 	return l.Len() == 0
 }
@@ -59,6 +74,7 @@ func (l List) hashPointer() *hash.Hash {
 }
 
 // Value interface
+
 func (l List) Equals(other Value) bool {
 	return l.Hash() == other.Hash()
 }
@@ -78,8 +94,6 @@ func (l List) Hash() hash.Hash {
 func (l List) WalkValues(cb ValueCallback) {
 	l.IterAll(func(v Value, idx uint64) {
 		cb(v)
-	})
-	return
 }
 
 func (l List) WalkRefs(cb RefCallback) {
@@ -90,15 +104,20 @@ func (l List) Type() *Type {
 	return l.seq.Type()
 }
 
+// Get returns the value at the given index. If this list has been chunked then this will have to
+// descend into the prolly-tree which leads to Get being O(depth).
 func (l List) Get(idx uint64) Value {
-	d.Chk.True(idx < l.Len())
+	d.PanicIfFalse(idx < l.Len())
 	cur := newCursorAtIndex(l.seq, idx)
 	return cur.current().(Value)
 }
 
 type MapFunc func(v Value, index uint64) interface{}
 
+// Deprecated: This API may change in the future. Use IterAll or Iterator instead.
 func (l List) Map(mf MapFunc) []interface{} {
+	// TODO: This is bad API. It should have returned another List.
+	// https://github.com/attic-labs/noms/issues/2557
 	idx := uint64(0)
 	cur := newCursorAtIndex(l.seq, idx)
 
@@ -116,25 +135,31 @@ func (l List) elemType() *Type {
 	return l.seq.Type().Desc.(CompoundDesc).ElemTypes[0]
 }
 
+// Set returns a new list where the valie at the given index have been replaced with v. If idx is
+// out bounds then this panics.
 func (l List) Set(idx uint64, v Value) List {
-	d.Chk.True(idx < l.Len())
+	d.PanicIfFalse(idx < l.Len())
 	return l.Splice(idx, 1, v)
 }
 
+// Append returns a new list where vs have been appended to the resulting list.
 func (l List) Append(vs ...Value) List {
 	return l.Splice(l.Len(), 0, vs...)
 }
 
+// Splice returns a new list where deleteCount values have been removed at idx and vs have been
+// inserted instead.
+// This function panics if idx or deleteCount is out of bounds.
 func (l List) Splice(idx uint64, deleteCount uint64, vs ...Value) List {
 	if deleteCount == 0 && len(vs) == 0 {
 		return l
 	}
 
-	d.Chk.True(idx <= l.Len())
-	d.Chk.True(idx+deleteCount <= l.Len())
+	d.PanicIfFalse(idx <= l.Len())
+	d.PanicIfFalse(idx+deleteCount <= l.Len())
 
 	cur := newCursorAtIndex(l.seq, idx)
-	ch := newSequenceChunker(cur, l.seq.valueReader(), nil, makeListLeafChunkFn(l.seq.valueReader()), newIndexedMetaSequenceChunkFn(ListKind, l.seq.valueReader()), hashValueBytes)
+	ch := l.newChunker(cur, l.seq.valueReader())
 	for deleteCount > 0 {
 		ch.Skip()
 		deleteCount--
@@ -143,24 +168,40 @@ func (l List) Splice(idx uint64, deleteCount uint64, vs ...Value) List {
 	for _, v := range vs {
 		ch.Append(v)
 	}
-	return newList(ch.Done().(indexedSequence))
+	return newList(ch.Done())
 }
 
+// Insert returns a new list where vs values have been inserted at idx.
 func (l List) Insert(idx uint64, vs ...Value) List {
 	return l.Splice(idx, 0, vs...)
 }
 
+// Concat returns new list comprised of this joined with other. It only needs to
+// visit the rightmost prolly tree chunks of this list, and the leftmost prolly
+// tree chunks of other.
+func (l List) Concat(other List) List {
+	seq := concat(l.seq, other.seq, func(cur *sequenceCursor, vr ValueReader) *sequenceChunker {
+		return l.newChunker(cur, vr)
+	})
+	return newList(seq)
+}
+
+// Remove returns a new list where the items at index start (inclusive) through end (exclusive) have
+// been removed. This panics if end is smaller than start.
 func (l List) Remove(start uint64, end uint64) List {
-	d.Chk.True(start <= end)
+	d.PanicIfFalse(start <= end)
 	return l.Splice(start, end-start)
 }
 
+// RemoveAt returns a new list where a single element at index idx have been removed.
 func (l List) RemoveAt(idx uint64) List {
 	return l.Splice(idx, 1)
 }
 
 type listIterFunc func(v Value, index uint64) (stop bool)
 
+// Iter iterates over the list and calls f for every element in the list. If f returns true then the
+// iteration stops.
 func (l List) Iter(f listIterFunc) {
 	idx := uint64(0)
 	cur := newCursorAtIndex(l.seq, idx)
@@ -175,7 +216,11 @@ func (l List) Iter(f listIterFunc) {
 
 type listIterAllFunc func(v Value, index uint64)
 
+// IterAll iterates over the list and calls f for every element in the list. Unlike Iter there is no
+// way to stop the iteration and all elements are visited.
 func (l List) IterAll(f listIterAllFunc) {
+	// TODO: Consider removing this and have Iter behave like IterAll.
+	// https://github.com/attic-labs/noms/issues/2558
 	idx := uint64(0)
 	cur := newCursorAtIndex(l.seq, idx)
 	cur.iter(func(v interface{}) bool {
@@ -185,18 +230,27 @@ func (l List) IterAll(f listIterAllFunc) {
 	})
 }
 
+// Iterator returns a ListIterator which can be used to iterate efficiently over a list.
 func (l List) Iterator() ListIterator {
 	return l.IteratorAt(0)
 }
 
+// IteratorAt returns a ListIterator starting at index. If index is out of bound the iterator will
+// have reached its end on creation.
 func (l List) IteratorAt(index uint64) ListIterator {
 	return ListIterator{newCursorAtIndex(l.seq, index)}
 }
 
+// Diff streams the diff from last to the current list to the changes channel. Caller can close
+// closeChan to cancel the diff operation.
 func (l List) Diff(last List, changes chan<- Splice, closeChan <-chan struct{}) {
 	l.DiffWithLimit(last, changes, closeChan, DEFAULT_MAX_SPLICE_MATRIX_SIZE)
 }
 
+// DiffWithLimit streams the diff from last to the current list to the changes channel. Caller can
+// close closeChan to cancel the diff operation.
+// The maxSpliceMatrixSize determines the how big of an edit distance matrix we are willing to
+// compute versus just saying the thing changed.
 func (l List) DiffWithLimit(last List, changes chan<- Splice, closeChan <-chan struct{}, maxSpliceMatrixSize uint64) {
 	if l.Equals(last) {
 		return
@@ -214,6 +268,10 @@ func (l List) DiffWithLimit(last List, changes chan<- Splice, closeChan <-chan s
 	lastCur := newCursorAtIndex(last.seq, 0)
 	lCur := newCursorAtIndex(l.seq, 0)
 	indexedSequenceDiff(last.seq, lastCur.depth(), 0, l.seq, lCur.depth(), 0, changes, closeChan, maxSpliceMatrixSize)
+}
+
+func (l List) newChunker(cur *sequenceCursor, vr ValueReader) *sequenceChunker {
+	return newSequenceChunker(cur, vr, nil, makeListLeafChunkFn(vr), newIndexedMetaSequenceChunkFn(ListKind, vr), hashValueBytes)
 }
 
 // If |sink| is not nil, chunks will be eagerly written as they're created. Otherwise they are

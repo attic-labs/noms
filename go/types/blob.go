@@ -16,11 +16,11 @@ import (
 
 // Blob represents a list of Blobs.
 type Blob struct {
-	seq indexedSequence
+	seq sequence
 	h   *hash.Hash
 }
 
-func newBlob(seq indexedSequence) Blob {
+func newBlob(seq sequence) Blob {
 	return Blob{seq, &hash.Hash{}}
 }
 
@@ -39,8 +39,8 @@ func (b Blob) Splice(idx uint64, deleteCount uint64, data []byte) Blob {
 		return b
 	}
 
-	d.Chk.True(idx <= b.Len())
-	d.Chk.True(idx+deleteCount <= b.Len())
+	d.PanicIfFalse(idx <= b.Len())
+	d.PanicIfFalse(idx+deleteCount <= b.Len())
 
 	cur := newCursorAtIndex(b.seq, idx)
 	ch := newSequenceChunker(cur, b.seq.valueReader(), nil, makeBlobLeafChunkFn(b.seq.valueReader()), newIndexedMetaSequenceChunkFn(BlobKind, b.seq.valueReader()), hashValueByte)
@@ -52,7 +52,7 @@ func (b Blob) Splice(idx uint64, deleteCount uint64, data []byte) Blob {
 	for _, v := range data {
 		ch.Append(v)
 	}
-	return newBlob(ch.Done().(indexedSequence))
+	return newBlob(ch.Done())
 }
 
 // Collection interface
@@ -101,7 +101,7 @@ func (b Blob) Type() *Type {
 }
 
 type BlobReader struct {
-	seq           indexedSequence
+	seq           sequence
 	cursor        *sequenceCursor
 	currentReader io.ReadSeeker
 	pos           uint64
@@ -229,7 +229,7 @@ func NewStreamingBlob(r io.Reader, vrw ValueReadWriter) Blob {
 				}
 			}
 			if err != nil {
-				d.Chk.True(io.EOF == err)
+				d.PanicIfFalse(io.EOF == err)
 				if offset > 0 {
 					makeChunk()
 				}
@@ -246,5 +246,5 @@ func NewStreamingBlob(r io.Reader, vrw ValueReadWriter) Blob {
 		sc.parent.Append(b.(metaTuple))
 	}
 
-	return newBlob(sc.Done().(indexedSequence))
+	return newBlob(sc.Done())
 }

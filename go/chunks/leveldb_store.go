@@ -6,12 +6,14 @@ package chunks
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"sync"
 
 	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
+	humanize "github.com/dustin/go-humanize"
 	"github.com/golang/snappy"
 	flag "github.com/juju/gnuflag"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -77,39 +79,39 @@ type LevelDBStore struct {
 }
 
 func (l *LevelDBStore) Root() hash.Hash {
-	d.Chk.True(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
+	d.PanicIfFalse(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
 	return l.rootByKey(l.rootKey)
 }
 
 func (l *LevelDBStore) UpdateRoot(current, last hash.Hash) bool {
-	d.Chk.True(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
+	d.PanicIfFalse(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
 	l.versionSetOnce.Do(l.setVersIfUnset)
 	return l.updateRootByKey(l.rootKey, current, last)
 }
 
 func (l *LevelDBStore) Get(ref hash.Hash) Chunk {
-	d.Chk.True(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
+	d.PanicIfFalse(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
 	return l.getByKey(l.toChunkKey(ref), ref)
 }
 
 func (l *LevelDBStore) Has(ref hash.Hash) bool {
-	d.Chk.True(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
+	d.PanicIfFalse(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
 	return l.hasByKey(l.toChunkKey(ref))
 }
 
 func (l *LevelDBStore) Version() string {
-	d.Chk.True(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
+	d.PanicIfFalse(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
 	return l.versByKey(l.versionKey)
 }
 
 func (l *LevelDBStore) Put(c Chunk) {
-	d.Chk.True(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
+	d.PanicIfFalse(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
 	l.versionSetOnce.Do(l.setVersIfUnset)
 	l.putByKey(l.toChunkKey(c.Hash()), c)
 }
 
 func (l *LevelDBStore) PutMany(chunks []Chunk) (e BackpressureError) {
-	d.Chk.True(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
+	d.PanicIfFalse(l.internalLevelDBStore != nil, "Cannot use LevelDBStore after Close().")
 	l.versionSetOnce.Do(l.setVersIfUnset)
 	numBytes := 0
 	b := new(leveldb.Batch)
@@ -246,7 +248,7 @@ func (l *internalLevelDBStore) Close() error {
 		fmt.Println("GetCount: ", l.getCount)
 		fmt.Println("HasCount: ", l.hasCount)
 		fmt.Println("PutCount: ", l.putCount)
-		fmt.Println("Average PutSize: ", l.putBytes/l.putCount)
+		fmt.Printf("PutSize:   %s (%d/chunk)\n", humanize.Bytes(uint64(l.putCount)), l.putBytes/int64(math.Max(1, float64(l.putCount))))
 	}
 	return nil
 }
@@ -267,7 +269,7 @@ type LevelDBStoreFactory struct {
 }
 
 func (f *LevelDBStoreFactory) CreateStore(ns string) ChunkStore {
-	d.Chk.True(f.store != nil, "Cannot use LevelDBStoreFactory after Shutter().")
+	d.PanicIfFalse(f.store != nil, "Cannot use LevelDBStoreFactory after Shutter().")
 	return newLevelDBStore(f.store, []byte(ns), false)
 }
 
