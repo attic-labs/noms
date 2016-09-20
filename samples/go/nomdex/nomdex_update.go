@@ -103,7 +103,7 @@ func runUpdate(args []string) int {
 				typeCacheMutex.Unlock()
 			}
 		}
-	}, 4)
+	})
 
 	status.Done()
 	indexMap := writeToStreamingMap(db, index.m)

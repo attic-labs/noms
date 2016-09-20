@@ -32,8 +32,41 @@ func (suite *WalkAllTestSuite) walkWorker(r types.Ref, expected int) {
 	actual := 0
 	AllP(r, suite.vs, func(c types.Value, r *types.Ref) {
 		actual++
-	}, 1)
+	})
 	suite.Equal(expected, actual)
+}
+
+func (suite *WalkAllTestSuite) walkValuesWorker(v types.Value, expected int, deep bool) {
+	actual := 0
+	WalkValues(v, suite.vs, func(c types.Value) {
+		actual++
+	}, deep)
+	suite.Equal(expected, actual)
+}
+
+func (suite *WalkAllTestSuite) walkRefsWorker(v types.Value, expected int, deep bool) {
+	actual := 0
+	WalkRefs(v, suite.vs, func(r types.Ref) {
+		actual++
+	}, deep)
+	suite.Equal(expected, actual)
+}
+
+func (suite *WalkAllTestSuite) TestWalkValues() {
+
+	dup := suite.NewList(types.Number(9), types.Number(10), types.Number(11), types.Number(12), types.Number(13))
+	l := suite.NewList(types.Number(8), dup, dup)
+
+	suite.walkValuesWorker(l, 10, true)
+	suite.walkValuesWorker(types.NewList(types.Number(8), types.Number(9), types.Number(10)), 3, false)
+}
+
+func (suite *WalkAllTestSuite) TestWalkRefs() {
+	dup := suite.NewList(types.Number(9), types.Number(10), types.Number(11), types.Number(12), types.Number(13))
+	l := suite.NewList(types.Number(8), dup, dup)
+
+	suite.walkRefsWorker(l, 2, true)
+	suite.walkRefsWorker(suite.NewList(types.Number(8), types.Number(9), types.Number(10)), 1, false)
 }
 
 func (suite *WalkAllTestSuite) TestWalkPrimitives() {
@@ -107,7 +140,7 @@ func (suite *WalkTestSuite) TestStopWalkImmediately() {
 	SomeP(types.NewList(types.NewSet(), types.NewList()), suite.vs, func(v types.Value, r *types.Ref) bool {
 		actual++
 		return true
-	}, 1)
+	})
 	suite.Equal(1, actual)
 }
 
@@ -116,7 +149,7 @@ func (suite *WalkTestSuite) skipWorker(composite types.Value) (reached []types.V
 		suite.False(v.Equals(suite.deadValue), "Should never have reached %+v", suite.deadValue)
 		reached = append(reached, v)
 		return v.Equals(suite.mustSkip)
-	}, 1)
+	})
 	return
 }
 
