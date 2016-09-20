@@ -94,6 +94,7 @@ func (l List) Hash() hash.Hash {
 func (l List) WalkValues(cb ValueCallback) {
 	l.IterAll(func(v Value, idx uint64) {
 		cb(v)
+	})
 }
 
 func (l List) WalkRefs(cb RefCallback) {

@@ -126,7 +126,7 @@ func (ms metaSequence) valueReader() ValueReader {
 	return ms.vr
 }
 
-func (ms metaSequenceObject) WalkRefs(cb RefCallback) {
+func (ms metaSequence) WalkRefs(cb RefCallback) {
 	for _, tuple := range ms.tuples {
 		cb(tuple.ref)
 	}

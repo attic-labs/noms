@@ -85,37 +85,12 @@ func doTreeWalkP(v types.Value, vr types.ValueReader, cb SomeCallback, deep bool
 		}
 		processVal(v, &r, deep)
 
-<<<<<<< HEAD
-=======
-		// Try to avoid the cost of reading |c|. It's only necessary if the caller wants to know about every chunk, or if we need to descend below |c| (ref height > 1).
-		var c chunks.Chunk
-
-		if chunkCb != nil || r.Height() > 1 {
-			c = bs.Get(tr)
-			d.PanicIfTrue(c.IsEmpty())
-
-			if chunkCb != nil {
-				chunkCb(r, c)
-			}
-		}
-
-		if r.Height() == 1 {
-			return
-		}
-
-		v := types.DecodeValue(c, nil)
-		for _, r1 := range v.Chunks() {
-			wg.Add(1)
-			rq.tail() <- r1
-		}
->>>>>>> bc40db4fdb10233a0fa45fb870dbeefb43131660
 	}
 	//Process initial value
 	processVal(v, nil, true)
 
 }
 
-<<<<<<< HEAD
 func doRefWalkP(v types.Value, vr types.ValueReader, cb types.RefCallback, deep bool) {
 	var processVal func(v types.Value, next bool)
 	visited := map[hash.Hash]bool{}
@@ -126,52 +101,6 @@ func doRefWalkP(v types.Value, vr types.ValueReader, cb types.RefCallback, deep 
 				target := ref.TargetHash()
 				if visited[target] {
 					return
-=======
-// refQueue emulates a buffered channel of refs of unlimited size.
-type refQueue struct {
-	head  func() <-chan types.Ref
-	tail  func() chan<- types.Ref
-	close func()
-}
-
-func newRefQueue() refQueue {
-	head := make(chan types.Ref, 64)
-	tail := make(chan types.Ref, 64)
-	done := make(chan struct{})
-	buff := []types.Ref{}
-
-	push := func(r types.Ref) {
-		buff = append(buff, r)
-	}
-
-	pop := func() types.Ref {
-		d.PanicIfFalse(len(buff) > 0)
-		r := buff[0]
-		buff = buff[1:]
-		return r
-	}
-
-	go func() {
-	loop:
-		for {
-			if len(buff) == 0 {
-				select {
-				case r := <-tail:
-					push(r)
-				case <-done:
-					break loop
-				}
-			} else {
-				first := buff[0]
-				select {
-				case r := <-tail:
-					push(r)
-				case head <- first:
-					r := pop()
-					d.PanicIfFalse(r == first)
-				case <-done:
-					break loop
->>>>>>> bc40db4fdb10233a0fa45fb870dbeefb43131660
 				}
 				visited[target] = true
 
