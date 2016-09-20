@@ -20,6 +20,8 @@ type PullProgress struct {
 	DoneCount, KnownCount, ApproxWrittenBytes uint64
 }
 
+const bytesWrittenSampleRate = .10
+
 // Pull objects that descends from sourceRef from srcDB to sinkDB. sinkHeadRef should point to a Commit (in sinkDB) that's an ancestor of sourceRef. This allows the algorithm to figure out which portions of data are already present in sinkDB and skip copying them.
 func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency int, progressCh chan PullProgress) {
 	srcQ, sinkQ := &types.RefByHeight{sourceRef}, &types.RefByHeight{sinkHeadRef}
@@ -72,7 +74,7 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 				// the serialized, compressed bytes of each chunk, we take a 10% sample.
 				// There's no immediately observable performance benefit to sampling here, but there's
 				// also no appreciable loss in accuracy, so we'll keep it around.
-					takeSample := rand.Float64() < .10
+					takeSample := rand.Float64() < bytesWrittenSampleRate
 					srcResChan <- traverseSource(srcRef, srcDB, sinkDB, takeSample)
 				case sinkRef := <-sinkChan:
 					sinkResChan <- traverseSink(sinkRef, mostLocalDB)
