@@ -85,7 +85,7 @@ func runUpdate(args []string) int {
 	typeCache := map[*types.Type]bool{}
 
 	index := Index{m: IndexMap{}}
-	walk.AllP(rootObject, db, func(v types.Value, r *types.Ref) {
+	walk.WalkValues(rootObject, db, func(v types.Value) {
 		typ := v.Type()
 		typeCacheMutex.Lock()
 		hasPath, ok := typeCache[typ]
@@ -103,7 +103,7 @@ func runUpdate(args []string) int {
 				typeCacheMutex.Unlock()
 			}
 		}
-	})
+	}, true)
 
 	status.Done()
 	indexMap := writeToStreamingMap(db, index.m)
