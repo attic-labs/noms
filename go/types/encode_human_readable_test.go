@@ -16,7 +16,7 @@ import (
 func assertWriteHRSEqual(t *testing.T, expected string, v Value) {
 	assert := assert.New(t)
 	var buf bytes.Buffer
-	w := &hrsWriter{w: &buf, floatFormat: 'g'}
+	w := &hrsWriter{w: &buf}
 	w.Write(v)
 	assert.Equal(expected, buf.String())
 }
@@ -24,7 +24,7 @@ func assertWriteHRSEqual(t *testing.T, expected string, v Value) {
 func assertWriteTaggedHRSEqual(t *testing.T, expected string, v Value) {
 	assert := assert.New(t)
 	var buf bytes.Buffer
-	w := &hrsWriter{w: &buf, floatFormat: 'g'}
+	w := &hrsWriter{w: &buf}
 	w.WriteTagged(v)
 	assert.Equal(expected, buf.String())
 }
@@ -40,7 +40,7 @@ func TestWriteHumanReadablePrimitiveValues(t *testing.T) {
 
 	assertWriteHRSEqual(t, "3.1415926535", Number(3.1415926535))
 	assertWriteHRSEqual(t, "314159.26535", Number(3.1415926535e5))
-	assertWriteHRSEqual(t, "3.1415926535e+20", Number(3.1415926535e20))
+	assertWriteHRSEqual(t, "314159265350000000000", Number(3.1415926535e20))
 
 	assertWriteHRSEqual(t, `"abc"`, String("abc"))
 	assertWriteHRSEqual(t, `" "`, String(" "))
@@ -265,10 +265,8 @@ func TestWriteHumanReadableTaggedPrimitiveValues(t *testing.T) {
 	assertWriteTaggedHRSEqual(t, "-42", Number(-42))
 
 	assertWriteTaggedHRSEqual(t, "3.1415926535", Number(3.1415926535))
-
 	assertWriteTaggedHRSEqual(t, "314159.26535", Number(3.1415926535e5))
-
-	assertWriteTaggedHRSEqual(t, "3.1415926535e+20", Number(3.1415926535e20))
+	assertWriteTaggedHRSEqual(t, "314159265350000000000", Number(3.1415926535e20))
 
 	assertWriteTaggedHRSEqual(t, `"abc"`, String("abc"))
 	assertWriteTaggedHRSEqual(t, `" "`, String(" "))
