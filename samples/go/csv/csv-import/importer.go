@@ -161,9 +161,15 @@ func main() {
 
 	var value types.Value
 	if dest == destList {
-		value, _ = csv.ReadToList(cr, *name, headers, kinds, ds.Database())
+		value, _, err = csv.ReadToList(cr, *name, headers, kinds, ds.Database())
+		if err != nil {
+			d.CheckErrorNoUsage(fmt.Errorf("Could not parse csv to list, encountered the following issue: %s", err))
+		}
 	} else {
-		value = csv.ReadToMap(cr, *name, headers, strPks, kinds, ds.Database())
+		value, err = csv.ReadToMap(cr, *name, headers, strPks, kinds, ds.Database())
+		if err != nil {
+			d.CheckErrorNoUsage(fmt.Errorf("Could not parse csv to map, encountered the following issue: %s", err))
+		}
 	}
 
 	if *performCommit {
