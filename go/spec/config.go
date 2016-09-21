@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/attic-labs/noms/go/d"
 	"github.com/BurntSushi/toml"
 )
 
@@ -32,38 +31,31 @@ const (
 
 var NoConfig = errors.New(fmt.Sprintf("no %s found", NomsConfigFile))
 
-// Find the closest directory containing .nomsconfig, first looking in cwd and then up through its ancestors
-func findNomsConfig() (string, bool) {
-	homeDir, err := os.Getwd()
-	d.PanicIfError(err)
-	for {
-		nomsConfig := filepath.Join(homeDir, NomsConfigFile)
-		info, err := os.Stat(nomsConfig)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return "", false
-			}
-		} else if !info.IsDir() {
-			return nomsConfig, true
-		}
-		newHome := filepath.Join(homeDir, "..")
-		if fi, err := os.Stat(homeDir); err != nil {
-			break
-		} else if fi.Name() == homeDir {
-			break // stop at root
-		} else {
-			homeDir = newHome
-		}
-	}
-	return "", false
-}
-
+// Find the closest directory containing .nomsconfig starting
+// in cwd and then searching up ancestor tree.
+// Look first looking in cwd and then up through its ancestors
 func FindNomsConfig() (*Config, error) {
-	file, ok := findNomsConfig()
-	if !ok {
-		return nil, NoConfig
+	curDir, err := os.Getwd()
+	if err != nil {
+		return nil, err
 	}
-	return ReadConfig(file)
+	for {
+		nomsConfig := filepath.Join(curDir, NomsConfigFile)
+		info, err := os.Stat(nomsConfig)
+		if err == nil && !info.IsDir() {
+			// found
+			return ReadConfig(nomsConfig)
+		} else if err != nil && !os.IsNotExist(err) {
+			// can't read
+			return nil, err
+		}
+		nextDir := filepath.Dir(curDir)
+		if nextDir == curDir {
+			// stop at root
+			return nil, NoConfig
+		}
+		curDir = nextDir
+	}
 }
 
 func ReadConfig(name string) (*Config, error) {
@@ -76,7 +68,7 @@ func ReadConfig(name string) (*Config, error) {
 		return nil, err
 	}
 	c.File = name
-	return qualifyPaths(name, c), nil
+	return qualifyPaths(name, c)
 }
 
 func NewConfig(data string) (*Config, error) {
@@ -87,8 +79,8 @@ func NewConfig(data string) (*Config, error) {
 	return c, nil
 }
 
-func (c *Config) WriteTo(home string) (string, error) {
-	file := filepath.Join(home, NomsConfigFile)
+func (c *Config) WriteTo(configHome string) (string, error) {
+	file := filepath.Join(configHome, NomsConfigFile)
 	if err := os.MkdirAll(filepath.Dir(file), os.ModePerm); err != nil {
 		return "", err
 	}
@@ -98,7 +90,9 @@ func (c *Config) WriteTo(home string) (string, error) {
 	return file, nil
 }
 
-func absDbSpec(home string, url string) string {
+// Replace relative directory in path part of spec with an absolute
+// directory. Assumes the path is relative to the location of the config file
+func absDbSpec(configHome string, url string) string {
 	dbSpec, err := parseDatabaseSpec(url)
 	if err != nil {
 		return url
@@ -106,7 +100,7 @@ func absDbSpec(home string, url string) string {
 	if dbSpec.Protocol != "ldb" {
 		return url
 	}
-	path := filepath.Join(home, dbSpec.Path)
+	path := filepath.Join(configHome, dbSpec.Path)
 	if err != nil {
 		fmt.Println(err)
 		return url
@@ -114,9 +108,11 @@ func absDbSpec(home string, url string) string {
 	return "ldb:" + path
 }
 
-func qualifyPaths(configPath string, c *Config) *Config {
+func qualifyPaths(configPath string, c *Config) (*Config, error) {
 	file, err := filepath.Abs(configPath)
-	d.PanicIfError(err)
+	if err != nil {
+		return nil, err
+	}
 	dir := filepath.Dir(file)
 	qc := *c
 	qc.File = file
@@ -124,7 +120,7 @@ func qualifyPaths(configPath string, c *Config) *Config {
 	for k, r := range c.Db {
 		qc.Db[k] = DbConfig{ absDbSpec(dir, r.Url) }
 	}
-	return &qc
+	return &qc, nil
 }
 
 func (c *Config) String() string {

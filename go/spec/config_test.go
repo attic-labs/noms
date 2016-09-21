@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/testify/assert"
 )
 
@@ -45,20 +44,19 @@ type paths struct {
 	config string
 }
 
-func getPaths(base string) paths {
+func getPaths(assert *assert.Assertions, base string) paths {
 	abs, err := filepath.Abs(ctestRoot)
-	d.PanicIfError(err)
+	assert.NoError(err)
 	abs, err = filepath.EvalSymlinks(ctestRoot)
-	d.PanicIfError(err)
+	assert.NoError(err)
 	home := filepath.Join(abs, base)
 	config := filepath.Join(home, NomsConfigFile)
 	return paths{ home, config }
 }
 
-
-func qualifyFilePath(path string) string {
+func qualifyFilePath(assert *assert.Assertions, path string) string {
 	p, err := filepath.Abs(path)
-	d.PanicIfError(err)
+	assert.NoError(err)
 	return p
 }
 
@@ -79,7 +77,7 @@ func assertDbSpecsEquiv(assert *assert.Assertions, expected string, actual strin
 }
 
 func validateConfig(assert *assert.Assertions, file string, e *Config, a *Config) {
-	assert.Equal(qualifyFilePath(file), qualifyFilePath(a.File))
+	assert.Equal(qualifyFilePath(assert, file), qualifyFilePath(assert, a.File))
 	assertDbSpecsEquiv(assert, e.Default.Url, a.Default.Url)
 	assert.Equal(len(e.Db), len(a.Db))
 	for k, er := range e.Db {
@@ -98,7 +96,7 @@ func writeConfig(assert *assert.Assertions, c *Config, home string) string {
 
 func TestConfig(t *testing.T) {
 	assert := assert.New(t)
-	path := getPaths("home")
+	path := getPaths(assert, "home")
 	writeConfig(assert, ldbConfig, path.home)
 
 	// Test from home
@@ -127,7 +125,7 @@ func TestConfig(t *testing.T) {
 
 func TestUnreadableConfig(t *testing.T) {
 	assert := assert.New(t)
-	path := getPaths("home.unreadable")
+	path := getPaths(assert, "home.unreadable")
 	writeConfig(assert, ldbConfig, path.home)
 	assert.NoError(os.Chmod(path.config, 0333)) // write-only
 	assert.NoError(os.Chdir(path.home))
@@ -137,7 +135,7 @@ func TestUnreadableConfig(t *testing.T) {
 
 func TestNoConfig(t *testing.T) {
 	assert := assert.New(t)
-	path := getPaths("home.none")
+	path := getPaths(assert, "home.none")
 	assert.NoError(os.MkdirAll(path.home, os.ModePerm))
 	assert.NoError(os.Chdir(path.home))
 	_, err := FindNomsConfig()
@@ -146,7 +144,7 @@ func TestNoConfig(t *testing.T) {
 
 func TestBadConfig(t *testing.T) {
 	assert := assert.New(t)
-	path := getPaths("home.bad")
+	path := getPaths(assert, "home.bad")
 	cfile := writeConfig(assert, ldbConfig, path.home)
 	// overwrite with something invalid
 	assert.NoError(ioutil.WriteFile(cfile, []byte("invalid config"), os.ModePerm))
@@ -157,7 +155,7 @@ func TestBadConfig(t *testing.T) {
 
 func TestQualifyingPaths(t *testing.T) {
 	assert := assert.New(t)
-	path := getPaths("home")
+	path := getPaths(assert, "home")
 	assert.NoError(os.Chdir(path.home))
 
 	for _, tc := range []*Config{ httpConfig, memConfig } {

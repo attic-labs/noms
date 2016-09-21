@@ -27,7 +27,7 @@ func NewResolver() (Resolver, error) {
 	return Resolver{ c }, nil
 }
 
-func (dsr *Resolver) resolveDatabaseString(str string) string {
+func (dsr *Resolver) resolveDatabase(str string) string {
 	if dsr.config != nil {
 		if str == "" {
 			return dsr.config.Default.Url
@@ -39,45 +39,42 @@ func (dsr *Resolver) resolveDatabaseString(str string) string {
 	return str
 }
 
-func (dsr *Resolver) resolvePathString(str string) string {
+func (dsr *Resolver) resolvePath(str string) string {
 	if dsr.config != nil {
 		split := strings.SplitN(str, separator, 2)
-		db, ds := "", ""
-		if len(split) == 1 {
-			// TODO: confirm that split[0] isn't a db spec
-			db = dsr.resolveDatabaseString("")
-			ds = split[0]
-		} else {
-			db = dsr.resolveDatabaseString(split[0])
-			ds = split[1]
+		db := ""
+		rest := split[0]
+		if len(split) > 1 {
+			db = split[0]
+			rest = split[1]
 		}
-		return db + separator + ds
+		return dsr.resolveDatabase(db) + separator + rest
 	}
 	return str
 }
 
 // Resolve string to database spec. If a config is present,
-//   - resolve a remote alias to its db spec
-//   - resolve "" to the local db spec
+//   - resolve a db alias to its db spec
+//   - resolve "" to the default db spec
 func (dsr *Resolver) GetDatabase(str string) (datas.Database, error) {
-	return GetDatabase(dsr.resolveDatabaseString(str))
+	return GetDatabase(dsr.resolveDatabase(str))
 }
 
 // Resolve string to a chunkstore. Like ResolveDatabase, but returns the underlying ChunkStore
 func (dsr *Resolver) GetChunkStore(str string) (chunks.ChunkStore, error) {
-	return GetChunkStore(dsr.resolveDatabaseString(str))
+	return GetChunkStore(dsr.resolveDatabase(str))
 }
 
 // Resolve string to a dataset. If a config is present,
-//  - if no database prefix is present, assume the local database
-//  - if the database prefix is a remote alias, replace it
+//  - if no db prefix is present, assume the default db
+//  - if the db prefix is an alias, replace it
 func (dsr *Resolver) GetDataset(str string) (dataset.Dataset, error) {
-	return GetDataset(dsr.resolvePathString(str))
+	return GetDataset(dsr.resolvePath(str))
 }
 
 // Resolve string to a value path. If a config is present,
-//  - if no database prefix is present, assume the local database
-//  - if the database prefix is a remote alias, replace it
+//  - if no db spec is present, assume the default db
+//  - if the db spec is an alias, replace it
 func (dsr *Resolver) GetPath(str string) (datas.Database, types.Value, error) {
-	return GetPath(dsr.resolvePathString(str))
+	return GetPath(dsr.resolvePath(str))
 }

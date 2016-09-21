@@ -11,7 +11,7 @@ you see once you've kicked the tires, you can create your own *.nomsconfig*'s wh
 you need one.
 
 A *.gitconfig* file can contain a single default database definition and 
-any number of database alaises. Here's are the definitons from the example:
+any number of database aliases. Here's are the definitons from the example:
  
 ```
 # Default database URL to be used whenever a database is not explictly provided

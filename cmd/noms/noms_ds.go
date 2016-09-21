@@ -12,7 +12,6 @@ import (
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	flag "github.com/juju/gnuflag"
-	"github.com/attic-labs/noms/go/datas"
 )
 
 var toDelete string
@@ -50,13 +49,11 @@ func runDs(args []string) int {
 
 		fmt.Printf("Deleted %v (was #%v)\n", toDelete, oldCommitRef.TargetHash().String())
 	} else {
-		var store datas.Database
-		var err error
-		if len(args) < 1 {
-			store, err = spec.GetDatabase("")
-		} else {
-			store, err = spec.GetDatabase(args[0])
+		dbSpec := ""
+		if len(args) >= 1 {
+			dbSpec = args[0]
 		}
+		store, err := spec.GetDatabase(dbSpec)
 		d.CheckError(err)
 		defer store.Close()
 

@@ -18,7 +18,7 @@ var nomsConfig = &util.Command{
 	Run:       runConfig,
 	UsageLine: "config ",
 	Short:     "Display noms config info",
-	Long:      "if a .nom/config file is present, config prints the active settings",
+	Long:      "Prints the active configuration if a .nomsconfig file is present",
 	Flags:     setupConfigFlags,
 	Nargs:     0,
 }
