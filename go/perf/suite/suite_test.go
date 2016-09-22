@@ -17,10 +17,11 @@ import (
 
 type testSuite struct {
 	PerfSuite
-	tempFileName, tempDir     string
-	setupTest, tearDownTest   int
-	setupRep, tearDownRep     int
-	setupSuite, tearDownSuite int
+	tempFileName, tempDir                  string
+	setupTest, tearDownTest                int
+	setupRep, tearDownRep                  int
+	setupSuite, tearDownSuite              int
+	foo, bar, abc, def, nothing, testimate int
 }
 
 // This is the only test that does anything interesting. The others are just to test naming.
@@ -45,26 +46,32 @@ func (s *testSuite) TestInterestingStuff() {
 }
 
 func (s *testSuite) TestFoo() {
+	s.foo++
 	s.waitForSmidge()
 }
 
 func (s *testSuite) TestBar() {
+	s.bar++
 	s.waitForSmidge()
 }
 
 func (s *testSuite) Test01Abc() {
+	s.abc++
 	s.waitForSmidge()
 }
 
 func (s *testSuite) Test02Def() {
+	s.def++
 	s.waitForSmidge()
 }
 
 func (s *testSuite) testNothing() {
+	s.nothing++
 	s.waitForSmidge()
 }
 
 func (s *testSuite) Testimate() {
+	s.testimate++
 	s.waitForSmidge()
 }
 
@@ -223,4 +230,38 @@ func TestPrefixFlag(t *testing.T) {
 	assert.NoError(err)
 	_, ok = ds.HeadValue().(types.Struct)
 	assert.True(ok)
+}
+
+func TestRunFlag(t *testing.T) {
+	assert := assert.New(t)
+
+	type expect struct {
+		foo, bar, abc, def, nothing, testimate int
+	}
+
+	run := func(re string, exp expect) {
+		flagVal, runFlagVal := *perfFlag, *perfRunFlag
+		*perfFlag, *perfRunFlag = "mem", re
+		defer func() {
+			*perfFlag, *perfRunFlag = flagVal, runFlagVal
+		}()
+		s := testSuite{}
+		Run("test", t, &s)
+		assert.Equal(exp, expect{s.foo, s.bar, s.abc, s.def, s.nothing, s.testimate})
+	}
+
+	run("", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run(".", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("f", expect{foo: 1, def: 1})
+	run("^f", expect{foo: 1})
+	run("ef", expect{def: 1})
+	run("def", expect{def: 1})
+	run("ddef", expect{})
+	run("z", expect{})
+	run("F", expect{foo: 1, def: 1})
+	run("[fa]", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("[fc]", expect{foo: 1, abc: 1, def: 1})
+	run("foo|bar", expect{foo: 1, bar: 1})
+	run("FOO|bar", expect{foo: 1, bar: 1})
+	run("nothing", expect{})
 }
