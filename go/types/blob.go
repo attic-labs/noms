@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"sync"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
@@ -42,8 +43,7 @@ func (b Blob) Splice(idx uint64, deleteCount uint64, data []byte) Blob {
 	d.PanicIfFalse(idx <= b.Len())
 	d.PanicIfFalse(idx+deleteCount <= b.Len())
 
-	cur := newCursorAtIndex(b.seq, idx)
-	ch := newSequenceChunker(cur, b.seq.valueReader(), nil, makeBlobLeafChunkFn(b.seq.valueReader()), newIndexedMetaSequenceChunkFn(BlobKind, b.seq.valueReader()), hashValueByte)
+	ch := b.newChunker(newCursorAtIndex(b.seq, idx), b.seq.valueReader())
 	for deleteCount > 0 {
 		ch.Skip()
 		deleteCount--
@@ -53,6 +53,20 @@ func (b Blob) Splice(idx uint64, deleteCount uint64, data []byte) Blob {
 		ch.Append(v)
 	}
 	return newBlob(ch.Done())
+}
+
+// Concat returns a new Blob comprised of this joined with other. It only needs
+// to visit the rightmost prolly tree chunks of this Blob, and the leftmost
+// prolly tree chunks of other, so it's efficient.
+func (b Blob) Concat(other Blob) Blob {
+	seq := concat(b.seq, other.seq, func(cur *sequenceCursor, vr ValueReader) *sequenceChunker {
+		return b.newChunker(cur, vr)
+	})
+	return newBlob(seq)
+}
+
+func (b Blob) newChunker(cur *sequenceCursor, vr ValueReader) *sequenceChunker {
+	return newSequenceChunker(cur, vr, nil, makeBlobLeafChunkFn(vr), newIndexedMetaSequenceChunkFn(BlobKind, vr), hashValueByte)
 }
 
 // Collection interface
@@ -172,10 +186,46 @@ func chunkBlobLeaf(vr ValueReader, buff []byte) (Collection, orderedKey, uint64)
 	return blob, orderedKeyFromInt(len(buff)), uint64(len(buff))
 }
 
+// NewBlob creates a Blob by reading from r.
 func NewBlob(r io.Reader) Blob {
 	return NewStreamingBlob(r, nil)
 }
 
+// NewBlobP creates a Blob by reading from every Reader in rs in parallel, then
+// concatenating the result. NewBlobP uses one goroutine per Reader.
+// If vrw is not nil, chunks are written to vrw instead of in memory.
+func NewBlobP(vrw ValueReadWriter, rs ...io.Reader) Blob {
+	switch len(rs) {
+	case 0:
+		return NewEmptyBlob()
+	case 1:
+		return NewStreamingBlob(rs[0], vrw)
+	}
+
+	blobs := make([]Blob, len(rs))
+
+	wg := &sync.WaitGroup{}
+	wg.Add(len(rs))
+
+	for i, r := range rs {
+		i2, r2 := i, r
+		go func() {
+			blobs[i2] = NewStreamingBlob(r2, vrw)
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+
+	b := blobs[0]
+	for i := 1; i < len(blobs); i++ {
+		b = b.Concat(blobs[i])
+	}
+	return b
+}
+
+// NewBlob creates a Blob by reading from r, writing chunks to vrw rather than
+// keeping them in memory (as opposed to NewBlob).
 func NewStreamingBlob(r io.Reader, vrw ValueReadWriter) Blob {
 	sc := newEmptySequenceChunker(vrw, vrw, makeBlobLeafChunkFn(nil), newIndexedMetaSequenceChunkFn(BlobKind, nil), func(item sequenceItem, rv *rollingValueHasher) {
 		rv.HashByte(item.(byte))
