@@ -42,11 +42,9 @@ func (dsr *Resolver) resolveDatabase(str string) string {
 func (dsr *Resolver) resolvePath(str string) string {
 	if dsr.config != nil {
 		split := strings.SplitN(str, separator, 2)
-		db := ""
-		rest := split[0]
+		db, rest := "", split[0]
 		if len(split) > 1 {
-			db = split[0]
-			rest = split[1]
+			db, rest = split[0], split[1]
 		}
 		return dsr.resolveDatabase(db) + separator + rest
 	}
