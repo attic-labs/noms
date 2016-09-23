@@ -8,13 +8,12 @@
 // Usage is similar to testify's suite:
 //  1. Define a test suite struct which inherits from suite.PerfSuite.
 //  2. Define methods on that struct that start with the word "Test", optionally
-//		 followed by digits, then followed a non-empty capitalized string.
+//     followed by digits, then followed a non-empty capitalized string.
 //  3. Call suite.Run with an instance of that struct.
 //  4. Run go test with the -perf <path to noms db> flag.
 //
 // Flags:
-//  -perf.mem      Backs the database by a memory store, instead of a (temporary)
-//						     leveldb.
+//  -perf.mem      Backs the database by a memory store, instead of leveldb.
 //  -perf.prefix   Gives the dataset IDs for test results a prefix.
 //  -perf.repeat   Sets how many times tests are repeated ("reps").
 //  -perf.run      Only run tests that match a regex (case insensitive).
