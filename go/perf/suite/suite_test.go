@@ -240,10 +240,10 @@ func TestRunFlag(t *testing.T) {
 	}
 
 	run := func(re string, exp expect) {
-		flagVal, runFlagVal := *perfFlag, *perfRunFlag
-		*perfFlag, *perfRunFlag = "mem", re
+		flagVal, memFlagVal, runFlagVal := *perfFlag, *perfMemFlag, *perfRunFlag
+		*perfFlag, *perfMemFlag, *perfRunFlag = "mem", true, re
 		defer func() {
-			*perfFlag, *perfRunFlag = flagVal, runFlagVal
+			*perfFlag, *perfMemFlag, *perfRunFlag = flagVal, memFlagVal, runFlagVal
 		}()
 		s := testSuite{}
 		Run("test", t, &s)
@@ -252,16 +252,57 @@ func TestRunFlag(t *testing.T) {
 
 	run("", expect{foo: 1, bar: 1, abc: 1, def: 1})
 	run(".", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("test", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("^test", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("Test", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("^Test", expect{foo: 1, bar: 1, abc: 1, def: 1})
+
 	run("f", expect{foo: 1, def: 1})
 	run("^f", expect{foo: 1})
+	run("testf", expect{foo: 1})
+	run("^testf", expect{foo: 1})
+	run("testF", expect{foo: 1})
+	run("^testF", expect{foo: 1})
+
+	run("F", expect{foo: 1, def: 1})
+	run("^F", expect{foo: 1})
+	run("Testf", expect{foo: 1})
+	run("^Testf", expect{foo: 1})
+	run("TestF", expect{foo: 1})
+	run("^TestF", expect{foo: 1})
+
 	run("ef", expect{def: 1})
 	run("def", expect{def: 1})
 	run("ddef", expect{})
+	run("testdef", expect{})
+	run("test01def", expect{})
+	run("test02def", expect{def: 1})
+	run("Test02def", expect{def: 1})
+	run("test02Def", expect{def: 1})
+	run("Test02Def", expect{def: 1})
+
 	run("z", expect{})
-	run("F", expect{foo: 1, def: 1})
+	run("testz", expect{})
+	run("Testz", expect{})
+
 	run("[fa]", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("[fb]", expect{foo: 1, bar: 1, abc: 1, def: 1})
 	run("[fc]", expect{foo: 1, abc: 1, def: 1})
+	run("test[fa]", expect{foo: 1})
+	run("test[fb]", expect{foo: 1, bar: 1})
+	run("test[fc]", expect{foo: 1})
+	run("Test[fa]", expect{foo: 1})
+	run("Test[fb]", expect{foo: 1, bar: 1})
+	run("Test[fc]", expect{foo: 1})
+
 	run("foo|bar", expect{foo: 1, bar: 1})
 	run("FOO|bar", expect{foo: 1, bar: 1})
+	run("Testfoo|bar", expect{foo: 1, bar: 1})
+	run("TestFOO|bar", expect{foo: 1, bar: 1})
+
+	run("Testfoo|Testbar", expect{foo: 1, bar: 1})
+	run("TestFOO|Testbar", expect{foo: 1, bar: 1})
+
+	run("footest", expect{})
 	run("nothing", expect{})
 }

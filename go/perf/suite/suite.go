@@ -280,7 +280,7 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 			}
 
 			recordName := parts[1]
-			if !perfRunRe.MatchString(recordName) {
+			if !perfRunRe.MatchString(recordName) && !perfRunRe.MatchString(m.Name) {
 				continue
 			}
 
