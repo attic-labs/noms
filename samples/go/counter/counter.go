@@ -20,6 +20,7 @@ func main() {
 	}
 
 	spec.RegisterDatabaseFlags(flag.CommandLine)
+	spec.RegisterVerboseFlags(flag.CommandLine)
 
 	flag.Parse(true)
 
@@ -28,7 +29,8 @@ func main() {
 		return
 	}
 
-	db, ds, err := spec.GetDataset(flag.Arg(0))
+	resolver := spec.NewResolver()
+	db, ds, err := resolver.GetDataset(flag.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not create dataset: %s\n", err)
 		return

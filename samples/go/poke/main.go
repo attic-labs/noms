@@ -23,7 +23,7 @@ func main() {
 
 func poke() (win bool) {
 	var outDSStr = flag.String("out-ds-name", "", "output dataset to write to - if empty, defaults to input dataset")
-
+	spec.RegisterVerboseFlags(flag.CommandLine)
 	flag.Usage = usage
 	flag.Parse(false)
 
@@ -37,7 +37,8 @@ func poke() (win bool) {
 		return
 	}
 
-	db, inDS, err := spec.GetDataset(flag.Arg(0))
+	resolver := spec.NewResolver()
+	db, inDS, err := resolver.GetDataset(flag.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Invalid input dataset '%s': %s\n", flag.Arg(0), err)
 		return

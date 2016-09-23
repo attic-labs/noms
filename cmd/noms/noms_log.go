@@ -54,14 +54,14 @@ func setupLogFlags() *flag.FlagSet {
 	logFlagSet.BoolVar(&showGraph, "graph", false, "show ascii-based commit hierarchy on left side of output")
 	logFlagSet.BoolVar(&showValue, "show-value", false, "show commit value rather than diff information -- this is temporary")
 	outputpager.RegisterOutputpagerFlags(logFlagSet)
+	spec.RegisterVerboseFlags(logFlagSet)
 	return logFlagSet
 }
 
 func runLog(args []string) int {
 	useColor = shouldUseColor()
-	spec, err := spec.NewResolver()
-	d.CheckErrorNoUsage(err)
-	database, value, err := spec.GetPath(args[0])
+	resolver := spec.NewResolver()
+	database, value, err := resolver.GetPath(args[0])
 
 	if err != nil {
 		d.CheckErrorNoUsage(err)

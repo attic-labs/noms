@@ -63,6 +63,7 @@ func setupFindFlags() *flag.FlagSet {
 	flagSet := flag.NewFlagSet("find", flag.ExitOnError)
 	flagSet.StringVar(&dbPath, "db", "", "database containing index")
 	outputpager.RegisterOutputpagerFlags(flagSet)
+	spec.RegisterVerboseFlags(flagSet)
 	return flagSet
 }
 
@@ -74,7 +75,8 @@ func runFind(args []string) int {
 		return 1
 	}
 
-	db, err := spec.GetDatabase(dbPath)
+	resolver := spec.NewResolver()
+	db, err := resolver.GetDatabase(dbPath)
 	if printError(err, "Unable to open database\n\terror: ") {
 		return 1
 	}

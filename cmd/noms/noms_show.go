@@ -28,13 +28,13 @@ var nomsShow = &util.Command{
 func setupShowFlags() *flag.FlagSet {
 	showFlagSet := flag.NewFlagSet("show", flag.ExitOnError)
 	outputpager.RegisterOutputpagerFlags(showFlagSet)
+	spec.RegisterVerboseFlags(showFlagSet)
 	return showFlagSet
 }
 
 func runShow(args []string) int {
-	spec, err := spec.NewResolver()
-	d.CheckErrorNoUsage(err)
-	database, value, err := spec.GetPath(args[0])
+	resolver := spec.NewResolver()
+	database, value, err := resolver.GetPath(args[0])
 	d.CheckErrorNoUsage(err)
 	defer database.Close()
 

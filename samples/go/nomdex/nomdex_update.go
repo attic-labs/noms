@@ -42,6 +42,7 @@ func setupUpdateFlags() *flag.FlagSet {
 	flagSet.StringVar(&outDsArg, "out-ds", "", "name of dataset to save the results to")
 	flagSet.StringVar(&relPathArg, "by", "", "a path relative to all the items in <in-path> to index by")
 	profile.RegisterProfileFlags(flagSet)
+	spec.RegisterVerboseFlags(flagSet)
 	return flagSet
 }
 
@@ -70,7 +71,8 @@ func runUpdate(args []string) int {
 
 	defer profile.MaybeStartProfile().Stop()
 
-	db, rootObject, err := spec.GetPath(inPathArg)
+	resolver := spec.NewResolver()
+	db, rootObject, err := resolver.GetPath(inPathArg)
 	d.Chk.NoError(err)
 
 	if rootObject == nil {

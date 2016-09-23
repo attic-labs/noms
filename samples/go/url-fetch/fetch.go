@@ -34,6 +34,7 @@ func main() {
 
 	spec.RegisterCommitMetaFlags(flag.CommandLine)
 	spec.RegisterDatabaseFlags(flag.CommandLine)
+	spec.RegisterVerboseFlags(flag.CommandLine)
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Fetches a URL, file, or stdin into a noms blob\n\nUsage: %s [--stdin?] [url-or-local-path?] [dataset]\n", os.Args[0])
@@ -48,7 +49,8 @@ func main() {
 
 	start = time.Now()
 
-	db, ds, err := spec.GetDataset(flag.Arg(flag.NArg() - 1))
+	resolver := spec.NewResolver()
+	db, ds, err := resolver.GetDataset(flag.Arg(flag.NArg() - 1))
 	d.CheckErrorNoUsage(err)
 	defer db.Close()
 

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -100,7 +101,10 @@ func absDbSpec(configHome string, url string) string {
 	if dbSpec.Protocol != "ldb" {
 		return url
 	}
-	path := filepath.Join(configHome, dbSpec.Path)
+	path := dbSpec.Path
+	if !strings.HasPrefix(path, "/") {
+		path = filepath.Join(configHome, path)
+	}
 	if err != nil {
 		fmt.Println(err)
 		return url

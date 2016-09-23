@@ -37,14 +37,14 @@ func setupSyncFlags() *flag.FlagSet {
 	syncFlagSet := flag.NewFlagSet("sync", flag.ExitOnError)
 	syncFlagSet.IntVar(&p, "p", 512, "parallelism")
 	spec.RegisterDatabaseFlags(syncFlagSet)
+	spec.RegisterVerboseFlags(syncFlagSet)
 	profile.RegisterProfileFlags(syncFlagSet)
 	return syncFlagSet
 }
 
 func runSync(args []string) int {
-	spec, err := spec.NewResolver()
-	d.CheckErrorNoUsage(err)
-	sourceStore, sourceObj, err := spec.GetPath(args[0])
+	resolver := spec.NewResolver()
+	sourceStore, sourceObj, err := resolver.GetPath(args[0])
 	d.CheckError(err)
 	defer sourceStore.Close()
 
@@ -52,7 +52,7 @@ func runSync(args []string) int {
 		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[0]))
 	}
 
-	sinkDB, sinkDataset, err := spec.GetDataset(args[1])
+	sinkDB, sinkDataset, err := resolver.GetDataset(args[1])
 	d.CheckError(err)
 	defer sinkDB.Close()
 

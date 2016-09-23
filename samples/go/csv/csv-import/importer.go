@@ -45,6 +45,7 @@ func main() {
 	performCommit := flag.Bool("commit", true, "commit the data to head of the dataset (otherwise only write the data to the dataset)")
 	spec.RegisterCommitMetaFlags(flag.CommandLine)
 	spec.RegisterDatabaseFlags(flag.CommandLine)
+	spec.RegisterVerboseFlags(flag.CommandLine)
 	profile.RegisterProfileFlags(flag.CommandLine)
 
 	flag.Usage = func() {
@@ -74,8 +75,9 @@ func main() {
 	var filePath string
 	var dataSetArgN int
 
+	resolver := spec.NewResolver()
 	if *path != "" {
-		db, val, err := spec.GetPath(*path)
+		db, val, err := resolver.GetPath(*path)
 		d.CheckError(err)
 		if val == nil {
 			d.CheckError(fmt.Errorf("Path %s not found\n", *path))
@@ -155,7 +157,7 @@ func main() {
 		}
 	}
 
-	db, ds, err := spec.GetDataset(flag.Arg(dataSetArgN))
+	db, ds, err := resolver.GetDataset(flag.Arg(dataSetArgN))
 	d.CheckError(err)
 	defer db.Close()
 

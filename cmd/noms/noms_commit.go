@@ -32,11 +32,13 @@ func setupCommitFlags() *flag.FlagSet {
 	commitFlagSet := flag.NewFlagSet("commit", flag.ExitOnError)
 	commitFlagSet.BoolVar(&allowDupe, "allow-dupe", false, "creates a new commit, even if it would be identical (modulo metadata and parents) to the existing HEAD.")
 	spec.RegisterCommitMetaFlags(commitFlagSet)
+	spec.RegisterVerboseFlags(commitFlagSet)
 	return commitFlagSet
 }
 
 func runCommit(args []string) int {
-	db, ds, err := spec.GetDataset(args[len(args)-1])
+	resolver := spec.NewResolver()
+	db, ds, err := resolver.GetDataset(args[len(args)-1])
 	d.CheckError(err)
 	defer db.Close()
 

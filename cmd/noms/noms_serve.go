@@ -34,13 +34,13 @@ func setupServeFlags() *flag.FlagSet {
 	serveFlagSet := flag.NewFlagSet("serve", flag.ExitOnError)
 	serveFlagSet.IntVar(&port, "port", 8000, "port to listen on for HTTP requests")
 	spec.RegisterDatabaseFlags(serveFlagSet)
+	spec.RegisterVerboseFlags(serveFlagSet)
 	return serveFlagSet
 }
 
 func runServe(args []string) int {
-	spec, err := spec.NewResolver()
-	d.CheckErrorNoUsage(err)
-	cs, err := spec.GetChunkStore(args[0])
+	resolver := spec.NewResolver()
+	cs, err := resolver.GetChunkStore(args[0])
 	d.CheckError(err)
 	server := datas.NewRemoteDatabaseServer(cs, port)
 

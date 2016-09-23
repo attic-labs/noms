@@ -30,20 +30,21 @@ func setupDiffFlags() *flag.FlagSet {
 	diffFlagSet := flag.NewFlagSet("diff", flag.ExitOnError)
 	diffFlagSet.BoolVar(&summarize, "summarize", false, "Writes a summary of the changes instead")
 	outputpager.RegisterOutputpagerFlags(diffFlagSet)
+	spec.RegisterVerboseFlags(diffFlagSet)
+
 	return diffFlagSet
 }
 
 func runDiff(args []string) int {
-	spec, err := spec.NewResolver()
-	d.CheckErrorNoUsage(err)
-	db1, value1, err := spec.GetPath(args[0])
+	resolver := spec.NewResolver()
+	db1, value1, err := resolver.GetPath(args[0])
 	d.CheckErrorNoUsage(err)
 	if value1 == nil {
 		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[0]))
 	}
 	defer db1.Close()
 
-	db2, value2, err := spec.GetPath(args[1])
+	db2, value2, err := resolver.GetPath(args[1])
 	d.CheckErrorNoUsage(err)
 	if value2 == nil {
 		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[1]))

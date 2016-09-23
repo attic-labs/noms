@@ -33,6 +33,7 @@ func nomsMerge() error {
 	outDSStr := flag.String("out-ds-name", "", "output dataset to write to - if empty, defaults to <right-ds-name>")
 	parentStr := flag.String("parent", "", "common ancestor of <left-ds-name> and <right-ds-name> (currently required; soon to be optional)")
 	quiet := flag.Bool("quiet", false, "silence progress output")
+	spec.RegisterVerboseFlags(flag.CommandLine)
 	flag.Usage = usage
 
 	return d.Unwrap(d.Try(func() {
@@ -46,7 +47,8 @@ func nomsMerge() error {
 		d.PanicIfTrue(flag.NArg() != 3, "Incorrect number of arguments\n")
 		d.PanicIfTrue(*parentStr == "", "--parent is required\n")
 
-		db, err := spec.GetDatabase(flag.Arg(0))
+		resolver := spec.NewResolver()
+		db, err := resolver.GetDatabase(flag.Arg(0))
 		defer db.Close()
 		d.PanicIfError(err)
 

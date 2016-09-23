@@ -5,6 +5,7 @@
 package spec
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -13,40 +14,53 @@ import (
 )
 
 type Resolver struct {
-	config *Config
+	config      *Config
+	deferredErr error
 }
 
-func NewResolver() (Resolver, error) {
+
+func NewResolver() *Resolver {
 	c, err := FindNomsConfig()
 	if err != nil {
 		if err != NoConfig {
-			return Resolver{}, err
+			return &Resolver{ deferredErr: err }
 		}
-		return Resolver{}, nil
+		return &Resolver{}
 	}
-	return Resolver{c}, nil
+	return &Resolver{ c, nil }
 }
 
-func (dsr *Resolver) resolveDatabase(str string) string {
-	if dsr.config != nil {
-		if str == "" {
-			return dsr.config.Default.Url
+
+func (r *Resolver) verbose(orig string, replacement string) string {
+	if Verbose() && orig != replacement {
+		if orig == "" {
+			orig = `""`
 		}
-		if val, ok := dsr.config.Db[str]; ok {
+		fmt.Printf("\t%s -> %s\n", orig, replacement)
+	}
+	return replacement
+}
+
+func (r *Resolver) ResolveDatabase(str string) string {
+	if r.config != nil {
+		if str == "" {
+			return r.config.Default.Url
+		}
+		if val, ok := r.config.Db[str]; ok {
 			return val.Url
 		}
 	}
 	return str
 }
 
-func (dsr *Resolver) resolvePath(str string) string {
-	if dsr.config != nil {
+func (r *Resolver) ResolvePath(str string) string {
+	if r.config != nil {
 		split := strings.SplitN(str, separator, 2)
 		db, rest := "", split[0]
 		if len(split) > 1 {
 			db, rest = split[0], split[1]
 		}
-		return dsr.resolveDatabase(db) + separator + rest
+		return r.ResolveDatabase(db)+separator+rest
 	}
 	return str
 }
@@ -54,25 +68,37 @@ func (dsr *Resolver) resolvePath(str string) string {
 // Resolve string to database spec. If a config is present,
 //   - resolve a db alias to its db spec
 //   - resolve "" to the default db spec
-func (dsr *Resolver) GetDatabase(str string) (datas.Database, error) {
-	return GetDatabase(dsr.resolveDatabase(str))
+func (r *Resolver) GetDatabase(str string) (datas.Database, error) {
+	if r.deferredErr != nil {
+		return nil, r.deferredErr
+	}
+	return GetDatabase(r.verbose(str, r.ResolveDatabase(str)))
 }
 
 // Resolve string to a chunkstore. Like ResolveDatabase, but returns the underlying ChunkStore
-func (dsr *Resolver) GetChunkStore(str string) (chunks.ChunkStore, error) {
-	return GetChunkStore(dsr.resolveDatabase(str))
+func (r *Resolver) GetChunkStore(str string) (chunks.ChunkStore, error) {
+	if r.deferredErr != nil {
+		return nil, r.deferredErr
+	}
+	return GetChunkStore(r.verbose(str, r.ResolveDatabase(str)))
 }
 
 // Resolve string to a dataset. If a config is present,
 //  - if no db prefix is present, assume the default db
 //  - if the db prefix is an alias, replace it
 func (dsr *Resolver) GetDataset(str string) (datas.Database, datas.Dataset, error) {
-	return GetDataset(dsr.resolvePath(str))
+	if dsr.deferredErr != nil {
+		return datas.Dataset{}, dsr.deferredErr
+	}
+	return GetDataset(dsr.ResolvePath(str))
 }
 
 // Resolve string to a value path. If a config is present,
 //  - if no db spec is present, assume the default db
 //  - if the db spec is an alias, replace it
-func (dsr *Resolver) GetPath(str string) (datas.Database, types.Value, error) {
-	return GetPath(dsr.resolvePath(str))
+func (r *Resolver) GetPath(str string) (datas.Database, types.Value, error) {
+	if r.deferredErr != nil {
+		return nil, nil, r.deferredErr
+	}
+	return GetPath(r.verbose(str, r.ResolvePath(str)))
 }

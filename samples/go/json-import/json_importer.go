@@ -32,13 +32,15 @@ func main() {
 
 	spec.RegisterCommitMetaFlags(flag.CommandLine)
 	spec.RegisterDatabaseFlags(flag.CommandLine)
+	spec.RegisterVerboseFlags(flag.CommandLine)
 	flag.Parse(true)
 
 	if len(flag.Args()) != 2 {
 		d.CheckError(errors.New("expected url and dataset flags"))
 	}
 
-	db, ds, err := spec.GetDataset(flag.Arg(1))
+	resolver := spec.NewResolver()
+	db, ds, err := resolver.GetDataset(flag.Arg(1))
 	d.CheckError(err)
 	defer db.Close()
 

@@ -58,25 +58,23 @@ var (
 )
 
 
-func withConfig(t *testing.T) Resolver {
+func withConfig(t *testing.T) *Resolver {
 	assert := assert.New(t)
 	dir := filepath.Join(rtestRoot, "with-config")
 	_, err := rtestConfig.WriteTo(dir)
 	assert.NoError(err, dir)
 	assert.NoError(os.Chdir(dir))
-	r, err := NewResolver() // resolver must be created after changing directory
-	assert.NoError(err)
+	r := NewResolver() // resolver must be created after changing directory
 	return r
 
 }
 
-func withoutConfig(t *testing.T) Resolver {
+func withoutConfig(t *testing.T) *Resolver {
 	assert := assert.New(t)
 	dir := filepath.Join(rtestRoot, "without-config")
 	assert.NoError(os.MkdirAll(dir, os.ModePerm), dir)
 	assert.NoError(os.Chdir(dir))
-	r, err := NewResolver() // resolver must be created after changing directory
-	assert.NoError(err)
+	r := NewResolver() // resolver must be created after changing directory
 	return r
 }
 
@@ -93,7 +91,7 @@ func TestResolveDatabaseWithConfig(t *testing.T) {
 	spec := withConfig(t)
 	assert := assert.New(t)
 	for _, d := range append(dbTestsNoAliases, dbTestsWithAliases...) {
-		db := spec.resolveDatabase(d.input)
+		db := spec.ResolveDatabase(d.input)
 		assertDbSpecsEquiv(assert, d.expected, db)
 	}
 }
@@ -102,7 +100,7 @@ func TestResolvePathWithConfig(t *testing.T) {
 	spec := withConfig(t)
 	assert := assert.New(t)
 	for _, d := range append(pathTestsNoAliases, pathTestsWithAliases...) {
-		path := spec.resolvePath(d.input)
+		path := spec.ResolvePath(d.input)
 		assertPathSpecsEquiv(assert, d.expected, path)
 	}
 }
@@ -111,7 +109,7 @@ func TestResolveDatabaseWithoutConfig(t *testing.T) {
 	spec := withoutConfig(t)
 	assert := assert.New(t)
 	for _, d := range dbTestsNoAliases {
-		db := spec.resolveDatabase(d.input)
+		db := spec.ResolveDatabase(d.input)
 		assert.Equal(d.expected, db, d.input)
 	}
 }
@@ -120,7 +118,7 @@ func TestResolvePathWithoutConfig(t *testing.T) {
 	spec := withoutConfig(t)
 	assert := assert.New(t)
 	for _, d := range pathTestsNoAliases {
-		path := spec.resolvePath(d.input)
+		path := spec.ResolvePath(d.input)
 		assertPathSpecsEquiv(assert, d.expected, path)
 	}
 

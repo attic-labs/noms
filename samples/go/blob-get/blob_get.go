@@ -27,15 +27,17 @@ func main() {
 	}
 
 	spec.RegisterDatabaseFlags(flag.CommandLine)
+	spec.RegisterVerboseFlags(flag.CommandLine)
 	flag.Parse(true)
 
 	if len(flag.Args()) != 2 {
 		d.CheckError(errors.New("expected dataset and file flags"))
 	}
 
+	resolver := spec.NewResolver()
 	var blob types.Blob
 	path := flag.Arg(0)
-	if db, val, err := spec.GetPath(path); err != nil {
+	if db, val, err := resolver.GetPath(path); err != nil {
 		d.CheckErrorNoUsage(err)
 	} else if val == nil {
 		d.CheckErrorNoUsage(fmt.Errorf("No value at %s", path))

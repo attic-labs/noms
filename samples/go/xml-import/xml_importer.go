@@ -55,15 +55,17 @@ func main() {
 	err := d.Try(func() {
 		spec.RegisterCommitMetaFlags(flag.CommandLine)
 		spec.RegisterDatabaseFlags(flag.CommandLine)
+		spec.RegisterVerboseFlags(flag.CommandLine)
 		profile.RegisterProfileFlags(flag.CommandLine)
 		flag.Usage = customUsage
 		flag.Parse(true)
 
+		resolver := spec.NewResolver()
 		if flag.NArg() != 2 {
 			d.CheckError(errors.New("Expected directory path followed by dataset"))
 		}
 		dir := flag.Arg(0)
-		db, ds, err := spec.GetDataset(flag.Arg(1))
+		db, ds, err := resolver.GetDataset(flag.Arg(1))
 		d.CheckError(err)
 		defer db.Close()
 

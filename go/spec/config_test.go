@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	ldbSpec    = "ldb:./local"
-	memSpec    = "mem"
-	httpSpec   = "http://test.com:8080/foo"
+	ldbSpec     = "ldb:./local"
+	memSpec     = "mem"
+	httpSpec    = "http://test.com:8080/foo"
+	ldbAbsSpec  = "ldb:/tmp/noms"
 	remoteAlias = "origin"
 )
 
@@ -35,6 +36,12 @@ var (
 	memConfig = &Config{
 		"",
 		DefaultConfig{ memSpec },
+		map[string]DbConfig{ remoteAlias: { httpSpec }},
+	}
+
+	ldbAbsConfig = &Config{
+		"",
+		DefaultConfig{ ldbAbsSpec },
 		map[string]DbConfig{ remoteAlias: { httpSpec }},
 	}
 )
@@ -68,11 +75,16 @@ func assertDbSpecsEquiv(assert *assert.Assertions, expected string, actual strin
 	} else {
 		a, err := parseDatabaseSpec(actual)
 		assert.NoError(err)
-		// remove leading . or ..
-		ePath := strings.TrimPrefix(strings.TrimPrefix(e.Path, "."), ".")
-		assert.True(e.Protocol == a.Protocol && strings.HasSuffix(a.Path, ePath),
-			"expected suffix: " + ePath + "; actual path: " + actual,
-		)
+		assert.Equal(e.Protocol, a.Protocol, actual)
+		if strings.HasPrefix(e.Path, "/") {
+			assert.Equal(e.Path, a.Path, actual)
+		} else {
+			// If the original path is relative, it will return as absolute.
+			// All we do here is ensure that the path suffix is the same.
+			ePath := strings.TrimPrefix(strings.TrimPrefix(e.Path, "."), ".")
+			assert.True(strings.HasSuffix(a.Path, ePath),
+				"expected: %s; actual: %s", ePath, actual)
+		}
 	}
 }
 
@@ -158,7 +170,7 @@ func TestQualifyingPaths(t *testing.T) {
 	path := getPaths(assert, "home")
 	assert.NoError(os.Chdir(path.home))
 
-	for _, tc := range []*Config{ httpConfig, memConfig } {
+	for _, tc := range []*Config{ httpConfig, memConfig, ldbAbsConfig } {
 		writeConfig(assert, tc, path.home)
 		ac, err := FindNomsConfig()
 		assert.NoError(err, path.config)

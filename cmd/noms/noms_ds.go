@@ -15,6 +15,7 @@ import (
 )
 
 var toDelete string
+var verbose bool
 
 var nomsDs = &util.Command{
 	Run:       runDs,
@@ -28,14 +29,14 @@ var nomsDs = &util.Command{
 func setupDsFlags() *flag.FlagSet {
 	dsFlagSet := flag.NewFlagSet("ds", flag.ExitOnError)
 	dsFlagSet.StringVar(&toDelete, "d", "", "dataset to delete")
+	spec.RegisterVerboseFlags(dsFlagSet)
 	return dsFlagSet
 }
 
 func runDs(args []string) int {
-	spec, err := spec.NewResolver()
-	d.CheckErrorNoUsage(err)
+	resolver := spec.NewResolver()
 	if toDelete != "" {
-		db, set, err := spec.GetDataset(toDelete) // append local if no local given, check for aliases
+		db, set, err := resolver.GetDataset(toDelete) // append local if no local given, check for aliases
 		d.CheckError(err)
 		defer db.Close()
 
@@ -53,7 +54,7 @@ func runDs(args []string) int {
 		if len(args) >= 1 {
 			dbSpec = args[0]
 		}
-		store, err := spec.GetDatabase(dbSpec)
+		store, err := resolver.GetDatabase(dbSpec)
 		d.CheckError(err)
 		defer store.Close()
 

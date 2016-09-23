@@ -1,18 +1,13 @@
 # nomsconfig
 
-The *.nomsconfig* file is an experimental feature that allows you to define 
-a default database and aliases to simplify the noms command line.
+The noms cli now provides experimental support for configuring a convenient default database and database aliases.
 
-When *.nomsconfig* is present in the current directory or ancestor, it's
-definitions will be active when running noms cli. 
+You can enable this support by placing a *.nomsconfig* config file (like the [one](.nomsconfig) in this sample) in the directory where you'd like to use the configuration. Like git, any noms command issued from that directory or below will use it.
 
-This directory contains an [example](.gitconfig) config to try out. If you lke what 
-you see once you've kicked the tires, you can create your own *.nomsconfig*'s wherever 
-you need one.
+# Example
 
-A *.gitconfig* file can contain a single default database definition and 
-any number of database aliases. Here's are the definitons from the example:
- 
+This example defines a simple [.nomsconfig](.nomsconfig) to try:
+
 ```
 # Default database URL to be used whenever a database is not explictly provided
 [default]
@@ -27,28 +22,36 @@ url = "http://demo.noms.io/cli-tour"
 url = "ldb:.noms/tour"
 ```
 
-The *[default]* definition will be used implicitly whenever a database is
-required but not specified. 
+The *[default]* section:
 
-The *origin* and *tour* aliases can be used in place of a dataspec.  
+ - Defines a default database
+ - It will be used implicitly whenever a database url is ommitted in a command
 
-You can try out this config by running the noms cli in this directory. Here are some 
-commands to try and what to expect:
+The *[db.origin]* and *[db.tour]* sections
+
+ - Define aliases that can be used wherever a db url is required
+ - You can define additional aliases by adding *[db.**alias**]* sections using any **alias** you prefer
+
+You can kick the tires by running an noms commmand from this directory. Here are some examples and what to expect:
 
 ```
-noms ds          # noms ds ldb:.noms/tour 
-noms ds origin   # noms ds http://demo.noms.io/cli-tour
+noms ds          # -> noms ds ldb:.noms/tour
+noms ds origin   # -> noms ds http://demo.noms.io/cli-tour
 
-noms sync origin::sf-film-locations sf-films   # sync from remote to local
+noms sync origin::sf-film-locations sf-films   # sync ds from origin to default
 
-noms log sf-films                    # noms log ldb:.noms/tour::sf-films
-noms log origin::sf-film-locations   # noms log http://demo.noms.io/cli-tour::sf-film-locations
+noms log sf-films                    # -> noms log ldb:.noms/tour::sf-films
+noms log origin::sf-film-locations   # -> noms log http://demo.noms.io/cli-tour::sf-film-locations
 
-noms show '#1a2aj8svslsu7g8hplsva6oq6iq3ib6c'         # noms show ldb:.noms/tour::'...'
-noms show origin::'#1a2aj8svslsu7g8hplsva6oq6iq3ib6c' # noms show http://demo.noms.io/cli-tour::'...'
+noms show '#1a2aj8svslsu7g8hplsva6oq6iq3ib6c'         # -> noms show ldb:.noms/tour::'...'
+noms show origin::'#1a2aj8svslsu7g8hplsva6oq6iq3ib6c' # -> noms show http://demo.noms.io/cli-tour::'...'
 
-noms diff '#1a2aj8...' origin::'#1a2aj8...'  # diff local object with object at origin
+noms diff '#1a2aj8...' origin::'#1a2aj8...'  # diff default::object with origin::object
 
 ``` 
 
-Note that explicit DB urls are still fully supported.
+A few more things to note:
+
+ - Relative paths will be expanded relative to the directory where the *.nomsconfg* is defined
+ - You can see the current definitions with expanded paths by running `noms config`
+ - Explicit DB urls are still fully supported

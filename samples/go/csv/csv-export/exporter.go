@@ -23,6 +23,7 @@ func main() {
 	delimiter := flag.String("delimiter", ",", "field delimiter for csv file, must be exactly one character long.")
 
 	spec.RegisterDatabaseFlags(flag.CommandLine)
+	spec.RegisterVerboseFlags(flag.CommandLine)
 	profile.RegisterProfileFlags(flag.CommandLine)
 
 	flag.Usage = func() {
@@ -36,7 +37,8 @@ func main() {
 		d.CheckError(errors.New("expected dataset arg"))
 	}
 
-	db, ds, err := spec.GetDataset(flag.Arg(0))
+	resolver := spec.NewResolver()
+	db, ds, err := resolver.GetDataset(flag.Arg(0))
 	d.CheckError(err)
 
 	defer db.Close()

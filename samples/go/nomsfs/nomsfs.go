@@ -126,7 +126,9 @@ func init() {
 }
 
 func start(dataset string, mount mount) {
-	db, ds, err := spec.GetDataset(dataset)
+	resolver := spec.NewResolver()
+	db, ds, err := resolver.GetDataset(dataset)
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not create dataset: %s\n", err)
 		return
@@ -286,7 +288,7 @@ func (fs *nomsFS) Create(path string, flags uint32, mode uint32, context *fuse.C
 	defer fs.mdLock.Unlock()
 	np, code := fs.createCommon(path, mode, func() types.Value {
 		blob := types.NewEmptyBlob()
-		return types.NewStructWithType(fileType, types.ValueSlice{fs.db.WriteValue(blob)})
+		return types.NewStructWithType(fileType, types.ValueSlice{fs.ds.Database().WriteValue(blob)})
 	})
 	if code != fuse.OK {
 		return nil, code

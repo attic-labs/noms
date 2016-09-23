@@ -28,6 +28,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "\tlist-persons")
 	}
 
+	spec.RegisterVerboseFlags(flag.CommandLine)
 	flag.Parse(true)
 
 	if flag.NArg() == 0 {
@@ -40,7 +41,8 @@ func main() {
 		return
 	}
 
-	db, ds, err := spec.GetDataset(*dsStr)
+	resolver := spec.NewResolver()
+	db, ds, err := resolver.GetDataset(*dsStr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not create dataset: %s\n", err)
 		return
