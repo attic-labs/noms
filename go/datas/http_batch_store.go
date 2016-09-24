@@ -22,6 +22,7 @@ import (
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/noms/go/util/progressreader"
 	"github.com/golang/snappy"
 	"github.com/julienschmidt/httprouter"
 )
@@ -48,6 +49,7 @@ type httpBatchStore struct {
 	requestWg     *sync.WaitGroup
 	workerWg      *sync.WaitGroup
 	unwrittenPuts *orderedChunkCache
+	progressChan  chan DatabaseProgress
 }
 
 func newHTTPBatchStore(baseURL, auth string) *httpBatchStore {
@@ -392,6 +394,15 @@ func (bhcs *httpBatchStore) sendWriteRequests(hashes hash.HashSet, hints types.H
 			}()
 
 			body := buildWriteValueRequest(chunkChan, hints)
+			if bhcs.progressChan != nil {
+				body = progressreader.New(body, func(seen uint64) {
+					select {
+					case bhcs.progressChan <- DatabaseProgress{DoneBytes: seen, KnownBytes: bhcs.unwrittenPuts.size}:
+					default:
+					}
+				})
+			}
+
 			url := *bhcs.host
 			url.Path = httprouter.CleanPath(bhcs.host.Path + constants.WriteValuePath)
 			// TODO: Make this accept snappy encoding
@@ -478,6 +489,13 @@ func (bhcs *httpBatchStore) requestRoot(method string, current, last hash.Hash) 
 	d.PanicIfError(err)
 
 	return res
+}
+
+func (bhcs *httpBatchStore) progressChannel() chan DatabaseProgress {
+	if bhcs.progressChan == nil {
+		bhcs.progressChan = make(chan DatabaseProgress)
+	}
+	return bhcs.progressChan
 }
 
 func newRequest(method, auth, url string, body io.Reader, header http.Header) *http.Request {

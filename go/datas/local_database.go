@@ -39,6 +39,10 @@ func (lds *LocalDatabase) SetHead(datasetID string, commit types.Struct) (Databa
 	return &LocalDatabase{newDatabaseCommon(lds.cch, lds.ValueStore, lds.rt), lds.cs}, err
 }
 
+func (lds *LocalDatabase) ProgressChannel() chan DatabaseProgress {
+	return nil
+}
+
 func (lds *LocalDatabase) validatingBatchStore() (bs types.BatchStore) {
 	bs = lds.ValueStore.BatchStore()
 	if !bs.IsValidating() {

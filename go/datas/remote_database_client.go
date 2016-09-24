@@ -13,11 +13,15 @@ import (
 // Database provides versioned storage for noms values. Each Database instance represents one moment in history. Heads() returns the Commit from each active fork at that moment. The Commit() method returns a new Database, representing a new moment in history.
 type RemoteDatabaseClient struct {
 	databaseCommon
+	httpBS *httpBatchStore
 }
 
 func NewRemoteDatabase(baseURL, auth string) *RemoteDatabaseClient {
 	httpBS := newHTTPBatchStore(baseURL, auth)
-	return &RemoteDatabaseClient{newDatabaseCommon(newCachingChunkHaver(httpBS), types.NewValueStore(httpBS), httpBS)}
+	return &RemoteDatabaseClient{
+		newDatabaseCommon(newCachingChunkHaver(httpBS), types.NewValueStore(httpBS), httpBS),
+		httpBS,
+	}
 }
 
 func (rds *RemoteDatabaseClient) validatingBatchStore() (bs types.BatchStore) {
@@ -28,17 +32,21 @@ func (rds *RemoteDatabaseClient) validatingBatchStore() (bs types.BatchStore) {
 
 func (rds *RemoteDatabaseClient) Commit(datasetID string, commit types.Struct) (Database, error) {
 	err := rds.doCommit(datasetID, commit)
-	return &RemoteDatabaseClient{newDatabaseCommon(rds.cch, rds.ValueStore, rds.rt)}, err
+	return &RemoteDatabaseClient{newDatabaseCommon(rds.cch, rds.ValueStore, rds.rt), rds.httpBS}, err
 }
 
 func (rds *RemoteDatabaseClient) Delete(datasetID string) (Database, error) {
 	err := rds.doDelete(datasetID)
-	return &RemoteDatabaseClient{newDatabaseCommon(rds.cch, rds.ValueStore, rds.rt)}, err
+	return &RemoteDatabaseClient{newDatabaseCommon(rds.cch, rds.ValueStore, rds.rt), rds.httpBS}, err
 }
 
 func (rds *RemoteDatabaseClient) SetHead(datasetID string, commit types.Struct) (Database, error) {
 	err := rds.doSetHead(datasetID, commit)
-	return &RemoteDatabaseClient{newDatabaseCommon(rds.cch, rds.ValueStore, rds.rt)}, err
+	return &RemoteDatabaseClient{newDatabaseCommon(rds.cch, rds.ValueStore, rds.rt), rds.httpBS}, err
+}
+
+func (rds *RemoteDatabaseClient) ProgressChannel() chan DatabaseProgress {
+	return rds.httpBS.progressChannel()
 }
 
 func (f RemoteStoreFactory) CreateStore(ns string) Database {

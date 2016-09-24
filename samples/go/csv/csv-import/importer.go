@@ -101,7 +101,7 @@ func main() {
 	}
 
 	if !*noProgress {
-		r = progressreader.New(r, getStatusPrinter(size))
+		r = progressreader.New(r, getImportStatusPrinter(size))
 	}
 
 	delim, err := csv.StringToRune(*delimiter)
@@ -169,6 +169,17 @@ func main() {
 	if *performCommit {
 		meta, err := spec.CreateCommitMetaStruct(ds.Database(), "", "", additionalMetaInfo(filePath, *path), nil)
 		d.CheckErrorNoUsage(err)
+
+		if !*noProgress {
+			progressCh := ds.Database().ProgressChannel()
+			startTime := time.Now()
+			go func() {
+				for p := range progressCh {
+					printStatus("Committing ", startTime, p.DoneBytes, p.KnownBytes)
+				}
+			}()
+		}
+
 		_, err = ds.Commit(value, dataset.CommitOptions{Meta: meta})
 		if !*noProgress {
 			status.Clear()
@@ -193,16 +204,21 @@ func additionalMetaInfo(filePath, nomsPath string) map[string]string {
 	return map[string]string{fileOrNomsPath: path}
 }
 
-func getStatusPrinter(expected uint64) progressreader.Callback {
+func getImportStatusPrinter(expected uint64) progressreader.Callback {
 	startTime := time.Now()
 	return func(seen uint64) {
-		percent := float64(seen) / float64(expected) * 100
-		elapsed := time.Since(startTime)
-		rate := float64(seen) / elapsed.Seconds()
-
-		status.Printf("%.2f%% of %s (%s/s)...",
-			percent,
-			humanize.Bytes(expected),
-			humanize.Bytes(uint64(rate)))
+		printStatus("Importing ", startTime, seen, expected)
 	}
+}
+
+func printStatus(prefix string, startTime time.Time, seen, expected uint64) {
+	percent := float64(seen) / float64(expected) * 100
+	elapsed := time.Since(startTime)
+	rate := float64(seen) / elapsed.Seconds()
+
+	status.Printf("%s%.2f%% of %s (%s/s)...",
+		prefix,
+		percent,
+		humanize.Bytes(expected),
+		humanize.Bytes(uint64(rate)))
 }
