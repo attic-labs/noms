@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
@@ -34,7 +35,7 @@ func main() {
 
 	spec.RegisterCommitMetaFlags(flag.CommandLine)
 	spec.RegisterDatabaseFlags(flag.CommandLine)
-	spec.RegisterVerboseFlags(flag.CommandLine)
+	config.RegisterVerboseFlags(flag.CommandLine)
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Fetches a URL, file, or stdin into a noms blob\n\nUsage: %s [--stdin?] [url-or-local-path?] [dataset]\n", os.Args[0])
@@ -49,8 +50,8 @@ func main() {
 
 	start = time.Now()
 
-	resolver := spec.NewResolver()
-	db, ds, err := resolver.GetDataset(flag.Arg(flag.NArg() - 1))
+	cfg := config.NewResolver()
+	db, ds, err := cfg.GetDataset(flag.Arg(flag.NArg() - 1))
 	d.CheckErrorNoUsage(err)
 	defer db.Close()
 

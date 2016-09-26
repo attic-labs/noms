@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/attic-labs/noms/cmd/util"
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
@@ -41,8 +42,8 @@ func setupUpdateFlags() *flag.FlagSet {
 	flagSet.StringVar(&inPathArg, "in-path", "", "a value to search for items to index within ")
 	flagSet.StringVar(&outDsArg, "out-ds", "", "name of dataset to save the results to")
 	flagSet.StringVar(&relPathArg, "by", "", "a path relative to all the items in <in-path> to index by")
+	config.RegisterVerboseFlags(flagSet)
 	profile.RegisterProfileFlags(flagSet)
-	spec.RegisterVerboseFlags(flagSet)
 	return flagSet
 }
 
@@ -71,8 +72,8 @@ func runUpdate(args []string) int {
 
 	defer profile.MaybeStartProfile().Stop()
 
-	resolver := spec.NewResolver()
-	db, rootObject, err := resolver.GetPath(inPathArg)
+	cfg := config.NewResolver()
+	db, rootObject, err := cfg.GetPath(inPathArg)
 	d.Chk.NoError(err)
 
 	if rootObject == nil {

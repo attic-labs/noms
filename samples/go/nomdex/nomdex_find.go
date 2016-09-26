@@ -10,8 +10,8 @@ import (
 	"os"
 
 	"github.com/attic-labs/noms/cmd/util"
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/outputpager"
 	flag "github.com/juju/gnuflag"
@@ -63,7 +63,7 @@ func setupFindFlags() *flag.FlagSet {
 	flagSet := flag.NewFlagSet("find", flag.ExitOnError)
 	flagSet.StringVar(&dbPath, "db", "", "database containing index")
 	outputpager.RegisterOutputpagerFlags(flagSet)
-	spec.RegisterVerboseFlags(flagSet)
+	config.RegisterVerboseFlags(flagSet)
 	return flagSet
 }
 
@@ -75,8 +75,8 @@ func runFind(args []string) int {
 		return 1
 	}
 
-	resolver := spec.NewResolver()
-	db, err := resolver.GetDatabase(dbPath)
+	cfg := config.NewResolver()
+	db, err := cfg.GetDatabase(dbPath)
 	if printError(err, "Unable to open database\n\terror: ") {
 		return 1
 	}

@@ -4,6 +4,12 @@ The noms cli now provides experimental support for configuring a convenient defa
 
 You can enable this support by placing a *.nomsconfig* config file (like the [one](.nomsconfig) in this sample) in the directory where you'd like to use the configuration. Like git, any noms command issued from that directory or below will use it.
 
+# Features
+
+- *Database Aliases* - Define simple names to be used in place of database URLs
+- *Default Database* - Define one database to be used by default when no database in mentioned
+- *Dot (`.`) Shorthand* - Use `.` instead of repeating dataset/object name in destination
+
 # Example
 
 This example defines a simple [.nomsconfig](.nomsconfig) to try:
@@ -26,13 +32,19 @@ url = "ldb:/tmp/noms/shared
 The *[db.default]* section:
 
  - Defines a default database
- - It will be used implicitly whenever a database url is ommitted in a command
- - It will be used implicitly whenever a database url is ommitted in a command
+ - It will be used implicitly whenever a database url is omitted in a command
 
-The *[db.origin]* and *[db.shared]* sections
+The *[db.origin]* and *[db.shared]* sections:
 
  - Define aliases that can be used wherever a db url is required
  - You can define additional aliases by adding *[db.**alias**]* sections using any **alias** you prefer
+
+Dot (`.`) shorthand:
+
+ - When issuing a command like `noms sync` that requires a source and destination
+   you can use `.` in place of the dataset/object in the destination as shorthand to
+   to mean: 'use the same path as in the source'. See example below.
+
 
 You can kick the tires by running an noms commmand from this directory. Here are some examples and what to expect:
 
@@ -46,10 +58,12 @@ noms sync origin::sf-film-locations sf-films   # sync ds from origin to default
 noms log sf-films                    # -> noms log ldb:.noms/tour::sf-films
 noms log origin::sf-film-locations   # -> noms log http://demo.noms.io/cli-tour::sf-film-locations
 
-noms show '#1a2aj8svslsu7g8hplsva6oq6iq3ib6c'         # -> noms show ldb:.noms/tour::'...'
-noms show origin::'#1a2aj8svslsu7g8hplsva6oq6iq3ib6c' # -> noms show http://demo.noms.io/cli-tour::'...'
+noms show '#1a2aj8svslsu7g8hplsva6oq6iq3ib6c'         # -> noms show ldb:.noms/tour::'#1a2a...'
+noms show origin::'#1a2aj8svslsu7g8hplsva6oq6iq3ib6c' # -> noms show http://demo.noms.io/cli-tour::'#1a2a...'
 
-noms diff '#1a2aj8...' origin::'#1a2aj8...'  # diff default::object with origin::object
+noms diff '#1a2aj8svslsu7g8hplsva6oq6iq3ib6c' origin::. # diff default::object with origin::object
+
+noms sync origin::sf-bike-parking . # sync origin::sf-bike-parking to default::sf-bike-parking
 
 ``` 
 

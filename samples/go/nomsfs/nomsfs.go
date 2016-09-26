@@ -18,10 +18,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/hash"
-	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 
 	"github.com/hanwen/go-fuse/fuse"
@@ -126,8 +126,8 @@ func init() {
 }
 
 func start(dataset string, mount mount) {
-	resolver := spec.NewResolver()
-	db, ds, err := resolver.GetDataset(dataset)
+	cfg := config.NewResolver()
+	db, ds, err := cfg.GetDataset(dataset)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not create dataset: %s\n", err)

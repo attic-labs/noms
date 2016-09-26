@@ -8,14 +8,13 @@ import (
 	"fmt"
 
 	"github.com/attic-labs/noms/cmd/util"
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	flag "github.com/juju/gnuflag"
 )
 
 var toDelete string
-var verbose bool
 
 var nomsDs = &util.Command{
 	Run:       runDs,
@@ -29,14 +28,14 @@ var nomsDs = &util.Command{
 func setupDsFlags() *flag.FlagSet {
 	dsFlagSet := flag.NewFlagSet("ds", flag.ExitOnError)
 	dsFlagSet.StringVar(&toDelete, "d", "", "dataset to delete")
-	spec.RegisterVerboseFlags(dsFlagSet)
+	config.RegisterVerboseFlags(dsFlagSet)
 	return dsFlagSet
 }
 
 func runDs(args []string) int {
-	resolver := spec.NewResolver()
+	cfg := config.NewResolver()
 	if toDelete != "" {
-		db, set, err := resolver.GetDataset(toDelete) // append local if no local given, check for aliases
+		db, set, err := cfg.GetDataset(toDelete)
 		d.CheckError(err)
 		defer db.Close()
 
@@ -54,7 +53,7 @@ func runDs(args []string) int {
 		if len(args) >= 1 {
 			dbSpec = args[0]
 		}
-		store, err := resolver.GetDatabase(dbSpec)
+		store, err := cfg.GetDatabase(dbSpec)
 		d.CheckError(err)
 		defer store.Close()
 

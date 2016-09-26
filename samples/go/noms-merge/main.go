@@ -10,10 +10,10 @@ import (
 	"os"
 	"regexp"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/merge"
-	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/exit"
 	"github.com/attic-labs/noms/go/util/status"
@@ -33,7 +33,7 @@ func nomsMerge() error {
 	outDSStr := flag.String("out-ds-name", "", "output dataset to write to - if empty, defaults to <right-ds-name>")
 	parentStr := flag.String("parent", "", "common ancestor of <left-ds-name> and <right-ds-name> (currently required; soon to be optional)")
 	quiet := flag.Bool("quiet", false, "silence progress output")
-	spec.RegisterVerboseFlags(flag.CommandLine)
+	config.RegisterVerboseFlags(flag.CommandLine)
 	flag.Usage = usage
 
 	return d.Unwrap(d.Try(func() {
@@ -47,8 +47,8 @@ func nomsMerge() error {
 		d.PanicIfTrue(flag.NArg() != 3, "Incorrect number of arguments\n")
 		d.PanicIfTrue(*parentStr == "", "--parent is required\n")
 
-		resolver := spec.NewResolver()
-		db, err := resolver.GetDatabase(flag.Arg(0))
+		cfg := config.NewResolver()
+		db, err := cfg.GetDatabase(flag.Arg(0))
 		defer db.Close()
 		d.PanicIfError(err)
 

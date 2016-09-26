@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
@@ -45,7 +46,7 @@ func main() {
 	performCommit := flag.Bool("commit", true, "commit the data to head of the dataset (otherwise only write the data to the dataset)")
 	spec.RegisterCommitMetaFlags(flag.CommandLine)
 	spec.RegisterDatabaseFlags(flag.CommandLine)
-	spec.RegisterVerboseFlags(flag.CommandLine)
+	config.RegisterVerboseFlags(flag.CommandLine)
 	profile.RegisterProfileFlags(flag.CommandLine)
 
 	flag.Usage = func() {
@@ -75,9 +76,9 @@ func main() {
 	var filePath string
 	var dataSetArgN int
 
-	resolver := spec.NewResolver()
+	cfg := config.NewResolver()
 	if *path != "" {
-		db, val, err := resolver.GetPath(*path)
+		db, val, err := cfg.GetPath(*path)
 		d.CheckError(err)
 		if val == nil {
 			d.CheckError(fmt.Errorf("Path %s not found\n", *path))
@@ -157,7 +158,7 @@ func main() {
 		}
 	}
 
-	db, ds, err := resolver.GetDataset(flag.Arg(dataSetArgN))
+	db, ds, err := cfg.GetDataset(flag.Arg(dataSetArgN))
 	d.CheckError(err)
 	defer db.Close()
 

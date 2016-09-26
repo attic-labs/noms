@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/attic-labs/noms/cmd/util"
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
@@ -37,14 +38,14 @@ func setupSyncFlags() *flag.FlagSet {
 	syncFlagSet := flag.NewFlagSet("sync", flag.ExitOnError)
 	syncFlagSet.IntVar(&p, "p", 512, "parallelism")
 	spec.RegisterDatabaseFlags(syncFlagSet)
-	spec.RegisterVerboseFlags(syncFlagSet)
+	config.RegisterVerboseFlags(syncFlagSet)
 	profile.RegisterProfileFlags(syncFlagSet)
 	return syncFlagSet
 }
 
 func runSync(args []string) int {
-	resolver := spec.NewResolver()
-	sourceStore, sourceObj, err := resolver.GetPath(args[0])
+	cfg := config.NewResolver()
+	sourceStore, sourceObj, err := cfg.GetPath(args[0])
 	d.CheckError(err)
 	defer sourceStore.Close()
 
@@ -52,7 +53,7 @@ func runSync(args []string) int {
 		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[0]))
 	}
 
-	sinkDB, sinkDataset, err := resolver.GetDataset(args[1])
+	sinkDB, sinkDataset, err := cfg.GetDataset(args[1])
 	d.CheckError(err)
 	defer sinkDB.Close()
 

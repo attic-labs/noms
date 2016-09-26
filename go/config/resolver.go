@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package spec
+package config
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/datas"
+	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 )
 
@@ -44,7 +45,7 @@ func (r *Resolver) verbose(orig string, replacement string) string {
 // Resolve string to database name. If config is defined:
 //   - replace the empty string with the default db url
 //   - replace any db alias with it's url
-func (r *Resolver) resolveDatabaseString(str string) string {
+func (r *Resolver) ResolveDbSpec(str string) string {
 	if r.config != nil {
 		if str == "" {
 			return r.config.Db[DefaultDbAlias].Url
@@ -62,9 +63,9 @@ func (r *Resolver) resolveDatabaseString(str string) string {
 //     datapath part for subsequent calls.
 //   - if this is not the first call and a "." is used, replace
 //     it with the first datapath.
-func (r *Resolver) resolvePathString(str string) string {
+func (r *Resolver) ResolvePathSpec(str string) string {
 	if r.config != nil {
-		split := strings.SplitN(str, separator, 2)
+		split := strings.SplitN(str, spec.Separator, 2)
 		db, rest := "", split[0]
 		if len(split) > 1 {
 			db, rest = split[0], split[1]
@@ -74,7 +75,7 @@ func (r *Resolver) resolvePathString(str string) string {
 		} else if rest == "." {
 			rest = r.dotDatapath
 		}
-		return r.resolveDatabaseString(db) + separator + rest
+		return r.ResolveDbSpec(db) + spec.Separator + rest
 	}
 	return str
 }
@@ -86,7 +87,7 @@ func (r *Resolver) GetDatabase(str string) (datas.Database, error) {
 	if r.deferredErr != nil {
 		return nil, r.deferredErr
 	}
-	return GetDatabase(r.verbose(str, r.resolveDatabaseString(str)))
+	return spec.GetDatabase(r.verbose(str, r.ResolveDbSpec(str)))
 }
 
 // Resolve string to a chunkstore. Like ResolveDatabase, but returns the underlying ChunkStore
@@ -94,17 +95,17 @@ func (r *Resolver) GetChunkStore(str string) (chunks.ChunkStore, error) {
 	if r.deferredErr != nil {
 		return nil, r.deferredErr
 	}
-	return GetChunkStore(r.verbose(str, r.resolveDatabaseString(str)))
+	return spec.GetChunkStore(r.verbose(str, r.ResolveDbSpec(str)))
 }
 
 // Resolve string to a dataset. If a config is present,
 //  - if no db prefix is present, assume the default db
 //  - if the db prefix is an alias, replace it
-func (dsr *Resolver) GetDataset(str string) (datas.Database, datas.Dataset, error) {
-	if dsr.deferredErr != nil {
-		return datas.Dataset{}, dsr.deferredErr
+func (r *Resolver) GetDataset(str string) (datas.Database, datas.Dataset, error) {
+	if r.deferredErr != nil {
+		return datas.Dataset{}, r.deferredErr
 	}
-	return GetDataset(dsr.verbose(str, dsr.resolvePathString(str)))
+	return spec.GetDataset(r.verbose(str, r.ResolvePathSpec(str)))
 }
 
 // Resolve string to a value path. If a config is present,
@@ -114,5 +115,5 @@ func (r *Resolver) GetPath(str string) (datas.Database, types.Value, error) {
 	if r.deferredErr != nil {
 		return nil, nil, r.deferredErr
 	}
-	return GetPath(r.verbose(str, r.resolvePathString(str)))
+	return spec.GetPath(r.verbose(str, r.ResolvePathSpec(str)))
 }

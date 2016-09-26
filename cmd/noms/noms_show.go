@@ -9,8 +9,8 @@ import (
 	"os"
 
 	"github.com/attic-labs/noms/cmd/util"
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/outputpager"
 	flag "github.com/juju/gnuflag"
@@ -28,13 +28,13 @@ var nomsShow = &util.Command{
 func setupShowFlags() *flag.FlagSet {
 	showFlagSet := flag.NewFlagSet("show", flag.ExitOnError)
 	outputpager.RegisterOutputpagerFlags(showFlagSet)
-	spec.RegisterVerboseFlags(showFlagSet)
+	config.RegisterVerboseFlags(showFlagSet)
 	return showFlagSet
 }
 
 func runShow(args []string) int {
-	resolver := spec.NewResolver()
-	database, value, err := resolver.GetPath(args[0])
+	cfg := config.NewResolver()
+	database, value, err := cfg.GetPath(args[0])
 	d.CheckErrorNoUsage(err)
 	defer database.Close()
 

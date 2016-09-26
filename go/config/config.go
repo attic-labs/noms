@@ -1,4 +1,4 @@
-package spec
+package config
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/attic-labs/noms/go/spec"
 	"github.com/BurntSushi/toml"
 )
 
@@ -90,7 +91,7 @@ func (c *Config) WriteTo(configHome string) (string, error) {
 // Replace relative directory in path part of spec with an absolute
 // directory. Assumes the path is relative to the location of the config file
 func absDbSpec(configHome string, url string) string {
-	dbSpec, err := parseDatabaseSpec(url)
+	dbSpec, err := spec.ParseDatabaseSpec(url)
 	if err != nil {
 		return url
 	}
@@ -100,10 +101,6 @@ func absDbSpec(configHome string, url string) string {
 	path := dbSpec.Path
 	if !strings.HasPrefix(path, "/") {
 		path = filepath.Join(configHome, path)
-	}
-	if err != nil {
-		fmt.Println(err)
-		return url
 	}
 	return "ldb:" + path
 }

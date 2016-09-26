@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
@@ -23,7 +24,7 @@ func main() {
 	delimiter := flag.String("delimiter", ",", "field delimiter for csv file, must be exactly one character long.")
 
 	spec.RegisterDatabaseFlags(flag.CommandLine)
-	spec.RegisterVerboseFlags(flag.CommandLine)
+	config.RegisterVerboseFlags(flag.CommandLine)
 	profile.RegisterProfileFlags(flag.CommandLine)
 
 	flag.Usage = func() {
@@ -37,8 +38,8 @@ func main() {
 		d.CheckError(errors.New("expected dataset arg"))
 	}
 
-	resolver := spec.NewResolver()
-	db, ds, err := resolver.GetDataset(flag.Arg(0))
+	cfg := config.NewResolver()
+	db, ds, err := cfg.GetDataset(flag.Arg(0))
 	d.CheckError(err)
 
 	defer db.Close()

@@ -1,4 +1,4 @@
-package spec
+package config
 
 import (
 	"io/ioutil"
@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/attic-labs/testify/assert"
+	"github.com/attic-labs/noms/go/spec"
 )
 
 const (
@@ -76,12 +77,12 @@ func qualifyFilePath(assert *assert.Assertions, path string) string {
 }
 
 func assertDbSpecsEquiv(assert *assert.Assertions, expected string, actual string) {
-	e, err := parseDatabaseSpec(expected)
+	e, err := spec.ParseDatabaseSpec(expected)
 	assert.NoError(err)
 	if e.Protocol != "ldb" {
 		assert.Equal(expected, actual)
 	} else {
-		a, err := parseDatabaseSpec(actual)
+		a, err := spec.ParseDatabaseSpec(actual)
 		assert.NoError(err)
 		assert.Equal(e.Protocol, a.Protocol, actual)
 		if strings.HasPrefix(e.Path, "/") {
@@ -195,5 +196,3 @@ func TestCwd(t *testing.T) {
 
 	assert.Equal(cwd, abs)
 }
-
-

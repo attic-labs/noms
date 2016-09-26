@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package spec
+package config
 
 import (
 	"os"
@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/attic-labs/testify/assert"
+	"github.com/attic-labs/noms/go/spec"
 )
 
 const (
@@ -82,9 +83,9 @@ func withoutConfig(t *testing.T) *Resolver {
 }
 
 func assertPathSpecsEquiv(assert *assert.Assertions, expected string, actual string) {
-	e, err := parsePathSpec(expected)
+	e, err := spec.ParsePathSpec(expected)
 	assert.NoError(err)
-	a, err := parsePathSpec(actual)
+	a, err := spec.ParsePathSpec(actual)
 	assert.NoError(err)
 	assertDbSpecsEquiv(assert, e.DbSpec.String(), a.DbSpec.String())
 	assert.Equal(e.Path.String(), a.Path.String())
@@ -94,7 +95,7 @@ func TestResolveDatabaseWithConfig(t *testing.T) {
 	spec := withConfig(t)
 	assert := assert.New(t)
 	for _, d := range append(dbTestsNoAliases, dbTestsWithAliases...) {
-		db := spec.resolveDatabaseString(d.input)
+		db := spec.ResolveDbSpec(d.input)
 		assertDbSpecsEquiv(assert, d.expected, db)
 	}
 }
@@ -103,7 +104,7 @@ func TestResolvePathWithConfig(t *testing.T) {
 	spec := withConfig(t)
 	assert := assert.New(t)
 	for _, d := range append(pathTestsNoAliases, pathTestsWithAliases...) {
-		path := spec.resolvePathString(d.input)
+		path := spec.ResolvePathSpec(d.input)
 		assertPathSpecsEquiv(assert, d.expected, path)
 	}
 }
@@ -112,7 +113,7 @@ func TestResolveDatabaseWithoutConfig(t *testing.T) {
 	spec := withoutConfig(t)
 	assert := assert.New(t)
 	for _, d := range dbTestsNoAliases {
-		db := spec.resolveDatabaseString(d.input)
+		db := spec.ResolveDbSpec(d.input)
 		assert.Equal(d.expected, db, d.input)
 	}
 }
@@ -121,7 +122,7 @@ func TestResolvePathWithoutConfig(t *testing.T) {
 	spec := withoutConfig(t)
 	assert := assert.New(t)
 	for _, d := range pathTestsNoAliases {
-		path := spec.resolvePathString(d.input)
+		path := spec.ResolvePathSpec(d.input)
 		assertPathSpecsEquiv(assert, d.expected, path)
 	}
 
@@ -141,8 +142,8 @@ func TestResolveDestPathWithDot(t *testing.T) {
 		{remoteSpec+"::"+testDs, ".",	remoteSpec+"::"+testDs, localSpec+"::"+testDs},
 	}
 	for _, d := range data {
-		src := spec.resolvePathString(d.src)
-		dest := spec.resolvePathString(d.dest)
+		src := spec.ResolvePathSpec(d.src)
+		dest := spec.ResolvePathSpec(d.dest)
 		assertPathSpecsEquiv(assert, d.expSrc, src)
 		assertPathSpecsEquiv(assert, d.expDest, dest)
 	}

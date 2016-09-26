@@ -1,6 +1,6 @@
 # Default database URL to be used whenever a database is not explictly provided
 [db.default]
-url = "ldb:.noms/tour"  # This path is relative the location of .nomsconfig
+url = "ldb:.noms/tour"  # This path is relative to the location of .nomsconfig
 
 # DB alias named `origin` that refers to the remote cli-tour db
 [db.origin]

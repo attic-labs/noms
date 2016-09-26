@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
@@ -27,17 +28,17 @@ func main() {
 	}
 
 	spec.RegisterDatabaseFlags(flag.CommandLine)
-	spec.RegisterVerboseFlags(flag.CommandLine)
+	config.RegisterVerboseFlags(flag.CommandLine)
 	flag.Parse(true)
 
 	if len(flag.Args()) != 2 {
 		d.CheckError(errors.New("expected dataset and file flags"))
 	}
 
-	resolver := spec.NewResolver()
+	cfg := config.NewResolver()
 	var blob types.Blob
 	path := flag.Arg(0)
-	if db, val, err := resolver.GetPath(path); err != nil {
+	if db, val, err := cfg.GetPath(path); err != nil {
 		d.CheckErrorNoUsage(err)
 	} else if val == nil {
 		d.CheckErrorNoUsage(fmt.Errorf("No value at %s", path))
