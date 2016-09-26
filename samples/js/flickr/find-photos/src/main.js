@@ -75,8 +75,8 @@ const imageType = makeUnionType(sizeTypes.map(st => {
   return makeStructType('', fieldNames, fieldTypes);
 }));
 
-const nsInSecond = Math.pow(10, 9);
-const nsInMillisecond = Math.pow(10, 6);
+const nsInSecond = 10e9;
+const nsInMillisecond = 10e6;
 
 main().catch(ex => {
   console.error(ex);
