@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 
 	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/spec"
@@ -55,38 +56,59 @@ func index() (win bool) {
 
 	inputs := []types.Value{}
 	for i := 0; i < flag.NArg(); i++ {
-		if dataset.DatasetFullRe.MatchString(flag.Arg(i)) {
-			ds := dataset.NewDataset(db, flag.Arg(i))
-			v, ok := ds.MaybeHeadValue()
-			if ok {
-				inputs = append(inputs, v)
-				continue
-			}
+		p, err := spec.NewAbsolutePath(flag.Arg(i))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid input path '%s', error: %s\n", flag.Arg(i), err)
+			return
 		}
-		fmt.Fprintf(os.Stderr, "Could not load dataset '%s', error: %s\n", flag.Arg(i), err)
-		return
+
+		v := p.Resolve(db)
+		if v == nil {
+			fmt.Fprintf(os.Stderr, "Input path '%s' does not exist in '%s'", flag.Arg(i), *dbStr)
+			return
+		}
+
+		inputs = append(inputs, v)
+		continue
 	}
 
-	st := types.MakeStructType("",
-		[]string{"height", "width"},
-		[]*types.Type{types.NumberType, types.NumberType},
-	)
-	pt := types.MakeStructType("Photo",
-		[]string{"sizes", "tags", "title"},
-		[]*types.Type{
-			types.MakeMapType(st, types.StringType),
-			types.MakeSetType(types.StringType),
-			types.StringType,
-		})
+	sizeType := types.MakeStructTypeFromFields("", types.FieldMap{
+		"width":  types.NumberType,
+		"height": types.NumberType,
+	})
+	dateType := types.MakeStructTypeFromFields("Date", types.FieldMap{
+		"nsSinceEpoch": types.NumberType,
+	})
+	fields := types.FieldMap{
+		"sizes":         types.MakeMapType(sizeType, types.StringType),
+		"tags":          types.MakeSetType(types.StringType),
+		"title":         types.StringType,
+		"datePublished": dateType,
+		"dateUpdated":   dateType,
+	}
+	photoType := types.MakeStructTypeFromFields("Photo", fields)
+	fields["dateTaken"] = dateType
+	photoType = types.MakeUnionType(photoType, types.MakeStructTypeFromFields("Photo", fields))
 
-	gb := types.NewGraphBuilder(db, types.MapKind, true)
+	byDate := types.NewGraphBuilder(db, types.MapKind, true)
+	byTag := types.NewGraphBuilder(db, types.MapKind, true)
+
 	for _, v := range inputs {
 		walk.SomeP(v, db, func(cv types.Value, _ *types.Ref) (stop bool) {
-			if types.IsSubtype(pt, cv.Type()) {
-				p := cv.(types.Struct)
-				tags := p.Get("tags").(types.Set)
-				tags.IterAll(func(t types.Value) {
-					gb.SetInsert([]types.Value{t}, p)
+			if types.IsSubtype(photoType, cv.Type()) {
+				s := cv.(types.Struct)
+				// Prefer to sort by the actual date the photo was taken, but if it's not
+				// available, use the date it was published instead.
+				ds, ok := s.MaybeGet("dateTaken")
+				if !ok {
+					fmt.Println("No dateTaken, falling back to datePublished")
+					ds = s.Get("datePublished")
+				}
+
+				d := ds.(types.Struct).Get("nsSinceEpoch")
+				byDate.SetInsert([]types.Value{d}, cv)
+				s.Get("tags").(types.Set).IterAll(func(t types.Value) {
+					byTag.SetInsert([]types.Value{t, d}, cv)
 				})
 				// Can't be any photos inside photos, so we can save a little bit here.
 				stop = true
@@ -95,7 +117,10 @@ func index() (win bool) {
 		}, 12)
 	}
 
-	_, err = outDS.CommitValue(gb.Build())
+	_, err = outDS.CommitValue(types.NewStruct("", types.StructData{
+		"byDate": byDate.Build(),
+		"byTag":  byTag.Build(),
+	}))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not commit: %s\n", err)
 		return
@@ -107,10 +132,10 @@ func index() (win bool) {
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "photo-index indexes photos by common attributes\n\n")
-	fmt.Fprintf(os.Stderr, "Usage: %s -db=<db-spec> -out-ds=<name> [input-datasets...]\n\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %s -db=<db-spec> -out-ds=<name> [input-paths...]\n\n", path.Base(os.Args[0]))
 	fmt.Fprintf(os.Stderr, "  <db>             : Database to work with\n")
 	fmt.Fprintf(os.Stderr, "  <out-ds>         : Dataset to write index to\n")
-	fmt.Fprintf(os.Stderr, "  <input-datasets> : Input datasets to crawl\n\n")
+	fmt.Fprintf(os.Stderr, "  [input-paths...] : One or more paths within <db-spec> to crawl\n\n")
 	fmt.Fprintln(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 }
