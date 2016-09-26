@@ -25,6 +25,7 @@ func main() {
 func index() (win bool) {
 	var dbStr = flag.String("db", "", "input database spec")
 	var outDSStr = flag.String("out-ds", "", "output dataset to write to - if empty, defaults to input dataset")
+	var parallelism = flag.Int("parallelism", 16, "number of parallel goroutines to search")
 
 	flag.Usage = usage
 	flag.Parse(false)
@@ -116,7 +117,7 @@ func index() (win bool) {
 				stop = true
 			}
 			return
-		}, 12)
+		}, *parallelism)
 	}
 
 	_, err = outDS.CommitValue(types.NewStruct("", types.StructData{
