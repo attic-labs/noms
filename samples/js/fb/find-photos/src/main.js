@@ -22,7 +22,7 @@ import {
 const args = argv
   .usage(
     'Finds photos in slurped Facebook metadata\n\n' +
-    'Usage: noms-facebook-find-photos <in-dataset> <out-dataset>')
+    'Usage: node . <in-dataset> <out-dataset>')
   .demand(2)
   .argv;
 
