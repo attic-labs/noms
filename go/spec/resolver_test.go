@@ -29,8 +29,10 @@ var (
 
 	rtestConfig = &Config{
 		"",
-		DefaultConfig{ localSpec },
-		map[string]DbConfig{ remoteAlias: { remoteSpec } },
+		map[string]DbConfig{
+			DefaultDbAlias: { localSpec },
+			remoteAlias: { remoteSpec },
+		},
 	}
 
 	dbTestsNoAliases = []testData {
@@ -55,6 +57,7 @@ var (
 		{testObject, localSpec + "::" + testObject},
 		{remoteAlias + "::" + testObject, remoteSpec + "::" + testObject},
 	}
+
 )
 
 
@@ -91,7 +94,7 @@ func TestResolveDatabaseWithConfig(t *testing.T) {
 	spec := withConfig(t)
 	assert := assert.New(t)
 	for _, d := range append(dbTestsNoAliases, dbTestsWithAliases...) {
-		db := spec.ResolveDatabase(d.input)
+		db := spec.resolveDatabaseString(d.input)
 		assertDbSpecsEquiv(assert, d.expected, db)
 	}
 }
@@ -100,7 +103,7 @@ func TestResolvePathWithConfig(t *testing.T) {
 	spec := withConfig(t)
 	assert := assert.New(t)
 	for _, d := range append(pathTestsNoAliases, pathTestsWithAliases...) {
-		path := spec.ResolvePath(d.input)
+		path := spec.resolvePathString(d.input)
 		assertPathSpecsEquiv(assert, d.expected, path)
 	}
 }
@@ -109,7 +112,7 @@ func TestResolveDatabaseWithoutConfig(t *testing.T) {
 	spec := withoutConfig(t)
 	assert := assert.New(t)
 	for _, d := range dbTestsNoAliases {
-		db := spec.ResolveDatabase(d.input)
+		db := spec.resolveDatabaseString(d.input)
 		assert.Equal(d.expected, db, d.input)
 	}
 }
@@ -118,8 +121,30 @@ func TestResolvePathWithoutConfig(t *testing.T) {
 	spec := withoutConfig(t)
 	assert := assert.New(t)
 	for _, d := range pathTestsNoAliases {
-		path := spec.ResolvePath(d.input)
+		path := spec.resolvePathString(d.input)
 		assertPathSpecsEquiv(assert, d.expected, path)
+	}
+
+}
+
+func TestResolveDestPathWithDot(t *testing.T) {
+	spec := withConfig(t)
+	assert := assert.New(t)
+
+	data := []struct {
+		src string
+		dest string
+		expSrc string
+		expDest string
+	} {
+		{testDs, remoteSpec+"::.", 	localSpec+"::"+testDs, remoteSpec+"::"+testDs},
+		{remoteSpec+"::"+testDs, ".",	remoteSpec+"::"+testDs, localSpec+"::"+testDs},
+	}
+	for _, d := range data {
+		src := spec.resolvePathString(d.src)
+		dest := spec.resolvePathString(d.dest)
+		assertPathSpecsEquiv(assert, d.expSrc, src)
+		assertPathSpecsEquiv(assert, d.expDest, dest)
 	}
 
 }

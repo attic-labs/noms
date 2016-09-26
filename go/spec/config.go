@@ -14,12 +14,7 @@ import (
 
 type Config struct {
 	File    string
-	Default DefaultConfig
 	Db      map[string]DbConfig
-}
-
-type DefaultConfig struct {
-	Url string
 }
 
 type DbConfig struct {
@@ -28,6 +23,7 @@ type DbConfig struct {
 
 const (
 	NomsConfigFile = ".nomsconfig"
+	DefaultDbAlias = "default"
 )
 
 var NoConfig = errors.New(fmt.Sprintf("no %s found", NomsConfigFile))
@@ -120,7 +116,6 @@ func qualifyPaths(configPath string, c *Config) (*Config, error) {
 	dir := filepath.Dir(file)
 	qc := *c
 	qc.File = file
-	qc.Default.Url = absDbSpec(dir, c.Default.Url)
 	for k, r := range c.Db {
 		qc.Db[k] = DbConfig{ absDbSpec(dir, r.Url) }
 	}
@@ -138,8 +133,6 @@ func (c *Config) String() string {
 
 func (c *Config) writeableString() string {
 	var buffer bytes.Buffer
-	buffer.WriteString("[default]\n")
-	buffer.WriteString(fmt.Sprintf("\t" + `url = "%s"`+"\n", c.Default.Url))
 	for k, r := range c.Db {
 		buffer.WriteString(fmt.Sprintf("[db.%s]\n", k))
 		buffer.WriteString(fmt.Sprintf("\t" + `url = "%s"`+"\n", r.Url))

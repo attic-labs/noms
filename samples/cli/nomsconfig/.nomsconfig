@@ -1,15 +1,16 @@
 # Default database URL to be used whenever a database is not explictly provided
-[default]
+[db.default]
 url = "ldb:.noms/tour"  # This path is relative the location of .nomsconfig
 
 # DB alias named `origin` that refers to the remote cli-tour db
 [db.origin]
 url = "http://demo.noms.io/cli-tour"
 
-# DB alias named `your` provides an explicit name for the default database
-[db.tour]
-url = "ldb:.noms/tour"
+# DB alias named `temp` that refers to a noms db stored under /tmp
+[db.temp]
+url = "ldb:/tmp/noms/shared
 
-# DB alias named `share` names a shared local noms db
-[db.shared]
+# DB alias named `http` that refers to the local http db
+[db.http]
 url = "http://localhost:8000
+

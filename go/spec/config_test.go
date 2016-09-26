@@ -23,26 +23,34 @@ var (
 
 	ldbConfig = &Config{
 		"",
-		DefaultConfig{ ldbSpec },
-		map[string]DbConfig{ remoteAlias: { httpSpec }},
+		map[string]DbConfig{
+			DefaultDbAlias: { ldbSpec },
+			remoteAlias: { httpSpec },
+		},
 	}
 
 	httpConfig = &Config{
 		"",
-		DefaultConfig{ httpSpec },
-		map[string]DbConfig{ remoteAlias: { ldbSpec }},
+		map[string]DbConfig{
+			DefaultDbAlias: { httpSpec },
+			remoteAlias: { ldbSpec },
+		},
 	}
 
 	memConfig = &Config{
 		"",
-		DefaultConfig{ memSpec },
-		map[string]DbConfig{ remoteAlias: { httpSpec }},
+		map[string]DbConfig{
+			DefaultDbAlias: { memSpec },
+			remoteAlias: { httpSpec },
+		},
 	}
 
 	ldbAbsConfig = &Config{
 		"",
-		DefaultConfig{ ldbAbsSpec },
-		map[string]DbConfig{ remoteAlias: { httpSpec }},
+		map[string]DbConfig{
+			DefaultDbAlias: { ldbAbsSpec },
+			remoteAlias: { httpSpec },
+		},
 	}
 )
 
@@ -90,7 +98,6 @@ func assertDbSpecsEquiv(assert *assert.Assertions, expected string, actual strin
 
 func validateConfig(assert *assert.Assertions, file string, e *Config, a *Config) {
 	assert.Equal(qualifyFilePath(assert, file), qualifyFilePath(assert, a.File))
-	assertDbSpecsEquiv(assert, e.Default.Url, a.Default.Url)
 	assert.Equal(len(e.Db), len(a.Db))
 	for k, er := range e.Db {
 		ar, ok := a.Db[k]

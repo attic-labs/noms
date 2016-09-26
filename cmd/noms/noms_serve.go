@@ -15,6 +15,7 @@ import (
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/util/profile"
 	flag "github.com/juju/gnuflag"
+	"fmt"
 )
 
 var (
@@ -27,7 +28,7 @@ var nomsServe = &util.Command{
 	Short:     "Serves a Noms database over HTTP",
 	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.",
 	Flags:     setupServeFlags,
-	Nargs:     1,
+	Nargs:     0,
 }
 
 func setupServeFlags() *flag.FlagSet {
@@ -39,8 +40,13 @@ func setupServeFlags() *flag.FlagSet {
 }
 
 func runServe(args []string) int {
+	fmt.Println("Running noms serve")
 	resolver := spec.NewResolver()
-	cs, err := resolver.GetChunkStore(args[0])
+	db := ""
+	if len(args) > 0 {
+		db = args[0]
+	}
+	cs, err := resolver.GetChunkStore(db)
 	d.CheckError(err)
 	server := datas.NewRemoteDatabaseServer(cs, port)
 

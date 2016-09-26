@@ -15,22 +15,22 @@ import (
 
 type Resolver struct {
 	config      *Config
-	deferredErr error
+	deferredErr error  // non-nil if error occurred during construction
+	dotDatapath string // set to the first datapath that was resolved
 }
-
 
 func NewResolver() *Resolver {
 	c, err := FindNomsConfig()
 	if err != nil {
 		if err != NoConfig {
-			return &Resolver{ deferredErr: err }
+			return &Resolver{deferredErr: err}
 		}
 		return &Resolver{}
 	}
-	return &Resolver{ c, nil }
+	return &Resolver{c, nil, ""}
 }
 
-
+// Print replacement if one occurred
 func (r *Resolver) verbose(orig string, replacement string) string {
 	if Verbose() && orig != replacement {
 		if orig == "" {
@@ -41,10 +41,13 @@ func (r *Resolver) verbose(orig string, replacement string) string {
 	return replacement
 }
 
-func (r *Resolver) ResolveDatabase(str string) string {
+// Resolve string to database name. If config is defined:
+//   - replace the empty string with the default db url
+//   - replace any db alias with it's url
+func (r *Resolver) resolveDatabaseString(str string) string {
 	if r.config != nil {
 		if str == "" {
-			return r.config.Default.Url
+			return r.config.Db[DefaultDbAlias].Url
 		}
 		if val, ok := r.config.Db[str]; ok {
 			return val.Url
@@ -53,14 +56,25 @@ func (r *Resolver) ResolveDatabase(str string) string {
 	return str
 }
 
-func (r *Resolver) ResolvePath(str string) string {
+// Resolve string to dataset or path name.
+//   - replace database name as described in ResolveDatabase
+//   - if this is the first call to ResolvePath, remember the
+//     datapath part for subsequent calls.
+//   - if this is not the first call and a "." is used, replace
+//     it with the first datapath.
+func (r *Resolver) resolvePathString(str string) string {
 	if r.config != nil {
 		split := strings.SplitN(str, separator, 2)
 		db, rest := "", split[0]
 		if len(split) > 1 {
 			db, rest = split[0], split[1]
 		}
-		return r.ResolveDatabase(db)+separator+rest
+		if r.dotDatapath == "" {
+			r.dotDatapath = rest
+		} else if rest == "." {
+			rest = r.dotDatapath
+		}
+		return r.resolveDatabaseString(db) + separator + rest
 	}
 	return str
 }
@@ -72,7 +86,7 @@ func (r *Resolver) GetDatabase(str string) (datas.Database, error) {
 	if r.deferredErr != nil {
 		return nil, r.deferredErr
 	}
-	return GetDatabase(r.verbose(str, r.ResolveDatabase(str)))
+	return GetDatabase(r.verbose(str, r.resolveDatabaseString(str)))
 }
 
 // Resolve string to a chunkstore. Like ResolveDatabase, but returns the underlying ChunkStore
@@ -80,7 +94,7 @@ func (r *Resolver) GetChunkStore(str string) (chunks.ChunkStore, error) {
 	if r.deferredErr != nil {
 		return nil, r.deferredErr
 	}
-	return GetChunkStore(r.verbose(str, r.ResolveDatabase(str)))
+	return GetChunkStore(r.verbose(str, r.resolveDatabaseString(str)))
 }
 
 // Resolve string to a dataset. If a config is present,
@@ -90,7 +104,7 @@ func (dsr *Resolver) GetDataset(str string) (datas.Database, datas.Dataset, erro
 	if dsr.deferredErr != nil {
 		return datas.Dataset{}, dsr.deferredErr
 	}
-	return GetDataset(dsr.ResolvePath(str))
+	return GetDataset(dsr.verbose(str, dsr.resolvePathString(str)))
 }
 
 // Resolve string to a value path. If a config is present,
@@ -100,5 +114,5 @@ func (r *Resolver) GetPath(str string) (datas.Database, types.Value, error) {
 	if r.deferredErr != nil {
 		return nil, nil, r.deferredErr
 	}
-	return GetPath(r.verbose(str, r.ResolvePath(str)))
+	return GetPath(r.verbose(str, r.resolvePathString(str)))
 }

@@ -10,24 +10,26 @@ This example defines a simple [.nomsconfig](.nomsconfig) to try:
 
 ```
 # Default database URL to be used whenever a database is not explictly provided
-[default]
+[db.default]
 url = "ldb:.noms/tour"
 
 # DB alias named `origin` that refers to the remote cli-tour db 
 [db.origin]
 url = "http://demo.noms.io/cli-tour"
 
-# DB alias named `tour` provides an explicit name for the default database
-[db.tour]
-url = "ldb:.noms/tour"
+# DB alias named `temp` that refers to a noms db stored under /tmp
+[db.temp]
+url = "ldb:/tmp/noms/shared
+
 ```
 
-The *[default]* section:
+The *[db.default]* section:
 
  - Defines a default database
  - It will be used implicitly whenever a database url is ommitted in a command
+ - It will be used implicitly whenever a database url is ommitted in a command
 
-The *[db.origin]* and *[db.tour]* sections
+The *[db.origin]* and *[db.shared]* sections
 
  - Define aliases that can be used wherever a db url is required
  - You can define additional aliases by adding *[db.**alias**]* sections using any **alias** you prefer
@@ -36,6 +38,7 @@ You can kick the tires by running an noms commmand from this directory. Here are
 
 ```
 noms ds          # -> noms ds ldb:.noms/tour
+noms ds default  # -> noms ds ldb:.noms/tour
 noms ds origin   # -> noms ds http://demo.noms.io/cli-tour
 
 noms sync origin::sf-film-locations sf-films   # sync ds from origin to default
