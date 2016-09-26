@@ -101,11 +101,13 @@ func index() (win bool) {
 				// available, use the date it was published instead.
 				ds, ok := s.MaybeGet("dateTaken")
 				if !ok {
-					fmt.Println("No dateTaken, falling back to datePublished")
 					ds = s.Get("datePublished")
 				}
 
-				d := ds.(types.Struct).Get("nsSinceEpoch")
+				// Sort by most recent by negating the timestamp.
+				d := ds.(types.Struct).Get("nsSinceEpoch").(types.Number)
+				d = types.Number(-float64(d))
+
 				byDate.SetInsert([]types.Value{d}, cv)
 				s.Get("tags").(types.Set).IterAll(func(t types.Value) {
 					byTag.SetInsert([]types.Value{t, d}, cv)

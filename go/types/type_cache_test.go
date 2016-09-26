@@ -5,7 +5,6 @@
 package types
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/attic-labs/testify/assert"
