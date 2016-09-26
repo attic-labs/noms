@@ -31,7 +31,7 @@ type Database interface {
 	io.Closer
 
 	// Datasets returns the root of the database which is a
-	// MapOfStringToRefOfCommit where string is a datasetID.
+	// Map<String, Ref<Commit>> where string is a datasetID.
 	Datasets() types.Map
 
 	// GetDataset returns a Dataset struct containing the current mapping of
@@ -40,16 +40,16 @@ type Database interface {
 
 	// Commit updates the Commit that ds.ID() in this database points at. All
 	// Values that have been written to this Database are guaranteed to be
-	// persistent after Commit().
+	// persistent after Commit() returns.
 	// The new Commit struct is constructed using `v`, `opts.Parents`, and
 	// `opts.Meta`. If `opts.Parents` is the zero value (`types.Set{}`) then
-	// the  current head is used. If `opts.Meta is the zero value
+	// the current head is used. If `opts.Meta is the zero value
 	// (`types.Struct{}`) then a fully initialized empty Struct is passed to
 	// NewCommit.
-	// If the update cannot be performed, e.g.,  because of a conflict, Commit
-	// returns an 'ErrMergeNeeded' error and the  current snapshot of the
-	// Dataset so that the client can merge the  changes and try again.
-	// Regardless, Datasets() is updated to match  backing storage upon return.
+	// The returned Dataset is always the newest snapshot, regardless of
+	// success or failure, and Datasets() is updated to match backing storage
+	// upon return as well. If the update cannot be performed, e.g., because
+	// of a conflict, Commit returns an 'ErrMergeNeeded' error.
 	Commit(ds Dataset, v types.Value, opts CommitOptions) (Dataset, error)
 
 	// CommitValue updates the Commit that ds.ID() in this database points at.
@@ -57,19 +57,19 @@ type Database interface {
 	// persistent after Commit().
 	// The new Commit struct is constructed using `v`, and the current Head of
 	// `ds` as the lone Parent.
-	// If the update cannot be performed, e.g.,  because of a conflict, Commit
-	// returns an 'ErrMergeNeeded' error and the  current snapshot of the
-	// Dataset so that the client can merge the  changes and try again.
-	// Regardless, Datasets() is updated to match  backing storage upon return.
+	// The returned Dataset is always the newest snapshot, regardless of
+	// success or failure, and Datasets() is updated to match backing storage
+	// upon return as well. If the update cannot be performed, e.g., because
+	// of a conflict, Commit returns an 'ErrMergeNeeded' error.
 	CommitValue(ds Dataset, v types.Value) (Dataset, error)
 
 	// Delete removes the Dataset named ds.ID() from the map at the root of
 	// the Database. The Dataset data is not necessarily cleaned up at this
 	// time, but may be garbage collected in the future.
-	// If the update cannot be performed, e.g., because of a conflict, Commit
-	// returns an 'ErrMergeNeeded' error and the current snapshot of the
-	// Dataset so that the client can decide whether to try again.
-	// Regardless, Datasets() is updated to match backing storage upon return.
+	// The returned Dataset is always the newest snapshot, regardless of
+	// success or failure, and Datasets() is updated to match backing storage
+	// upon return as well. If the update cannot be performed, e.g., because
+	// of a conflict, Delete returns an 'ErrMergeNeeded' error.
 	Delete(ds Dataset) (Dataset, error)
 
 	// SetHead ignores any lineage constraints (e.g. the current Head being in
@@ -77,7 +77,8 @@ type Database interface {
 	// this database.
 	// All Values that have been written to this Database are guaranteed to be
 	// persistent after SetHead(). If the update cannot be performed, e.g.,
-	// because of a conflict, error will be non-nil.
+	// because another process moved the current Head out from under you,
+	// error will be non-nil.
 	// The newest snapshot of the Dataset is always returned, so the caller an
 	// easily retry using the latest.
 	// Regardless, Datasets() is updated to match backing storage upon return.
@@ -87,9 +88,9 @@ type Database interface {
 	// Head of ds iff it is a descendant of the current Head. Intended to be
 	// used e.g. after a call to Pull(). If the update cannot be performed,
 	// e.g., because another process moved the current Head out from under
-	// you, err will be non- nil.
-	// The newest snapshot of the Dataset is always returned, so the caller an
-	// easily retry using the latest.
+	// you, err will be non-nil.
+	// The newest snapshot of the Dataset is always returned, so the caller
+	// can easily retry using the latest.
 	// Regardless, Datasets() is updated to match backing storage upon return.
 	FastForward(ds Dataset, newHeadRef types.Ref) (Dataset, error)
 

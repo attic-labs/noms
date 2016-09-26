@@ -27,6 +27,7 @@ type Dataset struct {
 }
 
 // Database returns the Database object in which this Dataset is stored.
+// WARNING: This method is under consideration for deprecation.
 func (ds Dataset) Database() Database {
 	return ds.store
 }
