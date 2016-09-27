@@ -276,7 +276,7 @@ func TestBlobConcat(t *testing.T) {
 	assert.True(b.Equals(b7.Concat(b8)))
 }
 
-func TestBlobParallel(t *testing.T) {
+func TestBlobNewParallel(t *testing.T) {
 	assert := assert.New(t)
 
 	readAll := func(b Blob) []byte {
