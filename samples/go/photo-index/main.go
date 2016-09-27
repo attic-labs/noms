@@ -9,7 +9,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/attic-labs/noms/go/dataset"
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/walk"
@@ -47,12 +47,12 @@ func index() (win bool) {
 	}
 	defer db.Close()
 
-	var outDS dataset.Dataset
-	if !dataset.DatasetFullRe.MatchString(*outDSStr) {
+	var outDS datas.Dataset
+	if !datas.DatasetFullRe.MatchString(*outDSStr) {
 		fmt.Fprintf(os.Stderr, "Invalid output dataset name: %s\n", *outDSStr)
 		return
 	} else {
-		outDS = dataset.NewDataset(db, *outDSStr)
+		outDS = db.GetDataset(*outDSStr)
 	}
 
 	inputs := []types.Value{}
@@ -120,7 +120,7 @@ func index() (win bool) {
 		}, *parallelism)
 	}
 
-	_, err = outDS.CommitValue(types.NewStruct("", types.StructData{
+	outDS, err = db.CommitValue(outDS, types.NewStruct("", types.StructData{
 		"byDate": byDate.Build(),
 		"byTag":  byTag.Build(),
 	}))

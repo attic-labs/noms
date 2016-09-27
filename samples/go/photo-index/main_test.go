@@ -25,7 +25,7 @@ type testSuite struct {
 
 func (s *testSuite) TestWin() {
 	sp := fmt.Sprintf("ldb:%s::test", s.LdbDir)
-	ds, _ := spec.GetDataset(sp)
+	db, ds, _ := spec.GetDataset(sp)
 
 	type Date struct {
 		NsSinceEpoch int
@@ -70,13 +70,13 @@ func (s *testSuite) TestWin() {
 
 	v, err := marshal.Marshal(photos)
 	s.NoError(err)
-	_, err = ds.CommitValue(v)
+	ds, err = db.CommitValue(ds, v)
 	s.NoError(err)
-	ds.Database().Close()
+	db.Close()
 
 	_, _ = s.MustRun(main, []string{"--out-ds", "idx", "--db", s.LdbDir, "test"})
 
-	ds, _ = spec.GetDataset(fmt.Sprintf("%s::idx", s.LdbDir))
+	db, ds, _ = spec.GetDataset(fmt.Sprintf("%s::idx", s.LdbDir))
 	var idx struct {
 		ByDate map[int]types.Set
 		ByTag  map[string]map[int]types.Set
@@ -85,8 +85,8 @@ func (s *testSuite) TestWin() {
 
 	s.Equal(5, len(idx.ByDate))
 	for i := 0; i < 5; i++ {
-		s.Equal(uint64(1), idx.ByDate[i*10].Len())
-		p := idx.ByDate[i*10].First().(types.Struct)
+		s.Equal(uint64(1), idx.ByDate[-i*10].Len())
+		p := idx.ByDate[-i*10].First().(types.Struct)
 		s.Equal(fmt.Sprintf("photo %d", i), string(p.Get("title").(types.String)))
 	}
 
