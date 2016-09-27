@@ -13,7 +13,7 @@ import (
 type LocalDatabase struct {
 	databaseCommon
 	cs  chunks.ChunkStore
-	vbs types.BatchStore
+	vbs *localBatchStore
 }
 
 func newLocalDatabase(cs chunks.ChunkStore) *LocalDatabase {
@@ -54,7 +54,7 @@ func (ldb *LocalDatabase) FastForward(ds Dataset, newHeadRef types.Ref) (Dataset
 
 func (ldb *LocalDatabase) doHeadUpdate(ds Dataset, updateFunc func(ds Dataset) error) (Dataset, error) {
 	if ldb.vbs != nil {
-		ldb.vbs.Flush()
+		ldb.vbs.FlushAndDestroyWithoutClose()
 		ldb.vbs = nil
 	}
 	err := updateFunc(ds)
