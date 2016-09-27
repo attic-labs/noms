@@ -103,7 +103,7 @@ func (r *Resolver) GetChunkStore(str string) (chunks.ChunkStore, error) {
 //  - if the db prefix is an alias, replace it
 func (r *Resolver) GetDataset(str string) (datas.Database, datas.Dataset, error) {
 	if r.deferredErr != nil {
-		return datas.Dataset{}, r.deferredErr
+		return nil, datas.Dataset{}, r.deferredErr
 	}
 	return spec.GetDataset(r.verbose(str, r.ResolvePathSpec(str)))
 }
