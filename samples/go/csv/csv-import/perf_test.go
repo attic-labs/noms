@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"testing"
 
 	"github.com/attic-labs/noms/go/perf/suite"
