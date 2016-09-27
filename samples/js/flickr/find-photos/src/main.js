@@ -100,18 +100,12 @@ async function main(): Promise<void> {
         title: v.title,
         tags: new Set(v.tags ? v.tags.split(' ') : []),
         sizes: getSizes(v),
-        datePublished: newStruct('Date', {
-          nsSinceEpoch: Number(v.dateupload) * nsInSecond,
-        }),
-        dateUpdated: newStruct('Date', {
-          nsSinceEpoch: Number(v.lastupdate) * nsInSecond,
-        }),
+        datePublished: newDate(Number(v.dateupload) * nsInSecond),
+        dateUpdated: newDate(Number(v.lastupdate) * nsInSecond),
       };
 
       if (!v.datetakenunknown) {
-        photo.dateTaken = newStruct('Date', {
-          nsSinceEpoch: Date.parse(v.datetaken) * nsInMillisecond,
-        });
+        photo.dateTaken = newDate(Date.parse(v.datetaken) * nsInMillisecond);
       }
 
       // Flickr API always includes a geoposition, but sometimes it is zero.
@@ -148,4 +142,8 @@ function getSizes(input: Object): Map<Struct, string> {
   });
   // $FlowIssue: Does not understand that filter removes all null values.
   return new Map(a.filter(kv => kv));
+}
+
+function newDate(nsSinceEpoch: number): Struct {
+  return newStruct('Date', {nsSinceEpoch});
 }
