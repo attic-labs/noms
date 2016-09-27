@@ -12,6 +12,7 @@ import type Value from './value.js';
 import type {RootTracker} from './chunk-store.js';
 import ValueStore from './value-store.js';
 import type {BatchStore} from './batch-store.js';
+import Dataset from './dataset.js';
 import Commit from './commit.js';
 import {equals} from './compare.js';
 
@@ -26,14 +27,6 @@ export default class Database {
     this._datasets = this._datasetsFromRootRef(bs.getRoot());
   }
 
-  _clone(vs: ValueStore, rt: RootTracker): Database {
-    const ds = Object.create(Database.prototype);
-    ds._vs = vs;
-    ds._rt = rt;
-    ds._datasets = this._datasetsFromRootRef(rt.getRoot());
-    return ds;
-  }
-
   _datasetsFromRootRef(rootRef: Promise<Hash>): Promise<Map<string, Ref<Commit<any>>>> {
     return rootRef.then(rootRef => {
       if (rootRef.isEmpty()) {
@@ -44,18 +37,12 @@ export default class Database {
     });
   }
 
-  // TODO: This should return Promise<Ref<Commit> | null>.
-  headRef(datasetID: string): Promise<?Ref<Commit<any>>> {
-    return this._datasets.then(datasets => datasets.get(datasetID));
-  }
-
-  // TODO: This should return Promise<Commit | null>
-  head(datasetID: string): Promise<?Commit<any>> {
-    return this.headRef(datasetID).then(hr => hr ? this.readValue(hr.targetHash) : null);
-  }
-
   datasets(): Promise<Map<string, Ref<Commit<any>>>> {
     return this._datasets;
+  }
+
+  getDataset(id: string): Dataset {
+    return new Dataset(this, id, this.datasets().then(sets => sets.get(id)));
   }
 
   // TODO: This should return Promise<Value | null>
@@ -78,7 +65,24 @@ export default class Database {
     return true;
   }
 
-  async commit(datasetId: string, commit: Commit<any>): Promise<Database> {
+  // Commit updates the commit that ds points at. If parents is provided then the promise
+  // is rejected if the commit does not descend from the parents.
+  async commit(ds: Dataset, v: Value, parents: ?Array<Ref<Commit<any>>> = undefined):
+  Promise<Dataset> {
+    if (!parents) {
+      const headRef = await ds.headRef();
+      parents = headRef ? [headRef] : [];
+    }
+    const commit = new Commit(v, new Set(parents));
+    try {
+      const commitRef = await this._doCommit(ds.id, commit);
+      return new Dataset(this, ds.id, Promise.resolve(commitRef));
+    } finally {
+      this._datasets = this._datasetsFromRootRef(this._rt.getRoot());
+    }
+  }
+
+  async _doCommit(datasetId: string, commit: Commit<any>): Ref<any> {
     const currentRootRefP = this._rt.getRoot();
     const datasetsP = this._datasetsFromRootRef(currentRootRefP);
     let currentDatasets = await (datasetsP:Promise<Map<any, any>>);
@@ -89,7 +93,8 @@ export default class Database {
       const currentHeadRef = await currentDatasets.get(datasetId);
       if (currentHeadRef) {
         if (equals(commitRef, currentHeadRef)) {
-          return this;
+          // $FlowIssue: thinks commitRef is a Promise
+          return commitRef;
         }
         if (!await this._descendsFrom(commit, currentHeadRef)) {
           throw new Error('Merge needed');
@@ -100,7 +105,8 @@ export default class Database {
     currentDatasets = await currentDatasets.set(datasetId, commitRef);
     const newRootRef = this.writeValue(currentDatasets).targetHash;
     if (await this._rt.updateRoot(newRootRef, currentRootRef)) {
-      return this._clone(this._vs, this._rt);
+      // $FlowIssue: thinks commitRef is a Promise
+      return commitRef;
     }
 
     throw new Error('Optimistic lock failed');
