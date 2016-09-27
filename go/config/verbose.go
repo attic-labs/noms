@@ -12,11 +12,13 @@ var (
 	verbose bool
 )
 
+// RegisterVerboseFlags registers -v|--verbose flags for general usage
 func RegisterVerboseFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&verbose, "verbose", false, "show more")
 	flags.BoolVar(&verbose, "v", false, "")
 }
 
+// Verbose returns True if the verbose flag was set
 func Verbose() bool {
 	return verbose
 }

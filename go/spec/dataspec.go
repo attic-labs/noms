@@ -88,6 +88,7 @@ type PathSpec struct {
 	Path   AbsolutePath
 }
 
+// ParseDatabaseSpec parses a database spec string into its parts
 func ParseDatabaseSpec(spec string) (DatabaseSpec, error) {
 	ldbDatabaseSpec := func(path string) (DatabaseSpec, error) {
 		if len(path) == 0 {
@@ -157,6 +158,7 @@ func parseDatasetSpec(spec string) (datasetSpec, error) {
 	return datasetSpec{dbSpec, dsName}, nil
 }
 
+// ParsePathSpec parses a path spec string into its parts
 func ParsePathSpec(spec string) (PathSpec, error) {
 	dbSpec, pathStr, err := splitAndParseDatabaseSpec(spec)
 	if err != nil {
