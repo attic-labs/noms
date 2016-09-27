@@ -276,7 +276,7 @@ func TestBlobConcat(t *testing.T) {
 	assert.True(b.Equals(b7.Concat(b8)))
 }
 
-func TestBlobNewP(t *testing.T) {
+func TestBlobParallel(t *testing.T) {
 	assert := assert.New(t)
 
 	readAll := func(b Blob) []byte {
@@ -285,13 +285,13 @@ func TestBlobNewP(t *testing.T) {
 		return data
 	}
 
-	b := NewBlobP(nil)
+	b := NewBlob()
 	assert.True(b.Len() == 0)
 
-	b = NewBlobP(nil, strings.NewReader("abc"))
+	b = NewBlob(strings.NewReader("abc"))
 	assert.Equal("abc", string(readAll(b)))
 
-	b = NewBlobP(nil, strings.NewReader("abc"), strings.NewReader("def"))
+	b = NewBlob(strings.NewReader("abc"), strings.NewReader("def"))
 	assert.Equal("abcdef", string(readAll(b)))
 
 	p, size := 100, 1024
@@ -305,6 +305,6 @@ func TestBlobNewP(t *testing.T) {
 		readers[i] = bytes.NewBuffer(data[i*size : (i+1)*size])
 	}
 
-	b = NewBlobP(nil, readers...)
+	b = NewBlob(readers...)
 	assert.Equal(data, readAll(b))
 }

@@ -186,20 +186,27 @@ func chunkBlobLeaf(vr ValueReader, buff []byte) (Collection, orderedKey, uint64)
 	return blob, orderedKeyFromInt(len(buff)), uint64(len(buff))
 }
 
-// NewBlob creates a Blob by reading from r.
-func NewBlob(r io.Reader) Blob {
-	return NewStreamingBlob(r, nil)
+// NewBlob creates a Blob by reading from every Reader in rs and concatenating
+// the result. NewBlob uses one goroutine per Reader. Chunks are kept in memory
+// as they're created - to reduce memory pressure and write to disk instead,
+// use NewStreamingBlob with a non-nil reader.
+func NewBlob(rs ...io.Reader) Blob {
+	return readBlobsP(nil, rs...)
 }
 
-// NewBlobP creates a Blob by reading from every Reader in rs in parallel, then
-// concatenating the result. NewBlobP uses one goroutine per Reader.
-// If vrw is not nil, chunks are written to vrw instead of in memory.
-func NewBlobP(vrw ValueReadWriter, rs ...io.Reader) Blob {
+// NewStreamingBlob creates a Blob by reading from every Reader in rs and
+// concatenating the result. NewStreamingBlob uses one goroutine per Reader.
+// If vrw is not nil, chunks are written to vrw instead of kept in memory.
+func NewStreamingBlob(vrw ValueReadWriter, rs ...io.Reader) Blob {
+	return readBlobsP(vrw, rs...)
+}
+
+func readBlobsP(vrw ValueReadWriter, rs ...io.Reader) Blob {
 	switch len(rs) {
 	case 0:
 		return NewEmptyBlob()
 	case 1:
-		return NewStreamingBlob(rs[0], vrw)
+		return readBlob(rs[0], vrw)
 	}
 
 	blobs := make([]Blob, len(rs))
@@ -210,7 +217,7 @@ func NewBlobP(vrw ValueReadWriter, rs ...io.Reader) Blob {
 	for i, r := range rs {
 		i2, r2 := i, r
 		go func() {
-			blobs[i2] = NewStreamingBlob(r2, vrw)
+			blobs[i2] = readBlob(r2, vrw)
 			wg.Done()
 		}()
 	}
@@ -224,14 +231,12 @@ func NewBlobP(vrw ValueReadWriter, rs ...io.Reader) Blob {
 	return b
 }
 
-// NewBlob creates a Blob by reading from r, writing chunks to vrw rather than
-// keeping them in memory (as opposed to NewBlob).
-func NewStreamingBlob(r io.Reader, vrw ValueReadWriter) Blob {
+func readBlob(r io.Reader, vrw ValueReadWriter) Blob {
 	sc := newEmptySequenceChunker(vrw, vrw, makeBlobLeafChunkFn(nil), newIndexedMetaSequenceChunkFn(BlobKind, nil), func(item sequenceItem, rv *rollingValueHasher) {
 		rv.HashByte(item.(byte))
 	})
 
-	// TODO: The code below is a temporary. It's basically a custom leaf-level chunker for blobs. There are substational perf gains by doing it this way as it avoids the cost of boxing every single byte which is chunked.
+	// TODO: The code below is temporary. It's basically a custom leaf-level chunker for blobs. There are substational perf gains by doing it this way as it avoids the cost of boxing every single byte which is chunked.
 	chunkBuff := [8192]byte{}
 	chunkBytes := chunkBuff[:]
 	rv := newRollingValueHasher()

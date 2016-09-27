@@ -151,7 +151,7 @@ func (s *perfSuite) testBuild500megBlob(p int) {
 		}
 	})
 
-	b := types.NewBlobP(nil, readers...)
+	b := types.NewBlob(readers...)
 	assert.Equal(uint64(size), b.Len())
 }
 
