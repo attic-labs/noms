@@ -15,6 +15,7 @@ export const datasetRe = /^[a-zA-Z0-9\-_/]+/;
 /** Matches if an entire string is a valid dataset name. */
 const idRe = new RegExp('^' + datasetRe.source + '$');
 
+/** Dataset is a named Commit within a Database. */
 export default class Dataset {
   _database: Database;
   _id: string;
@@ -34,20 +35,30 @@ export default class Dataset {
     return this._database;
   }
 
+  /** ID returns the name of this Dataset. */
   get id(): string {
     return this._id;
   }
 
   // TODO: This should return Promise<Ref<Commit> | null>.
+  /**
+   * HeadRef returns the Ref of the current head Commit, which contains the
+   * current root of the Dataset's value tree.
+   */
   headRef(): Promise<?Ref<Commit<any>>> {
     return this._headRef;
   }
 
   // TODO: This should return Promise<Commit | null>
+  /**
+   * Head returns the current head Commit, which contains the current root of
+   * the Dataset's value tree.
+   */
   head(): Promise<?Commit<any>> {
     return this._headRef.then(hr => hr ? hr.targetValue(this._database) : null);
   }
 
+  /** HeadValue returns the Value field of the current head Commit. */
   headValue(): Promise<?Value> {
     return this.head().then(commit => commit && commit.value);
   }

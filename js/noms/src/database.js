@@ -16,6 +16,17 @@ import Dataset from './dataset.js';
 import Commit from './commit.js';
 import {equals} from './compare.js';
 
+/**
+ * Database provides versioned storage for noms values. While Values can be
+ * directly read and written from a Database, it is generally more appropriate
+ * to read data by inspecting the Head of a Dataset and write new data by
+ * updating the Head of a Dataset via Commit() or similar. Particularly, new
+ * data is not guaranteed to be persistent until after a Commit (Delete,
+ * SetHead, or FastForward) operation completes.
+ * The Database API is stateful, meaning that calls to GetDataset() or
+ * Datasets() occurring after a call to Commit() (et al) will represent the
+ * result of the Commit().
+ */
 export default class Database {
   _vs: ValueStore;
   _rt: RootTracker;
@@ -37,19 +48,35 @@ export default class Database {
     });
   }
 
+  /**
+   * datasets returns the root of the database which is a
+   * Map<String, Ref<Commit>> where string is a datasetID.
+   */
   datasets(): Promise<Map<string, Ref<Commit<any>>>> {
     return this._datasets;
   }
 
+  /**
+   * getDataset returns a Dataset struct containing the current mapping of
+   * datasetID in the above Datasets Map.
+   */
   getDataset(id: string): Dataset {
     return new Dataset(this, id, this.datasets().then(sets => sets.get(id)));
   }
 
   // TODO: This should return Promise<Value | null>
+  /**
+   * readValue returns a Promise of the value with the hash `hash` in this Database, or
+   * null if it's not present.
+   */
   async readValue(hash: Hash): Promise<any> {
     return this._vs.readValue(hash);
   }
 
+  /**
+   * writeValue writes v to this Database and returns its Ref. v is not guaranteed to be
+   * durable until a subsequent call to commit().
+   */
   writeValue<T: Value>(v: T): Ref<T> {
     return this._vs.writeValue(v);
   }
@@ -65,8 +92,14 @@ export default class Database {
     return true;
   }
 
-  // Commit updates the commit that ds points at. If parents is provided then the promise
-  // is rejected if the commit does not descend from the parents.
+  /**
+   * commit updates the commit that ds.id() points at. If parents is provided then the promise
+   * is rejected if the commit does not descend from the parents.
+   * The returned Dataset is always the newest snapshot, regardless of
+   * success or failure, and datasets() is updated to match backing storage
+   * upon return as well. If the update cannot be performed, e.g., because
+   * of a conflict, Commit throws an error containing 'Merge Needed'.
+   */
   async commit(ds: Dataset, v: Value, parents: ?Array<Ref<Commit<any>>> = undefined):
   Promise<Dataset> {
     if (!parents) {
@@ -75,14 +108,13 @@ export default class Database {
     }
     const commit = new Commit(v, new Set(parents));
     try {
-      const commitRef = await this._doCommit(ds.id, commit);
-      return new Dataset(this, ds.id, Promise.resolve(commitRef));
+      return this._doCommit(ds.id, commit).then(r => new Dataset(this, ds.id, Promise.resolve(r)));
     } finally {
       this._datasets = this._datasetsFromRootRef(this._rt.getRoot());
     }
   }
 
-  async _doCommit(datasetId: string, commit: Commit<any>): Ref<any> {
+  async _doCommit(datasetId: string, commit: Commit<any>): Promise<Ref<any>> {
     const currentRootRefP = this._rt.getRoot();
     const datasetsP = this._datasetsFromRootRef(currentRootRefP);
     let currentDatasets = await (datasetsP:Promise<Map<any, any>>);
@@ -93,8 +125,7 @@ export default class Database {
       const currentHeadRef = await currentDatasets.get(datasetId);
       if (currentHeadRef) {
         if (equals(commitRef, currentHeadRef)) {
-          // $FlowIssue: thinks commitRef is a Promise
-          return commitRef;
+          return Promise.resolve(commitRef);
         }
         if (!await this._descendsFrom(commit, currentHeadRef)) {
           throw new Error('Merge needed');
@@ -105,8 +136,7 @@ export default class Database {
     currentDatasets = await currentDatasets.set(datasetId, commitRef);
     const newRootRef = this.writeValue(currentDatasets).targetHash;
     if (await this._rt.updateRoot(newRootRef, currentRootRef)) {
-      // $FlowIssue: thinks commitRef is a Promise
-      return commitRef;
+      return Promise.resolve(commitRef);
     }
 
     throw new Error('Optimistic lock failed');
