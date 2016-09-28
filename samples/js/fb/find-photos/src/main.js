@@ -39,18 +39,20 @@ const imageType = makeStructType('', {
 });
 
 const photoType = makeStructType('', {
+  images: makeListType(imageType),
   created_time: numberType,
   updated_time: numberType,
-  images: makeListType(imageType),
 });
 
 const tagsType = makeStructType('', {
   tags: makeStructType('', {
-    data: makeListType(makeStructType('', {
-      name: stringType,
-      x: numberType,
-      y: numberType,
-    })),
+    data: makeListType(
+      makeStructType('', {
+        name: stringType,
+        x: numberType,
+        y: numberType,
+      })
+    ),
   }),
 });
 
@@ -64,7 +66,7 @@ const placeType = makeStructType('', {
 });
 
 const NomsDate = createStructClass(
-  makeStructType('Date', ['nsSinceEpoch'], [numberType]));
+  makeStructType('Date', {nsSinceEpoch: numberType}));
 
 async function main(): Promise<void> {
   const inSpec = DatasetSpec.parse(args._[0]);
@@ -83,8 +85,8 @@ async function main(): Promise<void> {
         title: v.name || '',
         sizes: await getSizes(v),
         tags: new Set(),  // fb has 'tags', but they are actually people not textual tags
-        datePublished: new NomsDate({nsSinceEpoch: v.created_time*10e9}),
-        dateUpdated: new NomsDate({nsSinceEpoch: v.updated_time*10e9}),
+        datePublished: new NomsDate({nsSinceEpoch: v.created_time * 10e9}),
+        dateUpdated: new NomsDate({nsSinceEpoch: v.updated_time * 10e9}),
       };
       if (isSubtype(placeType, v.type)) {
         photo.geoposition = getGeo(v);
