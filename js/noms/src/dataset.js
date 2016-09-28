@@ -35,16 +35,17 @@ export default class Dataset {
     return this._database;
   }
 
-  /** ID returns the name of this Dataset. */
+  /** id() returns the name of this Dataset. */
   get id(): string {
     return this._id;
   }
 
   // TODO: This should return Promise<Ref<Commit> | null>.
   /**
-   * HeadRef returns the Ref of the current head Commit, which contains the
+   * headRef returns the Ref of the current head Commit, which contains the
    * current root of the Dataset's value tree.
-   * If the named Dataset doesn't exist in this._database, the returned Promise may resolve to null.
+   * If the named Dataset doesn't exist in the underlying Database, the returned
+   * Promise may resolve to null.
    * The returned Promise may be rejected if errors occur while getting the Ref.
    */
   headRef(): Promise<?Ref<Commit<any>>> {
@@ -53,9 +54,10 @@ export default class Dataset {
 
   // TODO: This should return Promise<Commit | null>
   /**
-   * Head returns the current head Commit, which contains the current root of
+   * head returns the current head Commit, which contains the current root of
    * the Dataset's value tree.
-   * If the named Dataset doesn't exist in this._database, the returned Promise may resolve to null.
+   * If the named Dataset doesn't exist in the underlying Database, the returned
+   * Promise may resolve to null.
    * The returned Promise may be rejected if errors occur while getting the Head.
    */
   head(): Promise<?Commit<any>> {
@@ -63,8 +65,9 @@ export default class Dataset {
   }
 
   /**
-   * HeadValue returns the Value field of the current head Commit.
-   * If the named Dataset doesn't exist in this._database, the returned Promise may resolve to null.
+   * headValue returns the Value field of the current head Commit.
+   * If the named Dataset doesn't exist in underlying Database, the returned
+   * Promise may resolve to null.
    * The returned Promise may be rejected if errors occur while getting the Head.
    */
   headValue(): Promise<?Value> {
