@@ -87,7 +87,7 @@ suite('Struct', () => {
     const typeA = makeStructType('A', {
       b: numberType,
       c: stringType,
-    })
+    });
     const A = createStructClass(typeA);
     const a = new A({b: 1, c: 'hi'});
     assert.instanceOf(a, Struct);

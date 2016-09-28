@@ -157,7 +157,7 @@ suite('TypeCache', () => {
           a: makeCycleType(1),
         }),
       });
-    });
+    }, 'unrolled cycle types are not supported; ahl owes you a beer');
   });
 
   test('Invalid Crazy Cycles and Unions', () => {
@@ -176,9 +176,11 @@ suite('TypeCache', () => {
      */
     assert.throws(() => {
       makeStructType('A', {
-        a: makeUnionType(
-          [makeCycleType(0), makeStructType('A', ['a'], [makeCycleType(0), makeCycleType(1)])]
-        ),
+        a: makeUnionType([
+          makeCycleType(0), makeStructType('A', {
+            a: makeUnionType([makeCycleType(0), makeCycleType(1)]),
+          }),
+        ]),
       });
     });
   });

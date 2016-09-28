@@ -94,7 +94,7 @@ suite('Type', () => {
     assertInvalid('💩');
 
     function assertValid(n: string) {
-      makeStructType('S', {n: stringType});
+      makeStructType('S', {[n]: stringType});
     }
     assertValid('a');
     assertValid('A');
@@ -153,7 +153,7 @@ suite('Type', () => {
           entries: makeMapType(stringType, makeCycleType(1)),
         }),
         makeStructType('File', {
-          data: blobType
+          data: blobType,
         }),
         makeStructType('Symlink', {
           targetPath: stringType,
