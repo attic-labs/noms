@@ -13,6 +13,7 @@ import (
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/outputpager"
+	"github.com/attic-labs/noms/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 )
 
@@ -28,7 +29,7 @@ var nomsShow = &util.Command{
 func setupShowFlags() *flag.FlagSet {
 	showFlagSet := flag.NewFlagSet("show", flag.ExitOnError)
 	outputpager.RegisterOutputpagerFlags(showFlagSet)
-	config.RegisterVerboseFlags(showFlagSet)
+	verbose.RegisterVerboseFlags(showFlagSet)
 	return showFlagSet
 }
 

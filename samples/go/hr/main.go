@@ -13,6 +13,7 @@ import (
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/marshal"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/noms/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 )
 
@@ -28,7 +29,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "\tlist-persons")
 	}
 
-	config.RegisterVerboseFlags(flag.CommandLine)
+	verbose.RegisterVerboseFlags(flag.CommandLine)
 	flag.Parse(true)
 
 	if flag.NArg() == 0 {

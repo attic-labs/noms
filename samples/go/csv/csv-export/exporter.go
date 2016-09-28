@@ -14,6 +14,7 @@ import (
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
+	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/attic-labs/noms/samples/go/csv"
 	flag "github.com/juju/gnuflag"
 )
@@ -24,7 +25,7 @@ func main() {
 	delimiter := flag.String("delimiter", ",", "field delimiter for csv file, must be exactly one character long.")
 
 	spec.RegisterDatabaseFlags(flag.CommandLine)
-	config.RegisterVerboseFlags(flag.CommandLine)
+	verbose.RegisterVerboseFlags(flag.CommandLine)
 	profile.RegisterProfileFlags(flag.CommandLine)
 
 	flag.Usage = func() {

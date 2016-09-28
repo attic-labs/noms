@@ -20,6 +20,7 @@ import (
 	"github.com/attic-labs/noms/go/util/exit"
 	"github.com/attic-labs/noms/go/util/progressreader"
 	"github.com/attic-labs/noms/go/util/status"
+	"github.com/attic-labs/noms/go/util/verbose"
 	human "github.com/dustin/go-humanize"
 	flag "github.com/juju/gnuflag"
 )
@@ -35,7 +36,7 @@ func main() {
 
 	spec.RegisterCommitMetaFlags(flag.CommandLine)
 	spec.RegisterDatabaseFlags(flag.CommandLine)
-	config.RegisterVerboseFlags(flag.CommandLine)
+	verbose.RegisterVerboseFlags(flag.CommandLine)
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Fetches a URL, file, or stdin into a noms blob\n\nUsage: %s [--stdin?] [url-or-local-path?] [dataset]\n", os.Args[0])

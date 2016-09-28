@@ -17,6 +17,7 @@ import (
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/status"
+	"github.com/attic-labs/noms/go/util/verbose"
 	humanize "github.com/dustin/go-humanize"
 	flag "github.com/juju/gnuflag"
 )
@@ -38,7 +39,7 @@ func setupSyncFlags() *flag.FlagSet {
 	syncFlagSet := flag.NewFlagSet("sync", flag.ExitOnError)
 	syncFlagSet.IntVar(&p, "p", 512, "parallelism")
 	spec.RegisterDatabaseFlags(syncFlagSet)
-	config.RegisterVerboseFlags(syncFlagSet)
+	verbose.RegisterVerboseFlags(syncFlagSet)
 	profile.RegisterProfileFlags(syncFlagSet)
 	return syncFlagSet
 }

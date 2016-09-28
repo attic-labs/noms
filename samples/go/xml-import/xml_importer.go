@@ -21,6 +21,7 @@ import (
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/jsontonoms"
 	"github.com/attic-labs/noms/go/util/profile"
+	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/clbanning/mxj"
 	flag "github.com/juju/gnuflag"
 )
@@ -56,7 +57,7 @@ func main() {
 	err := d.Try(func() {
 		spec.RegisterCommitMetaFlags(flag.CommandLine)
 		spec.RegisterDatabaseFlags(flag.CommandLine)
-		config.RegisterVerboseFlags(flag.CommandLine)
+		verbose.RegisterVerboseFlags(flag.CommandLine)
 		profile.RegisterProfileFlags(flag.CommandLine)
 		flag.Usage = customUsage
 		flag.Parse(true)

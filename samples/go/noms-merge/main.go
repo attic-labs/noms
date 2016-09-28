@@ -17,6 +17,7 @@ import (
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/exit"
 	"github.com/attic-labs/noms/go/util/status"
+	"github.com/attic-labs/noms/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 )
 
@@ -33,7 +34,7 @@ func nomsMerge() error {
 	outDSStr := flag.String("out-ds-name", "", "output dataset to write to - if empty, defaults to <right-ds-name>")
 	parentStr := flag.String("parent", "", "common ancestor of <left-ds-name> and <right-ds-name> (currently required; soon to be optional)")
 	quiet := flag.Bool("quiet", false, "silence progress output")
-	config.RegisterVerboseFlags(flag.CommandLine)
+	verbose.RegisterVerboseFlags(flag.CommandLine)
 	flag.Usage = usage
 
 	return d.Unwrap(d.Try(func() {

@@ -20,6 +20,7 @@ import (
 	"github.com/attic-labs/noms/go/util/jsontonoms"
 	"github.com/attic-labs/noms/go/util/progressreader"
 	"github.com/attic-labs/noms/go/util/status"
+	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/dustin/go-humanize"
 	flag "github.com/juju/gnuflag"
 )
@@ -33,7 +34,7 @@ func main() {
 
 	spec.RegisterCommitMetaFlags(flag.CommandLine)
 	spec.RegisterDatabaseFlags(flag.CommandLine)
-	config.RegisterVerboseFlags(flag.CommandLine)
+	verbose.RegisterVerboseFlags(flag.CommandLine)
 	flag.Parse(true)
 
 	if len(flag.Args()) != 2 {

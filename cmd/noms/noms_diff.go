@@ -12,6 +12,7 @@ import (
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/util/outputpager"
+	"github.com/attic-labs/noms/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 )
 
@@ -30,7 +31,7 @@ func setupDiffFlags() *flag.FlagSet {
 	diffFlagSet := flag.NewFlagSet("diff", flag.ExitOnError)
 	diffFlagSet.BoolVar(&summarize, "summarize", false, "Writes a summary of the changes instead")
 	outputpager.RegisterOutputpagerFlags(diffFlagSet)
-	config.RegisterVerboseFlags(diffFlagSet)
+	verbose.RegisterVerboseFlags(diffFlagSet)
 
 	return diffFlagSet
 }

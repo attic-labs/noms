@@ -41,12 +41,12 @@ The *[db.origin]* and *[db.shared]* sections:
 
 Dot (`.`) shorthand:
 
- - When issuing a command like `noms sync` that requires a source and destination
-   you can use `.` in place of the dataset/object in the destination as shorthand to
-   to mean: 'use the same path as in the source'. See example below.
+ - When issuing a command that requires a source and destination (like `noms sync`), 
+   you can use `.` in place of the dataset/object in the destination. This is shorthand 
+   that repeats whatever was used in the source (see below).
 
 
-You can kick the tires by running an noms commmand from this directory. Here are some examples and what to expect:
+You can kick the tires by running noms commands from this directory. Here are some examples and what to expect:
 
 ```
 noms ds          # -> noms ds ldb:.noms/tour
@@ -70,5 +70,6 @@ noms sync origin::sf-bike-parking . # sync origin::sf-bike-parking to default::s
 A few more things to note:
 
  - Relative paths will be expanded relative to the directory where the *.nomsconfg* is defined
- - You can see the current definitions with expanded paths by running `noms config`
+ - Use `noms config` to see the current alias definitions with expanded paths
+ - Use `-v` or `--verbose` on any command to see how the command arguments are being resolved
  - Explicit DB urls are still fully supported

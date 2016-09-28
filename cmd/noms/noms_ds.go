@@ -11,6 +11,7 @@ import (
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/noms/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 )
 
@@ -28,7 +29,7 @@ var nomsDs = &util.Command{
 func setupDsFlags() *flag.FlagSet {
 	dsFlagSet := flag.NewFlagSet("ds", flag.ExitOnError)
 	dsFlagSet.StringVar(&toDelete, "d", "", "dataset to delete")
-	config.RegisterVerboseFlags(dsFlagSet)
+	verbose.RegisterVerboseFlags(dsFlagSet)
 	return dsFlagSet
 }
 

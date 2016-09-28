@@ -14,6 +14,7 @@ import (
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/outputpager"
+	"github.com/attic-labs/noms/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 )
 
@@ -63,7 +64,7 @@ func setupFindFlags() *flag.FlagSet {
 	flagSet := flag.NewFlagSet("find", flag.ExitOnError)
 	flagSet.StringVar(&dbPath, "db", "", "database containing index")
 	outputpager.RegisterOutputpagerFlags(flagSet)
-	config.RegisterVerboseFlags(flagSet)
+	verbose.RegisterVerboseFlags(flagSet)
 	return flagSet
 }
 

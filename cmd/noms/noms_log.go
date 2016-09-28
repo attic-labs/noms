@@ -19,6 +19,7 @@ import (
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/orderedparallel"
 	"github.com/attic-labs/noms/go/util/outputpager"
+	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/attic-labs/noms/go/util/writers"
 	flag "github.com/juju/gnuflag"
 	"github.com/mgutz/ansi"
@@ -54,7 +55,7 @@ func setupLogFlags() *flag.FlagSet {
 	logFlagSet.BoolVar(&showGraph, "graph", false, "show ascii-based commit hierarchy on left side of output")
 	logFlagSet.BoolVar(&showValue, "show-value", false, "show commit value rather than diff information -- this is temporary")
 	outputpager.RegisterOutputpagerFlags(logFlagSet)
-	config.RegisterVerboseFlags(logFlagSet)
+	verbose.RegisterVerboseFlags(logFlagSet)
 	return logFlagSet
 }
 

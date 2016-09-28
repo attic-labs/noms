@@ -12,6 +12,7 @@ import (
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/noms/go/util/verbose"
 )
 
 type Resolver struct {
@@ -37,11 +38,11 @@ func NewResolver() *Resolver {
 
 // Print replacement if one occurred
 func (r *Resolver) verbose(orig string, replacement string) string {
-	if Verbose() && orig != replacement {
+	if verbose.Verbose() && orig != replacement {
 		if orig == "" {
 			orig = `""`
 		}
-		fmt.Printf("\resolving t%s -> %s\n", orig, replacement)
+		fmt.Printf("\tresolving %s -> %s\n", orig, replacement)
 	}
 	return replacement
 }

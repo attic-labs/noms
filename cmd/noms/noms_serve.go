@@ -15,6 +15,7 @@ import (
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/util/profile"
+	"github.com/attic-labs/noms/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 )
 
@@ -35,7 +36,7 @@ func setupServeFlags() *flag.FlagSet {
 	serveFlagSet := flag.NewFlagSet("serve", flag.ExitOnError)
 	serveFlagSet.IntVar(&port, "port", 8000, "port to listen on for HTTP requests")
 	spec.RegisterDatabaseFlags(serveFlagSet)
-	config.RegisterVerboseFlags(serveFlagSet)
+	verbose.RegisterVerboseFlags(serveFlagSet)
 	return serveFlagSet
 }
 
