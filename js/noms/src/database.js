@@ -108,7 +108,9 @@ export default class Database {
     }
     const commit = new Commit(v, new Set(parents));
     try {
-      return this._doCommit(ds.id, commit).then(r => new Dataset(this, ds.id, Promise.resolve(r)));
+      const commitRefPromise = this._doCommit(ds.id, commit);
+      await commitRefPromise;
+      return new Dataset(this, ds.id, commitRefPromise);
     } finally {
       this._datasets = this._datasetsFromRootRef(this._rt.getRoot());
     }

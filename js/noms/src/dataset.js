@@ -44,6 +44,8 @@ export default class Dataset {
   /**
    * HeadRef returns the Ref of the current head Commit, which contains the
    * current root of the Dataset's value tree.
+   * If the named Dataset doesn't exist in this._database, the returned Promise may resolve to null.
+   * The returned Promise may be rejected if errors occur while getting the Ref.
    */
   headRef(): Promise<?Ref<Commit<any>>> {
     return this._headRef;
@@ -53,12 +55,18 @@ export default class Dataset {
   /**
    * Head returns the current head Commit, which contains the current root of
    * the Dataset's value tree.
+   * If the named Dataset doesn't exist in this._database, the returned Promise may resolve to null.
+   * The returned Promise may be rejected if errors occur while getting the Head.
    */
   head(): Promise<?Commit<any>> {
     return this._headRef.then(hr => hr ? hr.targetValue(this._database) : null);
   }
 
-  /** HeadValue returns the Value field of the current head Commit. */
+  /**
+   * HeadValue returns the Value field of the current head Commit.
+   * If the named Dataset doesn't exist in this._database, the returned Promise may resolve to null.
+   * The returned Promise may be rejected if errors occur while getting the Head.
+   */
   headValue(): Promise<?Value> {
     return this.head().then(commit => commit && commit.value);
   }
