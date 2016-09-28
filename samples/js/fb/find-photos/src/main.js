@@ -130,14 +130,13 @@ async function getFaces(photo): Promise<Set<Struct>> {
   // This fails badly in lots of cases though, so we should fix asap.
   const mw = 0.33;
   const mh = 0.33;
-  let result = Promise.resolve(new Set());
+  let result = [];
   await photo.tags.data.forEach(v => {
     const x = Math.max(0, v.x / 100 - mw / 2);
     const y = Math.max(0, v.y / 100 - mh / 2);
     const w = Math.min(mw, 1 - x);
     const h = Math.min(mh, 1 - y);
-    result = result.then(s => s.add(
-      newStruct('', {x, y, w, h, name: v.name})));
+    result.push(newStruct('', {x, y, w, h, name: v.name}));
   });
-  return result;
+  return new Set(result);
 }
