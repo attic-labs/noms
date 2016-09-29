@@ -64,13 +64,11 @@ b,2,false
 
 	assert.Equal(uint64(2), m.Len())
 	assert.True(m.Type().Equals(
-		types.MakeMapType(types.StringType, types.MakeStructType("test",
-			[]string{"A", "B", "C"},
-			[]*types.Type{
-				types.StringType,
-				types.NumberType,
-				types.BoolType,
-			}))))
+		types.MakeMapType(types.StringType, types.MakeStructType("test", types.FieldMap{
+			"A": types.StringType,
+			"B": types.NumberType,
+			"C": types.BoolType,
+		}))))
 
 	assert.True(m.Get(types.String("a")).Equals(types.NewStruct("test", types.StructData{
 		"A": types.String("a"),

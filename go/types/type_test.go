@@ -1,4 +1,4 @@
-// Copyright 2016 Attic Labs, Inc. All rights reserved.
+// Copyright 2016 Attic Labs, Inc. All rights reserved./
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -16,14 +16,11 @@ func TestTypes(t *testing.T) {
 
 	mapType := MakeMapType(StringType, NumberType)
 	setType := MakeSetType(StringType)
-	mahType := MakeStructType("MahStruct",
-		[]string{"Field1", "Field2"},
-		[]*Type{
-			StringType,
-			BoolType,
-		},
-	)
-	recType := MakeStructType("RecursiveStruct", []string{"self"}, []*Type{MakeCycleType(0)})
+	mahType := MakeStructType("MahStruct", FieldMap{
+		"Field1": StringType,
+		"Field2": BoolType,
+	})
+	recType := MakeStructType("RecursiveStruct", FieldMap{"self": MakeCycleType(0)})
 
 	mRef := vs.WriteValue(mapType).TargetHash()
 	setRef := vs.WriteValue(setType).TargetHash()
@@ -51,13 +48,10 @@ func TestTypeRefDescribe(t *testing.T) {
 	assert.Equal("Map<String, Number>", mapType.Describe())
 	assert.Equal("Set<String>", setType.Describe())
 
-	mahType := MakeStructType("MahStruct",
-		[]string{"Field1", "Field2"},
-		[]*Type{
-			StringType,
-			BoolType,
-		},
-	)
+	mahType := MakeStructType("MahStruct", FieldMap{
+		"Field1": StringType,
+		"Field2": BoolType,
+	})
 	assert.Equal("struct MahStruct {\n  Field1: String,\n  Field2: Bool,\n}", mahType.Describe())
 }
 
@@ -95,7 +89,7 @@ func TestVerifyStructFieldName(t *testing.T) {
 
 	assertInvalid := func(n string) {
 		assert.Panics(func() {
-			MakeStructType("S", []string{n}, []*Type{StringType})
+			MakeStructType("S", FieldMap{n: StringType})
 		})
 	}
 	assertInvalid("")
@@ -109,7 +103,7 @@ func TestVerifyStructFieldName(t *testing.T) {
 	assertInvalid("💩")
 
 	assertValid := func(n string) {
-		MakeStructType("S", []string{n}, []*Type{StringType})
+		MakeStructType("S", FieldMap{n: StringType})
 	}
 	assertValid("a")
 	assertValid("A")
@@ -123,7 +117,7 @@ func TestVerifyStructName(t *testing.T) {
 
 	assertInvalid := func(n string) {
 		assert.Panics(func() {
-			MakeStructType(n, []string{}, []*Type{})
+			MakeStructType(n, FieldMap{})
 		})
 	}
 
@@ -137,7 +131,7 @@ func TestVerifyStructName(t *testing.T) {
 	assertInvalid("💩")
 
 	assertValid := func(n string) {
-		MakeStructType(n, []string{}, []*Type{})
+		MakeStructType(n, FieldMap{})
 	}
 	assertValid("")
 	assertValid("a")
@@ -148,11 +142,17 @@ func TestVerifyStructName(t *testing.T) {
 }
 
 func TestUnionWithCycles(tt *testing.T) {
-	inodeType := MakeStructType("Inode", []string{"attr", "contents"}, []*Type{
-		MakeStructType("Attr", []string{"ctime", "mode", "mtime"}, []*Type{NumberType, NumberType, NumberType}),
-		MakeUnionType(MakeStructType("Directory", []string{"entries"}, []*Type{MakeMapType(StringType, MakeCycleType(1))}),
-			MakeStructType("File", []string{"data"}, []*Type{BlobType}),
-			MakeStructType("Symlink", []string{"targetPath"}, []*Type{StringType}),
+	inodeType := MakeStructType("Inode", FieldMap{
+		"attr": MakeStructType("Attr", FieldMap{
+			"ctime": NumberType,
+			"mode":  NumberType,
+			"mtime": NumberType,
+		}),
+		"contents": MakeUnionType(
+			MakeStructType("Directory", FieldMap{
+				"entries": MakeMapType(StringType, MakeCycleType(1))}),
+			MakeStructType("File", FieldMap{"data": BlobType}),
+			MakeStructType("Symlink", FieldMap{"targetPath": StringType}),
 		),
 	})
 

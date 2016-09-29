@@ -100,13 +100,25 @@ type mount func(fs pathfs.FileSystem)
 var fsType, inodeType, attrType, directoryType, fileType, symlinkType *types.Type
 
 func init() {
-	inodeType = types.MakeStructType("Inode", []string{"attr", "contents"}, []*types.Type{
-		types.MakeStructType("Attr", []string{"ctime", "gid", "mode", "mtime", "uid", "xattr"}, []*types.Type{types.NumberType, types.NumberType, types.NumberType, types.NumberType, types.NumberType, types.MakeMapType(types.StringType, types.BlobType)}),
-		types.MakeUnionType(types.MakeStructType("Directory", []string{"entries"}, []*types.Type{
-			types.MakeMapType(types.StringType, types.MakeCycleType(1))}),
-			types.MakeStructType("File", []string{"data"}, []*types.Type{types.MakeRefType(types.BlobType)}),
-			types.MakeStructType("Symlink", []string{"targetPath"}, []*types.Type{types.StringType}),
-		),
+	inodeType = types.MakeStructType("Inode", types.FieldMap{
+		"attr": types.MakeStructType("Attr", types.FieldMap{
+			"ctime": types.NumberType,
+			"gid":   types.NumberType,
+			"mode":  types.NumberType,
+			"mtime": types.NumberType,
+			"uid":   types.NumberType,
+			"xattr": types.MakeMapType(types.StringType, types.BlobType),
+		}),
+		"contents": types.MakeUnionType(
+			types.MakeStructType("Directory", types.FieldMap{
+				"entries": types.MakeMapType(types.StringType, types.MakeCycleType(1)),
+			}),
+			types.MakeStructType("File", types.FieldMap{
+				"data": types.MakeRefType(types.BlobType),
+			}),
+			types.MakeStructType("Symlink", types.FieldMap{
+				"targetPath": types.StringType,
+			})),
 	})
 
 	// Root around for some useful types.
@@ -122,7 +134,9 @@ func init() {
 		}
 	}
 
-	fsType = types.MakeStructType("Filesystem", []string{"root"}, []*types.Type{inodeType})
+	fsType = types.MakeStructType("Filesystem", types.FieldMap{
+		"root": inodeType,
+	})
 }
 
 func start(dataset string, mount mount) {

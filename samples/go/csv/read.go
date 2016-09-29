@@ -87,7 +87,7 @@ func MakeStructTypeFromHeaders(headers []string, structName string, kinds KindSl
 		fieldOrder[origOrder[fn]] = i
 	}
 
-	typ = types.MakeStructType(structName, fieldNames, fieldTypes)
+	typ = types.MakeStructTypeQuickly(structName, fieldNames, fieldTypes)
 	return
 }
 

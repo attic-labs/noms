@@ -62,11 +62,11 @@ func index() (win bool) {
 		return
 	}
 
-	sizeType := types.MakeStructTypeFromFields("", types.FieldMap{
+	sizeType := types.MakeStructType("", types.FieldMap{
 		"width":  types.NumberType,
 		"height": types.NumberType,
 	})
-	dateType := types.MakeStructTypeFromFields("Date", types.FieldMap{
+	dateType := types.MakeStructType("Date", types.FieldMap{
 		"nsSinceEpoch": types.NumberType,
 	})
 	fields := types.FieldMap{
@@ -76,9 +76,9 @@ func index() (win bool) {
 		"datePublished": dateType,
 		"dateUpdated":   dateType,
 	}
-	photoType := types.MakeStructTypeFromFields("Photo", fields)
+	photoType := types.MakeStructType("Photo", fields)
 	fields["dateTaken"] = dateType
-	photoType = types.MakeUnionType(photoType, types.MakeStructTypeFromFields("Photo", fields))
+	photoType = types.MakeUnionType(photoType, types.MakeStructType("Photo", fields))
 
 	byDate := types.NewGraphBuilder(db, types.MapKind, true)
 	byTag := types.NewGraphBuilder(db, types.MapKind, true)

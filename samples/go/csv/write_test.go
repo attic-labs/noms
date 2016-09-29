@@ -57,7 +57,7 @@ func (s *csvWriteTestSuite) SetupTest() {
 
 	fieldNames := strings.Split(TEST_ROW_FIELDS, ",")
 	s.fieldTypes = []*types.Type{types.StringType, types.NumberType, types.NumberType, types.NumberType}
-	rowStructType := types.MakeStructType(TEST_ROW_STRUCT_NAME, fieldNames, s.fieldTypes)
+	rowStructType := types.MakeStructTypeQuickly(TEST_ROW_STRUCT_NAME, fieldNames, s.fieldTypes)
 	s.rowStructDesc = rowStructType.Desc.(types.StructDesc)
 	s.comma, _ = StringToRune(",")
 	createCsvTestExpectationFile(input)

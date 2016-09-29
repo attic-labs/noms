@@ -94,18 +94,19 @@ func TestAssertTypeType(tt *testing.T) {
 }
 
 func TestAssertTypeStruct(tt *testing.T) {
-	t := MakeStructType("Struct",
-		[]string{"x"}, []*Type{BoolType},
-	)
+	t := MakeStructType("Struct", FieldMap{
+		"x": BoolType,
+	})
 
 	v := NewStruct("Struct", StructData{"x": Bool(true)})
 	assertSubtype(t, v)
 	assertAll(tt, t, v)
 	assertSubtype(ValueType, v)
 
-	t2 := MakeStructType("Struct",
-		[]string{"x", "y"}, []*Type{BoolType, StringType},
-	)
+	t2 := MakeStructType("Struct", FieldMap{
+		"x": BoolType,
+		"y": StringType,
+	})
 
 	assert.Panics(tt, func() {
 		NewStructWithType(t2, ValueSlice{Bool(true)})
@@ -179,8 +180,8 @@ func TestAssertTypeEmptyMap(tt *testing.T) {
 }
 
 func TestAssertTypeStructSubtypeByName(tt *testing.T) {
-	namedT := MakeStructType("Name", []string{"x"}, []*Type{NumberType})
-	anonT := MakeStructType("", []string{"x"}, []*Type{NumberType})
+	namedT := MakeStructType("Name", FieldMap{"x": NumberType})
+	anonT := MakeStructType("", FieldMap{"x": NumberType})
 	namedV := NewStruct("Name", StructData{"x": Number(42)})
 	name2V := NewStruct("foo", StructData{"x": Number(42)})
 	anonV := NewStruct("", StructData{"x": Number(42)})
@@ -195,9 +196,9 @@ func TestAssertTypeStructSubtypeByName(tt *testing.T) {
 }
 
 func TestAssertTypeStructSubtypeExtraFields(tt *testing.T) {
-	at := MakeStructType("", []string{}, []*Type{})
-	bt := MakeStructType("", []string{"x"}, []*Type{NumberType})
-	ct := MakeStructType("", []string{"s", "x"}, []*Type{StringType, NumberType})
+	at := MakeStructType("", FieldMap{})
+	bt := MakeStructType("", FieldMap{"x": NumberType})
+	ct := MakeStructType("", FieldMap{"s": StringType, "x": NumberType})
 	av := NewStruct("", StructData{})
 	bv := NewStruct("", StructData{"x": Number(1)})
 	cv := NewStruct("", StructData{"x": Number(2), "s": String("hi")})
@@ -220,16 +221,16 @@ func TestAssertTypeStructSubtype(tt *testing.T) {
 		"value":   Number(1),
 		"parents": NewSet(),
 	})
-	t1 := MakeStructType("Commit",
-		[]string{"parents", "value"},
-		[]*Type{MakeSetType(MakeUnionType()), NumberType},
-	)
+	t1 := MakeStructType("Commit", FieldMap{
+		"parents": MakeSetType(MakeUnionType()),
+		"value":   NumberType,
+	})
 	assertSubtype(t1, c1)
 
-	t11 := MakeStructType("Commit",
-		[]string{"parents", "value"},
-		[]*Type{MakeSetType(MakeRefType(t1)), NumberType},
-	)
+	t11 := MakeStructType("Commit", FieldMap{
+		"parents": MakeSetType(MakeRefType(t1)),
+		"value":   NumberType,
+	})
 	assertSubtype(t11, c1)
 
 	c2 := NewStruct("Commit", StructData{
@@ -244,17 +245,17 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 	//   x: Cycle<0>,
 	//   y: Number,
 	// }
-	t1 := MakeStructType("", []string{"x", "y"}, []*Type{
-		MakeCycleType(0),
-		NumberType,
+	t1 := MakeStructType("", FieldMap{
+		"x": MakeCycleType(0),
+		"y": NumberType,
 	})
 	// struct {
 	//   x: Cycle<0>,
 	//   y: Number | String,
 	// }
-	t2 := MakeStructType("", []string{"x", "y"}, []*Type{
-		MakeCycleType(0),
-		MakeUnionType(NumberType, StringType),
+	t2 := MakeStructType("", FieldMap{
+		"x": MakeCycleType(0),
+		"y": MakeUnionType(NumberType, StringType),
 	})
 
 	assert.True(tt, isSubtype(t2, t1, nil))
@@ -264,9 +265,9 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 	//   x: Cycle<0> | Number,
 	//   y: Number | String,
 	// }
-	t3 := MakeStructType("", []string{"x", "y"}, []*Type{
-		MakeUnionType(MakeCycleType(0), NumberType),
-		MakeUnionType(NumberType, StringType),
+	t3 := MakeStructType("", FieldMap{
+		"x": MakeUnionType(MakeCycleType(0), NumberType),
+		"y": MakeUnionType(NumberType, StringType),
 	})
 
 	assert.True(tt, isSubtype(t3, t1, nil))
@@ -279,9 +280,9 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 	//   x: Cycle<0> | Number,
 	//   y: Number,
 	// }
-	t4 := MakeStructType("", []string{"x", "y"}, []*Type{
-		MakeUnionType(MakeCycleType(0), NumberType),
-		NumberType,
+	t4 := MakeStructType("", FieldMap{
+		"x": MakeUnionType(MakeCycleType(0), NumberType),
+		"y": NumberType,
 	})
 
 	assert.True(tt, IsSubtype(t4, t1))
@@ -305,14 +306,14 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 	//   },
 	// }
 
-	tb := MakeStructType("", []string{"b"}, []*Type{
-		MakeStructType("", []string{"c"}, []*Type{
-			MakeCycleType(1),
+	tb := MakeStructType("", FieldMap{
+		"b": MakeStructType("", FieldMap{
+			"c": MakeCycleType(1),
 		}),
 	})
-	tc := MakeStructType("", []string{"c"}, []*Type{
-		MakeStructType("", []string{"b"}, []*Type{
-			MakeCycleType(1),
+	tc := MakeStructType("", FieldMap{
+		"c": MakeStructType("", FieldMap{
+			"b": MakeCycleType(1),
 		}),
 	})
 
@@ -325,16 +326,16 @@ func TestIsSubtypeEmptySruct(tt *testing.T) {
 	//   a: Number,
 	//   b: struct {},
 	// }
-	t1 := MakeStructType("", []string{"a", "b"}, []*Type{
-		NumberType,
-		EmptyStructType,
+	t1 := MakeStructType("", FieldMap{
+		"a": NumberType,
+		"b": EmptyStructType,
 	})
 
 	// struct {
 	//   a: Number,
 	// }
-	t2 := MakeStructType("", []string{"a"}, []*Type{
-		NumberType,
+	t2 := MakeStructType("", FieldMap{
+		"a": NumberType,
 	})
 
 	assert.False(tt, IsSubtype(t1, t2))
@@ -344,8 +345,8 @@ func TestIsSubtypeEmptySruct(tt *testing.T) {
 func TestIsSubtypeCompoundUnion(tt *testing.T) {
 	rt := MakeListType(EmptyStructType)
 
-	st1 := MakeStructType("One", []string{"a"}, []*Type{NumberType})
-	st2 := MakeStructType("Two", []string{"b"}, []*Type{StringType})
+	st1 := MakeStructType("One", FieldMap{"a": NumberType})
+	st2 := MakeStructType("Two", FieldMap{"b": StringType})
 	ct := MakeListType(MakeUnionType(st1, st2))
 
 	assert.True(tt, IsSubtype(rt, ct))
