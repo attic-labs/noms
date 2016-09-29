@@ -85,8 +85,8 @@ async function main(): Promise<void> {
         title: v.name || '',
         sizes: await getSizes(v),
         tags: new Set(),  // fb has 'tags', but they are actually people not textual tags
-        datePublished: new NomsDate({nsSinceEpoch: v.created_time * 10e9}),
-        dateUpdated: new NomsDate({nsSinceEpoch: v.updated_time * 10e9}),
+        datePublished: new NomsDate({nsSinceEpoch: v.created_time * 1e9}),
+        dateUpdated: new NomsDate({nsSinceEpoch: v.updated_time * 1e9}),
       };
       if (isSubtype(placeType, v.type)) {
         photo.geoposition = getGeo(v);
