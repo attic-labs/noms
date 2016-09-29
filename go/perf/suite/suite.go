@@ -269,23 +269,6 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 	for repIdx := 0; repIdx < *perfRepeatFlag; repIdx++ {
 		testReps[repIdx] = testRep{}
 
-		// This is the temporary database for tests to use.
-		//
-		// === Why not use a local database + memory store?
-		// Firstly, because the spec would be "mem", and the spec library doesn't
-		// know how to reuse stores.
-		// Secondly, because it's an unrealistic performance measurement.
-		//
-		// === Why use a remote (HTTP) database?
-		// It's more realistic to exercise the HTTP stack, even if it's just talking
-		// over localhost.
-		//
-		// === Why provide an option for leveldb vs memory underlying store?
-		// Again, leveldb is more realistic than memory, and in common cases disk
-		// space > memory space.
-		// However, on this developer's laptop, there is
-		// actually very little disk space, and a lot of memory; plus making the
-		// test run a little bit faster locally is nice.
 		serverHost, stopServerFn := suite.StartRemoteDatabase()
 		suite.DatabaseSpec = serverHost
 		suite.Database = datas.NewRemoteDatabase(serverHost, "")
@@ -487,6 +470,22 @@ func (suite *PerfSuite) getGitHead(dir string) string {
 //
 // If the -perf.mem flag is specified, the remote database is hosted in memory,
 // not on disk (in a temporary leveldb directory).
+//
+// - Why not use a local database + memory store?
+// Firstly, because the spec would be "mem", and the spec library doesn't
+// know how to reuse stores.
+// Secondly, because it's an unrealistic performance measurement.
+//
+// - Why use a remote (HTTP) database?
+// It's more realistic to exercise the HTTP stack, even if it's just talking
+// over localhost.
+//
+// - Why provide an option for leveldb vs memory underlying store?
+// Again, leveldb is more realistic than memory, and in common cases disk
+// space > memory space.
+// However, on this developer's laptop, there is
+// actually very little disk space, and a lot of memory; plus making the
+// test run a little bit faster locally is nice.
 func (suite *PerfSuite) StartRemoteDatabase() (host string, stopFn func()) {
 	var chunkStore chunks.ChunkStore
 	if *perfMemFlag {
