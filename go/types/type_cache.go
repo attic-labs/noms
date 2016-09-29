@@ -403,20 +403,20 @@ func (fs *fieldSorter) Less(i, j int) bool {
 
 type FieldMap map[string]*Type
 
-func MakeStructTypeFromFields(name string, fields FieldMap) *Type {
-	// I'm the computer
-	names := make([]string, 0, len(fields))
-	types := make([]*Type, 0, len(fields))
+func MakeStructType(name string, fields FieldMap) *Type {
+	fieldNames := make([]string, 0, len(fields))
+	fieldTypes := make([]*Type, 0, len(fields))
 	for k, v := range fields {
-		names = append(names, k)
-		types = append(types, v)
+		fieldNames = append(fieldNames, k)
+		fieldTypes = append(fieldTypes, v)
 	}
-	fs := fieldSorter{names, types}
-	sort.Sort(&fs)
-	return MakeStructType(name, names, types)
+	return MakeStructTypeQuickly(name, fieldNames, fieldTypes)
 }
 
-func MakeStructType(name string, fieldNames []string, fieldTypes []*Type) *Type {
+func MakeStructTypeQuickly(name string, fieldNames []string, fieldTypes []*Type) *Type {
+	fs := fieldSorter{fieldNames, fieldTypes}
+	sort.Sort(&fs)
+
 	staticTypeCache.Lock()
 	defer staticTypeCache.Unlock()
 	return staticTypeCache.makeStructType(name, fieldNames, fieldTypes)

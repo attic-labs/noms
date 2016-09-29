@@ -13,10 +13,10 @@ import (
 func TestGenericStructEquals(t *testing.T) {
 	assert := assert.New(t)
 
-	typ := MakeStructType("S1",
-		[]string{"s", "x"},
-		[]*Type{StringType, BoolType},
-	)
+	typ := MakeStructType("S1", FieldMap{
+		"s": StringType,
+		"x": BoolType,
+	})
 
 	s1 := NewStructWithType(typ, ValueSlice{String("hi"), Bool(true)})
 	s2 := NewStructWithType(typ, ValueSlice{String("hi"), Bool(true)})
@@ -28,7 +28,7 @@ func TestGenericStructEquals(t *testing.T) {
 func TestGenericStructChunks(t *testing.T) {
 	assert := assert.New(t)
 
-	typ := MakeStructType("S1", []string{"r"}, []*Type{MakeRefType(BoolType)})
+	typ := MakeStructType("S1", FieldMap{"r": MakeRefType(BoolType)})
 
 	b := Bool(true)
 
@@ -52,10 +52,10 @@ func TestGenericStructNew(t *testing.T) {
 	assert.True(ok)
 	assert.True(String("hi").Equals(o))
 
-	typ := MakeStructType("S2",
-		[]string{"b", "o"},
-		[]*Type{BoolType, StringType},
-	)
+	typ := MakeStructType("S2", FieldMap{
+		"b": BoolType,
+		"o": StringType,
+	})
 	assert.Panics(func() { NewStructWithType(typ, nil) })
 	assert.Panics(func() { NewStructWithType(typ, ValueSlice{String("hi")}) })
 }
@@ -178,10 +178,10 @@ func TestEscStructField(t *testing.T) {
 
 func TestCycles(t *testing.T) {
 	// Success is this not recursing infinitely and blowing the stack
-	fileType := MakeStructType("File", []string{"data"}, []*Type{BlobType})
-	directoryType := MakeStructType("Directory", []string{"entries"}, []*Type{MakeMapType(StringType, MakeCycleType(1))})
-	inodeType := MakeStructType("Inode", []string{"contents"}, []*Type{MakeUnionType(directoryType, fileType)})
-	fsType := MakeStructType("Filesystem", []string{"root"}, []*Type{inodeType})
+	fileType := MakeStructType("File", FieldMap{"data": BlobType})
+	directoryType := MakeStructType("Directory", FieldMap{"entries": MakeMapType(StringType, MakeCycleType(1))})
+	inodeType := MakeStructType("Inode", FieldMap{"contents": MakeUnionType(directoryType, fileType)})
+	fsType := MakeStructType("Filesystem", FieldMap{"root": inodeType})
 
 	rootDir := NewStructWithType(directoryType, ValueSlice{NewMap()})
 	rootInode := NewStruct("Inode", StructData{"contents": rootDir})

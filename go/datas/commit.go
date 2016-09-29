@@ -158,25 +158,22 @@ func makeCommitType(valueType *types.Type, parentsValueTypes []*types.Type, meta
 	tmp2 = append(tmp2, metaType)
 	parentsMetaUnionType := types.MakeUnionType(tmp2...)
 
-	fieldNames := []string{MetaField, ParentsField, ValueField}
 	var parentsType *types.Type
 	if parentsValueUnionType.Equals(valueType) && parentsMetaUnionType.Equals(metaType) {
 		parentsType = types.MakeSetType(types.MakeRefType(types.MakeCycleType(0)))
 	} else {
 		parentsType = types.MakeSetType(types.MakeRefType(
-			types.MakeStructType("Commit", fieldNames, []*types.Type{
-				parentsMetaUnionType,
-				types.MakeSetType(types.MakeRefType(types.MakeCycleType(0))),
-				parentsValueUnionType,
+			types.MakeStructType("Commit", types.FieldMap{
+				MetaField:    parentsMetaUnionType,
+				ParentsField: types.MakeSetType(types.MakeRefType(types.MakeCycleType(0))),
+				ValueField:   parentsValueUnionType,
 			})))
 	}
-	fieldTypes := []*types.Type{
-		metaType,
-		parentsType,
-		valueType,
-	}
-
-	return types.MakeStructType("Commit", fieldNames, fieldTypes)
+	return types.MakeStructType("Commit", types.FieldMap{
+		MetaField:    metaType,
+		ParentsField: parentsType,
+		ValueField:   valueType,
+	})
 }
 
 func valueTypesFromParents(parents types.Set, fieldName string) []*types.Type {

@@ -286,9 +286,9 @@ func TestEncodeRecursive(t *testing.T) {
 	})
 	assert.NoError(err)
 
-	typ := types.MakeStructType("Node", []string{"children", "value"}, []*types.Type{
-		types.MakeListType(types.MakeCycleType(0)),
-		types.NumberType,
+	typ := types.MakeStructType("Node", types.FieldMap{
+		"children": types.MakeListType(types.MakeCycleType(0)),
+		"value":    types.NumberType,
 	})
 	assert.True(typ.Equals(v.Type()))
 

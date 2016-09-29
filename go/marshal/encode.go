@@ -275,7 +275,7 @@ func typeFields(t reflect.Type, parentStructTypes []reflect.Type) (fields fieldS
 			fieldNames[i] = fs.name
 			fieldTypes[i] = fs.nomsType
 		}
-		structType = types.MakeStructType(strings.Title(t.Name()), fieldNames, fieldTypes)
+		structType = types.MakeStructTypeQuickly(strings.Title(t.Name()), fieldNames, fieldTypes)
 	}
 	return
 }

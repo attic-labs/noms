@@ -82,14 +82,14 @@ func TestTypeCacheRef(t *testing.T) {
 func TestTypeCacheStruct(t *testing.T) {
 	assert := assert.New(t)
 
-	st := MakeStructType("Foo",
-		[]string{"bar", "foo"},
-		[]*Type{StringType, NumberType},
-	)
-	st2 := MakeStructType("Foo",
-		[]string{"bar", "foo"},
-		[]*Type{StringType, NumberType},
-	)
+	st := MakeStructType("Foo", FieldMap{
+		"foo": NumberType,
+		"bar": StringType,
+	})
+	st2 := MakeStructType("Foo", FieldMap{
+		"foo": NumberType,
+		"bar": StringType,
+	})
 
 	assert.True(st == st2)
 	assert.NotNil(st.serialization)
@@ -114,18 +114,16 @@ func TestTypeCacheUnion(t *testing.T) {
 func TestTypeCacheCyclicStruct(t *testing.T) {
 	assert := assert.New(t)
 
-	st := MakeStructType("Foo",
-		[]string{"foo"},
-		[]*Type{MakeRefType(MakeCycleType(0))},
-	)
+	st := MakeStructType("Foo", FieldMap{
+		"foo": MakeRefType(MakeCycleType(0)),
+	})
 	assert.True(st == st.Desc.(StructDesc).fields[0].t.Desc.(CompoundDesc).ElemTypes[0])
 	assert.False(st.HasUnresolvedCycle())
 	assert.NotNil(st.serialization)
 
-	st2 := MakeStructType("Foo",
-		[]string{"foo"},
-		[]*Type{MakeRefType(MakeCycleType(0))},
-	)
+	st2 := MakeStructType("Foo", FieldMap{
+		"foo": MakeRefType(MakeCycleType(0)),
+	})
 	assert.True(st2 == st2.Desc.(StructDesc).fields[0].t.Desc.(CompoundDesc).ElemTypes[0])
 	assert.True(st == st2)
 }
@@ -137,13 +135,10 @@ func TestTypeCacheCyclicStruct2(t *testing.T) {
 	//   bar: Cycle<1>
 	//   foo: Cycle<0>
 	// }
-	st := MakeStructType("Foo",
-		[]string{"bar", "foo"},
-		[]*Type{
-			MakeCycleType(1),
-			MakeCycleType(0),
-		},
-	)
+	st := MakeStructType("Foo", FieldMap{
+		"foo": MakeCycleType(0),
+		"bar": MakeCycleType(1),
+	})
 	assert.True(st.HasUnresolvedCycle())
 	assert.Nil(st.serialization)
 	// foo ref is cyclic
@@ -156,13 +151,10 @@ func TestTypeCacheCyclicStruct2(t *testing.T) {
 	//     foo: Cycle<0>
 	//   }
 	// }
-	st2 := MakeStructType("Bar",
-		[]string{"baz", "foo"},
-		[]*Type{
-			MakeCycleType(1),
-			st,
-		},
-	)
+	st2 := MakeStructType("Bar", FieldMap{
+		"foo": st,
+		"baz": MakeCycleType(1),
+	})
 	assert.True(st2.HasUnresolvedCycle())
 	assert.Nil(st2.serialization)
 	// foo ref is cyclic
@@ -180,13 +172,10 @@ func TestTypeCacheCyclicStruct2(t *testing.T) {
 	//   }
 	//   baz: Cycle<0>
 	// }
-	st3 := MakeStructType("Baz",
-		[]string{"bar", "baz"},
-		[]*Type{
-			st2,
-			MakeCycleType(0),
-		},
-	)
+	st3 := MakeStructType("Baz", FieldMap{
+		"bar": st2,
+		"baz": MakeCycleType(0),
+	})
 	assert.False(st3.HasUnresolvedCycle())
 	assert.NotNil(st3.serialization)
 
@@ -204,10 +193,7 @@ func TestTypeCacheCyclicUnions(t *testing.T) {
 	assert := assert.New(t)
 
 	ut := MakeUnionType(MakeCycleType(0), NumberType, StringType, BoolType, BlobType, ValueType, TypeType)
-	st := MakeStructType("Foo",
-		[]string{"foo"},
-		[]*Type{ut},
-	)
+	st := MakeStructType("Foo", FieldMap{"foo": ut})
 
 	assert.True(ut.Desc.(CompoundDesc).ElemTypes[0].Kind() == CycleKind)
 	// That the Struct / Cycle landed in index 1 was found empirically.
@@ -217,10 +203,9 @@ func TestTypeCacheCyclicUnions(t *testing.T) {
 
 	// Note that the union in this second case is created with a different ordering of its type arguments.
 	ut2 := MakeUnionType(NumberType, StringType, BoolType, BlobType, ValueType, TypeType, MakeCycleType(0))
-	st2 := MakeStructType("Foo",
-		[]string{"foo"},
-		[]*Type{ut2},
-	)
+	st2 := MakeStructType("Foo", FieldMap{
+		"foo": ut2,
+	})
 	assert.True(ut2.Desc.(CompoundDesc).ElemTypes[0].Kind() == CycleKind)
 	assert.True(st2 == st2.Desc.(StructDesc).fields[0].t.Desc.(CompoundDesc).ElemTypes[1])
 	assert.False(ut2 == st2.Desc.(StructDesc).fields[0].t)
@@ -233,24 +218,10 @@ func TestInvalidCyclesAndUnions(t *testing.T) {
 	assert := assert.New(t)
 
 	assert.Panics(func() {
-		MakeStructType("A",
-			[]string{"a"},
-			[]*Type{MakeStructType("A", []string{"a"}, []*Type{MakeCycleType(1)})})
+		MakeStructType("A", FieldMap{
+			"a": MakeStructType("A", FieldMap{
+				"a": MakeCycleType(1),
+			}),
+		})
 	})
-}
-
-func TestMakeStructTypeFromFields(t *testing.T) {
-	assert := assert.New(t)
-	fields := map[string]*Type{
-		"str":    StringType,
-		"number": NumberType,
-		"bool":   BoolType,
-	}
-	desc := MakeStructTypeFromFields("Thing", fields).Desc.(StructDesc)
-	assert.Equal("Thing", desc.Name)
-	assert.Equal(3, desc.Len())
-	for k, v := range fields {
-		f := desc.Field(k)
-		assert.True(v == f)
-	}
 }

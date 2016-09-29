@@ -50,8 +50,8 @@ func TestValueEquals(t *testing.T) {
 
 		func() Value { return BoolType },
 		func() Value { return StringType },
-		func() Value { return MakeStructType("a", []string{}, []*Type{}) },
-		func() Value { return MakeStructType("b", []string{}, []*Type{}) },
+		func() Value { return MakeStructType("a", FieldMap{}) },
+		func() Value { return MakeStructType("b", FieldMap{}) },
 		func() Value { return MakeListType(BoolType) },
 		func() Value { return MakeListType(NumberType) },
 		func() Value { return MakeSetType(BoolType) },

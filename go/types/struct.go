@@ -15,7 +15,7 @@ import (
 	"github.com/attic-labs/noms/go/hash"
 )
 
-var EmptyStructType = MakeStructType("", []string{}, []*Type{})
+var EmptyStructType = MakeStructType("", FieldMap{})
 var EmptyStruct = Struct{ValueSlice{}, EmptyStructType, &hash.Hash{}}
 
 type StructData map[string]Value
@@ -27,22 +27,19 @@ type Struct struct {
 }
 
 func NewStruct(name string, data StructData) Struct {
-	fieldNames := make(sort.StringSlice, len(data))
-	i := 0
+	fieldNames := make(sort.StringSlice, 0, len(data))
 	for fn := range data {
-		fieldNames[i] = fn
-		i++
+		fieldNames = append(fieldNames, fn)
 	}
-
 	sort.Sort(fieldNames)
-	fieldTypes := make([]*Type, len(data))
+
+	fields := FieldMap{}
 	values := make(ValueSlice, len(data))
 	for i, fn := range fieldNames {
-		fieldTypes[i] = data[fn].Type()
 		values[i] = data[fn]
+		fields[fn] = data[fn].Type()
 	}
-
-	return Struct{values, MakeStructType(name, fieldNames, fieldTypes), &hash.Hash{}}
+	return Struct{values, MakeStructType(name, fields), &hash.Hash{}}
 }
 
 func NewStructWithType(t *Type, data ValueSlice) Struct {

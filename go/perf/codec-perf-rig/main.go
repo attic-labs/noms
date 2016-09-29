@@ -136,13 +136,11 @@ func createNumber(i uint64) types.Value {
 	return types.Number(i)
 }
 
-var structType = types.MakeStructType("S1",
-	[]string{"bool", "num", "str"},
-	[]*types.Type{
-		types.BoolType,
-		types.NumberType,
-		types.StringType,
-	})
+var structType = types.MakeStructType("S1", types.FieldMap{
+	"bool": types.BoolType,
+	"num":  types.NumberType,
+	"str":  types.StringType,
+})
 
 func createStruct(i uint64) types.Value {
 	return types.NewStructWithType(structType, types.ValueSlice{
