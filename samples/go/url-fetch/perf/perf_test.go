@@ -7,6 +7,7 @@ package perf
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -35,6 +36,12 @@ func (s *perfSuite) SetupSuite() {
 
 	_, err := io.Copy(sfCrime, io.MultiReader(sfCrimeFiles...))
 	assert.NoError(err)
+	sfCrime.Close()
+
+	// Make sure it's in the OS cache.
+	sfCrime, err = os.Open(s.sfCrimePath)
+	assert.NoError(err)
+	io.Copy(ioutil.Discard, sfCrime)
 	sfCrime.Close()
 
 	// Trick the temp file logic into creating a unique path for the url-fetch binary.
