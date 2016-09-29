@@ -156,11 +156,13 @@ export function makeTestingRemoteBatchStore(): BatchStore {
   return new RemoteBatchStore(3, new TestingDelegate(new MemoryStore()));
 }
 
-class TestingDelegate {
+export class TestingDelegate {
   _cs: ChunkStore;
+  preUpdateRootHook: () => Promise<void>;
 
   constructor(cs: ChunkStore) {
     this._cs = cs;
+    this.preUpdateRootHook = () => Promise.resolve();
   }
 
   async readBatch(reqs: UnsentReadMap): Promise<void> {
@@ -178,6 +180,6 @@ class TestingDelegate {
   }
 
   async updateRoot(current: Hash, last: Hash): Promise<boolean> {
-    return this._cs.updateRoot(current, last);
+    return this.preUpdateRootHook().then(() => this._cs.updateRoot(current, last));
   }
 }
