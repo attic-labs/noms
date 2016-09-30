@@ -183,7 +183,7 @@ func addElementsToGraphBuilder(gb *types.GraphBuilder, db datas.Database, rootOb
 			}
 		}
 		return false
-	}, true)
+	})
 
 	status.Done()
 }

@@ -14,28 +14,19 @@ import (
 type SkipValueCallback func(v types.Value) bool
 
 // WalkValues recursively walks over all types. Values reachable from r and calls cb on them.
-func WalkValues(target types.Value, vr types.ValueReader, cb SkipValueCallback, deep bool) {
-	doTreeWalk(target, vr, cb, deep)
-	return
-}
-
-func doTreeWalk(v types.Value, vr types.ValueReader, cb SkipValueCallback, deep bool) {
+func WalkValues(target types.Value, vr types.ValueReader, cb SkipValueCallback) {
 	var processRef func(r types.Ref)
-	var processVal func(v types.Value, r *types.Ref, next bool)
+	var processVal func(v types.Value)
 	visited := map[hash.Hash]bool{}
 
-	valueCb := func(v types.Value) {
-		processVal(v, nil, deep)
-	}
-
-	processVal = func(v types.Value, r *types.Ref, next bool) {
-		if cb(v) || !next {
+	processVal = func(v types.Value) {
+		if cb(v) {
 			return
 		}
 		if sr, ok := v.(types.Ref); ok {
 			processRef(sr)
 		} else {
-			v.WalkValues(valueCb)
+			v.WalkValues(processVal)
 		}
 	}
 
@@ -51,13 +42,10 @@ func doTreeWalk(v types.Value, vr types.ValueReader, cb SkipValueCallback, deep 
 			return
 		}
 
-		if !deep {
-			cb(v)
-			return
-		}
-		processVal(v, &r, deep)
+		processVal(v)
 	}
 
 	//Process initial value
-	processVal(v, nil, true)
+	processVal(target)
+
 }

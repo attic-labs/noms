@@ -129,7 +129,7 @@ func index() (win bool) {
 				stop = true
 			}
 			return
-		}, true)
+		})
 	}
 
 	outDS, err = db.CommitValue(outDS, types.NewStruct("", types.StructData{

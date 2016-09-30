@@ -28,21 +28,13 @@ func (suite *WalkAllTestSuite) SetupTest() {
 	suite.vs = types.NewTestValueStore()
 }
 
-func (suite *WalkAllTestSuite) walkWorker(v types.Value, expected int, deep bool) {
+func (suite *WalkAllTestSuite) walkWorker(v types.Value, expected int) {
 	actual := 0
 	WalkValues(v, suite.vs, func(c types.Value) bool {
 		actual++
 		return false
-	}, deep)
+	})
 	suite.Equal(expected, actual)
-}
-
-func (suite *WalkAllTestSuite) walkWorkerDeep(v types.Value, expected int) {
-	suite.walkWorker(v, expected, true)
-}
-
-func (suite *WalkAllTestSuite) walkWorkerShallow(v types.Value, expected int) {
-	suite.walkWorker(v, expected, false)
 }
 
 func (suite *WalkAllTestSuite) TestWalkValuesDuplicates() {
@@ -50,22 +42,21 @@ func (suite *WalkAllTestSuite) TestWalkValuesDuplicates() {
 	dup := suite.NewList(types.Number(9), types.Number(10), types.Number(11), types.Number(12), types.Number(13))
 	l := suite.NewList(types.Number(8), dup, dup)
 
-	suite.walkWorkerDeep(l, 11)
-	suite.walkWorkerShallow(types.NewList(types.Number(8), types.Number(9), types.Number(10)), 4)
+	suite.walkWorker(l, 11)
 }
 
 func (suite *WalkAllTestSuite) TestWalkPrimitives() {
-	suite.walkWorkerDeep(suite.vs.WriteValue(types.Number(0.0)), 2)
-	suite.walkWorkerDeep(suite.vs.WriteValue(types.String("hello")), 2)
+	suite.walkWorker(suite.vs.WriteValue(types.Number(0.0)), 2)
+	suite.walkWorker(suite.vs.WriteValue(types.String("hello")), 2)
 }
 
 func (suite *WalkAllTestSuite) TestWalkComposites() {
-	suite.walkWorkerDeep(suite.NewList(), 2)
-	suite.walkWorkerDeep(suite.NewList(types.Bool(false), types.Number(8)), 4)
-	suite.walkWorkerDeep(suite.NewSet(), 2)
-	suite.walkWorkerDeep(suite.NewSet(types.Bool(false), types.Number(8)), 4)
-	suite.walkWorkerDeep(suite.NewMap(), 2)
-	suite.walkWorkerDeep(suite.NewMap(types.Number(8), types.Bool(true), types.Number(0), types.Bool(false)), 6)
+	suite.walkWorker(suite.NewList(), 2)
+	suite.walkWorker(suite.NewList(types.Bool(false), types.Number(8)), 4)
+	suite.walkWorker(suite.NewSet(), 2)
+	suite.walkWorker(suite.NewSet(types.Bool(false), types.Number(8)), 4)
+	suite.walkWorker(suite.NewMap(), 2)
+	suite.walkWorker(suite.NewMap(types.Number(8), types.Bool(true), types.Number(0), types.Bool(false)), 6)
 }
 
 func (suite *WalkTestSuite) skipWorker(composite types.Value) (reached []types.Value) {
@@ -73,7 +64,7 @@ func (suite *WalkTestSuite) skipWorker(composite types.Value) (reached []types.V
 		suite.False(v.Equals(suite.deadValue), "Should never have reached %+v", suite.deadValue)
 		reached = append(reached, v)
 		return v.Equals(suite.mustSkip)
-	}, true)
+	})
 	return
 }
 
@@ -132,8 +123,8 @@ func (suite *WalkAllTestSuite) NewSet(vs ...types.Value) types.Ref {
 }
 
 func (suite *WalkAllTestSuite) TestWalkNestedComposites() {
-	suite.walkWorkerDeep(suite.NewList(suite.NewSet(), types.Number(8)), 5)
-	suite.walkWorkerDeep(suite.NewSet(suite.NewList(), suite.NewSet()), 6)
+	suite.walkWorker(suite.NewList(suite.NewSet(), types.Number(8)), 5)
+	suite.walkWorker(suite.NewSet(suite.NewList(), suite.NewSet()), 6)
 	// {"string": "string",
 	//  "list": [false true],
 	//  "map": {"nested": "string"}
@@ -149,7 +140,7 @@ func (suite *WalkAllTestSuite) TestWalkNestedComposites() {
 		types.String("set"), suite.NewSet(types.Number(5), types.Number(7), types.Number(8)),
 		suite.NewList(), types.String("wow"), // note that the dupe list chunk is skipped
 	)
-	suite.walkWorkerDeep(nested, 25)
+	suite.walkWorker(nested, 25)
 }
 
 type WalkTestSuite struct {
