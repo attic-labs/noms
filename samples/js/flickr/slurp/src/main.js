@@ -8,7 +8,6 @@ import argv from 'yargs';
 import flickrAPI from 'flickr-oauth-and-upload';
 import readline from 'readline';
 import {
-  Dataset,
   DatasetSpec,
   invariant,
   jsonToNoms,
@@ -19,8 +18,8 @@ import {
 
 const args = argv
   .usage(
-    'Parses photo information out of Flickr API\n\n' +
-    'Usage: flickr-photos --api-key=<key> --api-secret=<secret> ' +
+    'Parses photo metadata out of Flickr API\n\n' +
+    'Usage: node . --api-key=<key> --api-secret=<secret> ' +
     '[--auth-token=<token> --auth-secret=<secret>] <dest-dataset>\n\n' +
     'You can create a Flickr API key at: ' +
     'https://www.flickr.com/services/apps/create/apply\n\n' +
@@ -57,7 +56,6 @@ main().catch(ex => {
 var authToken: ?string;  // eslint-disable-line no-var
 var authSecret: ?string;  // eslint-disable-line no-var
 var authURL: ?string;  // eslint-disable-line no-var
-var out: Dataset;  // eslint-disable-line no-var
 
 async function main(): Promise<void> {
   const outSpec = DatasetSpec.parse(args._[0]);
@@ -65,7 +63,7 @@ async function main(): Promise<void> {
     throw 'invalid destination dataset spec';
   }
 
-  out = outSpec.dataset();
+  const [db, out] = outSpec.dataset();
 
   if (args['auth-token'] && args['auth-secret']) {
     authToken = args['auth-token'];
@@ -85,10 +83,10 @@ async function main(): Promise<void> {
   }))).then(sets => new Set(sets));
 
   process.stdout.write(clearLine);
-  return out.commit(newStruct('', {
+  return db.commit(out, newStruct('', {
     photosetsMeta: jsonToNoms(photosetsJSON),
     photosets: await photosets,
-  })).then();
+  })).then(() => db.close());
 }
 
 async function getPhotosetsJSON(): Promise<any> {

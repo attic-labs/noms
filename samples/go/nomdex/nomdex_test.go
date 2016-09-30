@@ -5,14 +5,15 @@
 package main
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/marshal"
 	"github.com/attic-labs/noms/go/spec"
-	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/clienttest"
+	"github.com/attic-labs/testify/assert"
 	"github.com/attic-labs/testify/suite"
 )
 
@@ -71,7 +72,7 @@ func makeTestDb(s *testSuite, dsId string) datas.Database {
 	m := map[string]interface{}{"actors": l1, "musicians": m1}
 	v, err := marshal.Marshal(m)
 	s.NoError(err)
-	db, err = db.Commit("data", datas.NewCommit(v, types.NewSet(), types.EmptyStruct))
+	_, err = db.CommitValue(db.GetDataset(dsId), v)
 	s.NoError(err)
 	return db
 }
@@ -113,4 +114,37 @@ func (s *testSuite) TestNomdex() {
 	stdout, stderr = s.MustRun(main, []string{"find", "--db", dbSpec, `fname-idx != "lady" or gender-idx != "f"`})
 	s.Contains(stdout, "Found 23 objects")
 	s.Equal("", stderr)
+}
+
+func TestTransform(t *testing.T) {
+	assert := assert.New(t)
+
+	tcs := [][]string{
+		[]string{`"01/02/2003"`, "\"(\\d{2})/(\\d{2})/(\\d{4})\"", "$3/$2/$1", "2003/02/01"},
+	}
+
+	for _, tc := range tcs {
+		base, regex, replace, expected := tc[0], tc[1], tc[2], tc[3]
+
+		testRe := regexp.MustCompile(regex)
+		result := testRe.ReplaceAllString(base, replace)
+		assert.Equal(expected, result)
+	}
+
+	tcs = [][]string{
+		[]string{"343 STATE ST\nROCHESTER, NY 14650\n(43.161276, -77.619386)", "43.161276", "-77.619386"},
+		[]string{"TWO EMBARCADERO CENTER\nPROMENADE LEVEL SAN FRANCISCO, CA 94111\n", "", ""},
+	}
+
+	findLatRe := regexp.MustCompile("(?s)\\(([\\d.]+)")
+	findLngRe := regexp.MustCompile("(?s)(-?[\\d.]+)\\)")
+	for _, tc := range tcs {
+		base, expectedLat, expectedLng := tc[0], tc[1], tc[2]
+
+		lat := findLatRe.FindStringSubmatch(base)
+		assert.True(len(lat) == 0 && expectedLat == "" || (len(lat) == 2 && expectedLat == lat[1]))
+
+		lng := findLngRe.FindStringSubmatch(base)
+		assert.True(len(lng) == 0 && expectedLng == "" || (len(lng) == 2 && expectedLng == lng[1]))
+	}
 }

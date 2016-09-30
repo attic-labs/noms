@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/noms/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 )
 
@@ -20,6 +22,7 @@ func main() {
 	}
 
 	spec.RegisterDatabaseFlags(flag.CommandLine)
+	verbose.RegisterVerboseFlags(flag.CommandLine)
 
 	flag.Parse(true)
 
@@ -28,19 +31,20 @@ func main() {
 		return
 	}
 
-	ds, err := spec.GetDataset(flag.Arg(0))
+	cfg := config.NewResolver()
+	db, ds, err := cfg.GetDataset(flag.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not create dataset: %s\n", err)
 		return
 	}
-	defer ds.Database().Close()
+	defer db.Close()
 
 	newVal := uint64(1)
 	if lastVal, ok := ds.MaybeHeadValue(); ok {
 		newVal = uint64(lastVal.(types.Number)) + 1
 	}
 
-	_, err = ds.CommitValue(types.Number(newVal))
+	_, err = db.CommitValue(ds, types.Number(newVal))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error committing: %s\n", err)
 		return

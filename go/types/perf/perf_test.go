@@ -5,12 +5,15 @@
 package perf
 
 import (
+	"io"
+	"io/ioutil"
 	"math/rand"
+	"os"
 	"testing"
 
-	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/perf/suite"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/testify/assert"
 )
 
 type perfSuite struct {
@@ -33,10 +36,10 @@ func (s *perfSuite) Test01BuildList10mNumbers() {
 	}
 	close(in)
 
-	ds := dataset.NewDataset(s.Database, "BuildList10mNumbers")
+	ds := s.Database.GetDataset("BuildList10mNumbers")
 
 	var err error
-	ds, err = ds.CommitValue(<-out)
+	ds, err = s.Database.CommitValue(ds, <-out)
 
 	assert.NoError(err)
 	s.Database = ds.Database()
@@ -54,10 +57,10 @@ func (s *perfSuite) Test02BuildList10mStructs() {
 	}
 	close(in)
 
-	ds := dataset.NewDataset(s.Database, "BuildList10mStructs")
+	ds := s.Database.GetDataset("BuildList10mStructs")
 
 	var err error
-	ds, err = ds.CommitValue(<-out)
+	ds, err = s.Database.CommitValue(ds, <-out)
 
 	assert.NoError(err)
 	s.Database = ds.Database()
@@ -94,16 +97,74 @@ func (s *perfSuite) Test05Concat10mValues2kTimes() {
 		assert.Equal((i+1)*(l1Len+l2Len), l3.Len())
 	}
 
-	ds := dataset.NewDataset(s.Database, "Concat10mValues2kTimes")
+	ds := s.Database.GetDataset("Concat10mValues2kTimes")
 	var err error
-	ds, err = ds.CommitValue(l3)
+	ds, err = s.Database.CommitValue(ds, l3)
 
 	assert.NoError(err)
 	s.Database = ds.Database()
 }
 
+func (s *perfSuite) TestBuild500megBlobFromFilesP1() {
+	s.testBuild500megBlob(1)
+}
+
+func (s *perfSuite) TestBuild500megBlobFromFilesP2() {
+	s.testBuild500megBlob(2)
+}
+
+func (s *perfSuite) TestBuild500megBlobFromFilesP8() {
+	s.testBuild500megBlob(8)
+}
+
+func (s *perfSuite) TestBuild500megBlobFromFilesP64() {
+	// Note: can't have too many files open.
+	s.testBuild500megBlob(64)
+}
+
+func (s *perfSuite) testBuild500megBlob(p int) {
+	assert := s.NewAssert()
+	size := int(5e8)
+
+	readers := make([]io.Reader, p)
+	defer func() {
+		for _, r := range readers {
+			f := r.(*os.File)
+			err := f.Close()
+			assert.NoError(err)
+			err = os.Remove(f.Name())
+			assert.NoError(err)
+		}
+	}()
+
+	s.Pause(func() {
+		for i := range readers {
+			f, err := ioutil.TempFile("", "testBuildBlob")
+			assert.NoError(err)
+			_, err = f.Write(s.randomBytes(int64(i), size/p))
+			assert.NoError(err)
+			err = f.Close()
+			assert.NoError(err)
+			f, err = os.Open(f.Name())
+			assert.NoError(err)
+			readers[i] = f
+		}
+	})
+
+	b := types.NewBlob(readers...)
+	assert.Equal(uint64(size), b.Len())
+}
+
+func (s *perfSuite) randomBytes(seed int64, size int) []byte {
+	r := rand.New(rand.NewSource(seed))
+	randBytes := make([]byte, size)
+	_, err := r.Read(randBytes)
+	assert.NoError(s.T, err)
+	return randBytes
+}
+
 func (s *perfSuite) headList(dsName string) types.List {
-	ds := dataset.NewDataset(s.Database, dsName)
+	ds := s.Database.GetDataset(dsName)
 	return ds.HeadValue().(types.List)
 }
 

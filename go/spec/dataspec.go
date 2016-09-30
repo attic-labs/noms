@@ -14,19 +14,22 @@ import (
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
 	flag "github.com/juju/gnuflag"
 )
 
+const (
+	Separator = "::"
+)
+
 var (
-	datasetRe = regexp.MustCompile("^" + dataset.DatasetRe.String() + "$")
+	datasetRe = regexp.MustCompile("^" + datas.DatasetRe.String() + "$")
 	ldbStores = map[string]*refCountingLdbStore{}
 )
 
 func GetDatabase(str string) (datas.Database, error) {
-	sp, err := parseDatabaseSpec(str)
+	sp, err := ParseDatabaseSpec(str)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +37,7 @@ func GetDatabase(str string) (datas.Database, error) {
 }
 
 func GetChunkStore(str string) (chunks.ChunkStore, error) {
-	sp, err := parseDatabaseSpec(str)
+	sp, err := ParseDatabaseSpec(str)
 	if err != nil {
 		return nil, err
 	}
@@ -49,44 +52,49 @@ func GetChunkStore(str string) (chunks.ChunkStore, error) {
 	}
 }
 
-func GetDataset(str string) (dataset.Dataset, error) {
+func GetDataset(str string) (datas.Database, datas.Dataset, error) {
 	sp, err := parseDatasetSpec(str)
 	if err != nil {
-		return dataset.Dataset{}, err
+		return nil, datas.Dataset{}, err
 	}
-	return sp.Dataset()
+	ds, err := sp.Dataset()
+	if err != nil {
+		return nil, datas.Dataset{}, err
+	}
+	return ds.Database(), ds, nil
 }
 
 func GetPath(str string) (datas.Database, types.Value, error) {
-	sp, err := parsePathSpec(str)
+	sp, err := ParsePathSpec(str)
 	if err != nil {
 		return nil, nil, err
 	}
 	return sp.Value()
 }
 
-type databaseSpec struct {
+type DatabaseSpec struct {
 	Protocol    string
 	Path        string
 	accessToken string
 }
 
 type datasetSpec struct {
-	DbSpec      databaseSpec
+	DbSpec      DatabaseSpec
 	DatasetName string
 }
 
-type pathSpec struct {
-	DbSpec databaseSpec
+type PathSpec struct {
+	DbSpec DatabaseSpec
 	Path   AbsolutePath
 }
 
-func parseDatabaseSpec(spec string) (databaseSpec, error) {
-	ldbDatabaseSpec := func(path string) (databaseSpec, error) {
+// ParseDatabaseSpec parses a database spec string into its parts
+func ParseDatabaseSpec(spec string) (DatabaseSpec, error) {
+	ldbDatabaseSpec := func(path string) (DatabaseSpec, error) {
 		if len(path) == 0 {
-			return databaseSpec{}, fmt.Errorf("Empty file system path")
+			return DatabaseSpec{}, fmt.Errorf("Empty file system path")
 		}
-		return databaseSpec{Protocol: "ldb", Path: path}, nil
+		return DatabaseSpec{Protocol: "ldb", Path: path}, nil
 	}
 
 	parts := strings.SplitN(spec, ":", 2) // [protocol] [, path]?
@@ -96,7 +104,7 @@ func parseDatabaseSpec(spec string) (databaseSpec, error) {
 	// This is ambiguous if the file system path is "mem" but that just means the path needs to be explicitly "ldb:mem".
 	if len(parts) == 1 {
 		if protocol == "mem" {
-			return databaseSpec{Protocol: "mem"}, nil
+			return DatabaseSpec{Protocol: "mem"}, nil
 		}
 		return ldbDatabaseSpec(protocol)
 	}
@@ -107,31 +115,31 @@ func parseDatabaseSpec(spec string) (databaseSpec, error) {
 	case "http", "https":
 		u, err := url.Parse(spec)
 		if err != nil || len(u.Host) == 0 {
-			return databaseSpec{}, fmt.Errorf("Invalid URL: %s", spec)
+			return DatabaseSpec{}, fmt.Errorf("Invalid URL: %s", spec)
 		}
 		token := u.Query().Get("access_token")
-		return databaseSpec{Protocol: protocol, Path: path, accessToken: token}, nil
+		return DatabaseSpec{Protocol: protocol, Path: path, accessToken: token}, nil
 
 	case "ldb":
 		return ldbDatabaseSpec(path)
 
 	case "mem":
-		return databaseSpec{}, fmt.Errorf(`In-memory database must be specified as "mem", not "mem:%s"`, path)
+		return DatabaseSpec{}, fmt.Errorf(`In-memory database must be specified as "mem", not "mem:%s"`, path)
 
 	default:
-		return databaseSpec{}, fmt.Errorf("Invalid database protocol: %s", spec)
+		return DatabaseSpec{}, fmt.Errorf("Invalid database protocol: %s", spec)
 	}
 }
 
-func splitAndParseDatabaseSpec(spec string) (databaseSpec, string, error) {
+func splitAndParseDatabaseSpec(spec string) (DatabaseSpec, string, error) {
 	parts := strings.SplitN(spec, "::", 2)
 	if len(parts) != 2 {
-		return databaseSpec{}, "", fmt.Errorf("Missing :: separator between database and dataset: %s", spec)
+		return DatabaseSpec{}, "", fmt.Errorf("Missing :: separator between database and dataset: %s", spec)
 	}
 
-	dbSpec, err := parseDatabaseSpec(parts[0])
+	dbSpec, err := ParseDatabaseSpec(parts[0])
 	if err != nil {
-		return databaseSpec{}, "", err
+		return DatabaseSpec{}, "", err
 	}
 
 	return dbSpec, parts[1], nil
@@ -144,31 +152,32 @@ func parseDatasetSpec(spec string) (datasetSpec, error) {
 	}
 
 	if !datasetRe.MatchString(dsName) {
-		return datasetSpec{}, fmt.Errorf("Invalid dataset, must match %s: %s", dataset.DatasetRe.String(), dsName)
+		return datasetSpec{}, fmt.Errorf("Invalid dataset, must match %s: %s", datas.DatasetRe.String(), dsName)
 	}
 
 	return datasetSpec{dbSpec, dsName}, nil
 }
 
-func parsePathSpec(spec string) (pathSpec, error) {
+// ParsePathSpec parses a path spec string into its parts
+func ParsePathSpec(spec string) (PathSpec, error) {
 	dbSpec, pathStr, err := splitAndParseDatabaseSpec(spec)
 	if err != nil {
-		return pathSpec{}, err
+		return PathSpec{}, err
 	}
 
 	path, err := NewAbsolutePath(pathStr)
 	if err != nil {
-		return pathSpec{}, err
+		return PathSpec{}, err
 	}
 
-	return pathSpec{dbSpec, path}, nil
+	return PathSpec{dbSpec, path}, nil
 }
 
-func (spec databaseSpec) String() string {
+func (spec DatabaseSpec) String() string {
 	return spec.Protocol + ":" + spec.Path
 }
 
-func (spec databaseSpec) Database() (ds datas.Database, err error) {
+func (spec DatabaseSpec) Database() (ds datas.Database, err error) {
 	switch spec.Protocol {
 	case "http", "https":
 		err = d.Unwrap(d.Try(func() {
@@ -186,17 +195,17 @@ func (spec databaseSpec) Database() (ds datas.Database, err error) {
 	return
 }
 
-func (spec datasetSpec) Dataset() (dataset.Dataset, error) {
+func (spec datasetSpec) Dataset() (datas.Dataset, error) {
 	store, err := spec.DbSpec.Database()
 	if err != nil {
-		return dataset.Dataset{}, err
+		return datas.Dataset{}, err
 	}
 
-	return dataset.NewDataset(store, spec.DatasetName), nil
+	return store.GetDataset(spec.DatasetName), nil
 }
 
 func (spec datasetSpec) String() string {
-	return spec.DbSpec.String() + "::" + spec.DatasetName
+	return spec.DbSpec.String() + Separator + spec.DatasetName
 }
 
 func (spec datasetSpec) Value() (datas.Database, types.Value, error) {
@@ -205,16 +214,14 @@ func (spec datasetSpec) Value() (datas.Database, types.Value, error) {
 		return nil, nil, err
 	}
 
-	commit, ok := dataset.MaybeHead()
-	if !ok {
-		dataset.Database().Close()
-		return nil, nil, fmt.Errorf("No head value for dataset: %s", spec.DatasetName)
+	if commit, ok := dataset.MaybeHead(); ok {
+		return dataset.Database(), commit, nil
 	}
-
-	return dataset.Database(), commit, nil
+	dataset.Database().Close()
+	return nil, nil, fmt.Errorf("No head value for dataset: %s", spec.DatasetName)
 }
 
-func (spec pathSpec) Value() (db datas.Database, val types.Value, err error) {
+func (spec PathSpec) Value() (db datas.Database, val types.Value, err error) {
 	db, err = spec.DbSpec.Database()
 	if err != nil {
 		return

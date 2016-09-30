@@ -12,13 +12,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/noms/go/util/exit"
 	"github.com/attic-labs/noms/go/util/progressreader"
 	"github.com/attic-labs/noms/go/util/status"
+	"github.com/attic-labs/noms/go/util/verbose"
 	human "github.com/dustin/go-humanize"
 	flag "github.com/juju/gnuflag"
 )
@@ -34,6 +36,7 @@ func main() {
 
 	spec.RegisterCommitMetaFlags(flag.CommandLine)
 	spec.RegisterDatabaseFlags(flag.CommandLine)
+	verbose.RegisterVerboseFlags(flag.CommandLine)
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Fetches a URL, file, or stdin into a noms blob\n\nUsage: %s [--stdin?] [url-or-local-path?] [dataset]\n", os.Args[0])
@@ -43,14 +46,15 @@ func main() {
 
 	if !(*stdin && flag.NArg() == 1) && flag.NArg() != 2 {
 		flag.Usage()
-		os.Exit(-1)
+		exit.Fail()
 	}
 
 	start = time.Now()
 
-	ds, err := spec.GetDataset(flag.Arg(flag.NArg() - 1))
+	cfg := config.NewResolver()
+	db, ds, err := cfg.GetDataset(flag.Arg(flag.NArg() - 1))
 	d.CheckErrorNoUsage(err)
-	defer ds.Database().Close()
+	defer db.Close()
 
 	var r io.Reader
 	var contentLength int64
@@ -97,16 +101,16 @@ func main() {
 	if !*noProgress {
 		r = progressreader.New(r, getStatusPrinter(contentLength))
 	}
-	b := types.NewStreamingBlob(r, ds.Database())
+	b := types.NewStreamingBlob(db, r)
 
 	if *performCommit {
 		var additionalMetaInfo map[string]string
 		if sourceType != "" {
 			additionalMetaInfo = map[string]string{sourceType: sourceVal}
 		}
-		meta, err := spec.CreateCommitMetaStruct(ds.Database(), "", "", additionalMetaInfo, nil)
+		meta, err := spec.CreateCommitMetaStruct(db, "", "", additionalMetaInfo, nil)
 		d.CheckErrorNoUsage(err)
-		ds, err = ds.Commit(b, dataset.CommitOptions{Meta: meta})
+		ds, err = db.Commit(ds, b, datas.CommitOptions{Meta: meta})
 		if err != nil {
 			d.Chk.Equal(datas.ErrMergeNeeded, err)
 			fmt.Fprintf(os.Stderr, "Could not commit, optimistic concurrency failed.")
@@ -116,7 +120,7 @@ func main() {
 			status.Done()
 		}
 	} else {
-		ref := ds.Database().WriteValue(b)
+		ref := db.WriteValue(b)
 		if !*noProgress {
 			status.Clear()
 		}

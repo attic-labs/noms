@@ -30,11 +30,11 @@ func newList(seq sequence) List {
 // NewList creates a new List where the type is computed from the elements in the list, populated
 // with values, chunking if and when needed.
 func NewList(values ...Value) List {
-	seq := newEmptySequenceChunker(nil, nil, makeListLeafChunkFn(nil), newIndexedMetaSequenceChunkFn(ListKind, nil), hashValueBytes)
+	ch := newEmptyListSequenceChunker(nil, nil)
 	for _, v := range values {
-		seq.Append(v)
+		ch.Append(v)
 	}
-	return newList(seq.Done())
+	return newList(ch.Done())
 }
 
 // NewStreamingList creates a new List, populated with values, chunking if and when needed. As
@@ -43,11 +43,11 @@ func NewList(values ...Value) List {
 func NewStreamingList(vrw ValueReadWriter, values <-chan Value) <-chan List {
 	out := make(chan List)
 	go func() {
-		seq := newEmptySequenceChunker(vrw, vrw, makeListLeafChunkFn(vrw), newIndexedMetaSequenceChunkFn(ListKind, vrw), hashValueBytes)
+		ch := newEmptyListSequenceChunker(vrw, vrw)
 		for v := range values {
-			seq.Append(v)
+			ch.Append(v)
 		}
-		out <- newList(seq.Done())
+		out <- newList(ch.Done())
 		close(out)
 	}()
 	return out
@@ -177,9 +177,9 @@ func (l List) Insert(idx uint64, vs ...Value) List {
 	return l.Splice(idx, 0, vs...)
 }
 
-// Concat returns new list comprised of this joined with other. It only needs to
-// visit the rightmost prolly tree chunks of this list, and the leftmost prolly
-// tree chunks of other.
+// Concat returns a new List comprised of this joined with other. It only needs
+// to visit the rightmost prolly tree chunks of this List, and the leftmost
+// prolly tree chunks of other, so it's efficient.
 func (l List) Concat(other List) List {
 	seq := concat(l.seq, other.seq, func(cur *sequenceCursor, vr ValueReader) *sequenceChunker {
 		return l.newChunker(cur, vr)
@@ -288,4 +288,8 @@ func makeListLeafChunkFn(vr ValueReader) makeChunkFn {
 		list := newList(newListLeafSequence(vr, values...))
 		return list, orderedKeyFromInt(len(values)), uint64(len(values))
 	}
+}
+
+func newEmptyListSequenceChunker(vr ValueReader, vw ValueWriter) *sequenceChunker {
+	return newEmptySequenceChunker(vr, vw, makeListLeafChunkFn(vr), newIndexedMetaSequenceChunkFn(ListKind, vr), hashValueBytes)
 }

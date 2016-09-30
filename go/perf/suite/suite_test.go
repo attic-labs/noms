@@ -17,54 +17,93 @@ import (
 
 type testSuite struct {
 	PerfSuite
-	tempFileName, tempDir     string
-	setupTest, tearDownTest   int
-	setupRep, tearDownRep     int
-	setupSuite, tearDownSuite int
+	tempFileName, tempDir                  string
+	setupTest, tearDownTest                int
+	setupRep, tearDownRep                  int
+	setupSuite, tearDownSuite              int
+	foo, bar, abc, def, nothing, testimate int
 }
 
-// This is the only test that does anything interesting. The others are just to test naming.
-func (s *testSuite) TestInterestingStuff() {
+func (s *testSuite) TestNonEmptyPaths() {
 	assert := s.NewAssert()
-	assert.NotNil(s.T)
-	assert.NotNil(s.W)
 	assert.NotEqual("", s.AtticLabs)
 	assert.NotEqual("", s.Testdata)
 	assert.NotEqual("", s.DatabaseSpec)
+}
 
+func (s *testSuite) TestDatabase() {
+	assert := s.NewAssert()
 	val := types.Bool(true)
 	r := s.Database.WriteValue(val)
 	assert.True(s.Database.ReadValue(r.TargetHash()).Equals(val))
+}
 
+func (s *testSuite) TestTempFile() {
+	s.tempFileName = s.TempFile().Name()
+	s.tempDir = s.TempDir()
+}
+
+func (s *testSuite) TestGlob() {
+	assert := s.NewAssert()
+	f := s.TempFile()
+	f.Close()
+
+	create := func(suffix string) {
+		f, err := os.Create(f.Name() + suffix)
+		assert.NoError(err)
+		f.Close()
+	}
+
+	create("a")
+	create(".a")
+	create(".b")
+
+	glob := s.OpenGlob(f.Name() + ".*")
+	assert.Equal(2, len(glob))
+	assert.Equal(f.Name()+".a", glob[0].(*os.File).Name())
+	assert.Equal(f.Name()+".b", glob[1].(*os.File).Name())
+
+	s.CloseGlob(glob)
+	b := make([]byte, 16)
+	_, err := glob[0].Read(b)
+	assert.Error(err)
+	_, err = glob[1].Read(b)
+	assert.Error(err)
+}
+
+func (s *testSuite) TestPause() {
 	s.Pause(func() {
 		s.waitForSmidge()
 	})
-
-	s.tempFileName = s.TempFile("suite.suite_test").Name()
-	s.tempDir = s.TempDir("suite.suite_test")
 }
 
 func (s *testSuite) TestFoo() {
+	s.foo++
 	s.waitForSmidge()
 }
 
 func (s *testSuite) TestBar() {
+	s.bar++
 	s.waitForSmidge()
 }
 
 func (s *testSuite) Test01Abc() {
+	s.abc++
 	s.waitForSmidge()
 }
 
 func (s *testSuite) Test02Def() {
+	s.def++
 	s.waitForSmidge()
 }
 
 func (s *testSuite) testNothing() {
+	s.nothing++
 	s.waitForSmidge()
 }
 
 func (s *testSuite) Testimate() {
+	s.testimate++
 	s.waitForSmidge()
 }
 
@@ -122,7 +161,17 @@ func runTestSuite(t *testing.T, mem bool) {
 	s := &testSuite{}
 	Run("ds", t, s)
 
-	expectedTests := []string{"Abc", "Bar", "Def", "Foo", "InterestingStuff"}
+	expectedTests := []string{
+		"Abc",
+		"Bar",
+		"Database",
+		"Def",
+		"Foo",
+		"Glob",
+		"NonEmptyPaths",
+		"Pause",
+		"TempFile",
+	}
 
 	// The temp file and dir should have been cleaned up.
 	_, err = os.Stat(s.tempFileName)
@@ -139,7 +188,8 @@ func runTestSuite(t *testing.T, mem bool) {
 	assert.Equal(*perfRepeatFlag*len(expectedTests), s.tearDownTest)
 
 	// The results should have been written to the "ds" dataset.
-	ds, err := spec.GetDataset(ldbDir + "::ds")
+	db, ds, err := spec.GetDataset(ldbDir + "::ds")
+	defer db.Close()
 	assert.NoError(err)
 	head := ds.HeadValue().(types.Struct)
 
@@ -176,15 +226,16 @@ func runTestSuite(t *testing.T, mem bool) {
 		i := 0
 
 		rep.(types.Map).IterAll(func(k, timesVal types.Value) {
-			assert.True(i < len(expectedTests))
-			assert.Equal(expectedTests[i], string(k.(types.String)))
+			if assert.True(i < len(expectedTests)) {
+				assert.Equal(expectedTests[i], string(k.(types.String)))
+			}
 
 			times := timesVal.(types.Struct)
 			assert.True(getOrFail(times, "elapsed").(types.Number) > 0)
 			assert.True(getOrFail(times, "total").(types.Number) > 0)
 
 			paused := getOrFail(times, "paused").(types.Number)
-			if k == types.String("InterestingStuff") {
+			if k == types.String("Pause") {
 				assert.True(paused > 0)
 			} else {
 				assert.True(paused == 0)
@@ -214,13 +265,90 @@ func TestPrefixFlag(t *testing.T) {
 	Run("my-prefix/test", t, &PerfSuite{})
 
 	// The results should have been written to "foo/my-prefix/test" not "my-prefix/test".
-	ds, err := spec.GetDataset(ldbDir + "::my-prefix/test")
+	db, ds, err := spec.GetDataset(ldbDir + "::my-prefix/test")
+	defer db.Close()
 	assert.NoError(err)
 	_, ok := ds.MaybeHead()
 	assert.False(ok)
 
-	ds, err = spec.GetDataset(ldbDir + "::foo/my-prefix/test")
+	db, ds, err = spec.GetDataset(ldbDir + "::foo/my-prefix/test")
+	defer db.Close()
 	assert.NoError(err)
 	_, ok = ds.HeadValue().(types.Struct)
 	assert.True(ok)
+}
+
+func TestRunFlag(t *testing.T) {
+	assert := assert.New(t)
+
+	type expect struct {
+		foo, bar, abc, def, nothing, testimate int
+	}
+
+	run := func(re string, exp expect) {
+		flagVal, memFlagVal, runFlagVal := *perfFlag, *perfMemFlag, *perfRunFlag
+		*perfFlag, *perfMemFlag, *perfRunFlag = "mem", true, re
+		defer func() {
+			*perfFlag, *perfMemFlag, *perfRunFlag = flagVal, memFlagVal, runFlagVal
+		}()
+		s := testSuite{}
+		Run("test", t, &s)
+		assert.Equal(exp, expect{s.foo, s.bar, s.abc, s.def, s.nothing, s.testimate})
+	}
+
+	run("", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run(".", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("test", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("^test", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("Test", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("^Test", expect{foo: 1, bar: 1, abc: 1, def: 1})
+
+	run("f", expect{foo: 1, def: 1})
+	run("^f", expect{foo: 1})
+	run("testf", expect{foo: 1})
+	run("^testf", expect{foo: 1})
+	run("testF", expect{foo: 1})
+	run("^testF", expect{foo: 1})
+
+	run("F", expect{foo: 1, def: 1})
+	run("^F", expect{foo: 1})
+	run("Testf", expect{foo: 1})
+	run("^Testf", expect{foo: 1})
+	run("TestF", expect{foo: 1})
+	run("^TestF", expect{foo: 1})
+
+	run("ef", expect{def: 1})
+	run("def", expect{def: 1})
+	run("ddef", expect{})
+	run("testdef", expect{})
+	run("test01def", expect{})
+	run("test02def", expect{def: 1})
+	run("Test02def", expect{def: 1})
+	run("test02Def", expect{def: 1})
+	run("Test02Def", expect{def: 1})
+
+	run("z", expect{})
+	run("testz", expect{})
+	run("Testz", expect{})
+
+	run("[fa]", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("[fb]", expect{foo: 1, bar: 1, abc: 1, def: 1})
+	run("[fc]", expect{foo: 1, abc: 1, def: 1})
+	run("test[fa]", expect{foo: 1})
+	run("test[fb]", expect{foo: 1, bar: 1})
+	run("test[fc]", expect{foo: 1})
+	run("Test[fa]", expect{foo: 1})
+	run("Test[fb]", expect{foo: 1, bar: 1})
+	run("Test[fc]", expect{foo: 1})
+
+	run("foo|bar", expect{foo: 1, bar: 1})
+	run("FOO|bar", expect{foo: 1, bar: 1})
+	run("Testfoo|bar", expect{foo: 1, bar: 1})
+	run("TestFOO|bar", expect{foo: 1, bar: 1})
+
+	run("Testfoo|Testbar", expect{foo: 1, bar: 1})
+	run("TestFOO|Testbar", expect{foo: 1, bar: 1})
+
+	run("footest", expect{})
+	run("nothing", expect{})
 }

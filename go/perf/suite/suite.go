@@ -2,21 +2,22 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-// Package suite implements a performance test suite for Noms, intended for measuring and reporting
-// long running tests.
+// Package suite implements a performance test suite for Noms, intended for
+// measuring and reporting long running tests.
 //
 // Usage is similar to testify's suite:
 //  1. Define a test suite struct which inherits from suite.PerfSuite.
-//  2. Define methods on that struct that start with the word "Test", optionally followed by
-//     digits, then followed a non-empty capitalized string.
+//  2. Define methods on that struct that start with the word "Test", optionally
+//     followed by digits, then followed a non-empty capitalized string.
 //  3. Call suite.Run with an instance of that struct.
 //  4. Run go test with the -perf <path to noms db> flag.
 //
 // Flags:
-//  -perf.mem      backs the database by a memory store, instead of a (temporary) leveldb.
-//  -perf.prefix   gives the dataset IDs for test results a prefix
-//  -perf.repeat   sets how many times tests are repeated ("reps").
-//  -perf.testdata sets a custom path to the Noms testdata directory.
+//  -perf.mem      Backs the database by a memory store, instead of leveldb.
+//  -perf.prefix   Gives the dataset IDs for test results a prefix.
+//  -perf.repeat   Sets how many times tests are repeated ("reps").
+//  -perf.run      Only run tests that match a regex (case insensitive).
+//  -perf.testdata Sets a custom path to the Noms testdata directory.
 //
 // PerfSuite also supports testify/suite style Setup/TearDown methods:
 //  Setup/TearDownSuite is called exactly once.
@@ -76,6 +77,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -85,7 +87,6 @@ import (
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/marshal"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
@@ -102,6 +103,7 @@ var (
 	perfMemFlag      = flag.Bool("perf.mem", false, "Back the test database by a memory store, not leveldb. This will affect test timing, but it's provided in case you're low on disk space")
 	perfPrefixFlag   = flag.String("perf.prefix", "", `Prefix for the dataset IDs where results are written. For example, a prefix of "foo/" will write test datasets like "foo/csv-import" instead of just "csv-import"`)
 	perfRepeatFlag   = flag.Int("perf.repeat", 1, "The number of times to repeat each perf test")
+	perfRunFlag      = flag.String("perf.run", "", "Only run perf tests that match a regular expression")
 	perfTestdataFlag = flag.String("perf.testdata", "", "Path to the noms testdata directory. By default this is ../testdata relative to the noms directory")
 	testNamePattern  = regexp.MustCompile("^Test[0-9]*([A-Z].*$)")
 )
@@ -129,6 +131,7 @@ type PerfSuite struct {
 	tempFiles []*os.File
 	tempDirs  []string
 	paused    time.Duration
+	datasetID string
 }
 
 // SetupRepSuite has a SetupRep method, which runs every repetition of the test, i.e. -perf.repeat times in total.
@@ -169,6 +172,10 @@ func (r nopWriter) Write(p []byte) (int, error) {
 func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 	assert := assert.New(t)
 
+	if !assert.NotEqual("", datasetID) {
+		return
+	}
+
 	// Piggy-back off the go test -v flag.
 	verboseFlag := flag.Lookup("test.v")
 	assert.NotNil(verboseFlag)
@@ -190,7 +197,9 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 	}
 
 	gopath := os.Getenv("GOPATH")
-	assert.NotEmpty(gopath)
+	if !assert.NotEmpty(gopath) {
+		return
+	}
 	suite.AtticLabs = path.Join(gopath, "src", "github.com", "attic-labs")
 	suite.Testdata = *perfTestdataFlag
 	if suite.Testdata == "" {
@@ -207,12 +216,23 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 		}
 	}()
 
+	suite.datasetID = datasetID
+
 	// This is the database the perf test results are written to.
 	db, err := spec.GetDatabase(*perfFlag)
-	assert.NoError(err)
+	if !assert.NoError(err) {
+		return
+	}
 
 	// List of test runs, each a map of test name => timing info.
 	testReps := make([]testRep, *perfRepeatFlag)
+
+	// Note: the default value of perfRunFlag is "", which is actually a valid
+	// regular expression that matches everything.
+	perfRunRe, err := regexp.Compile("(?i)" + *perfRunFlag)
+	if !assert.NoError(err, `Invalid regular expression "%s"`, *perfRunFlag) {
+		return
+	}
 
 	defer func() {
 		reps := make([]types.Value, *perfRepeatFlag)
@@ -235,9 +255,9 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 			"reps":             types.NewList(reps...),
 		})
 
-		ds := dataset.NewDataset(db, *perfPrefixFlag+datasetID)
+		ds := db.GetDataset(*perfPrefixFlag + datasetID)
 		var err error
-		ds, err = ds.CommitValue(record)
+		ds, err = db.CommitValue(ds, record)
 		assert.NoError(err)
 		assert.NoError(db.Close())
 	}()
@@ -249,7 +269,7 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 	for repIdx := 0; repIdx < *perfRepeatFlag; repIdx++ {
 		testReps[repIdx] = testRep{}
 
-		serverHost, stopServerFn := suite.startServer()
+		serverHost, stopServerFn := suite.StartRemoteDatabase()
 		suite.DatabaseSpec = serverHost
 		suite.Database = datas.NewRemoteDatabase(serverHost, "")
 
@@ -265,13 +285,22 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 				continue
 			}
 
-			if t, ok := suiteT.(testifySuite.SetupTestSuite); ok {
-				t.SetupTest()
+			recordName := parts[1]
+			if !perfRunRe.MatchString(recordName) && !perfRunRe.MatchString(m.Name) {
+				continue
 			}
 
-			recordName := parts[1]
+			if _, ok := testReps[repIdx][recordName]; ok {
+				assert.Fail(`Multiple tests are named "%s"`, recordName)
+				continue
+			}
+
 			if verbose {
 				fmt.Printf("(perf) RUN(%d/%d) %s (as \"%s\")\n", repIdx+1, *perfRepeatFlag, m.Name, recordName)
+			}
+
+			if t, ok := suiteT.(testifySuite.SetupTestSuite); ok {
+				t.SetupTest()
 			}
 
 			start := time.Now()
@@ -317,20 +346,28 @@ func (suite *PerfSuite) NewAssert() *assert.Assertions {
 	return assert.New(suite.T)
 }
 
-// TempFile creates a temporary file, which will be automatically cleaned up by the perf test suite.
-func (suite *PerfSuite) TempFile(prefix string) *os.File {
-	f, err := ioutil.TempFile("", prefix)
+// TempFile creates a temporary file, which will be automatically cleaned up by
+// the perf test suite. Files will be prefixed with the test's dataset ID
+func (suite *PerfSuite) TempFile() *os.File {
+	f, err := ioutil.TempFile("", suite.tempPrefix())
 	assert.NoError(suite.T, err)
 	suite.tempFiles = append(suite.tempFiles, f)
 	return f
 }
 
-// TempDir creates a temporary directory, which will be automatically cleaned up by the perf test suite.
-func (suite *PerfSuite) TempDir(prefix string) string {
-	d, err := ioutil.TempDir("", prefix)
+// TempDir creates a temporary directory, which will be automatically cleaned
+// up by the perf test suite. Directories will be prefixed with the test's
+// dataset ID.
+func (suite *PerfSuite) TempDir() string {
+	d, err := ioutil.TempDir("", suite.tempPrefix())
 	assert.NoError(suite.T, err)
 	suite.tempDirs = append(suite.tempDirs, d)
 	return d
+}
+
+func (suite *PerfSuite) tempPrefix() string {
+	sep := fmt.Sprintf("%c", os.PathSeparator)
+	return strings.Replace(fmt.Sprintf("perf.%s.", suite.datasetID), sep, ".", -1)
 }
 
 // Pause pauses the test timer while fn is executing. Useful for omitting long setup code (e.g. copying files) from the test elapsed time.
@@ -338,6 +375,35 @@ func (suite *PerfSuite) Pause(fn func()) {
 	start := time.Now()
 	fn()
 	suite.paused += time.Since(start)
+}
+
+// OpenGlob opens the concatenation of all files that match pattern, returned
+// as []io.Reader so it can be used immediately with io.MultiReader.
+//
+// Large CSV files in testdata are broken up into foo.a, foo.b, etc to get
+// around GitHub file size restrictions.
+func (s *PerfSuite) OpenGlob(pattern ...string) []io.Reader {
+	assert := s.NewAssert()
+
+	glob, err := filepath.Glob(path.Join(pattern...))
+	assert.NoError(err)
+
+	files := make([]io.Reader, len(glob))
+	for i, m := range glob {
+		f, err := os.Open(m)
+		assert.NoError(err)
+		files[i] = f
+	}
+
+	return files
+}
+
+// CloseGlob closes all of the files, designed to be used with OpenGlob.
+func (s *PerfSuite) CloseGlob(files []io.Reader) {
+	assert := s.NewAssert()
+	for _, f := range files {
+		assert.NoError(f.(*os.File).Close())
+	}
 }
 
 func callSafe(name string, fun reflect.Value, args ...interface{}) error {
@@ -398,25 +464,34 @@ func (suite *PerfSuite) getGitHead(dir string) string {
 	return strings.TrimSpace(stdout.String())
 }
 
-func (suite *PerfSuite) startServer() (host string, stopFn func()) {
-	// This is the temporary database for tests to use.
-	//
-	// * Why not use a local database + memory store?
-	// Firstly, because the spec would be "mem", and the spec library doesn't know how to reuse stores.
-	// Secondly, because it's an unrealistic performance measurement.
-	//
-	// * Why use a remote (HTTP) database?
-	// It's more realistic to exercise the HTTP stack, even if it's just talking over localhost.
-	//
-	// * Why provide an option for leveldb vs memory underlying store?
-	// Again, leveldb is more realistic than memory, and in common cases disk space > memory space.
-	// However, on this developer's laptop, there is actually very little disk space, and a lot of memory;
-	// plus making the test run a little bit faster locally is nice.
+// StartRemoteDatabase creates a new remote database on an arbitrary free port,
+// running on a separate goroutine. Returns the hostname that that database was
+// started on, and a callback to run to shut down the server.
+//
+// If the -perf.mem flag is specified, the remote database is hosted in memory,
+// not on disk (in a temporary leveldb directory).
+//
+// - Why not use a local database + memory store?
+// Firstly, because the spec would be "mem", and the spec library doesn't
+// know how to reuse stores.
+// Secondly, because it's an unrealistic performance measurement.
+//
+// - Why use a remote (HTTP) database?
+// It's more realistic to exercise the HTTP stack, even if it's just talking
+// over localhost.
+//
+// - Why provide an option for leveldb vs memory underlying store?
+// Again, leveldb is more realistic than memory, and in common cases disk
+// space > memory space.
+// However, on this developer's laptop, there is
+// actually very little disk space, and a lot of memory; plus making the
+// test run a little bit faster locally is nice.
+func (suite *PerfSuite) StartRemoteDatabase() (host string, stopFn func()) {
 	var chunkStore chunks.ChunkStore
 	if *perfMemFlag {
 		chunkStore = chunks.NewMemoryStore()
 	} else {
-		ldbDir := suite.TempDir("suite.suite")
+		ldbDir := suite.TempDir()
 		chunkStore = chunks.NewLevelDBStoreUseFlags(ldbDir, "")
 	}
 

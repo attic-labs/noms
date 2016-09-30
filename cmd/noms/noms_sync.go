@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/attic-labs/noms/cmd/util"
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/status"
+	"github.com/attic-labs/noms/go/util/verbose"
 	humanize "github.com/dustin/go-humanize"
 	flag "github.com/juju/gnuflag"
 )
@@ -37,13 +39,14 @@ func setupSyncFlags() *flag.FlagSet {
 	syncFlagSet := flag.NewFlagSet("sync", flag.ExitOnError)
 	syncFlagSet.IntVar(&p, "p", 512, "parallelism")
 	spec.RegisterDatabaseFlags(syncFlagSet)
+	verbose.RegisterVerboseFlags(syncFlagSet)
 	profile.RegisterProfileFlags(syncFlagSet)
 	return syncFlagSet
 }
 
 func runSync(args []string) int {
-
-	sourceStore, sourceObj, err := spec.GetPath(args[0])
+	cfg := config.NewResolver()
+	sourceStore, sourceObj, err := cfg.GetPath(args[0])
 	d.CheckError(err)
 	defer sourceStore.Close()
 
@@ -51,9 +54,9 @@ func runSync(args []string) int {
 		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[0]))
 	}
 
-	sinkDataset, err := spec.GetDataset(args[1])
+	sinkDB, sinkDataset, err := cfg.GetDataset(args[1])
 	d.CheckError(err)
-	defer sinkDataset.Database().Close()
+	defer sinkDB.Close()
 
 	start := time.Now()
 	progressCh := make(chan datas.PullProgress)
@@ -83,12 +86,12 @@ func runSync(args []string) int {
 	nonFF := false
 	err = d.Try(func() {
 		defer profile.MaybeStartProfile().Stop()
-		sinkDataset.Pull(sourceStore, sourceRef, p, progressCh)
+		datas.Pull(sourceStore, sinkDB, sourceRef, sinkRef, p, progressCh)
 
 		var err error
-		sinkDataset, err = sinkDataset.FastForward(sourceRef)
+		sinkDataset, err = sinkDB.FastForward(sinkDataset, sourceRef)
 		if err == datas.ErrMergeNeeded {
-			sinkDataset, err = sinkDataset.SetHead(sourceRef)
+			sinkDataset, err = sinkDB.SetHead(sinkDataset, sourceRef)
 			nonFF = true
 		}
 		d.PanicIfError(err)
@@ -118,7 +121,6 @@ func bytesPerSec(bytes uint64, start time.Time) string {
 	bps := float64(bytes) / float64(time.Since(start).Seconds())
 	return humanize.Bytes(uint64(bps))
 }
-
 
 func since(start time.Time) string {
 	round := time.Second / 100

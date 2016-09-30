@@ -12,13 +12,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/dataset"
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/progressreader"
 	"github.com/attic-labs/noms/go/util/status"
+	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/attic-labs/noms/samples/go/csv"
 	humanize "github.com/dustin/go-humanize"
 	flag "github.com/juju/gnuflag"
@@ -45,6 +47,7 @@ func main() {
 	performCommit := flag.Bool("commit", true, "commit the data to head of the dataset (otherwise only write the data to the dataset)")
 	spec.RegisterCommitMetaFlags(flag.CommandLine)
 	spec.RegisterDatabaseFlags(flag.CommandLine)
+	verbose.RegisterVerboseFlags(flag.CommandLine)
 	profile.RegisterProfileFlags(flag.CommandLine)
 
 	flag.Usage = func() {
@@ -74,8 +77,9 @@ func main() {
 	var filePath string
 	var dataSetArgN int
 
+	cfg := config.NewResolver()
 	if *path != "" {
-		db, val, err := spec.GetPath(*path)
+		db, val, err := cfg.GetPath(*path)
 		d.CheckError(err)
 		if val == nil {
 			d.CheckError(fmt.Errorf("Path %s not found\n", *path))
@@ -155,27 +159,27 @@ func main() {
 		}
 	}
 
-	ds, err := spec.GetDataset(flag.Arg(dataSetArgN))
+	db, ds, err := cfg.GetDataset(flag.Arg(dataSetArgN))
 	d.CheckError(err)
-	defer ds.Database().Close()
+	defer db.Close()
 
 	var value types.Value
 	if dest == destList {
-		value, _ = csv.ReadToList(cr, *name, headers, kinds, ds.Database())
+		value, _ = csv.ReadToList(cr, *name, headers, kinds, db)
 	} else {
-		value = csv.ReadToMap(cr, *name, headers, strPks, kinds, ds.Database())
+		value = csv.ReadToMap(cr, *name, headers, strPks, kinds, db)
 	}
 
 	if *performCommit {
 		meta, err := spec.CreateCommitMetaStruct(ds.Database(), "", "", additionalMetaInfo(filePath, *path), nil)
 		d.CheckErrorNoUsage(err)
-		_, err = ds.Commit(value, dataset.CommitOptions{Meta: meta})
+		_, err = db.Commit(ds, value, datas.CommitOptions{Meta: meta})
 		if !*noProgress {
 			status.Clear()
 		}
 		d.PanicIfError(err)
 	} else {
-		ref := ds.Database().WriteValue(value)
+		ref := db.WriteValue(value)
 		if !*noProgress {
 			status.Clear()
 		}

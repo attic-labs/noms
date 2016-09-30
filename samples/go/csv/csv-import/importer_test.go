@@ -15,7 +15,6 @@ import (
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/clienttest"
@@ -112,10 +111,10 @@ func (s *testSuite) TestCSVImporter() {
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
-	cs := chunks.NewLevelDBStore(s.LdbDir, "", 1, false)
-	ds := dataset.NewDataset(datas.NewDatabase(cs), setName)
-	defer ds.Database().Close()
+	db := datas.NewDatabase(chunks.NewLevelDBStore(s.LdbDir, "", 1, false))
 	defer os.RemoveAll(s.LdbDir)
+	defer db.Close()
+	ds := db.GetDataset(setName)
 
 	validateList(s, ds.HeadValue().(types.List))
 }
@@ -130,10 +129,10 @@ func (s *testSuite) TestCSVImporterFromBlob() {
 		}
 
 		db := newDB()
-		rawDS := dataset.NewDataset(db, "raw")
+		rawDS := db.GetDataset("raw")
 		csv := &bytes.Buffer{}
 		writeCSV(csv)
-		rawDS.CommitValue(types.NewBlob(csv))
+		db.CommitValue(rawDS, types.NewBlob(csv))
 		db.Close()
 
 		stdout, stderr := s.MustRun(main, []string{
@@ -146,7 +145,7 @@ func (s *testSuite) TestCSVImporterFromBlob() {
 
 		db = newDB()
 		defer db.Close()
-		csvDS := dataset.NewDataset(db, "csv")
+		csvDS := db.GetDataset("csv")
 		validateList(s, csvDS.HeadValue().(types.List))
 	}
 	test("--path")
@@ -160,10 +159,10 @@ func (s *testSuite) TestCSVImporterToMap() {
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
-	cs := chunks.NewLevelDBStore(s.LdbDir, "", 1, false)
-	ds := dataset.NewDataset(datas.NewDatabase(cs), setName)
-	defer ds.Database().Close()
+	db := datas.NewDatabase(chunks.NewLevelDBStore(s.LdbDir, "", 1, false))
 	defer os.RemoveAll(s.LdbDir)
+	defer db.Close()
+	ds := db.GetDataset(setName)
 
 	m := ds.HeadValue().(types.Map)
 	validateMap(s, m)
@@ -176,10 +175,10 @@ func (s *testSuite) TestCSVImporterToNestedMap() {
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
-	cs := chunks.NewLevelDBStore(s.LdbDir, "", 1, false)
-	ds := dataset.NewDataset(datas.NewDatabase(cs), setName)
-	defer ds.Database().Close()
+	db := datas.NewDatabase(chunks.NewLevelDBStore(s.LdbDir, "", 1, false))
 	defer os.RemoveAll(s.LdbDir)
+	defer db.Close()
+	ds := db.GetDataset(setName)
 
 	m := ds.HeadValue().(types.Map)
 	validateNestedMap(s, m)
@@ -192,10 +191,10 @@ func (s *testSuite) TestCSVImporterToNestedMapByName() {
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
-	cs := chunks.NewLevelDBStore(s.LdbDir, "", 1, false)
-	ds := dataset.NewDataset(datas.NewDatabase(cs), setName)
-	defer ds.Database().Close()
+	db := datas.NewDatabase(chunks.NewLevelDBStore(s.LdbDir, "", 1, false))
 	defer os.RemoveAll(s.LdbDir)
+	defer db.Close()
+	ds := db.GetDataset(setName)
 
 	m := ds.HeadValue().(types.Map)
 	validateNestedMap(s, m)
@@ -216,10 +215,10 @@ func (s *testSuite) TestCSVImporterWithPipe() {
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
-	cs := chunks.NewLevelDBStore(s.LdbDir, "", 1, false)
-	ds := dataset.NewDataset(datas.NewDatabase(cs), setName)
-	defer ds.Database().Close()
+	db := datas.NewDatabase(chunks.NewLevelDBStore(s.LdbDir, "", 1, false))
 	defer os.RemoveAll(s.LdbDir)
+	defer db.Close()
+	ds := db.GetDataset(setName)
 
 	l := ds.HeadValue().(types.List)
 	s.Equal(uint64(1), l.Len())
@@ -244,10 +243,10 @@ func (s *testSuite) TestCSVImporterWithExternalHeader() {
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
-	cs := chunks.NewLevelDBStore(s.LdbDir, "", 1, false)
-	ds := dataset.NewDataset(datas.NewDatabase(cs), setName)
-	defer ds.Database().Close()
+	db := datas.NewDatabase(chunks.NewLevelDBStore(s.LdbDir, "", 1, false))
 	defer os.RemoveAll(s.LdbDir)
+	defer db.Close()
+	ds := db.GetDataset(setName)
 
 	l := ds.HeadValue().(types.List)
 	s.Equal(uint64(1), l.Len())
@@ -271,7 +270,7 @@ func (s *testSuite) TestCSVImporterWithInvalidExternalHeader() {
 	stdout, stderr, exitErr := s.Run(main, []string{"--no-progress", "--column-types", "String,Number", "--header", "x,x", input.Name(), dataspec})
 	s.Equal("", stdout)
 	s.Equal("error: Invalid headers specified, headers must be unique\n", stderr)
-	s.Equal(clienttest.ExitError{-1}, exitErr)
+	s.Equal(clienttest.ExitError{1}, exitErr)
 }
 
 func (s *testSuite) TestCSVImporterWithInvalidNumColumnTypeSpec() {
@@ -288,7 +287,7 @@ func (s *testSuite) TestCSVImporterWithInvalidNumColumnTypeSpec() {
 	stdout, stderr, exitErr := s.Run(main, []string{"--no-progress", "--column-types", "String", "--header", "x,y", input.Name(), dataspec})
 	s.Equal("", stdout)
 	s.Equal("error: Invalid column-types specified, column types do not correspond to number of headers\n", stderr)
-	s.Equal(clienttest.ExitError{-1}, exitErr)
+	s.Equal(clienttest.ExitError{1}, exitErr)
 }
 
 func (s *testSuite) TestCSVImportSkipRecords() {
@@ -316,10 +315,10 @@ func (s *testSuite) TestCSVImportSkipRecords() {
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
-	cs := chunks.NewLevelDBStore(s.LdbDir, "", 1, false)
-	ds := dataset.NewDataset(datas.NewDatabase(cs), setName)
-	defer ds.Database().Close()
+	db := datas.NewDatabase(chunks.NewLevelDBStore(s.LdbDir, "", 1, false))
 	defer os.RemoveAll(s.LdbDir)
+	defer db.Close()
+	ds := db.GetDataset(setName)
 
 	l := ds.HeadValue().(types.List)
 	s.Equal(uint64(1), l.Len())
@@ -330,7 +329,6 @@ func (s *testSuite) TestCSVImportSkipRecords() {
 }
 
 func (s *testSuite) TestCSVImportSkipRecordsTooMany() {
-
 	input, err := ioutil.TempFile(s.TempDir, "")
 	d.Chk.NoError(err)
 	defer input.Close()
@@ -345,7 +343,7 @@ func (s *testSuite) TestCSVImportSkipRecordsTooMany() {
 	stdout, stderr, recoveredErr := s.Run(main, []string{"--no-progress", "--skip-records", "100", input.Name(), dataspec})
 	s.Equal("", stdout)
 	s.Equal("error: skip-records skipped past EOF\n", stderr)
-	s.Equal(clienttest.ExitError{-1}, recoveredErr)
+	s.Equal(clienttest.ExitError{1}, recoveredErr)
 
 }
 
@@ -367,10 +365,10 @@ func (s *testSuite) TestCSVImportSkipRecordsCustomHeader() {
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
-	cs := chunks.NewLevelDBStore(s.LdbDir, "", 1, false)
-	ds := dataset.NewDataset(datas.NewDatabase(cs), setName)
-	defer ds.Database().Close()
+	db := datas.NewDatabase(chunks.NewLevelDBStore(s.LdbDir, "", 1, false))
 	defer os.RemoveAll(s.LdbDir)
+	defer db.Close()
+	ds := db.GetDataset(setName)
 
 	l := ds.HeadValue().(types.List)
 	s.Equal(uint64(1), l.Len())

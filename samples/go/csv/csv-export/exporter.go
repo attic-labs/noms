@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
+	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/attic-labs/noms/samples/go/csv"
 	flag "github.com/juju/gnuflag"
 )
@@ -23,6 +25,7 @@ func main() {
 	delimiter := flag.String("delimiter", ",", "field delimiter for csv file, must be exactly one character long.")
 
 	spec.RegisterDatabaseFlags(flag.CommandLine)
+	verbose.RegisterVerboseFlags(flag.CommandLine)
 	profile.RegisterProfileFlags(flag.CommandLine)
 
 	flag.Usage = func() {
@@ -36,10 +39,11 @@ func main() {
 		d.CheckError(errors.New("expected dataset arg"))
 	}
 
-	ds, err := spec.GetDataset(flag.Arg(0))
+	cfg := config.NewResolver()
+	db, ds, err := cfg.GetDataset(flag.Arg(0))
 	d.CheckError(err)
 
-	defer ds.Database().Close()
+	defer db.Close()
 
 	comma, err := csv.StringToRune(*delimiter)
 	d.CheckError(err)
@@ -49,10 +53,10 @@ func main() {
 
 		hv := ds.HeadValue()
 		if l, ok := hv.(types.List); ok {
-			structDesc := csv.GetListElemDesc(l, ds.Database())
+			structDesc := csv.GetListElemDesc(l, db)
 			csv.WriteList(l, structDesc, comma, os.Stdout)
 		} else if m, ok := hv.(types.Map); ok {
-			structDesc := csv.GetMapElemDesc(m, ds.Database())
+			structDesc := csv.GetMapElemDesc(m, db)
 			csv.WriteMap(m, structDesc, comma, os.Stdout)
 		} else {
 			panic(fmt.Sprintf("Expected ListKind or MapKind, found %s", types.KindToString[hv.Type().Kind()]))

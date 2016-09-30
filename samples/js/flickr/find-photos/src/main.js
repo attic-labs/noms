@@ -23,22 +23,18 @@ import {
 const args = argv
   .usage(
     'Indexes Photo objects out of slurped Flickr metadata\n\n' +
-    'Usage: flickr-find-photos <in-object> <out-dataset>')
+    'Usage: node . <in-object> <out-dataset>')
   .demand(2)
   .argv;
 
 const sizes = ['t', 's', 'm', 'l', 'o'];
 const flickrNum = makeUnionType([stringType, numberType]);
 const sizeTypes = sizes.map(s =>
-  makeStructType('',
-    ['height_' + s, 'url_' + s, 'width_' + s],
-    [
-      flickrNum,
-      stringType,
-      flickrNum,
-    ]
-  )
-);
+  makeStructType('', {
+    ['height_' + s]: flickrNum,
+    ['width_' + s]: flickrNum,
+    ['url_' + s]: stringType,
+  }));
 
 // This is effectively:
 // union {
@@ -59,17 +55,20 @@ const imageType = makeUnionType(sizeTypes.map(st => {
     tags: stringType,
     latitude: flickrNum,
     longitude: flickrNum,
+    datetaken: stringType,
+    datetakenunknown: flickrNum,
+    dateupload: flickrNum,
+    lastupdate: flickrNum,
   };
   st.desc.forEachField((name, type) => {
     newFields[name] = type;
   });
 
-  const fieldNames = Object.keys(newFields);
-  fieldNames.sort();
-  const fieldTypes = fieldNames.map(fn => newFields[fn]);
-
-  return makeStructType('', fieldNames, fieldTypes);
+  return makeStructType('', newFields);
 }));
+
+const nsInSecond = 1e9;
+const nsInMillisecond = 1e6;
 
 main().catch(ex => {
   console.error(ex);
@@ -83,7 +82,7 @@ async function main(): Promise<void> {
     return db.close();
   }
   const outSpec = DatasetSpec.parse(args._[1]);
-  const output = outSpec.dataset();
+  const [outDB, output] = outSpec.dataset();
   let result = Promise.resolve(new Set());
 
   // TODO: How to report progress?
@@ -93,7 +92,13 @@ async function main(): Promise<void> {
         title: v.title,
         tags: new Set(v.tags ? v.tags.split(' ') : []),
         sizes: getSizes(v),
+        datePublished: newDate(Number(v.dateupload) * nsInSecond),
+        dateUpdated: newDate(Number(v.lastupdate) * nsInSecond),
       };
+
+      if (!v.datetakenunknown) {
+        photo.dateTaken = newDate(Date.parse(v.datetaken) * nsInMillisecond);
+      }
 
       // Flickr API always includes a geoposition, but sometimes it is zero.
       const geo = (getGeo(v):Object);
@@ -107,7 +112,9 @@ async function main(): Promise<void> {
     return false;
   });
 
-  return output.commit(await result).then(() => db.close());
+  return outDB.commit(output, await result)
+    .then(() => db.close())
+    .then(() => outDB.close());
 }
 
 function getGeo(input: Object): Struct {
@@ -129,4 +136,8 @@ function getSizes(input: Object): Map<Struct, string> {
   });
   // $FlowIssue: Does not understand that filter removes all null values.
   return new Map(a.filter(kv => kv));
+}
+
+function newDate(nsSinceEpoch: number): Struct {
+  return newStruct('Date', {nsSinceEpoch});
 }

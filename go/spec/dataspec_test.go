@@ -13,7 +13,6 @@ import (
 
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/testify/assert"
 )
@@ -28,14 +27,15 @@ func TestLDBDatabase(t *testing.T) {
 	spec := fmt.Sprintf("ldb:%s", path.Join(dir, "store"))
 
 	cs := chunks.NewLevelDBStoreUseFlags(ldbDir, "")
-	ds := datas.NewDatabase(cs)
+	db := datas.NewDatabase(cs)
+	ds := db.GetDataset("testDs")
 
 	s1 := types.String("A String")
-	s1Hash := ds.WriteValue(s1)
-	ds.Commit("testDs", datas.NewCommit(s1Hash, types.NewSet(), types.EmptyStruct))
-	ds.Close()
+	s1Hash := db.WriteValue(s1)
+	db.CommitValue(ds, s1Hash)
+	db.Close()
 
-	sp, errRead := parseDatabaseSpec(spec)
+	sp, errRead := ParseDatabaseSpec(spec)
 	assert.NoError(errRead)
 	store, err := sp.Database()
 	assert.NoError(err)
@@ -48,7 +48,7 @@ func TestMemDatabase(t *testing.T) {
 	assert := assert.New(t)
 
 	spec := "mem"
-	sp, err := parseDatabaseSpec(spec)
+	sp, err := ParseDatabaseSpec(spec)
 	assert.NoError(err)
 	store, err := sp.Database()
 	assert.NoError(err)
@@ -66,10 +66,10 @@ func TestMemDataset(t *testing.T) {
 	assert.NoError(err)
 	dataset1, err := sp1.Dataset()
 	assert.NoError(err)
-	commit := types.String("Commit Value")
-	dsTest, err := dataset1.CommitValue(commit)
+	headVal := types.String("Commit Value")
+	dsTest, err := dataset1.Database().CommitValue(dataset1, headVal)
 	assert.NoError(err)
-	assert.EqualValues(commit, dsTest.HeadValue())
+	assert.EqualValues(headVal, dsTest.HeadValue())
 }
 
 func TestLDBDataset(t *testing.T) {
@@ -79,21 +79,21 @@ func TestLDBDataset(t *testing.T) {
 	assert.NoError(err)
 	ldbPath := path.Join(dir, "name")
 	cs := chunks.NewLevelDBStoreUseFlags(ldbPath, "")
-	ds := datas.NewDatabase(cs)
+	db := datas.NewDatabase(cs)
 	id := "dsName"
 
-	set := dataset.NewDataset(ds, id)
-	commit := types.String("Commit Value")
-	set, err = set.CommitValue(commit)
+	ds := db.GetDataset(id)
+	headVal := types.String("Commit Value")
+	ds, err = ds.Database().CommitValue(ds, headVal)
 	assert.NoError(err)
-	ds.Close()
+	db.Close()
 
 	spec := fmt.Sprintf("ldb:%s::%s", ldbPath, id)
 	sp, err := parseDatasetSpec(spec)
 	assert.NoError(err)
 	dataset, err := sp.Dataset()
 	assert.NoError(err)
-	assert.EqualValues(commit, dataset.HeadValue())
+	assert.EqualValues(headVal, dataset.HeadValue())
 
 	os.Remove(dir)
 }
@@ -107,10 +107,10 @@ func TestLDBObject(t *testing.T) {
 
 	cs1 := chunks.NewLevelDBStoreUseFlags(ldbpath, "")
 	store1 := datas.NewDatabase(cs1)
-	dataset1 := dataset.NewDataset(store1, dsId)
+	dataset1 := store1.GetDataset(dsId)
 	s1 := types.String("Commit Value")
 	r1 := store1.WriteValue(s1)
-	_, err = dataset1.CommitValue(r1)
+	dataset1, err = store1.CommitValue(dataset1, r1)
 	assert.NoError(err)
 	store1.Close()
 
@@ -126,7 +126,7 @@ func TestLDBObject(t *testing.T) {
 	dataset2.Database().Close()
 
 	spec3 := fmt.Sprintf("ldb:%s::#%s", ldbpath, s1.Hash().String())
-	sp3, err := parsePathSpec(spec3)
+	sp3, err := ParsePathSpec(spec3)
 	assert.NoError(err)
 	database, v3, err := sp3.Value()
 	assert.NoError(err)
@@ -144,15 +144,15 @@ func TestReadHash(t *testing.T) {
 	ldbPath := path.Join(dir, "/name")
 	cs1 := chunks.NewLevelDBStoreUseFlags(ldbPath, "")
 	database1 := datas.NewDatabase(cs1)
-	dataset1 := dataset.NewDataset(database1, datasetId)
+	dataset1 := database1.GetDataset(datasetId)
 	commit := types.String("Commit Value")
-	dataset1, err = dataset1.CommitValue(commit)
+	dataset1, err = database1.CommitValue(dataset1, commit)
 	assert.NoError(err)
 	r1 := dataset1.Head().Hash()
 	dataset1.Database().Close()
 
 	spec2 := fmt.Sprintf("ldb:%s::#%s", ldbPath, r1.String())
-	sp2, err := parsePathSpec(spec2)
+	sp2, err := ParsePathSpec(spec2)
 	assert.NoError(err)
 	database, v2, err := sp2.Value()
 	assert.NoError(err)
@@ -166,7 +166,7 @@ func TestDatabaseSpecs(t *testing.T) {
 
 	badSpecs := []string{"mem:stuff", "mem:", "http:", "https:", "random:", "random:random", "/file/ba:d"}
 	for _, spec := range badSpecs {
-		_, err := parseDatabaseSpec(spec)
+		_, err := ParseDatabaseSpec(spec)
 		assert.Error(err, spec)
 	}
 
@@ -188,9 +188,9 @@ func TestDatabaseSpecs(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		dbSpec, err := parseDatabaseSpec(tc.spec)
+		dbSpec, err := ParseDatabaseSpec(tc.spec)
 		assert.NoError(err)
-		assert.Equal(databaseSpec{Protocol: tc.scheme, Path: tc.path, accessToken: tc.accessToken}, dbSpec)
+		assert.Equal(DatabaseSpec{Protocol: tc.scheme, Path: tc.path, accessToken: tc.accessToken}, dbSpec)
 	}
 }
 
@@ -232,7 +232,7 @@ func TestDatasetSpecs(t *testing.T) {
 	for _, tc := range testCases {
 		dsSpec, err := parseDatasetSpec(tc.spec)
 		assert.NoError(err)
-		dbSpec1 := databaseSpec{Protocol: tc.scheme, Path: tc.path, accessToken: tc.accessToken}
+		dbSpec1 := DatabaseSpec{Protocol: tc.scheme, Path: tc.path, accessToken: tc.accessToken}
 		assert.Equal(datasetSpec{DbSpec: dbSpec1, DatasetName: tc.ds}, dsSpec)
 	}
 }
@@ -242,7 +242,7 @@ func TestPathSpec(t *testing.T) {
 
 	badSpecs := []string{"mem::#", "mem::#s", "mem::#foobarbaz", "mem::#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww"}
 	for _, bs := range badSpecs {
-		_, err := parsePathSpec(bs)
+		_, err := ParsePathSpec(bs)
 		assert.Error(err)
 	}
 
@@ -259,11 +259,11 @@ func TestPathSpec(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		dbSpec := databaseSpec{Protocol: tc.scheme, Path: tc.dbPath, accessToken: ""}
+		dbSpec := DatabaseSpec{Protocol: tc.scheme, Path: tc.dbPath, accessToken: ""}
 		path, err := NewAbsolutePath(tc.pathStr)
 		assert.NoError(err)
-		expected := pathSpec{dbSpec, path}
-		actual, err := parsePathSpec(tc.spec)
+		expected := PathSpec{dbSpec, path}
+		actual, err := ParsePathSpec(tc.spec)
 		assert.NoError(err)
 		assert.Equal(expected, actual)
 	}

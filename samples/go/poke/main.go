@@ -8,22 +8,23 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/dataset"
-	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/noms/go/util/exit"
+	"github.com/attic-labs/noms/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 )
 
 func main() {
 	if !poke() {
-		exit(1)
+		exit.Fail()
 	}
 }
 
 func poke() (win bool) {
 	var outDSStr = flag.String("out-ds-name", "", "output dataset to write to - if empty, defaults to input dataset")
-
+	verbose.RegisterVerboseFlags(flag.CommandLine)
 	flag.Usage = usage
 	flag.Parse(false)
 
@@ -37,7 +38,8 @@ func poke() (win bool) {
 		return
 	}
 
-	inDS, err := spec.GetDataset(flag.Arg(0))
+	cfg := config.NewResolver()
+	db, inDS, err := cfg.GetDataset(flag.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Invalid input dataset '%s': %s\n", flag.Arg(0), err)
 		return
@@ -67,16 +69,16 @@ func poke() (win bool) {
 		return
 	}
 
-	var outDS dataset.Dataset
+	var outDS datas.Dataset
 	if *outDSStr == "" {
 		outDS = inDS
-	} else if !dataset.DatasetFullRe.MatchString(*outDSStr) {
+	} else if !datas.DatasetFullRe.MatchString(*outDSStr) {
 		fmt.Fprintf(os.Stderr, "Invalid output dataset name: %s\n", *outDSStr)
 		return
 	} else {
-		outDS = dataset.NewDataset(inDS.Database(), *outDSStr)
+		outDS = db.GetDataset(*outDSStr)
 	}
-	defer outDS.Database().Close()
+	defer db.Close()
 
 	outRoot, err := update(inRoot, inPath, val)
 	if err != nil {
@@ -84,7 +86,7 @@ func poke() (win bool) {
 		return
 	}
 
-	_, err = outDS.Commit(outRoot, dataset.CommitOptions{Meta: inDS.Head().Get(datas.MetaField).(types.Struct)})
+	_, err = db.Commit(outDS, outRoot, datas.CommitOptions{Meta: inDS.Head().Get(datas.MetaField).(types.Struct)})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not commit: %s\n", err)
 		return
@@ -141,8 +143,4 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "  <new-val> : new value for <path>\n\n")
 	fmt.Fprintln(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
-}
-
-var exit = func(status int) {
-	os.Exit(status)
 }

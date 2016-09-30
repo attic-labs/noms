@@ -11,12 +11,11 @@ import (
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/dataset"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
 )
 
-var datasetCapturePrefixRe = regexp.MustCompile("^(" + dataset.DatasetRe.String() + ")")
+var datasetCapturePrefixRe = regexp.MustCompile("^(" + datas.DatasetRe.String() + ")")
 
 type AbsolutePath struct {
 	dataset string
@@ -72,7 +71,8 @@ func NewAbsolutePath(str string) (AbsolutePath, error) {
 func (p AbsolutePath) Resolve(db datas.Database) (val types.Value) {
 	if len(p.dataset) > 0 {
 		var ok bool
-		if val, ok = db.MaybeHead(p.dataset); !ok {
+		ds := db.GetDataset(p.dataset)
+		if val, ok = ds.MaybeHead(); !ok {
 			val = nil
 		}
 	} else if !p.hash.IsEmpty() {
@@ -97,4 +97,22 @@ func (p AbsolutePath) String() (str string) {
 	}
 
 	return str + p.path.String()
+}
+
+func ReadAbsolutePaths(db datas.Database, paths ...string) ([]types.Value, error) {
+	r := make([]types.Value, 0, len(paths))
+	for _, ps := range paths {
+		p, err := NewAbsolutePath(ps)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid input path '%s'", ps)
+		}
+
+		v := p.Resolve(db)
+		if v == nil {
+			return nil, fmt.Errorf("Input path '%s' does not exist in database", ps)
+		}
+
+		r = append(r, v)
+	}
+	return r, nil
 }

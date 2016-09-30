@@ -43,12 +43,12 @@ const args = argv
 //   entries: Map<String, Cycle<0> | File>,
 // }
 
-const fileType = makeStructType('File', ['content'], [makeRefType(blobType)]);
-const directoryType = makeStructType('Directory',
-  ['entries'],
-  [
-    makeMapType(stringType, makeUnionType([fileType, makeCycleType(0)])),
-  ]);
+const fileType = makeStructType('File', {
+  content: makeRefType(blobType),
+});
+const directoryType = makeStructType('Directory', {
+  entries: makeMapType(stringType, makeUnionType([fileType, makeCycleType(0)])),
+});
 
 const File = createStructClass(fileType);
 const Directory = createStructClass(directoryType);
@@ -78,10 +78,10 @@ async function main(): Promise<void> {
 
   startTime = Date.now();
 
-  const ds = spec.dataset();
-  const de = await processPath(path, ds.database);
+  const [db, ds] = spec.dataset();
+  const de = await processPath(path, db);
   if (de) {
-    await ds.commit(de);
+    await db.commit(ds, de);
     process.stdout.write('\ndone\n');
   }
 

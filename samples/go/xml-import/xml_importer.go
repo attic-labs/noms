@@ -14,12 +14,14 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/dataset"
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/jsontonoms"
 	"github.com/attic-labs/noms/go/util/profile"
+	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/clbanning/mxj"
 	flag "github.com/juju/gnuflag"
 )
@@ -55,16 +57,19 @@ func main() {
 	err := d.Try(func() {
 		spec.RegisterCommitMetaFlags(flag.CommandLine)
 		spec.RegisterDatabaseFlags(flag.CommandLine)
+		verbose.RegisterVerboseFlags(flag.CommandLine)
 		profile.RegisterProfileFlags(flag.CommandLine)
 		flag.Usage = customUsage
 		flag.Parse(true)
 
+		cfg := config.NewResolver()
 		if flag.NArg() != 2 {
 			d.CheckError(errors.New("Expected directory path followed by dataset"))
 		}
 		dir := flag.Arg(0)
-		ds, err := spec.GetDataset(flag.Arg(1))
+		db, ds, err := cfg.GetDataset(flag.Arg(1))
 		d.CheckError(err)
+		defer db.Close()
 
 		defer profile.MaybeStartProfile().Stop()
 
@@ -142,10 +147,10 @@ func main() {
 				additionalMetaInfo := map[string]string{"inputDir": dir}
 				meta, err := spec.CreateCommitMetaStruct(ds.Database(), "", "", additionalMetaInfo, nil)
 				d.CheckErrorNoUsage(err)
-				_, err = ds.Commit(rl, dataset.CommitOptions{Meta: meta})
+				_, err = db.Commit(ds, rl, datas.CommitOptions{Meta: meta})
 				d.PanicIfError(err)
 			} else {
-				ref := ds.Database().WriteValue(rl)
+				ref := db.WriteValue(rl)
 				fmt.Fprintf(os.Stdout, "#%s\n", ref.TargetHash().String())
 			}
 		}

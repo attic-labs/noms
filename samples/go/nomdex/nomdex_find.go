@@ -10,49 +10,62 @@ import (
 	"os"
 
 	"github.com/attic-labs/noms/cmd/util"
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/outputpager"
+	"github.com/attic-labs/noms/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 )
 
-var longHelp = `Find retrieves and prints objects that satisfy the 'query' argument.
+var longFindHelp = `'nomdex find' retrieves and prints objects that satisfy the 'query' argument.
 
-Indexes are built using the 'nomdex up' command. Once built, the indexes can be referenced
-in the 'query' arg to select objects matching certain criteria. For example, if there are 
-objects in the database that contain a personId and a gender field, 'nomdex up' can scan all
-the objects in a given dataset and build an index on the specified field with the following
-commands:
-   nomdex up --by gender --in-path <dsSpec> --out-ds gender-index
-   nomdex up --by personId --in-path <dsSpec> --out-ds personId-index
+Indexes are built using the 'nomdex up' command. For information about building
+indexes, see: nomdex up -h
 
-Once these indexes are built, objects can be retrieved quickly and efficiently using the
-nomdex query language. For example, the followign query could be used to find all people 
-with with a personId between 1 and 2000 and who are female:
-    nomdex find '(personId >= 0 and personId <= 2000) and gender = "female"
+Objects that have been indexed can be quickly found using the nomdex query
+language. For example, consider objects with the following type:
 
-The next command would retrieve all people objects that were either male or had an personId
-greater than 2000:
-    nomdex find 'gender = "male" or personId > 2000'
+struct Person {
+  name String,
+  geopos struct GeoPos {
+     latitude Number,
+     longitude Number,
+  }
+}
+
+Objects of this type can be indexed on the name, latitude and longitude fields
+with the following commands:
+    nomdex up --in-path ~/nomsdb::people.value --by .name --out-ds by-name
+    nomdex up --in-path ~/nomsdb::people.value --by .geopos.latitude --out-ds by-lat
+    nomdex up --in-path ~/nomsdb::people.value --by .geopos.longitude --out-ds by-lng
+    
+The following query could be used to find all people with an address near the
+equator:
+    nomdex find 'by-lat >= -1.0 and by-lat <= 1.0'
+
+We could also get a list of all people who live near the equator whose name begins with "A":
+    nomdex find '(by-name >= "A" and by-name < "B") and (by-lat >= -1.0 and by-lat <= 1.0)'
    
 The query language is simple. It currently supports the following relational operators:
     <, <=, >, >=, =, !=
-Relational expressions are always of the form: 
+Relational expressions are always of the form:
     <index> <relational operator> <constant>   e.g. personId >= 2000.
     
-Indexes are the name given by the --out-ds argument in the 'nomdex up' command. Constants are 
-either "strings" (in quotes) or numbers (e.g. 3, 3000, -2, -2.5, 3.147, etc).
+Indexes are the name given by the --out-ds argument in the 'nomdex up' command.
+Constants are either "strings" (in quotes) or numbers (e.g. 3, 3000, -2, -2.5,
+3.147, etc).
 
-Relational expressions can be combined using the "and" and "or" operators. Parentheses can
-be used to ensure that the evaluation is done in the desired order.
+Relational expressions can be combined using the "and" and "or" operators.
+Parentheses can (and should) be used to ensure that the evaluation is done in
+the desired order.
 `
 
 var find = &util.Command{
 	Run:       runFind,
 	UsageLine: "find --db <database spec> <query>",
 	Short:     "Print objects in index that satisfy 'query'",
-	Long:      longHelp,
+	Long:      longFindHelp,
 	Flags:     setupFindFlags,
 	Nargs:     1,
 }
@@ -63,6 +76,7 @@ func setupFindFlags() *flag.FlagSet {
 	flagSet := flag.NewFlagSet("find", flag.ExitOnError)
 	flagSet.StringVar(&dbPath, "db", "", "database containing index")
 	outputpager.RegisterOutputpagerFlags(flagSet)
+	verbose.RegisterVerboseFlags(flagSet)
 	return flagSet
 }
 
@@ -74,7 +88,8 @@ func runFind(args []string) int {
 		return 1
 	}
 
-	db, err := spec.GetDatabase(dbPath)
+	cfg := config.NewResolver()
+	db, err := cfg.GetDatabase(dbPath)
 	if printError(err, "Unable to open database\n\terror: ") {
 		return 1
 	}
@@ -140,7 +155,8 @@ func openIndex(idxName string, im *indexManager) error {
 		return nil
 	}
 
-	commit, ok := im.db.MaybeHead(idxName)
+	ds := im.db.GetDataset(idxName)
+	commit, ok := ds.MaybeHead()
 	if !ok {
 		return fmt.Errorf("index '%s' not found", idxName)
 	}
