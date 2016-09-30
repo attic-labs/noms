@@ -5,7 +5,8 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 import {suite, test} from 'mocha';
-import {makeTestingRemoteBatchStore, TestingDelegate} from './remote-batch-store.js';
+import makeRemoteBatchStoreFake from './remote-batch-store-fake.js';
+import {TestingDelegate} from './remote-batch-store-fake.js';
 import RemoteBatchStore from './remote-batch-store.js';
 import MemoryStore from './memory-store.js';
 import {assert} from 'chai';
@@ -18,7 +19,7 @@ import NomsSet from './set.js'; // namespace collision with JS Set
 
 suite('Database', () => {
   test('access', async () => {
-    const bs = makeTestingRemoteBatchStore();
+    const bs = makeRemoteBatchStoreFake();
     const ds = new Database(bs);
     const input = 'abc';
 
@@ -35,7 +36,7 @@ suite('Database', () => {
   });
 
   test('commit', async () => {
-    const bs = makeTestingRemoteBatchStore();
+    const bs = makeRemoteBatchStoreFake();
     const db = new Database(bs);
     let ds = await db.getDataset('ds1');
 
@@ -107,7 +108,7 @@ suite('Database', () => {
   });
 
   test('concurrency', async () => {
-    const bs = makeTestingRemoteBatchStore();
+    const bs = makeRemoteBatchStoreFake();
     const db = new Database(bs);
     let ds = await db.getDataset('ds1');
 
@@ -190,14 +191,14 @@ suite('Database', () => {
   });
 
   test('empty datasets', async () => {
-    const ds = new Database(makeTestingRemoteBatchStore());
+    const ds = new Database(makeRemoteBatchStoreFake());
     const datasets = await ds.datasets();
     assert.strictEqual(0, datasets.size);
     await ds.close();
   });
 
   test('height of refs', async () => {
-    const ds = new Database(new makeTestingRemoteBatchStore());
+    const ds = new Database(new makeRemoteBatchStoreFake());
 
     const v1 = ds.writeValue('hello');
     assert.strictEqual(1, v1.height);
@@ -209,7 +210,7 @@ suite('Database', () => {
   });
 
   test('height of collections', async() => {
-    const ds = new Database(new makeTestingRemoteBatchStore());
+    const ds = new Database(new makeRemoteBatchStoreFake());
 
     // Set<String>.
     const v1 = 'hello';
