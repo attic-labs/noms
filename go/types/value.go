@@ -26,7 +26,6 @@ type Value interface {
 	// Hash is the hash of the value. All Noms values have a unique hash and if two values have the
 	// same hash they must be equal.
 	Hash() hash.Hash
-	// Returns the immediate children of this value in the DAG, if any, not including Type().
 
 	// WalkValues iterates over the immediate children of this value in the DAG, if any, not including
 	// Type()
