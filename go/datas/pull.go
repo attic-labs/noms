@@ -237,12 +237,11 @@ func sendWork(ch chan<- types.Ref, refs types.RefSlice) {
 
 type hintCache map[hash.Hash]hash.Hash
 
-func getChunks(v types.Value) []types.Ref {
-	var chunks []types.Ref
+func getChunks(v types.Value) (chunks []types.Ref) {
 	v.WalkRefs(func(ref types.Ref) {
 		chunks = append(chunks, ref)
 	})
-	return chunks
+	return
 }
 
 func traverseSource(srcRef types.Ref, srcDB, sinkDB Database, estimateBytesWritten bool) traverseSourceResult {

@@ -10,12 +10,11 @@ import (
 	"github.com/attic-labs/testify/assert"
 )
 
-func getChunks(v Value) []Ref {
-	var chunks []Ref
+func getChunks(v Value) (chunks []Ref) {
 	v.WalkRefs(func(r Ref) {
 		chunks = append(chunks, r)
 	})
-	return chunks
+	return
 }
 
 func TestGenericStructEquals(t *testing.T) {
