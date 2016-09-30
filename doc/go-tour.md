@@ -74,12 +74,12 @@ import (
 )
 
 func main() {
-  ds, err := spec.GetDataset("http://localhost:8000::people")
+  db, ds, err := spec.GetDataset("http://localhost:8000::people")
   if err != nil {
     fmt.Fprintf(os.Stderr, "Could not create dataset: %s\n", err)
     return
   }
-  defer ds.Database().Close()
+  defer db.Close()
 
   if _, ok := ds.MaybeHeadValue(); !ok {
     fmt.Fprintf(os.Stdout, "head is empty\n")
@@ -115,12 +115,12 @@ func newPerson(givenName string, male bool) types.Struct {
 }
 
 func main() {
-  ds, err := spec.GetDataset("http://localhost:8000::people")
+  db, ds, err := spec.GetDataset("http://localhost:8000::people")
   if err != nil {
     fmt.Fprintf(os.Stderr, "Could not create dataset: %s\n", err)
     return
   }
-  defer ds.Database().Close()
+  defer db.Close()
 
   data := types.NewList(
     newPerson("Rickon", true),
@@ -162,12 +162,12 @@ import (
 )
 
 func main() {
-  ds, err := spec.GetDataset("http://localhost:8000::people")
+  db, ds, err := spec.GetDataset("http://localhost:8000::people")
   if err != nil {
     fmt.Fprintf(os.Stderr, "Could not create dataset: %s\n", err)
     return
   }
-  defer ds.Database().Close()
+  defer db.Close()
 
   if headValue, ok := ds.MaybeHeadValue(); !ok {
     fmt.Fprintf(os.Stdout, "head is empty\n")
@@ -230,12 +230,12 @@ import (
 )
 
 func main() {
-  ds, err := spec.GetDataset("http://localhost:8000::people")
+  db, ds, err := spec.GetDataset("http://localhost:8000::people")
   if err != nil {
     fmt.Fprintf(os.Stderr, "Could not create dataset: %s\n", err)
     return
   }
-  defer ds.Database().Close()
+  defer db.Close()
 
   if headValue, ok := ds.MaybeHeadValue(); !ok {
     fmt.Fprintf(os.Stdout, "head is empty\n")
