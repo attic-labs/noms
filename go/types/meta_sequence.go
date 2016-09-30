@@ -262,7 +262,6 @@ func (es emptySequence) valueReader() ValueReader {
 }
 
 func (es emptySequence) WalkRefs(cb RefCallback) {
-	return
 }
 
 func (es emptySequence) Type() *Type {

@@ -11,13 +11,15 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
+type SkipValueCallback func(v types.Value) bool
+
 // WalkValues recursively walks over all types. Values reachable from r and calls cb on them.
-func WalkValues(target types.Value, vr types.ValueReader, cb types.ValueCallback, deep bool) {
+func WalkValues(target types.Value, vr types.ValueReader, cb SkipValueCallback, deep bool) {
 	doTreeWalkP(target, vr, cb, deep)
 	return
 }
 
-func doTreeWalkP(v types.Value, vr types.ValueReader, cb types.ValueCallback, deep bool) {
+func doTreeWalkP(v types.Value, vr types.ValueReader, cb SkipValueCallback, deep bool) {
 	var processRef func(r types.Ref)
 	var processVal func(v types.Value, r *types.Ref, next bool)
 	visited := map[hash.Hash]bool{}
@@ -27,8 +29,7 @@ func doTreeWalkP(v types.Value, vr types.ValueReader, cb types.ValueCallback, de
 	}
 
 	processVal = func(v types.Value, r *types.Ref, next bool) {
-		cb(v)
-		if !next {
+		if cb(v) || !next {
 			return
 		}
 		if sr, ok := v.(types.Ref); ok {
