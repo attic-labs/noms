@@ -50,18 +50,6 @@ func (ml mapLeafSequence) getItem(idx int) sequenceItem {
 	return ml.data[idx]
 }
 
-func (ml mapLeafSequence) seqLen() int {
-	return len(ml.data)
-}
-
-func (ml mapLeafSequence) numLeaves() uint64 {
-	return uint64(len(ml.data))
-}
-
-func (ml mapLeafSequence) valueReader() ValueReader {
-	return ml.vr
-}
-
 func (ml mapLeafSequence) WalkRefs(cb RefCallback) {
 	for _, entry := range ml.data {
 		entry.key.WalkRefs(cb)

@@ -24,18 +24,6 @@ func (sl setLeafSequence) getItem(idx int) sequenceItem {
 	return sl.data[idx]
 }
 
-func (sl setLeafSequence) seqLen() int {
-	return len(sl.data)
-}
-
-func (sl setLeafSequence) numLeaves() uint64 {
-	return uint64(len(sl.data))
-}
-
-func (sl setLeafSequence) valueReader() ValueReader {
-	return sl.vr
-}
-
 func (sl setLeafSequence) WalkRefs(cb RefCallback) {
 	for _, v := range sl.data {
 		v.WalkRefs(cb)

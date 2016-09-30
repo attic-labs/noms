@@ -31,18 +31,6 @@ func (ll listLeafSequence) getItem(idx int) sequenceItem {
 	return ll.values[idx]
 }
 
-func (ll listLeafSequence) seqLen() int {
-	return len(ll.values)
-}
-
-func (ll listLeafSequence) numLeaves() uint64 {
-	return uint64(len(ll.values))
-}
-
-func (ll listLeafSequence) valueReader() ValueReader {
-	return ll.vr
-}
-
 func (ll listLeafSequence) WalkRefs(cb RefCallback) {
 	for _, v := range ll.values {
 		v.WalkRefs(cb)

@@ -26,17 +26,5 @@ func (bl blobLeafSequence) getItem(idx int) sequenceItem {
 	return bl.data[idx]
 }
 
-func (bl blobLeafSequence) seqLen() int {
-	return len(bl.data)
-}
-
-func (bl blobLeafSequence) numLeaves() uint64 {
-	return uint64(len(bl.data))
-}
-
-func (bl blobLeafSequence) valueReader() ValueReader {
-	return bl.vr
-}
-
 func (bl blobLeafSequence) WalkRefs(cb RefCallback) {
 }
