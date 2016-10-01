@@ -28,7 +28,6 @@ func main() {
 func index() (win bool) {
 	var dbStr = flag.String("db", "", "input database spec")
 	var outDSStr = flag.String("out-ds", "", "output dataset to write to - if empty, defaults to input dataset")
-	var parallelism = flag.Int("parallelism", 16, "number of parallel goroutines to search")
 	verbose.RegisterVerboseFlags(flag.CommandLine)
 
 	flag.Usage = usage
