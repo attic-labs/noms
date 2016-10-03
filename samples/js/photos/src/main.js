@@ -6,7 +6,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import {searchToParams} from './dom.js';
+import {searchToParams} from './params.js';
 import Nav from './nav.js';
 import PhotosPage from './photos-page.js';
 import Viewport from './viewport.js';
@@ -20,21 +20,22 @@ const indexMap: Map<string, PhotoIndex> = new Map();
 
 function main() {
   const nav = new Nav(window);
-  const r = () => render(nav);
+  const r = () => {
+    const main = document.getElementById('main');
+    getRenderElement(nav).then(elem => ReactDOM.render(elem, main));
+  };
   window.addEventListener('load', r);
   window.addEventListener('resize', r);
   window.addEventListener('popstate', r);
   nav.setListener(r);
 }
 
-async function render(nav: Nav) {
+async function getRenderElement(nav: Nav): Promise<React.Element<any>> {
   const params = searchToParams(location.href);
-  const main = document.getElementById('main');
 
   const indexStr = params.get('index');
   if (!indexStr) {
-    ReactDOM.render(<div>Must provide an ?index= param.</div>, main);
-    return;
+    return <div>Must provide an ?index= param.</div>;
   }
 
   let index = indexMap.get(indexStr);
@@ -43,14 +44,12 @@ async function render(nav: Nav) {
     try {
       indexSpec = PathSpec.parse(indexStr);
     } catch (e) {
-      ReactDOM.render(<div>{indexStr} is not a valid path. {e.message}.</div>, main);
-      return;
+      return <div>{indexStr} is not a valid path. {e.message}.</div>;
     }
 
     const [, indexValue] = await indexSpec.value();
     if (!(indexValue instanceof Struct)) {
-      ReactDOM.render(<div>{indexStr} is not a valid index.</div>, main);
-      return;
+      return <div>{indexStr} is not a valid index.</div>;
     }
 
     // $FlowIssue: can't check instanceof PhotoIndex because it's only a type.
@@ -68,12 +67,12 @@ async function render(nav: Nav) {
 
   const viewport = new Viewport(window, document.body);
 
-  ReactDOM.render(<PhotosPage
+  return <PhotosPage
     index={index}
     nav={nav}
     photo={photo}
     viewport={viewport}
-  />, main);
+  />;
 }
 
 main();

@@ -5,14 +5,14 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 import {invariant} from '@attic/noms';
-import {Window} from './dom.js';
+import Window from './window.js';
 
 export default class Nav {
-  _wnd: Window;
-  _listener: () => mixed;
+  _window: Window;
+  _listener: () => any;
 
   constructor(wnd: Window) {
-    this._wnd = wnd;
+    this._window = wnd;
     this._listener = () => undefined;
     wnd.addEventListener('click', e => this._handleClick(e));
   }
@@ -23,16 +23,16 @@ export default class Nav {
    * If from() is called on an initial page load, from() will return ''.
    */
   from(): string {
-    const state = this._wnd.history.state;
+    const state = this._window.history.state;
     return state && state.from ? state.from : '';
   }
 
   back(): void {
-    this._wnd.history.back();
+    this._window.history.back();
   }
 
   push(page: string): void {
-    const pathname = this._wnd.location.pathname;
+    const pathname = this._window.location.pathname;
     if (page === pathname) {
       // Only add a history entry if the URL will change.
       return;
@@ -40,7 +40,7 @@ export default class Nav {
 
     const state = {from: pathname};
     const title = ''; // TODO: get a title from somewhere
-    this._wnd.history.pushState(state, title, page);
+    this._window.history.pushState(state, title, page);
     this._listener();
   }
 
@@ -56,16 +56,16 @@ export default class Nav {
     }
 
     // Find target anchor element, which may be nested e.g. <a><img></a>.
-    let anchor: ?HTMLAnchorElement = null;
+    let anchor: ?HTMLAnchorElement;
+    invariant(e.target instanceof Element);
     for (let elem = e.target; elem; elem = elem.parentElement) {
-      invariant(elem instanceof Element);
       if (elem instanceof HTMLAnchorElement) {
         anchor = elem;
         break;
       }
     }
 
-    if (!anchor || anchor.origin !== this._wnd.location.origin) {
+    if (!anchor || anchor.origin !== this._window.location.origin) {
       // Only intercept non-empty navigations within this origin.
       return;
     }

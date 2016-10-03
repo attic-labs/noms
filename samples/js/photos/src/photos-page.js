@@ -15,7 +15,10 @@ import type {
 } from './types.js';
 import Photo from './photo.js';
 import PhotoGrid from './photo-grid.js';
-import {EmptyIterator, PhotoSetIterator, PhotoSetIntersectionIterator} from './photo-set.js';
+import PhotoSetIterator, {
+  EmptyIterator,
+  PhotoSetIntersectionIterator,
+} from './photo-set-iterator.js';
 import {
   AsyncIterator,
   Map as NomsMap,
@@ -349,23 +352,17 @@ export default class PhotosPage extends React.Component<void, Props, State> {
   async _fetchFaces(): Promise<FaceState[]> {
     const {index} = this.props;
     const mostCommon = await this._getKeysByCount(index.facesByCount, 4);
-    const byFace = index.byFace;
 
     // Get the most recent photo corresponding to each.
     const self = this;
-    const faceListP = mostCommon.map(name =>
-      byFace.get(name)
-        .then(byDate => notNull(byDate).first())
-        .then(first => {
-          const [, mostRecent] = notNull(first);
-          return mostRecent.first();
-        })
-        .then(async firstPhoto => {
-          invariant(firstPhoto);
-          const face = await self._getFace(firstPhoto.faces, name);
-          const [size, url] = await self._getBestSize(firstPhoto.sizes, face);
-          return {face, size, url};
-        }));
+    const faceListP = mostCommon.map(async name => {
+      const byDate = notNull(await index.byFace.get(name));
+      const [, mostRecent] = notNull(await byDate.first());
+      const firstPhoto = notNull(await mostRecent.first());
+      const face = await self._getFace(firstPhoto.faces, name);
+      const [size, url] = await self._getBestSize(firstPhoto.sizes, face);
+      return {face, size, url};
+    });
 
     return Promise.all(faceListP);
   }

@@ -19,13 +19,7 @@ import type {
 
 type PhotoSetIteratorResult = AsyncIteratorResult<[number /* -date */, NomsPhoto]>
 
-export class EmptyIterator extends AsyncIterator<[number, NomsPhoto]> {
-  next(): Promise<PhotoSetIteratorResult> {
-    return Promise.resolve({done: true});
-  }
-}
-
-export class PhotoSetIterator extends AsyncIterator<[number, NomsPhoto]> {
+export default class PhotoSetIterator extends AsyncIterator<[number, NomsPhoto]> {
   _outer: AsyncIterator<PhotoSetEntry>;
   _start: ?NomsPhoto;
   _inner: ?AsyncIterator<NomsPhoto>;
@@ -123,6 +117,12 @@ export class PhotoSetIntersectionIterator extends AsyncIterator<[number, NomsPho
     }
 
     return {done: true};
+  }
+}
+
+export class EmptyIterator extends AsyncIterator<[number, NomsPhoto]> {
+  next(): Promise<PhotoSetIteratorResult> {
+    return Promise.resolve({done: true});
   }
 }
 

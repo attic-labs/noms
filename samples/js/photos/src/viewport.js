@@ -4,7 +4,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-import {Window} from './dom.js';
+import Window from './window.js';
 
 export default class Viewport {
   _wnd: Window;

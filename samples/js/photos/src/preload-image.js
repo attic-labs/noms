@@ -8,7 +8,7 @@
  * Loads an image into the browser cache. The returned promise is resolved when the URL has been
  * cached successfully.
  */
-export default function cache(src: string): Promise<void> {
+export default function preloadImage(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve();

@@ -4,14 +4,13 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-/**
- * Flow doesn't have a Window type. Add properties here as needed.
- */
-export class Window extends EventTarget {
-  document: Document;
-  history: History;
-  location: Location;
-}
+// Only encode the URI components that will break the URL. Characters like [] will be %-encoded by
+// default, but they don't need to be.
+const encodePatterns = [
+  [/%/g, '%25'],
+  [/&/g, '%26'],
+  [/=/g, '%3D'],
+];
 
 /**
  * Returns a map of URL param key to value.
@@ -33,11 +32,12 @@ export function searchToParams(search: string): Map<string, string> {
  * Returns the search location string representation of a param map.
  */
 export function paramsToSearch(params: Map<string, string>): string {
-  // Only encode the URI components that will break the URL. Characters like [] will be %-encoded by
-  // default, but they don't need to be.
-  const encode = s => s.replace(/%/g, '%25')
-                       .replace(/&/g, '%26')
-                       .replace(/=/g, '%3D');
+  const encode = s => {
+    for (const [p, r] of encodePatterns) {
+      s = s.replace(p, r);
+    }
+    return s;
+  };
 
   let search = '';
   for (const [k, v] of params) {

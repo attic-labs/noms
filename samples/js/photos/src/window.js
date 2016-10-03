@@ -4,4 +4,4 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-// implemented in types.js.flow
+// implemented in window.js.flow
