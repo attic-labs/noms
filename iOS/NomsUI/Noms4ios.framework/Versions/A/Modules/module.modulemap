@@ -1,0 +1,7 @@
+framework module "Noms4ios" {
+    header "GoNoms4ios.h"
+    header "GoUniverse.h"
+    header "Noms4ios.h"
+
+    export *
+}
