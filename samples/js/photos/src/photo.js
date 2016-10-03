@@ -13,8 +13,7 @@ import {
   invariant,
   notNull,
 } from '@attic/noms';
-
-type SizeEntry = MapEntry<PhotoSize, string>;
+export type SizeEntry = MapEntry<PhotoSize, string>;
 
 /**
  * createPhoto asynchronously derives a Photo instance from a NomsPhoto.
@@ -39,7 +38,6 @@ export default class Photo {
     this.path = path;
     this.nomsPhoto = nomsPhoto;
     this._sizeEntries = sizeEntries;
-    fixOrientation(sizeEntries);
   }
 
   equals(p: Photo): boolean {
@@ -92,27 +90,5 @@ export default class Photo {
       }
     }
     return widest;
-  }
-}
-
-function fixOrientation(entries: SizeEntry[]) {
-  let portraitCount = 0;
-  for (let i = 0; i < entries.length; i++) {
-    const size = entries[i][0];
-    if (size.width < size.height) {
-      portraitCount++;
-    }
-  }
-
-  if (portraitCount !== 0 && portraitCount !== entries.length) {
-    const usePortrait = portraitCount >= entries.length / 2;
-    for (let i = 0; i < entries.length; i++) {
-      const size = entries[i][0];
-      if ((usePortrait && size.width > size.height) ||
-         (!usePortrait && size.width < size.height)) {
-        const newSize = size.setWidth(size.height).setHeight(size.width);
-        entries[i][0] = newSize;
-      }
-    }
   }
 }
