@@ -129,7 +129,7 @@ func (s *testSuite) TestWin() {
 
 	s.Equal(4, len(idx.TagsByCount))
 	for i := 0; i < 4; i++ {
-		tags, ok := idx.TagsByCount[-4+i]
+		tags := idx.TagsByCount[-4+i]
 		s.Equal(1, int(tags.Len()))
 		k := fmt.Sprintf("tag%d", i)
 		s.True(tags.Has(types.String(k)))
@@ -137,7 +137,7 @@ func (s *testSuite) TestWin() {
 
 	s.Equal(4, len(idx.FacesByCount))
 	for i := 0; i < 4; i++ {
-		tags, ok := idx.FacesByCount[-4+i]
+		tags := idx.FacesByCount[-4+i]
 		s.Equal(1, int(tags.Len()))
 		k := fmt.Sprintf("harry%d", i)
 		s.True(tags.Has(types.String(k)))
