@@ -22,7 +22,9 @@ function main() {
   const nav = new Nav(window);
   const r = () => {
     const main = document.getElementById('main');
-    getRenderElement(nav).then(elem => ReactDOM.render(elem, main));
+    getRenderElement(nav)
+      .then(elem => ReactDOM.render(elem, main))
+      .catch(err => console.error(err));
   };
   window.addEventListener('load', r);
   window.addEventListener('resize', r);

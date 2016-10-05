@@ -20,17 +20,20 @@ import type {
 type PhotoSetIteratorResult = AsyncIteratorResult<[number /* -date */, NomsPhoto]>
 
 export default class PhotoSetIterator extends AsyncIterator<[number, NomsPhoto]> {
+}
+
+export class SinglePhotoSetIterator extends PhotoSetIterator {
   _outer: AsyncIterator<PhotoSetEntry>;
   _start: ?NomsPhoto;
   _inner: ?AsyncIterator<NomsPhoto>;
   _negdate: ?number;
 
-  static all(photoSet: PhotoSet): PhotoSetIterator {
-    return new PhotoSetIterator(photoSet.iterator(), null);
+  static all(photoSet: PhotoSet): SinglePhotoSetIterator {
+    return new SinglePhotoSetIterator(photoSet.iterator(), null);
   }
 
-  static at(photoSet: PhotoSet, negdate: number, photo: ?NomsPhoto): PhotoSetIterator {
-    return new PhotoSetIterator(photoSet.iteratorAt(negdate), photo);
+  static at(photoSet: PhotoSet, negdate: number, photo: ?NomsPhoto): SinglePhotoSetIterator {
+    return new SinglePhotoSetIterator(photoSet.iteratorAt(negdate), photo);
   }
 
   constructor(outer: AsyncIterator<PhotoSetEntry>, start: ?NomsPhoto) {
@@ -71,7 +74,7 @@ export default class PhotoSetIterator extends AsyncIterator<[number, NomsPhoto]>
   }
 }
 
-export class PhotoSetIntersectionIterator extends AsyncIterator<[number, NomsPhoto]> {
+export class PhotoSetIntersectionIterator extends PhotoSetIterator {
   _sets: PhotoSet[];
   _iters: AsyncIterator<[number, NomsPhoto]>[];
   _nexts: Promise<PhotoSetIteratorResult>[];
@@ -79,7 +82,7 @@ export class PhotoSetIntersectionIterator extends AsyncIterator<[number, NomsPho
   constructor(sets: PhotoSet[], negdate: number) {
     super();
     this._sets = sets;
-    this._iters = sets.map(s => PhotoSetIterator.at(s, negdate, null));
+    this._iters = sets.map(s => SinglePhotoSetIterator.at(s, negdate, null));
     this._nexts = this._iters.map(iter => iter.next());
   }
 
@@ -110,7 +113,7 @@ export class PhotoSetIntersectionIterator extends AsyncIterator<[number, NomsPho
       for (let i = 0; i < this._sets.length; i++) {
         if (i !== last) {
           const [negdate, photoRef] = values[last];
-          this._iters[i] = PhotoSetIterator.at(this._sets[i], negdate, photoRef);
+          this._iters[i] = SinglePhotoSetIterator.at(this._sets[i], negdate, photoRef);
           this._nexts[i] = this._iters[i].next();
         }
       }
@@ -120,7 +123,7 @@ export class PhotoSetIntersectionIterator extends AsyncIterator<[number, NomsPho
   }
 }
 
-export class EmptyIterator extends AsyncIterator<[number, NomsPhoto]> {
+export class EmptyIterator extends PhotoSetIterator {
   next(): Promise<PhotoSetIteratorResult> {
     return Promise.resolve({done: true});
   }

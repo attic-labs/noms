@@ -5,15 +5,11 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 import React from 'react';
-import {
-  AsyncIterator,
-  notNull,
-} from '@attic/noms';
+import {notNull} from '@attic/noms';
 import Nav from './nav.js';
 import Photo, {createPhoto} from './photo.js';
 import PhotoGridItem from './photo-grid-item.js';
-import type {NomsPhoto} from './types.js';
-import {EmptyIterator} from './photo-set-iterator.js';
+import PhotoSetIterator, {EmptyIterator} from './photo-set-iterator.js';
 import Viewport from './viewport.js';
 
 const maxPhotoHeight = 300;
@@ -24,16 +20,16 @@ const photoSpacing = 5;
 type Props = {
   availWidth: number,
   photo: ?Photo,
-  photosIter: AsyncIterator<[number, NomsPhoto]>,
+  photosIter: PhotoSetIterator,
   nav: Nav,
   viewport: Viewport,
-}
+};
 
 type State = {
   photos: Photo[],
-  photosIter: AsyncIterator<[number, NomsPhoto]>,
+  photosIter: PhotoSetIterator,
   photosIterDone: boolean,
-}
+};
 
 export default class PhotoGrid extends React.Component<void, Props, State> {
   state: State;
@@ -159,7 +155,7 @@ export default class PhotoGrid extends React.Component<void, Props, State> {
   async _getMorePhotos(current: Photo[]): Promise<void> {
     const {photosIter} = this.props;
     const moreP = [];
-    let lastNegdate = Number.NEGATIVE_INFINITY;
+    let lastNegdate = -Infinity;
     let next;
     while (!(next = await photosIter.next()).done && moreP.length < photosPerPage) {
       const [negdate, nomsPhoto] = notNull(next.value);

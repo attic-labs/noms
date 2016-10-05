@@ -4,17 +4,15 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-// implemented in types.js.flow
-
 // Copyright 2016 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-import {
+import type {
   Map,
   Set,
-  Struct, // eslint-disable-line
 } from '@attic/noms';
+import {Struct} from '@attic/noms'; // eslint-disable-line no-unused-vars
 import type {MapEntry} from '@attic/noms';
 
 export type CountMap = Map<number, Set<string>>;

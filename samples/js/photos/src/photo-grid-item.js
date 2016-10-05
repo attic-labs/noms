@@ -26,13 +26,13 @@ type Props = {
   photo: Photo,
   url: string,
   viewport: Viewport,
-}
+};
 
 type State = {
   size: PhotoSize,
   sizeIsBest: boolean,
   url: string,
-}
+};
 
 export default class PhotoGridItem extends React.Component<void, Props, State> {
   state: State;

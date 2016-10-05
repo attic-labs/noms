@@ -11,16 +11,15 @@ import type {
   Face,
   PhotoIndex,
   PhotoSize,
-  NomsPhoto,
 } from './types.js';
 import Photo from './photo.js';
 import PhotoGrid from './photo-grid.js';
 import PhotoSetIterator, {
   EmptyIterator,
   PhotoSetIntersectionIterator,
+  SinglePhotoSetIterator,
 } from './photo-set-iterator.js';
 import {
-  AsyncIterator,
   Map as NomsMap,
   Set as NomsSet,
   invariant,
@@ -38,25 +37,25 @@ type FaceState = {
   face: Face,
   size: PhotoSize,
   url: string,
-}
+};
 
 type Props = {
   index: PhotoIndex,
   nav: Nav,
   photo: ?Photo,
   viewport: Viewport,
-}
+};
 
 type State = {
   allFaces: FaceState[],
   allTags: string[],
   minDate: Date,
   maxDate: Date,
-  photosIter: AsyncIterator<[number, NomsPhoto]>,
+  photosIter: PhotoSetIterator,
   selectedDate: Date,
   selectedFaces: Set<string>,
   selectedTags: Set<string>,
-}
+};
 
 const panelHeadStyle = {
   fontWeight: 400,
@@ -184,7 +183,7 @@ export default class PhotosPage extends React.Component<void, Props, State> {
     const divStyle = {
       display: 'inline-block',
       height: faceSize,
-      overflow:'hidden',
+      overflow: 'hidden',
       margin: 2,
       position: 'relative',
       verticalAlign: 'middle',
@@ -288,7 +287,7 @@ export default class PhotosPage extends React.Component<void, Props, State> {
         allTags,
         minDate: minMaxDates[0],
         maxDate: minMaxDates[1],
-        photosIter: PhotoSetIterator.all(index.byDate),
+        photosIter: SinglePhotoSetIterator.all(index.byDate),
       });
     }
   }
@@ -308,11 +307,11 @@ export default class PhotosPage extends React.Component<void, Props, State> {
 
   async _createPhotosIter(
       selectedDate: Date, selectedFaces: Set<string>, selectedTags: Set<string>):
-        Promise<AsyncIterator<[number, NomsPhoto]>> {
+        Promise<PhotoSetIterator> {
     const selectedKey = -selectedDate.getTime() * nanosInMillis;
     const {index} = this.props;
     if (selectedTags.size === 0 && selectedFaces.size === 0) {
-      return PhotoSetIterator.at(index.byDate, selectedKey, null);
+      return SinglePhotoSetIterator.at(index.byDate, selectedKey, null);
     }
 
     const photoSetPs = [];
@@ -328,7 +327,7 @@ export default class PhotosPage extends React.Component<void, Props, State> {
       case 0:
         return new EmptyIterator();
       case 1:
-        return PhotoSetIterator.at(photoSets[0], selectedKey, null);
+        return SinglePhotoSetIterator.at(photoSets[0], selectedKey, null);
       default:
         return new PhotoSetIntersectionIterator(photoSets, selectedKey);
     }
