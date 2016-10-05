@@ -171,7 +171,7 @@ export default class PhotosPage extends React.Component<void, Props, State> {
   }
 
   _getTags(): React.Element<*>[] {
-    return this.state.allTags.map(tag => <label key={tag} style={{display:'block'}}>
+    return this.state.allTags.map(tag => <label key={tag} style={{display: 'block'}}>
       <input type='checkbox' onChange={e => this._toggleSelectedTag(e.target.checked, tag)}/>
       &nbsp;{tag}
     </label>);
