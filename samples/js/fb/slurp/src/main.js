@@ -36,11 +36,11 @@ const args = argv
     demand: true,
   })
   .option('exchange-token', {
-    describe: 'Exchange a short-lived token (expiry ~2 hours) for a long-lived one (expiry ~60 days)',
+    describe: 'Exchange a short-lived token (~2 hours) for a long-lived one (~60 days)',
     type: 'boolean',
     demand: false,
   })
-  .argv
+  .argv;
 
 const clearLine = '\x1b[2K\r';
 
@@ -75,14 +75,14 @@ async function main(): Promise<void> {
       'client_secret=45088a81dfea0faff8f91bbc6dde0a0c&' +
       'fb_exchange_token=' + args['access-token']);
     const body = await resp.text();
-    if (resp.status != 200) {
+    if (resp.status !== 200) {
       throw `Error ${resp.status} ${resp.statusText}: ${body}`;
     }
     const t = body
       .split('&')
       .map(kv => kv.split('='))
-      .filter(([k, v]) => k == 'access_token')
-      .map(([k, v]) => v)
+      .filter(([k]) => k === 'access_token')
+      .map(([, v]) => v)
       .shift();
     console.log('Long-lived access token: ' + t);
     return;
