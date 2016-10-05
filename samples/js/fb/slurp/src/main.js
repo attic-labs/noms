@@ -8,6 +8,7 @@ import argv from 'yargs';
 import {
   default as fetch,
   Request,
+  Response,
   Headers,
 } from 'node-fetch';
 import {
@@ -148,7 +149,7 @@ function callFacebook(path: string): Promise<any> {
   return callFacebookRaw(path).then(r => r.json());
 }
 
-function callFacebookRaw(path: string): Promise<any> {
+function callFacebookRaw(path: string): Promise<Response> {
   const url = 'https://graph.facebook.com/' + path;
   return fetch(new Request(url, {
     headers: new Headers(
