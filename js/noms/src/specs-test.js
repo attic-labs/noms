@@ -6,6 +6,7 @@
 
 import {assert} from 'chai';
 import {suite, test} from 'mocha';
+import {invariant} from './assert.js';
 import {getHash} from './get-hash.js';
 import List from './list.js';
 import {DatabaseSpec, DatasetSpec, PathSpec} from './specs.js';
@@ -193,5 +194,30 @@ suite('Specs', () => {
       assert.strictEqual(tc.pathStr, spec.path.toString());
       assert.strictEqual(tc.spec, spec.toString());
     }
+  });
+
+
+  test('PathSpec.pin', async () => {
+    const dbSpec = DatabaseSpec.parse('mem');
+    const db = dbSpec.database();
+
+    let ds = db.getDataset('foo');
+    ds = await db.commit(ds, 42);
+
+    const unpinned = PathSpec.parse('mem::foo.value');
+    unpinned.database = dbSpec;
+
+    const pinned = await unpinned.pin();
+    invariant(pinned);
+    const h = await ds.head();
+    invariant(h);
+    assert.strictEqual(h.hash.toString(), pinned.path.hash.toString());
+    assert.strictEqual(`mem::#${h.hash.toString()}.value`, pinned.toString());
+    assert.strictEqual(42, (await pinned.value())[1]);
+    assert.strictEqual(42, (await unpinned.value())[1]);
+
+    ds = await db.commit(ds, 43);
+    assert.strictEqual(42, (await pinned.value())[1]);
+    assert.strictEqual(43, (await unpinned.value())[1]);
   });
 });

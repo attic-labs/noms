@@ -118,7 +118,7 @@ async function main(): Promise<void> {
   });
 
   const root = newStruct('', {
-    date: Date(),
+    date: new Date().toISOString(),
     input: pinnedSpec.toString(),
     photos: await result,
   });

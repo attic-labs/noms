@@ -73,11 +73,11 @@ async function main(): Promise<void> {
   const inSpec = PathSpec.parse(args._[0]);
   const pinnedSpec = await inSpec.pin();
   if (!pinnedSpec) {
-    throw `Invalid input dataset: ${this.inSpec.path.datset}`;
+    throw `Invalid input dataset: ${inSpec.path.datset}`;
   }
   const [db, input] = await pinnedSpec.value();
   if (!input) {
-    throw `Invalid input spec: ${this.inSpec.toString()}`;
+    throw `Invalid input spec: ${inSpec.toString()}`;
   }
   const outSpec = DatasetSpec.parse(args._[1]);
   const [outDB, output] = outSpec.dataset();
@@ -105,7 +105,7 @@ async function main(): Promise<void> {
   });
 
   const root = newStruct('', {
-    date: Date(),
+    date: new Date().toISOString(),
     input: pinnedSpec.toString(),
     photos: await result,
   });
