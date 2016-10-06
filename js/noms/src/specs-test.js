@@ -100,6 +100,7 @@ suite('Specs', () => {
       const spec = DatabaseSpec.parse(tc.spec);
       assert.strictEqual(spec.scheme, tc.scheme);
       assert.strictEqual(spec.path, tc.path);
+      assert.strictEqual(tc.spec, spec.toString());
     }
   });
 
@@ -154,6 +155,7 @@ suite('Specs', () => {
       assert.strictEqual(tc.scheme, scheme);
       assert.strictEqual(tc.path, path);
       assert.strictEqual(tc.name, spec.name);
+      assert.strictEqual(tc.spec, spec.toString());
     }
   });
 
@@ -189,6 +191,7 @@ suite('Specs', () => {
       assert.strictEqual(tc.scheme, scheme);
       assert.strictEqual(tc.dbPath, path);
       assert.strictEqual(tc.pathStr, spec.path.toString());
+      assert.strictEqual(tc.spec, spec.toString());
     }
   });
 });

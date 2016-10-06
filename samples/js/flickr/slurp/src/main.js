@@ -84,6 +84,7 @@ async function main(): Promise<void> {
 
   process.stdout.write(clearLine);
   return db.commit(out, newStruct('', {
+    date: Date(),
     photosetsMeta: jsonToNoms(photosetsJSON),
     photosets: await photosets,
   })).then(() => db.close());

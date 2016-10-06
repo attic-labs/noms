@@ -104,7 +104,11 @@ async function main(): Promise<void> {
     getPhotos(),
     // TODO: Add more object types here
   ]);
-  await db.commit(out, newStruct('', {user, photos}));
+  await db.commit(out, newStruct('', {
+    date: Date(),
+    user,
+    photos,
+  }));
   process.stdout.write(clearLine);
   return;
 }
