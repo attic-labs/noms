@@ -471,6 +471,5 @@ func (suite *DatabaseSuite) TestMetaOption() {
 	ds, err := suite.db.Commit(ds, types.String("a"), CommitOptions{Meta: m})
 	suite.NoError(err)
 	c := ds.Head()
-	suite.NoError(err)
 	suite.Equal(types.String("arv"), c.Get("meta").(types.Struct).Get("author"))
 }
