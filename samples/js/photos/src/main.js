@@ -37,7 +37,7 @@ async function getRenderElement(nav: Nav): Promise<React.Element<any>> {
 
   const indexStr = params.get('index');
   if (!indexStr) {
-    return <div>Must provide an ?index= param.</div>;
+    return <div>Must provide an <tt>?index=</tt> param.</div>;
   }
 
   let index = indexMap.get(indexStr);
@@ -46,12 +46,20 @@ async function getRenderElement(nav: Nav): Promise<React.Element<any>> {
     try {
       indexSpec = PathSpec.parse(indexStr);
     } catch (e) {
-      return <div>{indexStr} is not a valid path. {e.message}.</div>;
+      return <div><tt>{indexStr}</tt> is not a valid path: {e.message}.</div>;
     }
 
     const [, indexValue] = await indexSpec.value();
     if (!(indexValue instanceof Struct)) {
-      return <div>{indexStr} is not a valid index.</div>;
+      return <div><tt>{indexStr}</tt> is not a photo index.</div>;
+    }
+
+    if (!indexValue.byDate || !indexValue.byFace || !indexValue.byTag ||
+        !indexValue.facesByCount || !indexValue.tagsByCount) {
+      return <div>
+        <tt>{indexStr}</tt> doesn't look like a path to a photo index struct,
+        did you leave out <tt>.value</tt>?
+      </div>;
     }
 
     // $FlowIssue: can't check instanceof PhotoIndex because it's only a type.
