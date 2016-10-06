@@ -117,15 +117,14 @@ async function main(): Promise<void> {
     return false;
   });
 
-  const root = newStruct('', {
-    date: new Date().toISOString(),
-    input: pinnedSpec.toString(),
-    photos: await result,
-  });
-
-  return outDB.commit(output, root)
-    .then(() => db.close())
-    .then(() => outDB.close());
+  return outDB.commit(output, await result, {
+    meta: newStruct('', {
+      data: new Date().toISOString(),
+      input: pinnedSpec.toString(),
+    }),
+  })
+  .then(() => db.close())
+  .then(() => outDB.close());
 }
 
 function getGeo(input: Object): Struct {

@@ -105,10 +105,13 @@ async function main(): Promise<void> {
     // TODO: Add more object types here
   ]);
   await db.commit(out, newStruct('', {
-    date: Date(),
     user,
     photos,
-  }));
+  }), {
+    meta: newStruct('', {
+      date: new Date().toISOString(),
+    }),
+  });
   process.stdout.write(clearLine);
   return;
 }
