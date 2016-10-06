@@ -73,7 +73,7 @@ async function main(): Promise<void> {
   const inSpec = PathSpec.parse(args._[0]);
   const pinnedSpec = await inSpec.pin();
   if (!pinnedSpec) {
-    throw `Invalid input dataset: ${inSpec.path.datset}`;
+    throw `Invalid input dataset: ${inSpec.path.dataset}`;
   }
   const [db, input] = await pinnedSpec.value();
   if (!input) {
