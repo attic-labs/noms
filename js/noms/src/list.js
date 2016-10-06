@@ -155,8 +155,10 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
   /**
    * Returns a new JS array with the same values as list.
    */
-  // $FlowIssue: ???
-  toJS(start: number = 0, end: number = this.length): Promise<Array<T>> {
+  toJS(start: number = 0, end: (number | void) = undefined): Promise<Array<T>> {
+    if (end === undefined) {
+      end = this.length;
+    }
     const l = this.length;
     start = clampIndex(start, l);
     end = clampIndex(end, l);
