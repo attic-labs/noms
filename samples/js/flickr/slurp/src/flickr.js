@@ -50,7 +50,7 @@ export default class Flickr {
     });
   }
 
-  callFlickr(method: string, params: ?{[key: string]: string}): Promise<*> {
+  callApi(method: string, params: ?{[key: string]: string}): Promise<*> {
     return new Promise((res, rej) => {
       flickrAPI.callApiMethod({
         method: method,
@@ -72,20 +72,6 @@ export default class Flickr {
         },
       });
     });
-  }
-
-  async getPhotoset(id: string): Promise<*> {
-    const json = await this.callFlickr('flickr.photosets.getPhotos', {
-      'photoset_id': id,
-      extras: 'license, date_upload, date_taken, owner_name, icon_server, original_format, ' +
-        'last_update, geo, tags, machine_tags, o_dims, views, media, path_alias, url_sq, url_t, ' +
-        'url_s, url_m, url_o',
-    });
-    return json.photoset;
-  }
-
-  getPhotosets(): Promise<*> {
-    return this.callFlickr('flickr.photosets.getList').then(v => v.photosets.photoset);
   }
 }
 

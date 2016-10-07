@@ -68,9 +68,9 @@ async function main(): Promise<void> {
       flickr.accessTokenSecret}\n\n`);
   }
 
-  const photosets = await flickr.getPhotosets();
+  const photosets = await getPhotosets(flickr);
   let seen = 0;
-  const photosetsPromise = photosets.map(p => flickr.getPhotoset(p.id).then(p => {
+  const photosetsPromise = photosets.map(p => getPhotoset(flickr, p.id).then(p => {
     process.stdout.write(`${clearLine}${++seen} of ${photosets.length} photosets imported...`);
     return jsonToNoms(p);
   }));
@@ -84,4 +84,18 @@ async function main(): Promise<void> {
     meta: newStruct('', {date: new Date().toISOString()}),
   })
   .then(() => db.close());
+}
+
+async function getPhotoset(flickr: Flickr, id: string): Promise<*> {
+  const json = await flickr.callApi('flickr.photosets.getPhotos', {
+    'photoset_id': id,
+    extras: 'license, date_upload, date_taken, owner_name, icon_server, original_format, ' +
+      'last_update, geo, tags, machine_tags, o_dims, views, media, path_alias, url_sq, url_t, ' +
+      'url_s, url_m, url_o',
+  });
+  return json.photoset;
+}
+
+function getPhotosets(flickr: Flickr): Promise<*> {
+  return flickr.callApi('flickr.photosets.getList').then(v => v.photosets.photoset);
 }
