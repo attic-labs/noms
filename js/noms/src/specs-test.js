@@ -209,9 +209,11 @@ suite('Specs', () => {
 
     const pinned = await unpinned.pin();
     invariant(pinned);
+    const pinnedHash = pinned.path.hash;
+    invariant(pinnedHash);
     const h = await ds.head();
     invariant(h);
-    assert.strictEqual(h.hash.toString(), pinned.path.hash.toString());
+    assert.strictEqual(h.hash.toString(), pinnedHash.toString());
     assert.strictEqual(`mem::#${h.hash.toString()}.value`, pinned.toString());
     assert.strictEqual(42, (await pinned.value())[1]);
     assert.strictEqual(42, (await unpinned.value())[1]);
