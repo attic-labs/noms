@@ -63,15 +63,16 @@ async function main(): Promise<void> {
 
   if (!args['access-token'] || !args['access-token-secret']) {
     await flickr.authenticate();
-    process.stdout.write(`Authenticated. Next time run:\n${process.argv.join(' ')
-  } --access-token=${flickr.accessToken} --access-token-secret=${flickr.accessTokenSecret}\n\n`);
+    process.stdout.write(`Authenticated. Next time run:\n${
+      process.argv.join(' ')} --access-token=${flickr.accessToken} --access-token-secret=${
+      flickr.accessTokenSecret}\n\n`);
   }
 
   const photosets = await flickr.getPhotosets();
   let seen = 0;
   const photosetsPromise = photosets.map(p => flickr.getPhotoset(p.id).then(p => {
     process.stdout.write(`${clearLine}${++seen} of ${photosets.length} photosets imported...`);
-    return p;
+    return jsonToNoms(p);
   }));
   const setOfPhotosets = new Set(await Promise.all(photosetsPromise));
 

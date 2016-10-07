@@ -6,11 +6,6 @@
 
 import flickrAPI from 'flickr-oauth-and-upload';
 import readline from 'readline';
-import {
-  invariant,
-  jsonToNoms,
-  Struct,
-} from '@attic/noms';
 
 export default class Flickr {
   apiKey: string;
@@ -29,13 +24,11 @@ export default class Flickr {
   async authenticate(): Promise<void> {
     const [token, secret, url] = await getAuthToken(this.apiKey, this.apiSecret);
     const verificationCode = await promptForVerificationCode(url);
-    // $FlowIssue: Flow does not understand destructuring assignment.
-    [this.accessToken, this.accessTokenSecret] =
-        await this.getAccessToken(token, secret, verificationCode);
+    await this._initAccessToken(token, secret, verificationCode);
   }
 
-  getAccessToken(oauthToken: string, oauthTokenSecret: string, oauthVerifier: string):
-      Promise<[string, string]> {
+  _initAccessToken(oauthToken: string, oauthTokenSecret: string, oauthVerifier: string):
+      Promise<void> {
     return new Promise((resolve, reject) => {
       const options = {
         flickrConsumerKey: this.apiKey,
@@ -47,7 +40,9 @@ export default class Flickr {
           if (err) {
             reject(err);
           } else {
-            resolve([data.oauthToken, data.oauthTokenSecret]);
+            this.accessToken = data.oauthToken;
+            this.accessTokenSecret = data.oauthTokenSecret;
+            resolve();
           }
         },
       };
@@ -55,7 +50,7 @@ export default class Flickr {
     });
   }
 
-  callFlickr(method: string, params: ?{[key: string]: string}) {
+  callFlickr(method: string, params: ?{[key: string]: string}): Promise<*> {
     return new Promise((res, rej) => {
       flickrAPI.callApiMethod({
         method: method,
@@ -79,16 +74,14 @@ export default class Flickr {
     });
   }
 
-  async getPhotoset(id: string): Promise<Struct> {
+  async getPhotoset(id: string): Promise<*> {
     const json = await this.callFlickr('flickr.photosets.getPhotos', {
       'photoset_id': id,
       extras: 'license, date_upload, date_taken, owner_name, icon_server, original_format, ' +
         'last_update, geo, tags, machine_tags, o_dims, views, media, path_alias, url_sq, url_t, ' +
         'url_s, url_m, url_o',
     });
-    const res = jsonToNoms(json.photoset);
-    invariant(res instanceof Struct);
-    return res;
+    return json.photoset;
   }
 
   getPhotosets(): Promise<*> {
