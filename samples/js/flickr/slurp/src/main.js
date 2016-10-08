@@ -103,6 +103,7 @@ async function getPhotos(userId: string, privacyFilter: number): Promise<Array<a
   totalPhotos += Number(p1.photos.total);
   updateStatus();
   const results = [];
+  // We got page '1' (first page) above. Get pages 2-n here.
   for (let i = 2; i <= p1.photos.pages; i++) {
     results.push(getPhotoPage(userId, privacyFilter, perPage, i));
   }
@@ -112,9 +113,9 @@ async function getPhotos(userId: string, privacyFilter: number): Promise<Array<a
 async function getPhotoPage(userId: string, privacyFilter: number, perPage: number,
     pageNumber: number): Promise<any> {
   const result = await flickr.callApi('flickr.photos.search', {
-    ['user_id']: userId,
-    ['privacy_filter']: String(privacyFilter),
-    ['per_page']: String(perPage),
+    'user_id': userId,
+    'privacy_filter': String(privacyFilter),
+    'per_page': String(perPage),
     page: String(pageNumber),
     extras: 'description,license,date_upload,date_taken,owner_name,icon_server,original_format,' +
         'last_update,geo,tags,machine_tags,o_dims,views,media,path_alias,url_sq,url_t,url_s,' +
