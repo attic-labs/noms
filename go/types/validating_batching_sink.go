@@ -54,7 +54,7 @@ type DecodedChunk struct {
 	Value *Value
 }
 
-// DecodeUnqueued decodes c and checks that the hash of the resultng value
+// DecodeUnqueued decodes c and checks that the hash of the resulting value
 // matches c.Hash(). It returns a DecodedChunk holding both c and a pointer to
 // the decoded Value. However, if c has already been Enqueued, DecodeUnqueued
 // returns an empty DecodedChunk.
