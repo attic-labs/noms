@@ -97,7 +97,7 @@ func handleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs
 	decoded := orderedparallel.New(
 		chunkChan,
 		func(c interface{}) interface{} {
-			return vbs.Decode(c.(*chunks.Chunk))
+			return vbs.DecodeUnqueued(c.(*chunks.Chunk))
 		},
 		16)
 

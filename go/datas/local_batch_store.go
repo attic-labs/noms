@@ -101,7 +101,7 @@ func (lbs *localBatchStore) Flush() {
 	var bpe chunks.BackpressureError
 	for c := range chunkChan {
 		if bpe == nil {
-			dc := lbs.vbs.Decode(c)
+			dc := lbs.vbs.DecodeUnqueued(c)
 			bpe = lbs.vbs.Enqueue(*dc.Chunk, *dc.Value)
 		} else {
 			bpe = append(bpe, c.Hash())

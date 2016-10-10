@@ -54,10 +54,11 @@ type DecodedChunk struct {
 	Value *Value
 }
 
-// Decode decodes c and checks that the hash of the resultng value matches
-// c.Hash(). It returns a DecodedChunk holding both c and a pointer to the
-// decoded Value.
-func (vbs *ValidatingBatchingSink) Decode(c *chunks.Chunk) DecodedChunk {
+// DecodeUnqueued decodes c and checks that the hash of the resultng value
+// matches c.Hash(). It returns a DecodedChunk holding both c and a pointer to
+// the decoded Value. However, if c has already been Enqueued, DecodeUnqueued
+// returns an empty DecodedChunk.
+func (vbs *ValidatingBatchingSink) DecodeUnqueued(c *chunks.Chunk) DecodedChunk {
 	h := c.Hash()
 	if vbs.vs.isPresent(h) {
 		return DecodedChunk{}
