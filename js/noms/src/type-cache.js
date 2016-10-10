@@ -93,7 +93,7 @@ export default class TypeCache {
   }
 
   makeStructTypeQuickly(name: string, fieldNames: Array<string>, fieldTypes: Array<Type<any>>)
-    : Type<StructDesc> {
+      : Type<StructDesc> {
     if (fieldNames.length !== fieldTypes.length) {
       throw new Error('Field names and types must be of equal length');
     }
