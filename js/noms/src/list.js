@@ -155,7 +155,7 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
   /**
    * Returns a new JS array with the same values as list.
    */
-  // $FlowIssue
+  // $FlowIssue: Flow doesn't understand this in default param expressions.
   toJS(start: number = 0, end: number = this.length): Promise<Array<T>> {
     const l = this.length;
     start = clampIndex(start, l);
@@ -199,8 +199,7 @@ export class ListLeafSequence<T: Value> extends IndexedSequence<T> {
   }
 }
 
-export function newListLeafSequence<T: Value>(vr: ?ValueReader, items: T[]):
-    ListLeafSequence<T> {
+export function newListLeafSequence<T: Value>(vr: ?ValueReader, items: T[]): ListLeafSequence<T> {
   const t = makeListType(makeUnionType(items.map(getTypeOfValue)));
   return new ListLeafSequence(vr, t, items);
 }

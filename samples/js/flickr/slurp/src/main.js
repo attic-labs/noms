@@ -5,16 +5,12 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 import argv from 'yargs';
-import flickrAPI from 'flickr-oauth-and-upload';
-import readline from 'readline';
 import {
   DatasetSpec,
-  invariant,
   jsonToNoms,
   newStruct,
-  Set,
-  Struct,
 } from '@attic/noms';
+import Flickr from './flickr.js';
 
 const args = argv
   .usage(
@@ -36,26 +32,28 @@ const args = argv
     type: 'string',
     demand: true,
   })
-  .option('auth-token', {
-    description: 'Flickr oauth token',
+  .option('access-token', {
+    description: 'Flickr access token',
     type: 'string',
   })
-  .option('auth-secret', {
-    description: 'Flickr oauth secret',
+  .option('access-token-secret', {
+    description: 'Flickr access token secret',
     type: 'string',
   })
   .argv;
 
 const clearLine = '\x1b[2K\r';
+const flickr = new Flickr(
+  args['api-key'], args['api-secret'],
+  args['access-token'], args['access-token-secret']);
+
+let totalPhotos = 0;
+let gottenPhotos = 0;
 
 main().catch(ex => {
   console.error(ex);
   process.exit(1);
 });
-
-var authToken: ?string;  // eslint-disable-line no-var
-var authSecret: ?string;  // eslint-disable-line no-var
-var authURL: ?string;  // eslint-disable-line no-var
 
 async function main(): Promise<void> {
   const outSpec = DatasetSpec.parse(args._[0]);
@@ -65,102 +63,73 @@ async function main(): Promise<void> {
 
   const [db, out] = outSpec.dataset();
 
-  if (args['auth-token'] && args['auth-secret']) {
-    authToken = args['auth-token'];
-    authSecret = args['auth-secret'];
-  } else {
-    [authToken, authSecret, authURL] = await getAuthToken();
-    await promptForAuth(authURL);
+  if (!args['access-token'] || !args['access-token-secret']) {
+    await flickr.authenticate();
+    process.stdout.write(`Authenticated. Next time run:\n${
+      process.argv.join(' ')} --access-token=${flickr.accessToken} --access-token-secret=${
+      flickr.accessTokenSecret}\n\n`);
   }
+  const userId = await getUserId();
+  const photos = getAllPhotos(userId);
+  const photosets = getPhotosets();
 
-  const photosetsJSON = await getPhotosetsJSON();
-  let seen = 0;
-
-  const photosets = await Promise.all(photosetsJSON.map(p => getPhotoset(p.id).then(p => {
-    process.stdout.write(
-      `${clearLine}${++seen} of ${photosetsJSON.length} photosets imported...`);
-    return p;
-  }))).then(sets => new Set(sets));
-
-  process.stdout.write(clearLine);
-  return db.commit(out, newStruct('', {
-    photosetsMeta: jsonToNoms(photosetsJSON),
+  await db.commit(out, jsonToNoms({
+    photos: await photos,
     photosets: await photosets,
-  })).then(() => db.close());
-}
-
-async function getPhotosetsJSON(): Promise<any> {
-  return (await callFlickr('flickr.photosets.getList')).photosets.photoset;
-}
-
-async function getPhotoset(id: string): Promise<Struct> {
-  const json = await callFlickr('flickr.photosets.getPhotos', {
-    photoset_id: id,  // eslint-disable-line camelcase
-    extras: 'license, date_upload, date_taken, owner_name, icon_server, original_format, ' +
-      'last_update, geo, tags, machine_tags, o_dims, views, media, path_alias, url_sq, url_t, ' +
-      'url_s, url_m, url_o',
+  }), {
+    meta: newStruct('', {date: new Date().toISOString()}),
   });
-  const res = jsonToNoms(json.photoset);
-  invariant(res instanceof Struct);
-  return res;
+  await db.close();
+  process.stdout.write(clearLine);
 }
 
-function getAuthToken(): Promise<[string, string]> {
-  return new Promise((res, rej) => {
-    if (args['auth-token'] && args['auth-secret']) {
-      res([args['auth-token'], args['auth-secret']]);
-      return;
-    }
-
-    flickrAPI.getRequestToken({
-      flickrConsumerKey: args['api-key'],
-      flickrConsumerKeySecret: args['api-secret'],
-      permissions: 'read',
-      redirectUrl: '',
-      callback: (err, data) => {
-        if (err) {
-          rej('Error authenticating with Flickr: ' + err);
-        } else {
-          res([data.oauthToken, data.oauthTokenSecret, data.url]);
-        }
-      },
-    });
-  });
+function getUserId(): Promise<string> {
+  return flickr.callApi('flickr.urls.getUserProfile').then(d => d.user.nsid);
 }
 
-function promptForAuth(url: string): Promise<void> {
-  return new Promise((res) => {
-    process.stdout.write(`Go to ${url} to grant permissions to access Flickr...\n`);
-    const rl = readline.createInterface({input: process.stdin, output: process.stdout});
-    rl.question('Press enter when done\n', () => {
-      process.stdout.write(`Authenticated. Next time run:\n${process.argv.join(' ')
-          } --auth-token=${String(authToken)} --auth-secret=${String(authSecret)}\n\n`);
-      res();
-      rl.close();
-    });
-  });
+function getAllPhotos(userId: string): Promise<Array<any>> {
+  const minPrivacy = 1;
+  const maxPrivacy = 5;
+  const results = [];
+  for (let i = minPrivacy; i <= maxPrivacy; i++) {
+    results.push(getPhotos(userId, i));
+  }
+  return Promise.all(results);
 }
 
-function callFlickr(method: string, params: ?{[key: string]: string}) {
-  return new Promise((res, rej) => {
-    flickrAPI.callApiMethod({
-      method: method,
-      flickrConsumerKey: args['api-key'],
-      flickrConsumerKeySecret: args['api-secret'],
-      oauthToken: authToken,
-      oauthTokenSecret: authSecret,
-      optionalArgs: params,
-      callback: (err, data) => {
-        if (err) {
-          rej(err);
-        } else {
-          if (data.stat === 'fail') {
-            rej(new Error(data.message));
-          } else {
-            res(data);
-          }
-        }
-      },
-    });
+async function getPhotos(userId: string, privacyFilter: number): Promise<Array<any>> {
+  const perPage = 500;
+  const p1 = await getPhotoPage(userId, privacyFilter, perPage, 1);
+  totalPhotos += Number(p1.photos.total);
+  updateStatus();
+  const results = [];
+  // We got page '1' (first page) above. Get pages 2-n here.
+  for (let i = 2; i <= p1.photos.pages; i++) {
+    results.push(getPhotoPage(userId, privacyFilter, perPage, i));
+  }
+  return [p1].concat(await Promise.all(results));
+}
+
+async function getPhotoPage(userId: string, privacyFilter: number, perPage: number,
+    pageNumber: number): Promise<any> {
+  const result = await flickr.callApi('flickr.photos.search', {
+    'user_id': userId,
+    'privacy_filter': String(privacyFilter),
+    'per_page': String(perPage),
+    page: String(pageNumber),
+    extras: 'description,license,date_upload,date_taken,owner_name,icon_server,original_format,' +
+        'last_update,geo,tags,machine_tags,o_dims,views,media,path_alias,url_sq,url_t,url_s,' +
+        'url_q,url_m,url_n,url_z,url_c,url_l,url_o',
   });
+  gottenPhotos += Number(result.photos.photo.length);
+  updateStatus();
+  return result;
+}
+
+async function getPhotosets(): Promise<any> {
+  return await flickr.callApi('flickr.photosets.getList');
+}
+
+function updateStatus() {
+  process.stdout.write(`${clearLine}${gottenPhotos}/${totalPhotos}...`);
 }

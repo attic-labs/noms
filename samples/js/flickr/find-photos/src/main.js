@@ -7,6 +7,7 @@
 import argv from 'yargs';
 import {
   DatasetSpec,
+  PathSpec,
   getTypeOfValue,
   isSubtype,
   makeStructType,
@@ -76,10 +77,14 @@ main().catch(ex => {
 });
 
 async function main(): Promise<void> {
-  const inSpec = DatasetSpec.parse(args._[0]);
-  const [db, input] = await inSpec.value();
+  const inSpec = PathSpec.parse(args._[0]);
+  const pinnedSpec = await inSpec.pin();
+  if (!pinnedSpec) {
+    throw `Input dataset ${inSpec.path.dataset} does not exist`;
+  }
+  const [db, input] = await pinnedSpec.value();
   if (!input) {
-    return db.close();
+    throw `Input spec ${args._[0]} does not exist`;
   }
   const outSpec = DatasetSpec.parse(args._[1]);
   const [outDB, output] = outSpec.dataset();
@@ -101,7 +106,7 @@ async function main(): Promise<void> {
       }
 
       // Flickr API always includes a geoposition, but sometimes it is zero.
-      const geo = (getGeo(v):Object);
+      const geo = (getGeo(v): Object);
       if (geo.latitude !== 0 && geo.longitude !== 0) {
         photo.geoposition = geo;
       }
@@ -112,9 +117,14 @@ async function main(): Promise<void> {
     return false;
   });
 
-  return outDB.commit(output, await result)
-    .then(() => db.close())
-    .then(() => outDB.close());
+  return outDB.commit(output, await result, {
+    meta: newStruct('', {
+      data: new Date().toISOString(),
+      input: pinnedSpec.toString(),
+    }),
+  })
+  .then(() => db.close())
+  .then(() => outDB.close());
 }
 
 function getGeo(input: Object): Struct {
