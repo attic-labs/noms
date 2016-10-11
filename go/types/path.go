@@ -226,7 +226,7 @@ func newHashIndexPath(h hash.Hash, intoKey bool) HashIndexPath {
 }
 
 func (hip HashIndexPath) Resolve(v Value) (res Value) {
-	var seq orderedSequence
+	var seq sequence
 	var getCurrentValue func(cur *sequenceCursor) Value
 
 	switch v := v.(type) {

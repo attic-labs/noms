@@ -38,5 +38,5 @@ func (mx *mapMutator) Finish() Map {
 		d.PanicIfFalse(MapKind == kind)
 		seq.Append(item)
 	}
-	return newMap(seq.Done().(orderedSequence))
+	return newMap(seq.Done())
 }

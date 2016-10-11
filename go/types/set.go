@@ -11,11 +11,11 @@ import (
 )
 
 type Set struct {
-	seq orderedSequence
+	seq sequence
 	h   *hash.Hash
 }
 
-func newSet(seq orderedSequence) Set {
+func newSet(seq sequence) Set {
 	return Set{seq, &hash.Hash{}}
 }
 
@@ -27,7 +27,7 @@ func NewSet(v ...Value) Set {
 		ch.Append(v)
 	}
 
-	return newSet(ch.Done().(orderedSequence))
+	return newSet(ch.Done())
 }
 
 func NewStreamingSet(vrw ValueReadWriter, vals <-chan Value) <-chan Set {
@@ -159,7 +159,7 @@ func (s Set) splice(cur *sequenceCursor, deleteCount uint64, vs ...Value) Set {
 		ch.Append(v)
 	}
 
-	ns := newSet(ch.Done().(orderedSequence))
+	ns := newSet(ch.Done())
 	return ns
 }
 

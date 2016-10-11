@@ -12,11 +12,11 @@ import (
 )
 
 type Map struct {
-	seq orderedSequence
+	seq sequence
 	h   *hash.Hash
 }
 
-func newMap(seq orderedSequence) Map {
+func newMap(seq sequence) Map {
 	return Map{seq, &hash.Hash{}}
 }
 
@@ -34,7 +34,7 @@ func NewMap(kv ...Value) Map {
 		ch.Append(entry)
 	}
 
-	return newMap(ch.Done().(orderedSequence))
+	return newMap(ch.Done())
 }
 
 func NewStreamingMap(vrw ValueReadWriter, kvs <-chan Value) <-chan Map {
@@ -190,7 +190,7 @@ func (m Map) splice(cur *sequenceCursor, deleteCount uint64, vs ...mapEntry) Map
 	for _, v := range vs {
 		ch.Append(v)
 	}
-	return newMap(ch.Done().(orderedSequence))
+	return newMap(ch.Done())
 }
 
 func (m Map) getCursorAtValue(v Value) (cur *sequenceCursor, found bool) {

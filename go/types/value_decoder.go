@@ -77,12 +77,12 @@ func (r *valueDecoder) readListLeafSequence(t *Type) sequence {
 	return listLeafSequence{leafSequence{r.vr, len(data), t}, data}
 }
 
-func (r *valueDecoder) readSetLeafSequence(t *Type) orderedSequence {
+func (r *valueDecoder) readSetLeafSequence(t *Type) sequence {
 	data := r.readValueSequence()
 	return setLeafSequence{leafSequence{r.vr, len(data), t}, data}
 }
 
-func (r *valueDecoder) readMapLeafSequence(t *Type) orderedSequence {
+func (r *valueDecoder) readMapLeafSequence(t *Type) sequence {
 	count := r.readUint32()
 	data := []mapEntry{}
 	for i := uint32(0); i < count; i++ {

@@ -17,4 +17,5 @@ type sequence interface {
 	Type() *Type
 	getCompareFn(other sequence) compareFn
 	getChildSequence(idx int) sequence
+	getKey(idx int) orderedKey
 }

@@ -29,3 +29,8 @@ func (seq leafSequence) Type() *Type {
 func (seq leafSequence) getChildSequence(idx int) sequence {
 	return nil
 }
+
+func (sl leafSequence) getKey(idx int) orderedKey {
+	// Ordered sequences should implement this.
+	panic("not implemented")
+}

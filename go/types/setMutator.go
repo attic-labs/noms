@@ -38,5 +38,5 @@ func (mx *setMutator) Finish() Set {
 		d.PanicIfFalse(SetKind == kind)
 		seq.Append(item)
 	}
-	return newSet(seq.Done().(orderedSequence))
+	return newSet(seq.Done())
 }

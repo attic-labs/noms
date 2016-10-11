@@ -15,7 +15,7 @@ const (
 	lengthOfNumbersTest = 1000
 )
 
-type diffFn func(last orderedSequence, current orderedSequence, changes chan<- ValueChanged, closeChan <-chan struct{}) bool
+type diffFn func(last sequence, current sequence, changes chan<- ValueChanged, closeChan <-chan struct{}) bool
 
 type diffTestSuite struct {
 	suite.Suite
@@ -39,7 +39,7 @@ func newDiffTestSuite(from1, to1, by1, from2, to2, by2, numAddsExpected, numRemo
 	}
 }
 
-func accumulateOrderedSequenceDiffChanges(o1, o2 orderedSequence, df diffFn) (added []Value, removed []Value, modified []Value) {
+func accumulateOrderedSequenceDiffChanges(o1, o2 sequence, df diffFn) (added []Value, removed []Value, modified []Value) {
 	changes := make(chan ValueChanged)
 	closeChan := make(chan struct{})
 	go func() {
@@ -75,8 +75,8 @@ func (suite *diffTestSuite) TestDiff() {
 		col1 := cf(vf(suite.from1, suite.to1, suite.by1))
 		col2 := cf(vf(suite.from2, suite.to2, suite.by2))
 		suite.added, suite.removed, suite.modified = accumulateOrderedSequenceDiffChanges(
-			col1.sequence().(orderedSequence),
-			col2.sequence().(orderedSequence),
+			col1.sequence(),
+			col2.sequence(),
 			df)
 		suite.Equal(suite.numAddsExpected, len(suite.added), "test %s: num added is not as expected", name)
 		suite.Equal(suite.numRemovesExpected, len(suite.removed), "test %s: num removed is not as expected", name)
