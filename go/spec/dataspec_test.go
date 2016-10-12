@@ -268,3 +268,33 @@ func TestPathSpec(t *testing.T) {
 		assert.Equal(expected, actual)
 	}
 }
+
+func TestPathPin(t *testing.T) {
+	assert := assert.New(t)
+
+	d1 := os.TempDir()
+	dir, _ := ioutil.TempDir(d1, "")
+	defer os.RemoveAll(dir)
+
+	dbSpec, _ := ParseDatabaseSpec(dir)
+	db, _ := dbSpec.Database()
+	ds := db.GetDataset("foo")
+	ds, _ = db.CommitValue(ds, types.Number(float64(42)))
+
+	unpinned, _ := ParsePathSpec(fmt.Sprintf("%s::foo.value", dir))
+	_, v, _ := unpinned.Value()
+	assert.Equal(42, int(v.(types.Number)))
+
+	pinned, err := unpinned.Pin()
+	assert.NoError(err)
+	assert.Equal(ds.HeadRef().TargetHash(), pinned.Path.hash)
+	_, v, _ = pinned.Value()
+	assert.Equal(42, int(v.(types.Number)))
+
+	ds, _ = db.CommitValue(ds, types.Number(float64(43)))
+	_, v, _ = unpinned.Value()
+	assert.Equal(43, int(v.(types.Number)))
+	_, v, _ = pinned.Value()
+	assert.Equal(42, int(v.(types.Number)))
+
+}

@@ -231,6 +231,34 @@ func (spec PathSpec) Value() (db datas.Database, val types.Value, err error) {
 	return
 }
 
+// Returns a new PathSpec with the dataset component (if any) converted to the
+// hash of its current commit. In other words, it "pins" the pathspec to point
+// at the current value, even if the database moves forward subsequently.
+func (spec PathSpec) Pin() (PathSpec, error) {
+	if !spec.Path.hash.IsEmpty() {
+		return spec, nil
+	}
+
+	db, err := spec.DbSpec.Database()
+	if err != nil {
+		return PathSpec{}, err
+	}
+
+	ds := db.GetDataset(spec.Path.dataset)
+	hr := ds.HeadRef()
+	if hr.TargetHash().IsEmpty() {
+		return PathSpec{}, fmt.Errorf("Invalid dataset: %s", spec.Path.dataset)
+	}
+
+	return PathSpec{
+		spec.DbSpec,
+		AbsolutePath{
+			hash: hr.TargetHash(),
+			path: spec.Path.path,
+		},
+	}, nil
+}
+
 func RegisterDatabaseFlags(flags *flag.FlagSet) {
 	chunks.RegisterLevelDBFlags(flags)
 }
