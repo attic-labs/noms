@@ -4,15 +4,31 @@
 
 package types
 
-import "github.com/attic-labs/noms/go/d"
+import (
+	"fmt"
+	"math"
+	"os"
+	"runtime"
+	"time"
+
+	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/util/orderedparallel"
+)
 
 // sequenceCursor explores a tree of sequence items.
 type sequenceCursor struct {
-	parent *sequenceCursor
-	seq    sequence
-	idx    int
+	parent      *sequenceCursor
+	seq         sequence
+	idx         int
+	readAhead   bool
+	readAheadCh chan interface{}
 }
 
+/*
+ * newSequenceCursor creates a cursor on seq positioned at idx.
+ *
+ * If idx < 0, count backward from the end of seq.
+ */
 func newSequenceCursor(parent *sequenceCursor, seq sequence, idx int) *sequenceCursor {
 	d.PanicIfTrue(seq == nil)
 	if idx < 0 {
@@ -20,8 +36,22 @@ func newSequenceCursor(parent *sequenceCursor, seq sequence, idx int) *sequenceC
 		d.PanicIfFalse(idx >= 0)
 	}
 
-	cur := &sequenceCursor{parent, seq, idx}
+	cur := &sequenceCursor{parent, seq, idx, false, nil}
 	return cur
+}
+
+/*
+ * enableReadAhead turns on read-ahead
+ *
+ * When enabled, the cursor will assumes it'll be moving forward and can
+ * benefit from optimistically reading leaves before they are requested.
+ *
+ * This is a hack to minimize API changes. A better approach would be to
+ * declare a cursor as "forward" at construction time, and only enable
+ * read-ahead for "forward" cursors.
+ */
+func (cur *sequenceCursor) enableReadAhead() {
+	cur.readAhead = true && os.Getenv("NOMS_NO_READAHEAD") == ""
 }
 
 func (cur *sequenceCursor) length() int {
@@ -32,16 +62,115 @@ func (cur *sequenceCursor) getItem(idx int) sequenceItem {
 	return cur.seq.getItem(idx)
 }
 
+/*
+ * sync advances the cursor to the next chunk
+ */
 func (cur *sequenceCursor) sync() {
 	d.PanicIfFalse(cur.parent != nil)
 	cur.seq = cur.parent.getChildSequence()
+	cur.readAheadCh = nil
 }
 
+/*
+ * doReadAhead returns true if read-head should be used when reading leaves
+ * of this cursor.
+ *
+ * Only read-ahead if the current sequence is a meta-sequence that contains
+ * leaf sequences.
+ */
+func (cur *sequenceCursor) doReadAhead() bool {
+	if cur.readAhead && cur.readAheadCh == nil {
+		if ms, ok := cur.seq.(metaSequence); ok {
+			return ms.tuples[0].ref.height == 1
+		}
+	}
+	return false
+}
+
+// Records in read-ahead channel
+type readAheadRec struct {
+	idx     int
+	leafSeq sequence
+}
+
+var readAheadParallelism = runtime.NumCPU() * 8
+
+/*
+ * readAheadLeaves initiates read-ahead of child sequences.
+ *
+ * Fills a buffered read-ahead channel with child sequences in ascending index order.
+ * A forward moving cursor reads this channel to find it's next item (see getChildSequence).
+ *
+ * The channel is limited to c * NumCPU. This allows read-ahead to proceed in parallel
+ * while maintaining a bound on memory.
+ */
+func (cur *sequenceCursor) readAheadLeaves() {
+	ms := cur.seq.(metaSequence)
+	startIdx := cur.idx
+	tuplesToRead := len(ms.tuples) - startIdx
+	if tuplesToRead < 2 {
+		// Don't read-ahead if we're starting at the end of a sequence. If the cursor's moving
+		// backward, read-ahead is useless. If the cursor's moving forward, there's no
+		// benefit.
+		cur.readAheadCh = nil
+	} else {
+		parallelism := int(math.Min(float64(readAheadParallelism), float64(tuplesToRead)))
+		input := make(chan interface{}, parallelism)
+
+		cur.readAheadCh = orderedparallel.New(input, func(item interface{}) interface{} {
+			i := item.(int)
+			return &readAheadRec{i, ms.getChildSequence(i)}
+		}, parallelism)
+
+		go func() {
+			for i := startIdx; i < len(ms.tuples); i++ {
+				input <- i
+			}
+			close(input)
+		}()
+	}
+}
+
+/*
+ * getChildSequence retrieves the child at the current cursor position.
+ *
+ * If the the read-ahead channel is enabled, read the child from the channel.
+ */
 func (cur *sequenceCursor) getChildSequence() sequence {
+	if cur.doReadAhead() {
+		cur.readAheadLeaves()
+	}
+	if cur.readAheadCh != nil {
+		FOR: for {
+			select {
+			case item, more := <-cur.readAheadCh:
+				if !more {
+					// Channel closed; read directly. This can occur if the cursor
+					// is retreating.
+					break FOR
+				}
+				ra := item.(*readAheadRec)
+				if cur.idx > ra.idx {
+					// Keep looking
+				} else if cur.idx == ra.idx {
+					// Match
+					return ra.leafSeq
+				} else {
+					// Leaf missing; read directly. This can occur if the cursor is
+					// retreating.
+					break FOR
+				}
+			case <-time.After(time.Second * 5):
+				d.PanicIfTrue(true, "Timed out waiting for next item in read-ahead channel: %s", cur)
+			}
+		}
+	}
 	return cur.seq.getChildSequence(cur.idx)
 }
 
-// Returns the value the cursor refers to. Fails an assertion if the cursor doesn't point to a value.
+/*
+ * current returns the value at the current cursor position
+ */
 func (cur *sequenceCursor) current() sequenceItem {
 	d.PanicIfFalse(cur.valid())
 	return cur.getItem(cur.idx)
@@ -75,6 +204,7 @@ func (cur *sequenceCursor) advanceMaybeAllowPastEnd(allowPastEnd bool) bool {
 		return false
 	}
 	if cur.parent != nil && cur.parent.advanceMaybeAllowPastEnd(false) {
+		// at end of current leaf chunk and there are more
 		cur.sync()
 		cur.idx = 0
 		return true
@@ -83,6 +213,10 @@ func (cur *sequenceCursor) advanceMaybeAllowPastEnd(allowPastEnd bool) bool {
 		cur.idx++
 	}
 	return false
+}
+
+func (cur *sequenceCursor) String() string {
+	return fmt.Sprintf("Len: %d, Leaves: %d, Idx: %d, Type: %d", cur.seq.seqLen(), cur.seq.numLeaves(), cur.idx, cur.seq.Type().Desc.Kind())
 }
 
 func (cur *sequenceCursor) retreat() bool {
@@ -109,26 +243,49 @@ func (cur *sequenceCursor) retreatMaybeAllowBeforeStart(allowBeforeStart bool) b
 	return false
 }
 
+/*
+ * clone creates a copy of the cursor
+ *
+ * The clone does not inherit read-ahead behavior
+ */
 func (cur *sequenceCursor) clone() *sequenceCursor {
 	var parent *sequenceCursor
 	if cur.parent != nil {
 		parent = cur.parent.clone()
 	}
-	return &sequenceCursor{parent, cur.seq, cur.idx}
+	return newSequenceCursor(parent, cur.seq, cur.idx)
 }
 
 type cursorIterCallback func(item interface{}) bool
 
+/*
+ * iter iterates forward from the current position
+ */
 func (cur *sequenceCursor) iter(cb cursorIterCallback) {
+	cur.enableReadAhead() // ensure read-ahead is enabled to
 	for cur.valid() && !cb(cur.getItem(cur.idx)) {
 		cur.advance()
 	}
 }
 
+/*
+ * newCursorAtIndex creates a new cursor over seq positioned at idx.
+ *
+ * Implemented by searching down the tree to the leaf sequence containing idx. Each
+ * sequence cursor includes a back pointer to its parent so that it can follow the path
+ * to the next leaf chunk when the cursor exhausts the entries in the current chunk.
+ */
 func newCursorAtIndex(seq sequence, idx uint64) *sequenceCursor {
 	var cur *sequenceCursor
 	for {
 		cur = newSequenceCursor(cur, seq, 0)
+		// Assume cursor starting at 0 will be moving forward and benefit from read-ahead
+		// TODO: Inferring that a 0 idx means the cursor will be moving forward is
+		// ugly. Another approach would be to provide a new method for creating a forward
+		// cursor and always enable read-ahead in those cases.
+		if idx == 0 {
+			cur.enableReadAhead()
+		}
 		idx = idx - advanceCursorToOffset(cur, idx)
 		cs := cur.getChildSequence()
 		if cs == nil {
