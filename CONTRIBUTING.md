@@ -21,6 +21,18 @@ Due to legal reasons, all contributors must sign a contributor agreement, either
 * Tag PRs with either `toward: #<bug>` or `fixes: #<bug>` to help establish context for why a change is happening
 * Commit messages follow [Chris Beam's awesome commit message style guide](http://chris.beams.io/posts/git-commit/)
 
+### Go error reporting
+
+* For problems that are conceptually `asserts`, meaning that the program cannot meaningfully continue, use the following calls:
+	* d.Chk.Error()
+	* d.Chk.NoError()
+	* d.Chk.True()
+	* d.Chk.False()
+* For problems that might occur during correct processing, you can choose the Go-style of returned errors, or use the following to 'raise' a 'catchable' error (see [go/d/try.go](https://godoc.org/github.com/attic-labs/noms/go/d)):
+	* d.PanicIfError()
+	* d.PanicIfTrue()
+	* d.PanicIfFalse()
+
 ## Submitting PRs
 
 We follow a code review protocol dervied from the one that the [Chromium team](https://www.chromium.org/) uses:
