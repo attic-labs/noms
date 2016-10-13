@@ -57,6 +57,8 @@ export function getAccessTokenFromRefreshToken(
 function getAuthCodeViaURL(clientId: string, clientSecret: string)
     : Promise<[string /* auth code */, string /* authorize URL */]> {
   return new Promise((res, rej) => {
+    // To be an OAuth endpoint, host an HTTP server on a random port to serve as the redirect URL,
+    // then capture the access code.
     const server = createHttpServer((request, response) => {
       let code = null;
       try {

@@ -23,19 +23,23 @@ import type {
 } from './types.js';
 import {getRefreshToken, getAccessTokenFromRefreshToken} from './oauth.js';
 
+const usage = `Parses photo metadata out of Picasa API
+
+Usage: either provide:
+ 1. an access token (these are short lived, and should only be used for testing),
+    you can get these from https://developers.google.com/oauthplayground/
+ 2. a client ID and secret, with an optional refresh token
+
+If 2 and if a refresh token isn't provided, one will be fetched, then picasa-slurp
+must be re-run with that refresh token. Hold on to it.
+
+In other words:
+ node . --access-token <dest-dataset>
+or
+ node . --client-id=<id> --client-secret=<secret> [--refresh-token=<token> <dest-dataset>]`;
+
 const args = argv
-  .usage(
-    'Parses photo metadata out of Picasa API\n\n' +
-    'Usage: either provide:\n' +
-    ' 1. an access token (these are short lived, and should only be used for testing)\n' +
-    '    you can get these from https://developers.google.com/oauthplayground/\n' +
-    ' 2. a client ID and secret, with an optional refresh token\n' +
-    'If 2 and if a refresh token isn\'t provided, one will be fetched, then picasa-slurp\n' +
-    'must be re-run with that refresh token. Hold on to it.\n\n' +
-    'In other words:\n' +
-    ' node . --access-token <dest-dataset>\n' +
-    'or\n' +
-    ' node . --client-id=<id> --client-secret=<secret> [--refresh-token=<token> <dest-dataset>]\n')
+  .usage(usage)
   .option('access_token', {
     describe: 'OAuth2 access token (these are short lived and should only be used for testing)',
     type: 'string',
@@ -81,7 +85,7 @@ async function main(): Promise<void> {
   if (args.access_token) {
     accessToken = args.access_token;
   } else if (!args.client_id || !args.client_secret) {
-    throw 'must provide a client_id and client_secret';
+    throw usage;
   } else if (args.refresh_token) {
     accessToken = await getAccessTokenFromRefreshToken(
         args.client_id, args.client_secret, args.refresh_token);
@@ -89,7 +93,7 @@ async function main(): Promise<void> {
   } else {
     const refreshToken = await getRefreshToken(args.client_id, args.client_secret);
     console.log(`\nGot refresh token ${refreshToken}. Run me again:`);
-    console.log(` node . --client_id=${args.client_id} ` +
+    console.log(` node .  --client_id=${args.client_id} ` +
                 `--client_secret=${args.client_secret} ` +
                 `--refresh_token ${refreshToken} <dest-dataset>`);
     return;
@@ -181,13 +185,12 @@ function callPicasa(path: string): Promise<any> {
 
 type ProgressFn = (more: any[]) => any;
 
-async function callPicasaP(p: number, paths: string[], progFn: ?ProgressFn = null): Promise<any[]> {
+async function callPicasaP(p: number, paths: string[], progFn: ProgressFn = () => undefined)
+    : Promise<any[]> {
   const out = [];
   for (let i = 0; i < paths.length; i += p) {
     const more = await Promise.all(paths.slice(i, i + p).map(url => callPicasa(url)));
-    if (progFn) {
-      progFn(more);
-    }
+    progFn(more);
     out.push(...more);
   }
   return out;
