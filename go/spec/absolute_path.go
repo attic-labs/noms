@@ -17,12 +17,18 @@ import (
 
 var datasetCapturePrefixRe = regexp.MustCompile("^(" + datas.DatasetRe.String() + ")")
 
+// AbsolutePath represents a path originating at a dataset or a well-formed
+// hash (i.e. '#' + 32 chars) representing a Noms Value that is independently
+// addressable. Either the Dataset of Hash field will indicate the beginning of
+// the AbsolutePath and the other one will be nil. The Path field holds the
+// remainder of the path.
 type AbsolutePath struct {
 	Dataset string
 	Hash    hash.Hash
 	Path    types.Path
 }
 
+// NewAbsolutePath attempts to parse 'str' and return an AbsolutePath.
 func NewAbsolutePath(str string) (AbsolutePath, error) {
 	if len(str) == 0 {
 		return AbsolutePath{}, errors.New("Empty path")
@@ -68,6 +74,7 @@ func NewAbsolutePath(str string) (AbsolutePath, error) {
 	return AbsolutePath{Hash: h, Dataset: dataset, Path: path}, nil
 }
 
+// Resolve returns the Value reachable by 'p' in 'db'.
 func (p AbsolutePath) Resolve(db datas.Database) (val types.Value) {
 	if len(p.Dataset) > 0 {
 		var ok bool
@@ -99,6 +106,9 @@ func (p AbsolutePath) String() (str string) {
 	return str + p.Path.String()
 }
 
+// ReadAbsolutePaths attempts to parse each path in 'paths' and resolve them.
+// If any path fails to parse correctly or if any path can be resolved to an
+// existing Noms Value, then this function returns (nil, error).
 func ReadAbsolutePaths(db datas.Database, paths ...string) ([]types.Value, error) {
 	r := make([]types.Value, 0, len(paths))
 	for _, ps := range paths {
