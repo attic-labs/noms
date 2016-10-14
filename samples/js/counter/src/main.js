@@ -10,6 +10,7 @@ import {
   Dataset,
   DatasetSpec,
 } from '@attic/noms';
+import timer from 'timer-promise';
 
 const args = argv
   .usage('Usage: $0 <dataset>')
@@ -40,10 +41,21 @@ async function increment(db: Database, ds: Dataset): Promise<Dataset> {
   const value = await ds.headValue();
   if (value !== null) {
     lastVal = Number(value);
+    console.log('current value is', lastVal);
+  } else {
+    console.log('no current value');
   }
 
+  console.log('waiting 10 seconds...');
+  await timer.start('foo', 10000);
+  console.log('done');
+
   const newVal = lastVal + 1;
-  ds = await db.commit(ds, newVal);
-  process.stdout.write(`${ newVal }\n`);
-  return ds;
+  try {
+    ds = await db.commit(ds, newVal);
+    process.stdout.write(`succeeded, new val is: ${ newVal }\n`);
+    return ds;
+  } catch (e) {
+    console.log('commit failed with: ', e);
+  }
 }
