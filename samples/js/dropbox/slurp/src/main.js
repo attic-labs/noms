@@ -8,7 +8,6 @@ import argv from 'yargs';
 import {
   default as fetch,
   Request,
-  Headers,
 } from 'node-fetch';
 import {
   DatasetSpec,
@@ -24,7 +23,14 @@ const args = argv
   .usage(stripIndent`
     Downloads metadata from the Dropbox API
 
-    Usage: node . --access-token=<token> <dest-dataset>`)
+    Usage: node . --access-token=<token> <dest-dataset>
+
+    To obtain a token, build <noms>/tools/oauthify, then run:
+
+    ./oauthify --client-id=6i6tl9k390judrl --client-secret=bvmnnth5k2d2vc3 \\
+    --auth-url=https://www.dropbox.com/oauth2/authorize \\
+    --token-url=https://api.dropboxapi.com/oauth2/token --pass-client-in-url
+    `)
   .demand(1)
   .option('access-token', {
     describe: 'Dropbox oauth access token',
@@ -75,21 +81,18 @@ async function main(): Promise<void> {
   process.stdout.write(clearLine);
 }
 
-async function callDropbox(url: string, body: ?any = null): Promise<any> {
+async function callDropbox(url: string, body: Object): Promise<any> {
   const params = {
     method: 'POST',
-    headers: new Headers({
+    headers: {
+      'Authorization': '',
       'Content-type': 'application/json',
-    }),
-    body: '',
+    },
+    body: JSON.stringify(body),
   };
 
-  if (body) {
-    params.body = JSON.stringify(body);
-  }
-
   if (args['access-token']) {
-    params.headers.set('Authorization', `Bearer ${args['access-token']}`);
+    params.headers['Authorization'] = `Bearer ${args['access-token']}`;
   }
 
   const q = new Request(url, params);
