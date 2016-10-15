@@ -55,7 +55,6 @@ const hasLocation = makeStructType('', {
   }),
 });
 
-const apiHost = 'https://api.dropboxapi.com/2/';
 const contentHost = 'https://content.dropboxapi.com/2/';
 
 // FTR, Dropbox resizes proportionally to fit inside these rectangles,
@@ -146,6 +145,7 @@ function getSizes(input: Object): Map<Struct, string> {
     url,
   ]);
 
+  // $FlowIssue: Does not understand that filter removes all null values.
   return new Map(kv.filter(kv => kv));
 }
 
