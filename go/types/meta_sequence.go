@@ -5,7 +5,6 @@
 package types
 
 import (
-	"fmt"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/util/orderedparallel"
@@ -37,10 +36,6 @@ func (mt metaTuple) getChildSequence(vr ValueReader) sequence {
 		return mt.child.sequence()
 	}
 	return mt.ref.TargetValue(vr).(Collection).sequence()
-}
-
-func (mt *metaTuple) String() string {
-	return fmt.Sprintf("Type: %T, Ref: %s, %d , Leaves: %d, Key: %v", mt, EncodedValue(mt.ref), mt.ref.height, mt.numLeaves, mt.key.v)
 }
 
 // orderedKey is a key in a Prolly Tree level, which is a metaTuple in a metaSequence, or a value in a leaf sequence.
