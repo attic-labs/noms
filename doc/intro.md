@@ -26,7 +26,7 @@ As in Git, [Bitcoin](https://bitcoin.org/en/), [Ethereum](https://www.ethereum.o
 
 In other words, a Noms database is a single large [Merkle DAG](https://github.com/jbenet/random-ideas/issues/20).
 
-When two nodes have the same hash, they represent identical logical values and the respective subgraph of nodes reachable from each are topologically equivalent. Importantly, in Noms, the reverse is also true: a single logical value has one and only one hash. When two nodes have differnet hashes, they represent different logical values.
+When two nodes have the same hash, they represent identical logical values and the respective subgraph of nodes reachable from each are topologically equivalent. Importantly, in Noms, the reverse is also true: a single logical value has one and only one hash. When two nodes have different hashes, they represent different logical values.
 
 Noms extends the ideas of prior systems to enable efficiently computing and reconciling differences, synchronizing state, and building indexes over large-scale, structured data.
 

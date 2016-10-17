@@ -37,7 +37,7 @@ suite('commit.js', () => {
     });
     assertTypeEquals(et, at);
 
-    // Commiting another Number
+    // Committing another Number
     const commit2 = new Commit(2, new Set([new Ref(commit)]));
     const at2 = commit2.type;
     const et2 = et;

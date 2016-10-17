@@ -187,4 +187,4 @@ store.writeValue(newStruct('', {
 }));
 ```
 
-Sometimes it's nice to explicitly control the type. You can do that by calling `new Struct` directy and passing a `Type` for the first parameter.
+Sometimes it's nice to explicitly control the type. You can do that by calling `new Struct` directly and passing a `Type` for the first parameter.

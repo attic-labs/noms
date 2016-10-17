@@ -133,7 +133,7 @@ func main() {
 
   _, err = db.CommitValue(ds, data)
   if err != nil {
-    fmt.Fprint(os.Stderr, "Error commiting: %s\n", err)
+    fmt.Fprint(os.Stderr, "Error committing: %s\n", err)
   }
 }
 ```
@@ -254,7 +254,7 @@ func main() {
 
     _, err = db.CommitValue(ds, data)
     if err != nil {
-      fmt.Fprint(os.Stderr, "Error commiting: %s\n", err)
+      fmt.Fprint(os.Stderr, "Error committing: %s\n", err)
     }
   }
 }

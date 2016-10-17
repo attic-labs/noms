@@ -15,7 +15,7 @@ You can enable this support by placing a *.nomsconfig* config file (like the [on
 This example defines a simple [.nomsconfig](.nomsconfig) to try:
 
 ```
-# Default database URL to be used whenever a database is not explictly provided
+# Default database URL to be used whenever a database is not explicitly provided
 [db.default]
 url = "ldb:.noms/tour"
 

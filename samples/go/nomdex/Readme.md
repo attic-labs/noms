@@ -30,7 +30,7 @@ struct Row {
   }
 }
 ```
-The following commands could be used to build indexes on the City, State, Latitude and Longitude attibutes.
+The following commands could be used to build indexes on the City, State, Latitude and Longitude attributes.
 ```
 nomdex up --in-path http://localhost:8000::cities --by .City --out-ds by-name
 nomdex up --in-path http://localhost:8000::cities --by .State --out-ds by-state
