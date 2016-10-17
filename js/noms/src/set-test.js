@@ -398,8 +398,9 @@ suite('CompoundSet', () => {
     assert.strictEqual(8, c.size);
   });
 
-  test('first/last/has', async () => {
-    const c = build(db, ['a', 'b', 'e', 'f', 'h', 'i', 'm', 'n']);
+  test('first/last/has/get', async () => {
+    const letters = ['a', 'b', 'e', 'f', 'h', 'i', 'm', 'n'];
+    const c = build(db, letters);
     assert.strictEqual('a', await c.first());
     assert.strictEqual('n', await c.last());
     assert.isTrue(await c.has('a'));
@@ -416,6 +417,10 @@ suite('CompoundSet', () => {
     assert.isTrue(await c.has('m'));
     assert.isTrue(await c.has('n'));
     assert.isFalse(await c.has('o'));
+
+    for (let i = 0; i < letters.length; i++) {
+      assert.strictEqual(letters[i], await c.get(i));
+    }
   });
 
   test('forEach', async () => {

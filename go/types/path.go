@@ -230,6 +230,20 @@ func (ip IndexPath) Resolve(v Value) Value {
 		if !ip.IntoKey {
 			return v.Get(ip.Index)
 		}
+
+	case Set:
+		if n, ok := ip.Index.(Number); ok {
+			f := float64(n)
+			if f == math.Trunc(f) && f >= 0 {
+				u := uint64(f)
+				if u < v.Len() {
+					if ip.IntoKey {
+						return ip.Index
+					}
+					return v.Get(u)
+				}
+			}
+		}
 	}
 
 	return nil

@@ -127,7 +127,9 @@ func updatePath(part types.PathPart, subject, newVal types.Value) (types.Value, 
 		case types.Map:
 			return subject.Set(part.Index, newVal), nil
 		case types.Set:
-			return subject.Remove(part.Index).Insert(newVal), nil
+			fmt.Println("set remove: part.Index", part.Index)
+			v := subject.Get(uint64(part.Index.(types.Number)))
+			return subject.Remove(v).Insert(newVal), nil
 		default:
 			panic("Unexpected noms type:" + subject.Type().Describe())
 		}

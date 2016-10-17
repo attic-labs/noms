@@ -291,6 +291,16 @@ export class IndexPath {
       return this.intoKey ? this.index : value.get(this.index).then(valueOrNull);
     }
 
+    if (value instanceof Set) {
+      if (typeof this.index !== 'number') {
+        return null;
+      }
+      if (this.index < 0 || this.index >= value.length) {
+        return null; // index out of bounds
+      }
+      return this.intoKey ? this.index : value.get(this.index).then(valueOrNull);
+    }
+
     if (value instanceof Map) {
       if (this.intoKey && await value.has(this.index)) {
         return this.index;

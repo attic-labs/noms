@@ -111,6 +111,11 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
     return this._splice(cursor, [value], 0);
   }
 
+  async get(idx: number): Promise<T> {
+    invariant(idx >= 0 && idx < this.size);
+    return this.sequence.newCursorAt(idx).then(cursor => cursor.getCurrent());
+  }
+
   async delete(value: T): Promise<Set<T>> {
     const cursor = await this.sequence.newCursorAtValue(value);
     if (cursor.valid && equals(cursor.getCurrentKey().value(), value)) {
