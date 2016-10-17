@@ -33,6 +33,17 @@ const requestModules = {
   'https:': https,
 };
 
+export class HTTPError extends Error {
+  constructor(status: number, body: string) {
+    super(`HTTP Error: ${status}`);
+    this.status = status;
+    this.body = body;
+  }
+
+  status = 0;
+  body = '';
+}
+
 function fetch(url: string, options: FetchOptions = {}): Promise<BufResponse> {
   const opts: any = parse(url);
   opts.method = options.method || 'GET';
@@ -42,7 +53,9 @@ function fetch(url: string, options: FetchOptions = {}): Promise<BufResponse> {
   return new Promise((resolve, reject) => {
     const req = requestModules[opts.protocol].request(opts, res => {
       if (res.statusCode < 200 || res.statusCode >= 300) {
-        reject(new Error(`HTTP Error: ${res.statusCode}`));
+        res.body().then(b => {
+          reject(new HTTPError(res.statusCode, b));
+        });
         return;
       }
 
