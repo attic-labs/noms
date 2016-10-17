@@ -59,9 +59,9 @@ const contentHost = 'https://content.dropboxapi.com/2/';
 
 // FTR, Dropbox resizes proportionally to fit inside these rectangles,
 // even if the source photo is portrait. Whee.
-const sizes = [[32,32], [64,64], [128,128], [640,480], [1024,768]];
+const sizes = [[32, 32], [64, 64], [128, 128], [640, 480], [1024, 768]];
 
-const nsInMillisecond = 1e6;
+const nanosPerMilli = 1e6;
 
 main().catch(ex => {
   console.error(ex);
@@ -151,6 +151,6 @@ function getSizes(input: Object): Map<Struct, string> {
 
 function newDate(iso: string): Struct {
   return newStruct('Date', {
-    nsSinceEpoch: new Date(Date.parse(iso)).getTime() * nsInMillisecond,
+    nsSinceEpoch: new Date(Date.parse(iso)).getTime() * nanosPerMilli,
   });
 }
