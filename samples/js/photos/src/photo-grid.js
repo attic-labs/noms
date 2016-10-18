@@ -155,15 +155,18 @@ export default class PhotoGrid extends React.Component<void, Props, State> {
   async _getMorePhotos(current: Photo[]): Promise<void> {
     const {photosIter} = this.props;
     const moreP = [];
-    let lastNegdate = -Infinity;
+    let lastTaken = Infinity;
     let next;
     while (!(next = await photosIter.next()).done && moreP.length < photosPerPage) {
-      const [negdate, nomsPhoto] = notNull(next.value);
-      if ((negdate - lastNegdate) > timeGroupThresholdMs) {
+      const [negDate, nomsPhoto] = notNull(next.value);
+      const taken = nomsPhoto.dateTaken;
+      if (!taken || ((lastTaken - taken.nsSinceEpoch) > timeGroupThresholdMs)) {
         const hash = nomsPhoto.hash.toString();
-        const path = `.byDate[${negdate}][#${hash}]`;
+        const path = `.byDate[${negDate}][#${hash}]`;
         moreP.push(createPhoto(path, nomsPhoto));
-        lastNegdate = negdate;
+      }
+      if (taken) {
+        lastTaken = taken.nsSinceEpoch;
       }
     }
 
