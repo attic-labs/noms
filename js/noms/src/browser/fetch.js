@@ -5,7 +5,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 import {notNull} from '../assert.js';
-import HTTPError from './http-error.js';
+import HTTPError from '../http-error.js';
 
 export type FetchOptions = {
   method?: ?MethodType, // from flowlib bom.js
