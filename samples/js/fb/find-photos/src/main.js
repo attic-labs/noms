@@ -97,7 +97,7 @@ async function main(): Promise<void> {
         photo.geoposition = getGeo(v);
       }
       if (isSubtype(tagsType, v.type)) {
-        photo.faces_centered = await getFaces(v);
+        photo.facesCentered = await getFaces(v);
       }
       result = result.then(r => r.add(newStruct('Photo', photo)));
       return true;
@@ -138,11 +138,9 @@ async function getFaces(photo): Promise<Set<Struct>> {
   // about 1/3 the width/height of image.
   //
   // This fails badly in lots of cases though, so we should fix asap.
-  const mw = 0.33;
-  const mh = 0.33;
   const result = [];
   await photo.tags.data.forEach(v => {
-    const x =  v.x / 100;
+    const x = v.x / 100;
     const y = v.y / 100;
     result.push(newStruct('', {x, y, name: v.name}));
   });
