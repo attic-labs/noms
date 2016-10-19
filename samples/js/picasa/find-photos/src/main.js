@@ -102,7 +102,7 @@ async function main(): Promise<void> {
 
   await walk(input, db, async (v: any) => {
     if (v instanceof Struct && isSubtype(sourceType, getTypeOfValue(v))) {
-     const w = parseInt(v['gphotoQ24width']['Q24t'], 10);
+      const w = parseInt(v['gphotoQ24width']['Q24t'], 10);
       const h = parseInt(v['gphotoQ24height']['Q24t'], 10);
 
       const photo: Object = {
@@ -142,7 +142,7 @@ async function main(): Promise<void> {
     }
   });
 
-  const ret = await outDB.commit(
+  await outDB.commit(
     output,
     new Set(result),
     {
