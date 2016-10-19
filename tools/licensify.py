@@ -33,7 +33,7 @@ comment_markers = {
 def main():
     files = subprocess.check_output(['git', 'ls-files']).split('\n')
     for n in files:
-        if n != '' and n.find('vendor/') == -1:
+        if n != '' and 'vendor/' not in n and '.min.js' not in n:
             _, ext = os.path.splitext(n)
             if ext == '':
                 continue
@@ -83,7 +83,7 @@ def buildLicensePattern(ext):
     flow = r'(?P<flow>// @flow\n+|)'
 
     # Doctype header
-    doctype = r'(?P<doctype><doctype html>\n+|)'
+    doctype = r'(?P<doctype><\!doctype html>\n+|)'
 
     return ('^' + shebang + doctype +
         '(' + prefix + head + body + suffix + r'\n)?' + flow)
