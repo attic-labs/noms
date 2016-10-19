@@ -34,7 +34,7 @@ def main():
     files = subprocess.check_output(['git', 'ls-files']).split('\n')
     for n in files:
         if n != '' and not n.startswith('vendor/') and (
-            not n.endswith('.min.js')):
+                not n.endswith('.min.js')):
             _, ext = os.path.splitext(n)
             if ext == '':
                 continue
