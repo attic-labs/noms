@@ -160,6 +160,9 @@ export default class PhotoGrid extends React.Component<void, Props, State> {
     while (!(next = await photosIter.next()).done && moreP.length < photosPerPage) {
       const [negDate, nomsPhoto] = notNull(next.value);
       const taken = nomsPhoto.dateTaken;
+      // Dedupe photos that were taken close together in time.
+      // This is a stopgap until we have proper visual deduplication.
+      // Note that not every photo has a taken timestamp and we always include those.
       if (!taken || ((lastTaken - taken.nsSinceEpoch) > timeGroupThresholdMs)) {
         const hash = nomsPhoto.hash.toString();
         const path = `.byDate[${negDate}][#${hash}]`;
