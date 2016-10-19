@@ -3,11 +3,8 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 // @flow
-
-import {createServer as createHttpServer} from 'http';
 import {OAuth2} from 'oauth';
-import {parse as parseQueryString} from 'querystring';
-import {parse as parseUrl} from 'url';
+import readline from 'readline';
 
 const scope = 'https://picasaweb.google.com/data';
 const authPath = 'https://accounts.google.com/o/oauth2/auth';
@@ -56,35 +53,9 @@ export function getAccessTokenFromRefreshToken(
 
 function getAuthCodeViaURL(clientId: string, clientSecret: string)
     : Promise<[string /* auth code */, string /* authorize URL */]> {
-  return new Promise((res, rej) => {
-    // To be an OAuth endpoint, host an HTTP server on a random port to serve as the redirect URL,
-    // then capture the access code.
-    const server = createHttpServer((request, response) => {
-      let code = null;
-      try {
-        const url = parseUrl(request.url);
-        if (!url.query) {
-          rej(`oauth response ${request.url} missing query string`);
-          return;
-        }
-
-        const qs = parseQueryString(url.query);
-        if (qs.state !== secret) {
-          rej(`invalid secret ${qs.state}, expected ${secret}`);
-        } else if (!qs.code) {
-          rej(`oauth response ${request.url} does not have a code`);
-        } else {
-          code = qs.code;
-          res([code, redirectUri]);
-        }
-      } finally {
-        const message = code ? `got code ${code}` : 'failed to get code';
-        response.end(`<body>${message}</body>`);
-      }
-    }).listen(0);
-
+  return new Promise(res => {
     const secret = String(Math.random());
-    const redirectUri = `http://localhost:${server.address().port}`;
+    const redirectUri = 'urn:ietf:wg:oauth:2.0:oob';
     const oauth2 = newOAuth2(clientId, clientSecret);
     const authUrl = oauth2.getAuthorizeUrl({
       'access_type': 'offline', // without this, we won't be issued a refresh token
@@ -93,7 +64,17 @@ function getAuthCodeViaURL(clientId: string, clientSecret: string)
       scope,
       state: secret,
     });
-    console.log(authUrl);
+
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    rl.question(
+      `Visit the following URL and paste the code you get:\n\n\t${authUrl}\n\n`,
+      (answer) => {
+        res([answer, redirectUri]);
+        rl.close();
+      });
   });
 }
 
