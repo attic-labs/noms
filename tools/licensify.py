@@ -82,7 +82,11 @@ def buildLicensePattern(ext):
     # Allow flow annotations
     flow = r'(?P<flow>// @flow\n+|)'
 
-    return '^' + shebang + '(' + prefix + head + body + suffix + r'\n)?' + flow
+    # Doctype header
+    doctype = r'(?P<doctype><doctype html>\n+|)'
+
+    return ('^' + shebang + doctype +
+        '(' + prefix + head + body + suffix + r'\n)?' + flow)
 
 
 def getLicense(ext):
@@ -93,7 +97,7 @@ def getLicense(ext):
         result = first + '\n' + result
     if last != '':
         result = result + '\n' + last
-    return r'\g<shebang>' + result + '\n\n\g<flow>'
+    return r'\g<shebang>' + r'\g<doctype>' + result + '\n\n\g<flow>'
 
 
 if __name__ == '__main__':
