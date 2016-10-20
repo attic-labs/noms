@@ -39,6 +39,7 @@
     "react": "^15.2.0",
     "react-dom": "^15.2.0",
     "request": "^2.72.0",
+    "timer-promise": "^0.0.2",
     "varint": "^4.0.0",
     "yargs": "^4.7.1"
   },
