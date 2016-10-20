@@ -10,12 +10,16 @@ const scope = 'https://picasaweb.google.com/data';
 const authPath = 'https://accounts.google.com/o/oauth2/auth';
 const tokenPath = 'https://accounts.google.com/o/oauth2/token';
 
+// This magic URL causes Google's oauth endpoint to print out the token for the user to copy,
+// rather than actually redirecting to it.
+const redirectUri = 'urn:ietf:wg:oauth:2.0:oob';
+
 /**
  * Gets a refresh token for the Picasa API. Refresh tokens are used to issue access tokens.
  */
 export function getRefreshToken(clientId: string, clientSecret: string): Promise<string> {
-  return getAuthCodeViaURL(clientId, clientSecret)
-    .then(([authCode, redirectUri]) => new Promise((res, rej) => {
+  return getAuthCode(clientId, clientSecret)
+    .then(authCode => new Promise((res, rej) => {
       const oauth = newOAuth2(clientId, clientSecret);
       oauth.getOAuthAccessToken(authCode, {
         'grant_type': 'authorization_code',
@@ -51,11 +55,10 @@ export function getAccessTokenFromRefreshToken(
   });
 }
 
-function getAuthCodeViaURL(clientId: string, clientSecret: string)
-    : Promise<[string /* auth code */, string /* authorize URL */]> {
+function getAuthCode(clientId: string, clientSecret: string)
+    : Promise<string> {
   return new Promise(res => {
     const secret = String(Math.random());
-    const redirectUri = 'urn:ietf:wg:oauth:2.0:oob';
     const oauth2 = newOAuth2(clientId, clientSecret);
     const authUrl = oauth2.getAuthorizeUrl({
       'access_type': 'offline', // without this, we won't be issued a refresh token
@@ -71,8 +74,8 @@ function getAuthCodeViaURL(clientId: string, clientSecret: string)
     });
     rl.question(
       `Visit the following URL and paste the code you get:\n\n\t${authUrl}\n\n`,
-      (answer) => {
-        res([answer, redirectUri]);
+      answer => {
+        res(answer);
         rl.close();
       });
   });
