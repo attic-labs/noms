@@ -9,11 +9,13 @@ import (
 
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/datas"
 	v7datas "github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/migration"
 	"github.com/attic-labs/noms/go/spec"
 	v7spec "github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
+	v7types "github.com/attic-labs/noms/go/types"
 	flag "github.com/juju/gnuflag"
 )
 
@@ -36,30 +38,41 @@ func runMigrate(args []string) int {
 	// TODO: parallelize
 	// TODO: incrementalize
 
-	sourceStore, sourceObj, err := v7spec.GetPath(args[0])
+	sourceDb, sourceValue, err := v7spec.GetPath(args[0])
 	d.CheckError(err)
-	defer sourceStore.Close()
+	defer sourceDb.Close()
 
-	if sourceObj == nil {
-		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[0]))
+	if sourceValue == nil {
+		d.CheckErrorNoUsage(fmt.Errorf("Value not found: %s", args[0]))
 	}
 
-	isCommit := v7datas.IsCommitType(sourceObj.Type())
+	isCommit := v7datas.IsCommitType(sourceValue.Type())
 
-	sinkDataset, err := spec.GetDataset(args[1])
+	sinkDb, sinkDataset, err := spec.GetDataset(args[1])
 	d.CheckError(err)
-	defer sinkDataset.Database().Close()
-
-	sinkObj, err := migration.MigrateFromVersion7(sourceObj, sourceStore, sinkDataset.Database())
-	d.CheckError(err)
+	defer sinkDb.Close()
 
 	if isCommit {
+		// Need to migrate both value and meta fields.
+		sourceCommit := sourceValue.(v7types.Struct)
+
+		sinkValue, err := migration.MigrateFromVersion7(sourceCommit.Get("value"), sourceDb, sinkDb)
+		d.CheckError(err)
+		sinkMeta, err := migration.MigrateFromVersion7(sourceCommit.Get("meta"), sourceDb, sinkDb)
+		d.CheckError(err)
+
 		// Commit will assert that we got a Commit struct.
-		_, err = sinkDataset.Database().Commit(sinkDataset.ID(), sinkObj.(types.Struct))
+		_, err = sinkDb.Commit(sinkDataset, sinkValue, datas.CommitOptions{
+			Meta: sinkMeta.(types.Struct),
+		})
+		d.CheckError(err)
 	} else {
-		_, err = sinkDataset.CommitValue(sinkObj)
+		sinkValue, err := migration.MigrateFromVersion7(sourceValue, sourceDb, sinkDb)
+		d.CheckError(err)
+
+		_, err = sinkDb.CommitValue(sinkDataset, sinkValue)
+		d.CheckError(err)
 	}
-	d.CheckError(err)
 
 	return 0
 }

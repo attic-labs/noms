@@ -7,6 +7,7 @@ package main
 import (
 	"testing"
 
+	v7datas "github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	v7spec "github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
@@ -23,14 +24,18 @@ type nomsMigrateTestSuite struct {
 	clienttest.ClientTestSuite
 }
 
-func (s *nomsMigrateTestSuite) writeTestData(str string, value v7types.Value) {
-	ds, err := v7spec.GetDataset(str)
+func (s *nomsMigrateTestSuite) writeTestData(str string, value v7types.Value, meta v7types.Value) {
+	db, ds, err := v7spec.GetDataset(str)
 	s.NoError(err)
 
-	ds, err = ds.CommitValue(value)
+	_, err = db.Commit(ds, value, v7datas.CommitOptions{
+		Meta: v7types.NewStruct("", v7types.StructData{
+			"value": meta,
+		}),
+	})
 	s.NoError(err)
 
-	err = ds.Database().Close()
+	err = db.Close()
 	s.NoError(err)
 }
 
@@ -43,17 +48,20 @@ func (s *nomsMigrateTestSuite) TestNomsMigrate() {
 
 	str := "Hello world"
 	v7val := v7types.String(str)
+	v7meta := v7types.Number(42)
 
-	s.writeTestData(sourceStr, v7val)
+	s.writeTestData(sourceStr, v7val, v7meta)
 
 	outStr, errStr := s.MustRun(main, []string{"migrate", sourceStr, destStr})
 	s.Equal("", outStr)
 	s.Equal("", errStr)
 
-	destDs, err := spec.GetDataset(destStr)
+	destDb, destDs, err := spec.GetDataset(destStr)
 	s.NoError(err)
+	defer destDb.Close()
 
 	s.True(destDs.HeadValue().Equals(types.String(str)))
+	s.True(destDs.Head().Get("meta").(types.Struct).Get("value").Equals(types.Number(42)))
 }
 
 func (s *nomsMigrateTestSuite) TestNomsMigrateNonCommit() {
@@ -67,17 +75,20 @@ func (s *nomsMigrateTestSuite) TestNomsMigrateNonCommit() {
 	v7val := v7types.NewStruct("", v7types.StructData{
 		"str": v7types.String(str),
 	})
+	v7meta := v7types.Bool(true)
 
-	s.writeTestData(sourceStr, v7val)
+	s.writeTestData(sourceStr, v7val, v7meta)
 
 	outStr, errStr := s.MustRun(main, []string{"migrate", sourceStr + ".value.str", destStr})
 	s.Equal("", outStr)
 	s.Equal("", errStr)
 
-	destDs, err := spec.GetDataset(destStr)
+	destDb, destDs, err := spec.GetDataset(destStr)
 	s.NoError(err)
+	defer destDb.Close()
 
 	s.True(destDs.HeadValue().Equals(types.String(str)))
+
 }
 
 func (s *nomsMigrateTestSuite) TestNomsMigrateNil() {
@@ -89,7 +100,7 @@ func (s *nomsMigrateTestSuite) TestNomsMigrateNil() {
 
 	defer func() {
 		err := recover()
-		s.Equal(clienttest.ExitError{Code: -1}, err)
+		s.Equal(clienttest.ExitError{Code: 1}, err)
 	}()
 
 	s.MustRun(main, []string{"migrate", sourceStr, destStr})

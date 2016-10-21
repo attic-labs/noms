@@ -5,12 +5,14 @@
 package migration
 
 import (
+	"fmt"
+
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/types"
 	v7types "github.com/attic-labs/noms/go/types"
 )
 
-// Migrate converts a Noms value from one version to another version.
+// MigrateFromVersion7 migrates a Noms value of format version 7 to the current version.
 func MigrateFromVersion7(source v7types.Value, sourceStore v7types.ValueReadWriter, sinkStore types.ValueReadWriter) (dest types.Value, err error) {
 	switch source := source.(type) {
 	case v7types.Bool:
@@ -20,7 +22,7 @@ func MigrateFromVersion7(source v7types.Value, sourceStore v7types.ValueReadWrit
 	case v7types.String:
 		return types.String(string(source)), nil
 	case v7types.Blob:
-		return types.NewStreamingBlob(source.Reader(), sourceStore), nil
+		return types.NewStreamingBlob(sourceStore, source.Reader()), nil
 	case v7types.List:
 		vc := make(chan types.Value, 1024)
 		lc := types.NewStreamingList(sinkStore, vc)
@@ -98,7 +100,7 @@ func MigrateFromVersion7(source v7types.Value, sourceStore v7types.ValueReadWrit
 		return
 	}
 
-	panic("unreachable")
+	panic(fmt.Sprintf("unreachable type: %T", source))
 }
 
 func migrateType(source *v7types.Type) *types.Type {
@@ -150,5 +152,5 @@ func migrateType(source *v7types.Type) *types.Type {
 		return types.MakeCycleType(uint32(source.Desc.(types.CycleDesc)))
 	}
 
-	panic("unreachable")
+	panic(fmt.Sprintf("unreachable kind: %d", source.Kind()))
 }
