@@ -134,32 +134,32 @@ function getSizes(input: Object): Map<Struct, string> {
     if (resized.scale > 1) {
       return null;
     }
-
-    const dbArgs = encodeURIComponent(JSON.stringify({
-      path: input.id,
-      format: 'jpeg',
-      size: `w${width}h${height}`,
-    }));
-    const url = `${contentHost}files/get_thumbnail?arg=${dbArgs}&` +
-        `authorization=Bearer%20${args['access-token']}`;
-    return [newStruct('', {width: resized.width, height: resized.height}), url];
+    return [
+      newStruct('', {width: resized.width, height: resized.height}),
+      getURL('files/get_thumbnail', {
+        path: input.id,
+        format: 'jpeg',
+        size: `w${width}h${height}`,
+      })
+    ];
   });
 
-  const dbArgs = encodeURIComponent(JSON.stringify({
-    path: input.id,
-  }));
-  const url = `${contentHost}files/download?arg=${dbArgs}&` +
-      `authorization=Bearer%20${args['access-token']}`;
   kv.push([
     newStruct('', {
       width: orig.width,
       height: orig.height,
     }),
-    url,
+    getURL('files/download', {path: input.id}),
   ]);
 
   // $FlowIssue: Does not understand that filter removes all null values.
   return new Map(kv.filter(kv => kv));
+}
+
+function getURL(path: string, dbArgs: Object): string {
+  const dbArgStr = encodeURIComponent(JSON.stringify(dbArgs));
+  return `${contentHost}${path}?arg=${dbArgStr}&` +
+      `authorization=Bearer%20${args['access-token']}`
 }
 
 function newDate(iso: string): Struct {
