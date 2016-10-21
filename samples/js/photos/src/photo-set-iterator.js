@@ -151,10 +151,10 @@ export class PhotoSetIntersectionIterator extends PhotoSetIterator {
       for (let i = 1; i < values.length; i++) {
         if (!equals(values[i][1], values[0][1])) {
           didIntersect = false;
-        }
 
-        if (!isIterationOrder(values[i], values[leastRecentIdx])) {
-          leastRecentIdx = i;
+          if (!isIterationOrder(values[i], values[leastRecentIdx])) {
+            leastRecentIdx = i;
+          }
         }
       }
 
