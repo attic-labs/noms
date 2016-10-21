@@ -140,7 +140,7 @@ function getSizes(input: Object): Map<Struct, string> {
         path: input.id,
         format: 'jpeg',
         size: `w${width}h${height}`,
-      })
+      }),
     ];
   });
 
@@ -159,7 +159,7 @@ function getSizes(input: Object): Map<Struct, string> {
 function getURL(path: string, dbArgs: Object): string {
   const dbArgStr = encodeURIComponent(JSON.stringify(dbArgs));
   return `${contentHost}${path}?arg=${dbArgStr}&` +
-      `authorization=Bearer%20${args['access-token']}`
+      `authorization=Bearer%20${args['access-token']}`;
 }
 
 function newDate(iso: string): Struct {
