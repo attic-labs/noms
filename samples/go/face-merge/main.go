@@ -147,7 +147,7 @@ func centeredFaceAligned(facePts facePoints) bool {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "face-merge merges face data to create comprehensive face view\n\n")
+	fmt.Fprintf(os.Stderr, "face-merge merges face photo data to create comprehensive face view\n\n")
 	fmt.Fprintf(os.Stderr, "Usage: %s -db=<db-spec> -out-ds=<name> [input-paths...]\n\n", path.Base(os.Args[0]))
 	fmt.Fprintf(os.Stderr, "  <db>             : Database to work with\n")
 	fmt.Fprintf(os.Stderr, "  <out-ds>         : Dataset to write to\n")
