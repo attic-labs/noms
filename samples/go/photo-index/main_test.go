@@ -97,6 +97,7 @@ func (s *testSuite) TestWin() {
 	_, _ = s.MustRun(main, []string{"--out-ds", "idx", "--db", s.LdbDir, "test"})
 
 	db, ds, _ = spec.GetDataset(fmt.Sprintf("%s::idx", s.LdbDir))
+
 	var idx struct {
 		ByDate       map[int]types.Set
 		ByTag        map[string]map[int]types.Set
@@ -104,7 +105,14 @@ func (s *testSuite) TestWin() {
 		TagsByCount  map[int]types.Set
 		FacesByCount map[int]types.Set
 	}
-	marshal.Unmarshal(ds.HeadValue(), &idx)
+
+	val := types.Set{}
+	marshal.Unmarshal(ds.HeadValue(), &val)
+	val.IterAll(func(v types.Value) {
+		v.(types.Struct).Get("faces").(types.Set).IterAll(func(val types.Value) {
+			fmt.Println(val.(types.Struct).Get("name"))
+		})
+	})
 
 	s.Equal(5, len(idx.ByDate))
 	for i := 0; i < 5; i++ {
@@ -142,4 +150,5 @@ func (s *testSuite) TestWin() {
 		k := fmt.Sprintf("harry%d", i)
 		s.True(tags.Has(types.String(k)))
 	}
+
 }
