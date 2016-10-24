@@ -1,0 +1,27 @@
+// Copyright 2016 Attic Labs, Inc. All rights reserved.
+// Licensed under the Apache License, version 2.0:
+// http://www.apache.org/licenses/LICENSE-2.0
+package model
+
+import (
+	"github.com/attic-labs/noms/go/types"
+	"github.com/satori/go.uuid"
+)
+
+type ID string
+
+func UnmarshalID(value types.Value) ID {
+	return ID(string(value.(types.String)))
+}
+
+func NewAtticID() ID {
+	return ID(uuid.NewV4().String())
+}
+
+func (id ID) String() string {
+	return string(id)
+}
+
+func (id ID) Marshal() types.Value {
+	return types.String(string(id))
+}
