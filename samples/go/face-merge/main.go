@@ -141,7 +141,7 @@ func getMergedFaces(photo types.Struct) types.Set {
 	faceSet := types.NewSet()
 
 	facesCentered.(types.Set).Iter(func(faceCentered types.Value) bool {
-		facesRect.(types.Set).Iter(func(faceRect types.Value) bool {
+		facesRect.(types.Set).Iter(func(faceRect types.Value) (stop bool) {
 			facePts := getFacePoints(faceRect.(types.Struct), faceCentered.(types.Struct))
 			if centeredFaceAligned(facePts) {
 				faceSet = faceSet.Insert(types.NewStruct("", types.StructData{
@@ -151,9 +151,9 @@ func getMergedFaces(photo types.Struct) types.Set {
 					"h":    facePts.h,
 					"name": facePts.name,
 				}))
-				return true
+				stop = true
 			}
-			return false
+			return
 		})
 		return false
 	})
