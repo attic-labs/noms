@@ -68,8 +68,20 @@ func mergeFaces() {
 		return
 	}
 
+	sizeType := types.MakeStructTypeFromFields("", types.FieldMap{
+		"width":  types.NumberType,
+		"height": types.NumberType,
+	})
+
+	dateType := types.MakeStructTypeFromFields("Date", types.FieldMap{
+		"nsSinceEpoch": types.NumberType,
+	})
+
 	photoType := types.MakeStructTypeFromFields("Photo", types.FieldMap{
-		"title": types.StringType,
+		"sizes":         types.MakeMapType(sizeType, types.StringType),
+		"title":         types.StringType,
+		"datePublished": dateType,
+		"dateUpdated":   dateType,
 	})
 
 	annotatedPhotoSet := types.NewGraphBuilder(db, types.SetKind, true)
