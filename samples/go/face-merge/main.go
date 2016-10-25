@@ -105,9 +105,11 @@ func mergeFaces() {
 	for _, v := range inputs {
 		walk.WalkValues(v, db, func(cv types.Value) bool {
 			if types.IsSubtype(photoType, cv.Type()) {
-				photo := cv.(types.Struct).Set("faces", types.NewSet())
+				photo := cv.(types.Struct)
 				if types.IsSubtype(withFaceType, photo.Type()) {
 					photo = photo.Set("faces", getMergedFaces(photo))
+				} else {
+					photo.Set("faces", types.NewSet())
 				}
 				photo = filterExtraFields(photo)
 				annotatedPhotoSet.SetInsert(nil, photo)
