@@ -34,9 +34,8 @@ func main() {
 }
 
 func mergeFaces() {
-
 	var dbStr = flag.String("db", "", "input database spec")
-	var outDSStr = flag.String("out-ds", "", "output dataset to write to - if empty, defaults to input dataset")
+	var outDSStr = flag.String("out-ds", "", "output dataset to write to")
 	verbose.RegisterVerboseFlags(flag.CommandLine)
 
 	flag.Usage = usage
@@ -47,21 +46,20 @@ func mergeFaces() {
 		return
 	}
 
-	cfg := config.NewResolver()
-	db, err := cfg.GetDatabase(*dbStr)
+	db, err := config.NewResolver().GetDatabase(*dbStr)
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Invalid input database '%s': %s\n", flag.Arg(0), err)
 		return
 	}
-	defer db.Close()
 
-	var outDS datas.Dataset
+	defer db.Close()
 	if !datas.IsValidDatasetName(*outDSStr) {
 		fmt.Fprintf(os.Stderr, "Invalid output dataset name: %s\n", *outDSStr)
 		return
 	}
 
-	outDS = db.GetDataset(*outDSStr)
+	outDS := db.GetDataset(*outDSStr)
 	inputs, err := spec.ReadAbsolutePaths(db, flag.Args()...)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
@@ -77,6 +75,24 @@ func mergeFaces() {
 		"nsSinceEpoch": types.NumberType,
 	})
 
+	faceRectType := types.MakeStructTypeFromFields("", types.FieldMap{
+		"x": types.NumberType,
+		"y": types.NumberType,
+		"w": types.NumberType,
+		"h": types.NumberType,
+	})
+
+	faceCenterType := types.MakeStructTypeFromFields("", types.FieldMap{
+		"x":    types.NumberType,
+		"y":    types.NumberType,
+		"name": types.StringType,
+	})
+
+	withFaceType := types.MakeStructTypeFromFields("Photo", types.FieldMap{
+		"facesRect":     types.MakeSetType(faceRectType),
+		"facesCentered": types.MakeSetType(faceCenterType),
+	})
+
 	photoType := types.MakeStructTypeFromFields("Photo", types.FieldMap{
 		"sizes":         types.MakeMapType(sizeType, types.StringType),
 		"title":         types.StringType,
@@ -89,10 +105,11 @@ func mergeFaces() {
 	for _, v := range inputs {
 		walk.WalkValues(v, db, func(cv types.Value) bool {
 			if types.IsSubtype(photoType, cv.Type()) {
-				s := cv.(types.Struct)
-				faces := getMergedFaces(s)
-				photo := filterExtraFields(s)
-				photo = photo.Set("faces", faces)
+				photo := cv.(types.Struct).Set("faces", types.NewSet())
+				if types.IsSubtype(withFaceType, photo.Type()) {
+					photo = photo.Set("faces", getMergedFaces(photo))
+				}
+				photo = filterExtraFields(photo)
 				annotatedPhotoSet.SetInsert(nil, photo)
 			}
 			return false
@@ -117,29 +134,27 @@ func filterExtraFields(photo types.Struct) types.Struct {
 }
 
 func getMergedFaces(photo types.Struct) types.Set {
-	facesRect, rectExists := photo.MaybeGet("facesRect")
-	facesCentered, centerExists := photo.MaybeGet("facesCentered")
+	facesRect := photo.Get("facesRect")
+	facesCentered := photo.Get("facesCentered")
 	faceSet := types.NewSet()
 
-	if rectExists && centerExists {
-		facesCentered.(types.Set).Iter(func(faceCentered types.Value) bool {
-			facesRect.(types.Set).Iter(func(faceRect types.Value) bool {
-				facePts := getFacePoints(faceRect.(types.Struct), faceCentered.(types.Struct))
-				if centeredFaceAligned(facePts) {
-					faceSet = faceSet.Insert(types.NewStruct("", types.StructData{
-						"x":    facePts.x,
-						"y":    facePts.y,
-						"w":    facePts.w,
-						"h":    facePts.h,
-						"name": facePts.name,
-					}))
-					return true
-				}
-				return false
-			})
+	facesCentered.(types.Set).Iter(func(faceCentered types.Value) bool {
+		facesRect.(types.Set).Iter(func(faceRect types.Value) bool {
+			facePts := getFacePoints(faceRect.(types.Struct), faceCentered.(types.Struct))
+			if centeredFaceAligned(facePts) {
+				faceSet = faceSet.Insert(types.NewStruct("", types.StructData{
+					"x":    facePts.x,
+					"y":    facePts.y,
+					"w":    facePts.w,
+					"h":    facePts.h,
+					"name": facePts.name,
+				}))
+				return true
+			}
 			return false
 		})
-	}
+		return false
+	})
 	return faceSet
 }
 
