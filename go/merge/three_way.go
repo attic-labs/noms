@@ -22,6 +22,21 @@ import (
 // to be used (if any), and true.
 type ResolveFunc func(aChange, bChange types.DiffChangeType, a, b types.Value, path types.Path) (change types.DiffChangeType, merged types.Value, ok bool)
 
+// None is the no-op ResolveFunc. Any conflict results in a merge failure.
+func None(aChange, bChange types.DiffChangeType, a, b types.Value, path types.Path) (change types.DiffChangeType, merged types.Value, ok bool) {
+	return change, merged, false
+}
+
+// Ours resolves conflicts by preferring changes from the Value currently being committed.
+func Ours(aChange, bChange types.DiffChangeType, a, b types.Value, path types.Path) (change types.DiffChangeType, merged types.Value, ok bool) {
+	return aChange, a, true
+}
+
+// Theirs resolves conflicts by preferring changes in the current HEAD.
+func Theirs(aChange, bChange types.DiffChangeType, a, b types.Value, path types.Path) (change types.DiffChangeType, merged types.Value, ok bool) {
+	return bChange, b, true
+}
+
 // ErrMergeConflict indicates that a merge attempt failed and must be resolved
 // manually for the provided reason.
 type ErrMergeConflict struct {
@@ -119,7 +134,7 @@ func ThreeWay(a, b, parent types.Value, vrw types.ValueReadWriter, resolve Resol
 	}
 
 	if resolve == nil {
-		resolve = defaultResolve
+		resolve = None
 	}
 	m := &merger{vrw, resolve, progress}
 	return m.threeWay(a, b, parent, types.Path{})
@@ -138,10 +153,6 @@ type merger struct {
 	vrw      types.ValueReadWriter
 	resolve  ResolveFunc
 	progress chan<- struct{}
-}
-
-func defaultResolve(aChange, bChange types.DiffChangeType, a, b types.Value, p types.Path) (change types.DiffChangeType, merged types.Value, ok bool) {
-	return
 }
 
 func updateProgress(progress chan<- struct{}) {
