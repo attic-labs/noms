@@ -179,7 +179,8 @@ func (s *testSuite) TestMerge() {
 		s.Equal(photoA.Get("tags").Equals(photoB.Get("tags")), true)
 	}
 
-	s.MustRun(main, []string{"--out-ds", "idx", "--db", s.LdbDir, "test"})
+	stdo, _ := s.MustRun(main, []string{"--out-ds", "idx", "--db", s.LdbDir, "test"})
+	fmt.Println(stdo)
 	_, ds, _ := spec.GetDataset(fmt.Sprintf("%s::idx", s.LdbDir))
 	val := types.Set{}
 	marshal.Unmarshal(ds.HeadValue(), &val)
@@ -191,7 +192,7 @@ func (s *testSuite) TestMerge() {
 		} else if v.(types.Struct).Get("title").(types.String) == "photo2" {
 			testOutput, _ = marshal.Marshal(photoOutput2)
 		} else {
-			panic("Invalid state reached ")
+			panic("Invalid test state reached ")
 		}
 		verifyOutput(testOutput.(types.Struct), v.(types.Struct))
 
