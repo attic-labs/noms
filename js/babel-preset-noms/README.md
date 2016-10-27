@@ -1,6 +1,6 @@
 # babel-preset-noms
 
-> Babel preset for Noms applications.
+Babel preset for Noms applications.
 
 ## Install
 
