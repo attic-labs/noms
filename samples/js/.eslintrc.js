@@ -5,7 +5,7 @@
 module.exports = {
   rules: {
     // Allow console
-    'no-consoloe': 0,
+    'no-console': 0,
     // Used to distinguish between user errors and exceptions.
     'no-throw-literal': 0,
   },
