@@ -26,9 +26,9 @@ var (
 
 	nomsMerge = &util.Command{
 		Run:       runMerge,
-		UsageLine: "merge [options] <database> <left-dataset-name> <right-dataset-name> [<output-dataset>]",
+		UsageLine: "merge [options] <database> <left-dataset-name> <right-dataset-name> <output-dataset-name>",
 		Short:     "Merges and commits the head values of two named datasets",
-		Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.\nYu must provide a working database and at least two Dataset names. The values at the heads of these Datasets will be merged and put into a new Commit object. If you provide a third dataset name, its head will be set to this new merge commit. If not, the head of <right-dataset-name> will be set to this Commit instead.",
+		Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.\nYu must provide a working database and the names of two Datasets you want to merge. The values at the heads of these Datasets will be merged, put into a new Commit object, and set as the Head of the third provided Dataset name.",
 		Flags:     setupMergeFlags,
 		Nargs:     1, // if absolute-path not present we read it from stdin
 	}
@@ -37,7 +37,7 @@ var (
 
 func setupMergeFlags() *flag.FlagSet {
 	commitFlagSet := flag.NewFlagSet("merge", flag.ExitOnError)
-	commitFlagSet.StringVar(&resolver, "policy", "n", "conflict resolution policy for merging. Defaults to 'n', which means no resolution strategy will be applied. Supported values are 'l' (left), 'r' (right) and 'a' (ask). 'ask' will bring up a simple command-line prompt allowing you to resolve conflicts by choosing between 'l' or 'r' on a case-by-case basis.")
+	commitFlagSet.StringVar(&resolver, "policy", "n", "conflict resolution policy for merging. Defaults to 'n', which means no resolution strategy will be applied. Supported values are 'l' (left), 'r' (right) and 'p' (prompt). 'prompt' will bring up a simple command-line prompt allowing you to resolve conflicts by choosing between 'l' or 'r' on a case-by-case basis.")
 	verbose.RegisterVerboseFlags(commitFlagSet)
 	return commitFlagSet
 }
@@ -51,14 +51,14 @@ func checkIfTrue(b bool, format string, args ...interface{}) {
 func runMerge(args []string) int {
 	cfg := config.NewResolver()
 
-	if len(args) < 3 || len(args) > 4 {
+	if len(args) != 4 {
 		d.CheckErrorNoUsage(fmt.Errorf("Incorrect number of arguments"))
 	}
 	db, err := cfg.GetDatabase(args[0])
 	d.CheckError(err)
 	defer db.Close()
 
-	leftDS, rightDS, outDS := resolveDatasets(db, args[1:]...)
+	leftDS, rightDS, outDS := resolveDatasets(db, args[1], args[2], args[3])
 	left, right, ancestor := getMergeCandidates(db, leftDS, rightDS)
 	policy := decidePolicy(resolver)
 	pc := newMergeProgressChan()
@@ -66,9 +66,7 @@ func runMerge(args []string) int {
 	d.CheckErrorNoUsage(err)
 	close(pc)
 
-	_, err = db.Commit(outDS, merged, datas.CommitOptions{
-		Parents: types.NewSet(leftDS.HeadRef(), rightDS.HeadRef()),
-	})
+	_, err = db.SetHead(outDS, db.WriteValue(datas.NewCommit(merged, types.NewSet(leftDS.HeadRef(), rightDS.HeadRef()), types.EmptyStruct)))
 	d.PanicIfError(err)
 	if !verbose.Quiet() {
 		status.Printf("Done")
@@ -77,16 +75,16 @@ func runMerge(args []string) int {
 	return 0
 }
 
-func resolveDatasets(db datas.Database, names ...string) (leftDS, rightDS, outDS datas.Dataset) {
+func resolveDatasets(db datas.Database, leftName, rightName, outName string) (leftDS, rightDS, outDS datas.Dataset) {
 	makeDS := func(dsName string) datas.Dataset {
 		if !datasetRe.MatchString(dsName) {
 			d.CheckErrorNoUsage(fmt.Errorf("Invalid dataset %s, must match %s", dsName, datas.DatasetRe.String()))
 		}
 		return db.GetDataset(dsName)
 	}
-	leftDS = makeDS(names[0])
-	rightDS = makeDS(names[1])
-	outDS = makeDS(names[len(names)-1])
+	leftDS = makeDS(leftName)
+	rightDS = makeDS(rightName)
+	outDS = makeDS(outName)
 	return
 }
 
@@ -139,7 +137,7 @@ func decidePolicy(policy string) merge.Policy {
 		resolve = merge.Ours
 	case "r", "R":
 		resolve = merge.Theirs
-	case "a", "A":
+	case "p", "P":
 		resolve = func(aType, bType types.DiffChangeType, a, b types.Value, path types.Path) (change types.DiffChangeType, merged types.Value, ok bool) {
 			return cliResolve(os.Stdin, os.Stdout, aType, bType, a, b, path)
 		}

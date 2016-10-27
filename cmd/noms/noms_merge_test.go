@@ -30,7 +30,8 @@ func (s *nomsMergeTestSuite) TearDownTest() {
 	s.NoError(os.RemoveAll(s.LdbDir))
 }
 
-func (s *nomsMergeTestSuite) setupMergeDatasets(left, right string) (l, r types.Ref) {
+func (s *nomsMergeTestSuite) TestNomsMerge_Success() {
+	left, right := "left", "right"
 	p := s.setupMergeDataset(
 		"parent",
 		types.StructData{
@@ -42,7 +43,7 @@ func (s *nomsMergeTestSuite) setupMergeDatasets(left, right string) (l, r types.
 		},
 		types.NewSet())
 
-	l = s.setupMergeDataset(
+	l := s.setupMergeDataset(
 		left,
 		types.StructData{
 			"num": types.Number(42),
@@ -53,7 +54,7 @@ func (s *nomsMergeTestSuite) setupMergeDatasets(left, right string) (l, r types.
 		},
 		types.NewSet(p))
 
-	r = s.setupMergeDataset(
+	r := s.setupMergeDataset(
 		right,
 		types.StructData{
 			"num": types.Number(42),
@@ -63,52 +64,7 @@ func (s *nomsMergeTestSuite) setupMergeDatasets(left, right string) (l, r types.
 				types.String("foo"), types.Number(1), types.Number(2), types.String("bar")),
 		},
 		types.NewSet(p))
-	return
-}
 
-func (s *nomsMergeTestSuite) setupMergeDataset(name string, data types.StructData, p types.Set) types.Ref {
-	db, ds, _ := spec.GetDataset(spec.CreateValueSpecString("ldb", s.LdbDir, name))
-	defer db.Close()
-	ds, err := db.Commit(ds, types.NewStruct("", data), datas.CommitOptions{Parents: p})
-	s.NoError(err)
-	return ds.HeadRef()
-}
-
-func (s *nomsMergeTestSuite) validateDataset(name string, expected types.Struct, parents ...types.Value) {
-
-	db, ds, err := spec.GetDataset(spec.CreateValueSpecString("ldb", s.LdbDir, name))
-	if s.NoError(err) {
-		commit := ds.Head()
-		s.True(commit.Get(datas.ParentsField).Equals(types.NewSet(parents...)))
-		merged := ds.HeadValue()
-		s.True(expected.Equals(merged), "%s != %s", types.EncodedValue(expected), types.EncodedValue(merged))
-	}
-	defer db.Close()
-}
-
-func (s *nomsMergeTestSuite) TestNomsMerge_Success() {
-	left, right := "left", "right"
-	l, r := s.setupMergeDatasets(left, right)
-	expected := types.NewStruct("", types.StructData{
-		"num": types.Number(42),
-		"str": types.String("foobaz"),
-		"lst": types.NewList(types.Number(1), types.String("foo")),
-		"map": types.NewMap(types.Number(1), types.String("foo"),
-			types.String("foo"), types.Number(1), types.Number(2), types.String("bar")),
-	})
-
-	stdout, stderr, err := s.Run(main, []string{"merge", s.LdbDir, left, right})
-	if err == nil {
-		s.Equal("", stderr)
-		s.validateDataset(right, expected, l, r)
-	} else {
-		s.Fail("Run failed", "err: %v\nstdout: %s\nstderr: %s\n", err, stdout, stderr)
-	}
-}
-
-func (s *nomsMergeTestSuite) TestNomsMerge_SuccessNesDataset() {
-	left, right := "left", "right"
-	l, r := s.setupMergeDatasets(left, right)
 	expected := types.NewStruct("", types.StructData{
 		"num": types.Number(42),
 		"str": types.String("foobaz"),
@@ -127,6 +83,25 @@ func (s *nomsMergeTestSuite) TestNomsMerge_SuccessNesDataset() {
 	}
 }
 
+func (s *nomsMergeTestSuite) setupMergeDataset(name string, data types.StructData, p types.Set) types.Ref {
+	db, ds, _ := spec.GetDataset(spec.CreateValueSpecString("ldb", s.LdbDir, name))
+	defer db.Close()
+	ds, err := db.Commit(ds, types.NewStruct("", data), datas.CommitOptions{Parents: p})
+	s.NoError(err)
+	return ds.HeadRef()
+}
+
+func (s *nomsMergeTestSuite) validateDataset(name string, expected types.Struct, parents ...types.Value) {
+	db, ds, err := spec.GetDataset(spec.CreateValueSpecString("ldb", s.LdbDir, name))
+	if s.NoError(err) {
+		commit := ds.Head()
+		s.True(commit.Get(datas.ParentsField).Equals(types.NewSet(parents...)))
+		merged := ds.HeadValue()
+		s.True(expected.Equals(merged), "%s != %s", types.EncodedValue(expected), types.EncodedValue(merged))
+	}
+	defer db.Close()
+}
+
 func (s *nomsMergeTestSuite) TestNomsMerge_Left() {
 	left, right := "left", "right"
 	p := s.setupMergeDataset("parent", types.StructData{"num": types.Number(42)}, types.NewSet())
@@ -135,10 +110,11 @@ func (s *nomsMergeTestSuite) TestNomsMerge_Left() {
 
 	expected := types.NewStruct("", types.StructData{"num": types.Number(43)})
 
-	stdout, stderr, err := s.Run(main, []string{"merge", "--policy=l", s.LdbDir, left, right})
+	output := "output"
+	stdout, stderr, err := s.Run(main, []string{"merge", "--policy=l", s.LdbDir, left, right, output})
 	if err == nil {
 		s.Equal("", stderr)
-		s.validateDataset(right, expected, l, r)
+		s.validateDataset(output, expected, l, r)
 	} else {
 		s.Fail("Run failed", "err: %v\nstdout: %s\nstderr: %s\n", err, stdout, stderr)
 	}
@@ -168,12 +144,12 @@ func (s *nomsMergeTestSuite) TestNomsMerge_Conflict() {
 	s.setupMergeDataset(left, types.StructData{"num": types.Number(43)}, types.NewSet(p))
 	s.setupMergeDataset(right, types.StructData{"num": types.Number(44)}, types.NewSet(p))
 
-	s.Panics(func() { s.MustRun(main, []string{"merge", s.LdbDir, left, right}) })
+	s.Panics(func() { s.MustRun(main, []string{"merge", s.LdbDir, left, right, "output"}) })
 }
 
 func (s *nomsMergeTestSuite) TestBadInput() {
 	sp := spec.CreateDatabaseSpecString("ldb", s.LdbDir)
-	p, l, r := "parent", "left", "right"
+	l, r, o := "left", "right", "output"
 	type c struct {
 		args []string
 		err  string
@@ -181,10 +157,11 @@ func (s *nomsMergeTestSuite) TestBadInput() {
 	cases := []c{
 		{[]string{"foo"}, "error: Incorrect number of arguments\n"},
 		{[]string{"foo", "bar"}, "error: Incorrect number of arguments\n"},
+		{[]string{"foo", "bar", "baz"}, "error: Incorrect number of arguments\n"},
 		{[]string{"foo", "bar", "baz", "quux", "five"}, "error: Incorrect number of arguments\n"},
-		{[]string{sp, l + "!!", r}, "error: Invalid dataset " + l + "!!, must match [a-zA-Z0-9\\-_/]+\n"},
-		{[]string{sp, l + "2", r}, "error: Dataset " + l + "2 has no data\n"},
-		{[]string{sp, l, r + "2"}, "error: Dataset " + r + "2 has no data\n"},
+		{[]string{sp, l + "!!", r, o}, "error: Invalid dataset " + l + "!!, must match [a-zA-Z0-9\\-_/]+\n"},
+		{[]string{sp, l + "2", r, o}, "error: Dataset " + l + "2 has no data\n"},
+		{[]string{sp, l, r + "2", o}, "error: Dataset " + r + "2 has no data\n"},
 		{[]string{sp, l, r, "!invalid"}, "error: Invalid dataset !invalid, must match [a-zA-Z0-9\\-_/]+\n"},
 	}
 
@@ -193,7 +170,6 @@ func (s *nomsMergeTestSuite) TestBadInput() {
 		ds := db.GetDataset(dsName)
 		db.CommitValue(ds, types.NewMap(types.String("foo"), types.String("bar")))
 	}
-	prep(p)
 	prep(l)
 	prep(r)
 	db.Close()
