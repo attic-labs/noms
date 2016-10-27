@@ -17,6 +17,6 @@ type CommitOptions struct {
 	// Meta is a Struct that describes arbitrary metadata about this Commit, e.g. a timestamp or descriptive text.
 	Meta types.Struct
 
-	// MergePolicy will be called to attempt to resolve conflicts when merging this Commit. If MergePolicy is nil, no merging will be attempted.
-	MergePolicy merge.ResolveFunc
+	// Policy will be called to attempt to merge this Commit with the current Head, if this is not a fast-forward. If Policy is nil, no merging will be attempted.
+	Policy merge.Policy
 }

@@ -11,6 +11,12 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
+// Policy functors are used to merge two values (a and b) against a common
+// ancestor. All three Values and their must by wholly readable from vrw.
+// Whenever a change is merged, implementations should send a struct{} over
+// progress.
+type Policy func(a, b, ancestor types.Value, vrw types.ValueReadWriter, progress chan struct{}) (merged types.Value, err error)
+
 // ResolveFunc is the type for custom merge-conflict resolution callbacks.
 // When the merge algorithm encounters two non-mergeable changes (aChange and
 // bChange) at the same path, it calls the ResolveFunc passed into ThreeWay().
@@ -49,6 +55,13 @@ func (e *ErrMergeConflict) Error() string {
 
 func newMergeConflict(format string, args ...interface{}) *ErrMergeConflict {
 	return &ErrMergeConflict{fmt.Sprintf(format, args...)}
+}
+
+// Creates a new Policy based on ThreeWay using the provided ResolveFunc.
+func NewThreeWay(resolve ResolveFunc) Policy {
+	return func(a, b, parent types.Value, vrw types.ValueReadWriter, progress chan struct{}) (merged types.Value, err error) {
+		return ThreeWay(a, b, parent, vrw, resolve, progress)
+	}
 }
 
 // ThreeWay attempts a three-way merge between two _candidate_ values that

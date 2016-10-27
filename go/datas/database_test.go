@@ -249,7 +249,7 @@ func (suite *DatabaseSuite) TestDatabaseCommitMerge() {
 }
 
 func newOptsWithMerge(policy merge.ResolveFunc, parents ...types.Value) CommitOptions {
-	return CommitOptions{Parents: types.NewSet(parents...), MergePolicy: policy}
+	return CommitOptions{Parents: types.NewSet(parents...), Policy: merge.NewThreeWay(policy)}
 }
 
 func (suite *DatabaseSuite) TestDatabaseDelete() {

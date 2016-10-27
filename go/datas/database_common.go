@@ -98,7 +98,7 @@ func (dbc *databaseCommon) doFastForward(ds Dataset, newHeadRef types.Ref) error
 }
 
 // doCommit manages concurrent access the single logical piece of mutable state: the current Root. doCommit is optimistic in that it is attempting to update head making the assumption that currentRootHash is the hash of the current head. The call to UpdateRoot below will return an 'ErrOptimisticLockFailed' error if that assumption fails (e.g. because of a race with another writer) and the entire algorithm must be tried again. This method will also fail and return an 'ErrMergeNeeded' error if the |commit| is not a descendent of the current dataset head
-func (dbc *databaseCommon) doCommit(datasetID string, commit types.Struct, mergePolicy merge.ResolveFunc) error {
+func (dbc *databaseCommon) doCommit(datasetID string, commit types.Struct, mergePolicy merge.Policy) error {
 	d.PanicIfFalse(IsCommitType(commit.Type()), "Can't commit a non-Commit struct to dataset %s", datasetID)
 	defer func() { dbc.rootHash, dbc.datasets = dbc.rt.Root(), nil }()
 
@@ -129,7 +129,7 @@ func (dbc *databaseCommon) doCommit(datasetID string, commit types.Struct, merge
 					}
 
 					ancestor, currentHead := dbc.validateRefAsCommit(ancestorRef), dbc.validateRefAsCommit(currentHeadRef)
-					merged, err := merge.ThreeWay(commit.Get(ValueField), currentHead.Get(ValueField), ancestor.Get(ValueField), dbc, mergePolicy, nil)
+					merged, err := mergePolicy(commit.Get(ValueField), currentHead.Get(ValueField), ancestor.Get(ValueField), dbc, nil)
 					if err != nil {
 						return err
 					}
