@@ -62,7 +62,7 @@ func Generate(key Key, data Data) (string, error) {
 	rand.Read(nonce[:])
 
 	var keyBytes [keySize]byte = key
-	receiptSealed := secretbox.Seal(nil, receiptPlain[:], &nonce, new([keySize]byte(key)))
+	receiptSealed := secretbox.Seal(nil, receiptPlain[:], &nonce, &keyBytes)
 
 	// Put the nonce before the main receipt data.
 	receiptFull := make([]byte, len(nonce)+len(receiptSealed))
