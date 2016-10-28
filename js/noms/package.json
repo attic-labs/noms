@@ -6,7 +6,7 @@
   "repository": "https://github.com/attic-labs/noms",
   "main": "dist/commonjs/noms.js",
   "engines": {
-    "node": ">=5.11",
+    "node": ">=6",
     "npm": ">=3"
   },
   "dependencies": {
