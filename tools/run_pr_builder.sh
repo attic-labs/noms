@@ -11,8 +11,8 @@ set -eux
 export GOPATH=${WORKSPACE}
 NOMS_DIR=${WORKSPACE}/src/github.com/attic-labs/noms
 
-go version
 node --version
+go version
 
 # go list is expensive, only do it once.
 GO_LIST="$(go list ./... | grep -v /vendor/ | grep -v /samples/js/)"
