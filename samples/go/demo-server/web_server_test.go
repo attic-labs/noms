@@ -72,8 +72,8 @@ func TestWriteValue(t *testing.T) {
 
 	// Auth with receipt encrypted with empty (invalid) key:
 	receipt, err := receipts.Generate(receiptKey, receipts.Data{
-		Database: "/p/test/db",
-		Date:     time.Now(),
+		Database:  "/p/test/db",
+		IssueDate: time.Now(),
 	})
 	assert.NoError(err)
 
@@ -84,8 +84,8 @@ func TestWriteValue(t *testing.T) {
 	rand.Read(receiptKey[:])
 
 	receipt, err = receipts.Generate(receiptKey, receipts.Data{
-		Database: "/p/test/db",
-		Date:     time.Now(),
+		Database:  "/p/test/db",
+		IssueDate: time.Now(),
 	})
 	assert.NoError(err)
 
@@ -97,8 +97,8 @@ func TestWriteValue(t *testing.T) {
 	rand.Read(wrongReceiptKey[:])
 
 	receipt, err = receipts.Generate(wrongReceiptKey, receipts.Data{
-		Database: "/p/test/db",
-		Date:     time.Now(),
+		Database:  "/p/test/db",
+		IssueDate: time.Now(),
 	})
 	assert.NoError(err)
 
@@ -107,8 +107,8 @@ func TestWriteValue(t *testing.T) {
 
 	// Receipts cannot grant write access to non-private databases:
 	receipt, err = receipts.Generate(receiptKey, receipts.Data{
-		Database: "/test/db",
-		Date:     time.Now(),
+		Database:  "/test/db",
+		IssueDate: time.Now(),
 	})
 	assert.NoError(err)
 

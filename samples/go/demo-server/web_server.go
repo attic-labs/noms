@@ -151,7 +151,7 @@ func checkReceipt(dbName, token string) bool {
 	if err != nil {
 		fmt.Printf("Error decoding receipt for %s: %s\n", dbName, err.Error())
 	} else if !ok {
-		fmt.Printf("Receipt verification failed for %s issued at %s\n", dbName, data.Date.String())
+		fmt.Printf("Receipt verification failed for %s issued at %s\n", dbName, data.IssueDate.String())
 	}
 	return ok
 }

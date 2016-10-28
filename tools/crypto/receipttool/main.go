@@ -53,8 +53,8 @@ nothing on stdout and an error string on stderr if it doesn't.
 
 	if *verifyFlag == "" {
 		receipt, err := receipts.Generate(key, receipts.Data{
-			Database: *databaseFlag,
-			Date:     time.Now(),
+			Database:  *databaseFlag,
+			IssueDate: time.Now(),
 		})
 		exitIfError(err)
 		fmt.Println(receipt)

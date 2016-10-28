@@ -53,8 +53,8 @@ func TestGenerateValidReceipts(t *testing.T) {
 	now := time.Now()
 
 	d := Data{
-		Database: "MyDB",
-		Date:     now,
+		Database:  "MyDB",
+		IssueDate: now,
 	}
 
 	receipt, err := Generate(key, d)
@@ -68,7 +68,7 @@ func TestGenerateValidReceipts(t *testing.T) {
 	ok, err := Verify(key, receipt, &d2)
 	assert.NoError(err)
 	assert.True(ok)
-	assert.True(now.Equal(d2.Date), "Expected %s, got %s", now, d2.Date)
+	assert.True(now.Equal(d2.IssueDate), "Expected %s, got %s", now, d2.IssueDate)
 
 	d3 := Data{
 		Database: "NotMyDB",
@@ -77,7 +77,7 @@ func TestGenerateValidReceipts(t *testing.T) {
 	ok, err = Verify(key, receipt, &d3)
 	assert.NoError(err)
 	assert.False(ok)
-	assert.True(now.Equal(d3.Date), "Expected %s, got %s", now, d3.Date)
+	assert.True(now.Equal(d3.IssueDate), "Expected %s, got %s", now, d3.IssueDate)
 }
 
 func TestVerifyInvalidReceipt(t *testing.T) {
@@ -91,7 +91,7 @@ func TestVerifyInvalidReceipt(t *testing.T) {
 	ok, err := Verify(key, "foobar", &d)
 	assert.Error(err)
 	assert.False(ok)
-	assert.True((time.Time{}).Equal(d.Date))
+	assert.True((time.Time{}).Equal(d.IssueDate))
 }
 
 func TestReceiptsAreUnique(t *testing.T) {
@@ -99,8 +99,8 @@ func TestReceiptsAreUnique(t *testing.T) {
 
 	key := randomKey()
 	d := Data{
-		Database: "MyDB",
-		Date:     time.Now(),
+		Database:  "MyDB",
+		IssueDate: time.Now(),
 	}
 
 	r1, err := Generate(key, d)
