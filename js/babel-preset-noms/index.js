@@ -12,6 +12,18 @@ function plugin(n) {
   return require('babel-plugin-' + n);
 }
 
+const commonPlugins = [
+  plugin('syntax-async-functions'),
+  plugin('syntax-flow'),
+  plugin('transform-class-properties'),
+  [
+    plugin('transform-runtime'), {
+      polyfill: false,
+      regenerator: true,
+    },
+  ],
+];
+
 const production = {
   presets: [
     preset('es2015'),
@@ -19,16 +31,8 @@ const production = {
     preset('react'),
   ],
   plugins: [
-    plugin('syntax-async-functions'),
-    plugin('syntax-flow'),
-    plugin('transform-class-properties'),
+    ...commonPlugins,
     plugin('transform-regenerator'),
-    [
-      plugin('transform-runtime'), {
-        polyfill: false,
-        regenerator: true,
-      },
-    ],
   ],
 };
 
@@ -38,17 +42,9 @@ const development = {
     preset('react'),
   ],
   plugins: [
-    plugin('syntax-async-functions'),
-    plugin('syntax-flow'),
-    plugin('transform-async-to-generator'),
-    plugin('transform-class-properties'),
+    ...commonPlugins,
     plugin('transform-es2015-modules-commonjs'),
-    [
-      plugin('transform-runtime'), {
-        'polyfill': false,
-        'regenerator': true
-      }
-    ],
+    plugin('transform-async-to-generator'),
   ],
 };
 
