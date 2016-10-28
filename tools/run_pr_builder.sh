@@ -9,9 +9,8 @@
 set -eux
 
 export GOPATH=${WORKSPACE}
+export PATH=${PATH}:/usr/local/go/bin
 NOMS_DIR=${WORKSPACE}/src/github.com/attic-labs/noms
-
-echo $PATH
 
 go version
 node --version
