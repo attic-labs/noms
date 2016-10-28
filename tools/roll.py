@@ -88,7 +88,7 @@ def main():
 
   if excl is not None:
     if not os.path.isdir(excl):
-      print 'Warning: --incl directory %s does not exist, skipping.' % incl
+      print 'Warning: --excl directory %s does not exist, skipping.' % incl
     else:
       exclPath = os.path.abspath(excl)
       print 'rm subdirectory: %s' % exclPath
