@@ -33,9 +33,10 @@ const nonceSize = 24
 
 // DecodeKey converts a base64 encoded string to a receipt key.
 func DecodeKey(s string) (key Key, err error) {
-	keySlice, err2 := base64.URLEncoding.DecodeString(s)
-	if err2 != nil {
-		err = err2
+	var keySlice []byte
+	keySlice, err = base64.URLEncoding.DecodeString(s)
+
+	if err != nil {
 		return
 	}
 
@@ -125,6 +126,6 @@ func Verify(key Key, receiptText string, data *Data) (bool, error) {
 }
 
 func hash(s string) string {
-	h := sha512.Sum512([]byte(s))
+	h := sha512.Sum512_224([]byte(s))
 	return base64.URLEncoding.EncodeToString(h[:])
 }
