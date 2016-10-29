@@ -5,7 +5,7 @@
   "description": "Shared node modules",
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=6"
+    "node": ">=6.9"
   },
   "dependencies": {
     "@attic/noms": "file:../../js/noms",
