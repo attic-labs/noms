@@ -8,20 +8,18 @@ import (
 	"github.com/attic-labs/noms/go/d"
 )
 
-type CommitMeta interface {
-	Marshal() types.Struct
-}
-
-type commitMeta struct {
+type CommitMeta struct {
 	Date string
 }
 
 func NewCommitMeta() CommitMeta {
-	return &commitMeta{time.Now().Format(time.RFC3339)}
+	return CommitMeta{
+		time.Now().Format(time.RFC3339),
+	}
 }
 
-func (c *commitMeta) Marshal() types.Struct {
-	v, err := marshal.Marshal(*c)
+func (c CommitMeta) Marshal() types.Struct {
+	v, err := marshal.Marshal(c)
 	d.Chk.NoError(err)
 	return v.(types.Struct)
 }

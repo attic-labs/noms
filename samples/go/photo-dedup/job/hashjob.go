@@ -33,51 +33,50 @@ func HashPhotosJob(db datas.Database, photoSets []types.Value, outDS datas.Datas
 
 // hashPhotos adds a dhash to each photo in photoSets and delivers them on the returned channel
 func hashPhotos(db datas.Database, photoSets []types.Value) <-chan types.Struct {
-	photosToHashCh := make(chan model.Photo)
-	hashedPhotosCh := make(chan types.Struct)
+	numWorkers := runtime.NumCPU() * 4
+	toHash := make(chan *model.Photo, numWorkers)
+	hashed := make(chan types.Struct, numWorkers)
 
 	go func() {
 		for _, set := range photoSets {
 			walk.WalkValues(set, db, func(cv types.Value) (stop bool) {
 				if photo, ok := model.UnmarshalPhoto(cv); ok {
-					photosToHashCh <- photo
+					toHash <- photo
 				}
 				return false
 			})
 		}
-		close(photosToHashCh)
+		close(toHash)
 	}()
 
 	fmt.Print("Downloading and hashing photos...\n")
-	numWorkers := runtime.NumCPU() * 4
 	var wg sync.WaitGroup
 	wg.Add(numWorkers)
 	for i := 0; i < numWorkers; i++ {
 		go func() {
 			defer wg.Done()
-			for photo := range photosToHashCh {
-				hashed, err := addHashToPhoto(photo)
+			for photo := range toHash {
+				withHash, err := addHashToPhoto(photo)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "\nSkipping: %s\n", err)
-					hashedPhotosCh <- photo.Marshal()
+					hashed <- photo.Marshal()
 				} else {
-					hashedPhotosCh <- hashed.Marshal()
+					hashed <- withHash.Marshal()
 				}
 			}
 		}()
 	}
 	go func() {
 		wg.Wait()
-		fmt.Print("\nHashing complete\n")
-		close(hashedPhotosCh)
+		close(hashed)
 	}()
-	return hashedPhotosCh
+	return hashed
 }
 
-func addHashToPhoto(photo model.Photo) (model.Photo, error) {
+func addHashToPhoto(photo *model.Photo) (*model.Photo, error) {
 	url := pickBestImage(photo)
 	if url == "" {
-		return nil, fmt.Errorf("No URL found for photo %s", photo.ID())
+		return nil, fmt.Errorf("No URL found for photo %s", photo.Id)
 	}
 	res, err := http.Get(string(url))
 	if err != nil {
@@ -91,14 +90,14 @@ func addHashToPhoto(photo model.Photo) (model.Photo, error) {
 		}
 		return nil, err
 	}
-	photo.SetDhash(dhash.New(img))
+	photo.Dhash = dhash.New(img)
 	return photo, nil
 }
 
 // pickBestImage returns the image URL corresponding to the size
 // closest to but not below the ideal size. If there is no image
 // large enough, it returns the next smallest image.
-func pickBestImage(photo model.Photo) string {
+func pickBestImage(photo *model.Photo) string {
 	idealSize := 240 * 240
 
 	closestURL := ""
@@ -136,8 +135,7 @@ func commitHashedPhotos(db datas.Database, ds datas.Dataset, hashedPhotos <-chan
 	status.Done()
 	fmt.Printf("Committing %d hashed Photos\n", count)
 	commit := newSet.Build()
-	_, err := db.Commit(ds, commit, datas.CommitOptions{
-		Meta: model.NewCommitMeta().Marshal(),
-	})
+	meta := model.NewCommitMeta().Marshal()
+	_, err := db.Commit(ds, commit, datas.CommitOptions{ Meta: meta })
 	return err
 }

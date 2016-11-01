@@ -6,26 +6,27 @@ package job
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/noms/go/util/status"
 	"github.com/attic-labs/noms/go/walk"
 	"github.com/attic-labs/noms/samples/go/photo-dedup/model"
-	"github.com/attic-labs/noms/go/util/status"
 )
 
 var grouper *photoGrouper
 
 // DeduplicateJob reads Set<Photo>'s (annotated with dhash) and writes Set<PhotoGroup> to
 // outDS where each group contains all duplicates.
-func DeduplicateJob(db datas.Database, photoSets []types.Value, outDS datas.Dataset) error {
-	return commitPhotoGroups(db, outDS, groupPhotos(db, photoSets))
+func DeduplicateJob(db datas.Database, photoSets []types.Value, outDS datas.Dataset, similarityThreshold int) error {
+	return commitPhotoGroups(db, outDS, groupPhotos(db, photoSets, similarityThreshold))
 }
 
 // groupPhotos reads Set<Photo>'s and sorts them into groups containing all photos that
-// are deemed duplicates by comparing dhash's
-func groupPhotos(db datas.Database, photoSets []types.Value) <-chan types.Struct {
-	grouper = newPhotoGrouper()
+// are deemed duplicates by comparing dhash's.
+func groupPhotos(db datas.Database, photoSets []types.Value, similarityThreshold int) <-chan types.Struct {
+	grouper = newPhotoGrouper(similarityThreshold)
 	for _, set := range photoSets {
 		walk.WalkValues(set, db, func(cv types.Value) (stop bool) {
 			if photo, ok := model.UnmarshalPhoto(cv); ok {
@@ -34,14 +35,14 @@ func groupPhotos(db datas.Database, photoSets []types.Value) <-chan types.Struct
 			return false
 		})
 	}
-	photoGroupsCh := make(chan types.Struct)
+	grouped := make(chan types.Struct, runtime.NumCPU()*4)
 	go func() {
-		defer close(photoGroupsCh)
-		grouper.iterGroups(func(pg model.PhotoGroup) {
-			photoGroupsCh <- pg.Marshal()
+		defer close(grouped)
+		grouper.iterGroups(func(pg *model.PhotoGroup) {
+			grouped <- pg.Marshal()
 		})
 	}()
-	return photoGroupsCh
+	return grouped
 }
 
 // commitPhotoGroups commits the new groups to ds
@@ -53,8 +54,7 @@ func commitPhotoGroups(db datas.Database, ds datas.Dataset, groups <-chan types.
 	status.Done()
 	fmt.Printf("\nCommitting %d PhotoGroups\n", grouper.photoCount)
 	commit := newSet.Build()
-	_, err := db.Commit(ds, commit, datas.CommitOptions{
-		Meta: model.NewCommitMeta().Marshal(),
-	})
+	meta := model.NewCommitMeta().Marshal()
+	_, err := db.Commit(ds, commit, datas.CommitOptions{ Meta: meta })
 	return err
 }

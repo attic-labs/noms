@@ -20,18 +20,19 @@ import (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "photo-dedup group photos in groups of duplicates\n\n")
-	fmt.Fprintf(os.Stderr, "Usage: %s -db=<db-spec> -out-ds=<name> [input-paths...]\n\n", path.Base(os.Args[0]))
+	fmt.Fprintf(os.Stderr, "Usage: %s -db=<db-spec> -out-ds=<name> <input-paths...>\n\n", path.Base(os.Args[0]))
+	fmt.Fprintf(os.Stderr, "Groups photos into PhotoGroups based on similarity determined by their dhashes\n\n")
 	fmt.Fprintf(os.Stderr, "  <db>             : Database to work with\n")
 	fmt.Fprintf(os.Stderr, "  <out-ds>         : Dataset to write photos groups to\n")
-	fmt.Fprintf(os.Stderr, "  [input-paths...] : One or more paths within <db-spec> to crawl\n\n")
+	fmt.Fprintf(os.Stderr, "  <input-paths...> : One or more input paths within <db-spec>\n\n")
 	fmt.Fprintln(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 }
 
 func main() {
 	var dbStr = flag.String("db", "", "input database spec")
-	var outDSStr = flag.String("out-ds", "", "output dataset to write to - if empty, defaults to input dataset")
+	var outDSStr = flag.String("out-ds", "", "output dataset to write to")
+	var threshold = flag.Int("threshold", 10, "photo's whose dhash distance is < threshold are grouped together")
 	verbose.RegisterVerboseFlags(flag.CommandLine)
 
 	flag.Usage = usage
@@ -64,7 +65,7 @@ func main() {
 		return
 	}
 
-	err = job.DeduplicateJob(db, inputs, outDS)
+	err = job.DeduplicateJob(db, inputs, outDS, *threshold)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		exit.Fail()

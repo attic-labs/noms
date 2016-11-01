@@ -20,18 +20,19 @@ import (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "photo-hash add dhash to photos\n\n")
-	fmt.Fprintf(os.Stderr, "Usage: %s -db=<db-spec> -out-ds=<name> [input-paths...]\n\n", path.Base(os.Args[0]))
+	fmt.Fprintf(os.Stderr, "Usage: %s -db=<db-spec> -out-ds=<name> <input-paths...>\n\n", path.Base(os.Args[0]))
+	fmt.Fprintf(os.Stderr, "Annotates each Photo in input-paths with a dhash field\n\n")
+	fmt.Fprintf(os.Stderr, "  <input-paths...> : One or more input paths within <db-spec>\n")
 	fmt.Fprintf(os.Stderr, "  <db>             : Database to work with\n")
-	fmt.Fprintf(os.Stderr, "  <out-ds>         : Dataset to write annotated photos to\n")
-	fmt.Fprintf(os.Stderr, "  [input-paths...] : One or more paths within <db-spec> to crawl\n\n")
-	fmt.Fprintln(os.Stderr, "Flags:\n")
+	fmt.Fprintf(os.Stderr, "  <out-ds>         : Dataset to write photos groups to\n")
+	fmt.Fprintf(os.Stderr, "  <input-paths...> : One or more input paths within <db-spec>\n\n")
+
 	flag.PrintDefaults()
 }
 
 func main() {
 	var dbStr = flag.String("db", "", "input database spec")
-	var outDSStr = flag.String("out-ds", "", "output dataset to write to - if empty, defaults to input dataset")
+	var outDSStr = flag.String("out-ds", "", "output dataset to write to")
 	verbose.RegisterVerboseFlags(flag.CommandLine)
 
 	flag.Usage = usage
