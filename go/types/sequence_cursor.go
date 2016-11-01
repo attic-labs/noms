@@ -8,19 +8,17 @@ import (
 	"math"
 	"os"
 	"runtime"
-	"time"
 
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/util/orderedparallel"
 )
 
 // sequenceCursor explores a tree of sequence items.
 type sequenceCursor struct {
-	parent      *sequenceCursor
-	seq         sequence
-	idx         int
-	readAhead   bool
-	readAheadCh chan interface{}
+	parent        *sequenceCursor
+	seq           sequence
+	idx           int
+	readAheadMap  map[int]chan sequence
+	readAheadNext int
 }
 
 // newSequenceCursor creates a cursor on seq positioned at idx.
@@ -32,21 +30,15 @@ func newSequenceCursor(parent *sequenceCursor, seq sequence, idx int) *sequenceC
 		d.PanicIfFalse(idx >= 0)
 	}
 
-	cur := &sequenceCursor{parent, seq, idx, false, nil}
-	return cur
-}
-
-// enableReadAhead turns on read-ahead.
-//
-// When enabled, the cursor will assumes it'll be moving forward and can
-// benefit from optimistically reading leaves before they are requested.
-//
-// This is a hack to minimize API changes. A better approach would be to
-// declare a cursor as "forward" at construction time, and only enable
-// read-ahead for "forward" cursors.
-func (cur *sequenceCursor) enableReadAhead() {
-	// Environment variable is temporary to allow for before & after perf tests.
-	cur.readAhead = os.Getenv("NOMS_NO_READAHEAD") == ""
+	var readAheadMap map[int]chan sequence
+	// enable read-ahead if the cursor represents to a meta-sequence containing leaves
+	ms, ok := seq.(metaSequence)
+	if os.Getenv("NOMS_NO_READAHEAD") == "" && ok {
+		if ms.tuples[0].ref.height == 1 {
+			readAheadMap = make(map[int]chan sequence)
+		}
+	}
+	return &sequenceCursor{parent, seq, idx, readAheadMap, 0}
 }
 
 func (cur *sequenceCursor) length() int {
@@ -57,32 +49,16 @@ func (cur *sequenceCursor) getItem(idx int) sequenceItem {
 	return cur.seq.getItem(idx)
 }
 
-// sync advances the cursor to the next chunk
+// sync loads the sequence that the cursor index points to.
+// It's called whenever the cursor advances/retreats to a different chunk.
 func (cur *sequenceCursor) sync() {
 	d.PanicIfFalse(cur.parent != nil)
 	cur.seq = cur.parent.getChildSequence()
-	cur.readAheadCh = nil
-}
-
-// doReadAhead returns true if read-head should be used when reading leaves
-// of this cursor.
-//
-// Limit read-ahead to meta-sequences that contain leaf sequences. The benefit
-// of read-ahead diminishes quickly as distance from the leaves increases since
-// chunking leads to >100 branching factor at each level.
-func (cur *sequenceCursor) doReadAhead() bool {
-	if cur.readAhead && cur.readAheadCh == nil {
-		if ms, ok := cur.seq.(metaSequence); ok {
-			return ms.tuples[0].ref.height == 1
-		}
+	if cur.readAheadMap != nil {
+		// if this cursor uses read-ahead, reset the cache for the next chunk
+		cur.readAheadMap = make(map[int]chan sequence)
+		cur.readAheadNext = 0
 	}
-	return false
-}
-
-// Records in read-ahead channel
-type readAheadRec struct {
-	idx     int
-	leafSeq sequence
 }
 
 var readAheadParallelism = runtime.NumCPU() * 8
@@ -91,73 +67,43 @@ func minInt(x, y int) int {
 	return int(math.Min(float64(x), float64(y)))
 }
 
-// readAheadLeaves initiates read-ahead of child sequences.
-//
-// Fills a buffered read-ahead channel with child sequences in ascending index order.
-// A forward moving cursor reads this channel to find it's next item (see getChildSequence).
-//
-// The channel is limited to c * NumCPU. This allows read-ahead to proceed in parallel
-// while maintaining a bound on memory.
-func (cur *sequenceCursor) readAheadLeaves() {
-	ms := cur.seq.(metaSequence)
-	startIdx := cur.idx
-	tuplesToRead := len(ms.tuples) - startIdx
-	if tuplesToRead < 2 {
-		// Don't read-ahead if we're starting at the end of a sequence. If the cursor's moving
-		// backward, read-ahead is useless. If the cursor's moving forward, there's no
-		// benefit.
-		cur.readAheadCh = nil
-	} else {
-		parallelism := minInt(readAheadParallelism, tuplesToRead)
-		input := make(chan interface{}, parallelism)
+func maxInt(x, y int) int {
+	return int(math.Max(float64(x), float64(y)))
+}
 
-		cur.readAheadCh = orderedparallel.New(input, func(item interface{}) interface{} {
-			i := item.(int)
-			return &readAheadRec{i, ms.getChildSequence(i)}
-		}, parallelism)
-
-		go func() {
-			for i := startIdx; i < len(ms.tuples); i++ {
-				input <- i
-			}
-			close(input)
-		}()
+// readAhead (called when read-ahead is enabled) primes the next entries in the
+// read-ahead cache. It ensures that go routines have been allocated for reading
+// the next n entries in the current sequence. N is either readAheadParallelism
+// or the number of entries left in the sequence if smaller.
+func (cur *sequenceCursor) readAhead() {
+	d.PanicIfTrue(cur.readAheadMap == nil)
+	// the next position to be primed
+	cur.readAheadNext = maxInt(cur.idx, cur.readAheadNext)
+	// the last position to be primed
+	last := minInt(cur.idx+readAheadParallelism, cur.seq.seqLen()) - 1
+	// prime all positions between next and last
+	for i := cur.readAheadNext; i <= last; i += 1 {
+		futureSeq := make(chan sequence)
+		cur.readAheadMap[i] = futureSeq
+		go func(seq sequence, idx int) {
+			defer close(futureSeq)
+			futureSeq <- seq.getChildSequence(idx)
+		}(cur.seq, i)
+		cur.readAheadNext += 1
 	}
 }
 
-const channelReadTimeout = 30 * time.Second
-
 // getChildSequence retrieves the child at the current cursor position.
-//
-// If the the read-ahead channel is enabled, read the child from the channel.
 func (cur *sequenceCursor) getChildSequence() sequence {
-	if cur.doReadAhead() {
-		cur.readAheadLeaves()
-	}
-	if cur.readAheadCh != nil {
-	Loop:
-		for {
-			select {
-			case item, more := <-cur.readAheadCh:
-				if !more {
-					// Channel closed; read directly. This can occur if the cursor
-					// is retreating.
-					break Loop
-				}
-				ra := item.(*readAheadRec)
-				if cur.idx > ra.idx {
-					// Keep looking
-				} else if cur.idx == ra.idx {
-					// Match
-					return ra.leafSeq
-				} else {
-					// Leaf missing; read directly. This can occur if the cursor is
-					// retreating.
-					break Loop
-				}
-			case <-time.After(channelReadTimeout):
-				d.PanicIfTrue(true, "Timed out waiting for next item in read-ahead channel: %s", cur)
-			}
+	if cur.readAheadMap != nil {
+		// keep priming the cache
+		cur.readAhead()
+
+		// read the child from channel if it's there
+		if raChan, ok := cur.readAheadMap[cur.idx]; ok {
+			result := <-raChan
+			delete(cur.readAheadMap, cur.idx)
+			return result
 		}
 	}
 	return cur.seq.getChildSequence(cur.idx)
@@ -247,7 +193,6 @@ type cursorIterCallback func(item interface{}) bool
 
 // iter iterates forward from the current position
 func (cur *sequenceCursor) iter(cb cursorIterCallback) {
-	cur.enableReadAhead() // ensure read-ahead is enabled to
 	for cur.valid() && !cb(cur.getItem(cur.idx)) {
 		cur.advance()
 	}
@@ -262,13 +207,6 @@ func newCursorAtIndex(seq sequence, idx uint64) *sequenceCursor {
 	var cur *sequenceCursor
 	for {
 		cur = newSequenceCursor(cur, seq, 0)
-		// Assume cursor starting at 0 will be moving forward and benefit from read-ahead
-		// TODO: Inferring that a 0 idx means the cursor will be moving forward is
-		// ugly. Another approach would be to provide a new method for creating a forward
-		// cursor and always enable read-ahead in those cases.
-		if idx == 0 {
-			cur.enableReadAhead()
-		}
 		idx = idx - advanceCursorToOffset(cur, idx)
 		cs := cur.getChildSequence()
 		if cs == nil {

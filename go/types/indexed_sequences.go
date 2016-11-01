@@ -24,10 +24,10 @@ func newBlobMetaSequence(tuples []metaTuple, vr ValueReader) metaSequence {
 //
 // If the cursor references a leaf sequence,
 // 	advance to idx,
-// 	and return the number of values preceding and including idx
+// 	and return the number of values preceding the idx
 // If it references a meta-sequence,
 // 	advance to the tuple containing idx,
-//      and return the number of leaf values preceding this tuple
+// 	and return the number of leaf values preceding this tuple
 func advanceCursorToOffset(cur *sequenceCursor, idx uint64) uint64 {
 	seq := cur.seq
 
@@ -49,9 +49,7 @@ func advanceCursorToOffset(cur *sequenceCursor, idx uint64) uint64 {
 	if cur.idx > seq.seqLen() {
 		cur.idx = seq.seqLen()
 	}
-	// TODO: Why +1 here? This is inconsistent with the metaSeqence case and it's
-	// not clear why
-	return uint64(cur.idx) + 1
+	return uint64(cur.idx)
 }
 
 // If |sink| is not nil, chunks will be eagerly written as they're created. Otherwise they are
