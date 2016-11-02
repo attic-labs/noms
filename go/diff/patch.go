@@ -24,8 +24,9 @@ func (r Patch) Len() int {
 }
 
 var vals = map[types.DiffChangeType]int{types.DiffChangeRemoved: 0, types.DiffChangeModified: 1, types.DiffChangeAdded: 2}
+
 func (r Patch) Less(i, j int) bool {
-    if r[i].Path.Equals(r[j].Path) {
+	if r[i].Path.Equals(r[j].Path) {
 		return vals[r[i].ChangeType] < vals[r[j].ChangeType]
 	}
 	return pathIsLess(r[i].Path, r[j].Path)
