@@ -5,10 +5,10 @@
 package job
 
 import (
+	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/util/status"
 	"github.com/attic-labs/noms/samples/go/photo-dedup/dhash"
 	"github.com/attic-labs/noms/samples/go/photo-dedup/model"
-	"github.com/attic-labs/noms/go/d"
 )
 
 // photoGrouper is a data structure used to group similar photos into PhotoGroups
@@ -23,17 +23,17 @@ type photoGrouper struct {
 }
 
 type group struct {
-	id model.ID
-	dhash dhash.Hash
+	id     model.ID
+	dhash  dhash.Hash
 	photos map[*model.Photo]bool
 }
 
-func newPhotoGrouper(similarityThreshold int) *photoGrouper {
-	return &photoGrouper{make(map[model.ID]*group), similarityThreshold, 0, 0}
+func newPhotoGrouper(threshold int) *photoGrouper {
+	return &photoGrouper{make(map[model.ID]*group), threshold, 0, 0}
 }
 
 func newGroup(photo *model.Photo) *group {
-	photos := map[*model.Photo]bool {photo: true}
+	photos := map[*model.Photo]bool{photo: true}
 	return &group{model.NewAtticID(), photo.Dhash, photos}
 }
 

@@ -136,6 +136,6 @@ func commitHashedPhotos(db datas.Database, ds datas.Dataset, hashedPhotos <-chan
 	fmt.Printf("Committing %d hashed Photos\n", count)
 	commit := newSet.Build()
 	meta := model.NewCommitMeta().Marshal()
-	_, err := db.Commit(ds, commit, datas.CommitOptions{ Meta: meta })
+	_, err := db.Commit(ds, commit, datas.CommitOptions{Meta: meta})
 	return err
 }

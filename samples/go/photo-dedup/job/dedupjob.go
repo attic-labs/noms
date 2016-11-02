@@ -25,8 +25,8 @@ func DeduplicateJob(db datas.Database, photoSets []types.Value, outDS datas.Data
 
 // groupPhotos reads Set<Photo>'s and sorts them into groups containing all photos that
 // are deemed duplicates by comparing dhash's.
-func groupPhotos(db datas.Database, photoSets []types.Value, similarityThreshold int) <-chan types.Struct {
-	grouper = newPhotoGrouper(similarityThreshold)
+func groupPhotos(db datas.Database, photoSets []types.Value, threshold int) <-chan types.Struct {
+	grouper = newPhotoGrouper(threshold)
 	for _, set := range photoSets {
 		walk.WalkValues(set, db, func(cv types.Value) (stop bool) {
 			if photo, ok := model.UnmarshalPhoto(cv); ok {
@@ -55,6 +55,6 @@ func commitPhotoGroups(db datas.Database, ds datas.Dataset, groups <-chan types.
 	fmt.Printf("\nCommitting %d PhotoGroups\n", grouper.photoCount)
 	commit := newSet.Build()
 	meta := model.NewCommitMeta().Marshal()
-	_, err := db.Commit(ds, commit, datas.CommitOptions{ Meta: meta })
+	_, err := db.Commit(ds, commit, datas.CommitOptions{Meta: meta})
 	return err
 }
