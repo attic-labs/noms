@@ -101,6 +101,7 @@ func index() (win bool) {
 	byDate := types.NewGraphBuilder(db, types.MapKind, true)
 	byTag := types.NewGraphBuilder(db, types.MapKind, true)
 	byFace := types.NewGraphBuilder(db, types.MapKind, true)
+	byYear := types.NewGraphBuilder(db, types.MapKind, true)
 
 	tagCounts := map[types.String]int{}
 	faceCounts := map[types.String]int{}
@@ -130,6 +131,10 @@ func index() (win bool) {
 
 				// Index by date
 				byDate.SetInsert([]types.Value{d}, cv)
+
+				t := time.Unix(0, int64(-d))
+				byYear.SetInsert([]types.Value{types.Number(t.Year()),
+					types.Number(t.Month()), types.Number(t.Day()), d}, cv)
 
 				// Index by tag, then date
 				moreTags := map[types.String]int{}
@@ -170,6 +175,7 @@ func index() (win bool) {
 		"byDate":       byDate.Build(),
 		"byTag":        byTag.Build(),
 		"byFace":       byFace.Build(),
+		"byYear":       byYear.Build(),
 		"tagsByCount":  stringsByCount(db, tagCounts),
 		"facesByCount": stringsByCount(db, faceCounts),
 	}), datas.CommitOptions{
