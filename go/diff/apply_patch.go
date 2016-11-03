@@ -12,19 +12,20 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
-// ApplyPatch applies a Patch (list of diffs) to a graph. It makes the following
-// contract:
+// Apply applies a Patch (list of diffs) to a graph. It fulfills the
+// following contract:
 //  Given 2 Noms graphs: a1 and a2:
 //    ApplyPatch(a1, Diff(a1, a2)) == a2
 // This is useful for IncrementalUpdate() and possibly other problems. See
-// Updater.go for more information.
+// updater.go for more information.
 //
 // This function uses a patchStack to maintain state of the graph as it cycles
-// through the diffs in a patch, applying them to 'root' one by one. It minimizes
-// the number of changes to the graph by making subsequent changes locally and
-// incorporating lower level changes into the higher level once all the lower
-// level changes have been made.
-func ApplyPatch(root types.Value, patch Patch) types.Value {
+// through the diffs in a patch, applying them to 'root' one by one. Because the
+// Difference objects in the patch can be sorted according to their path, each
+// one is applied in order. When done in combination with the stack, this enables
+// all Differences that change a particular node to be applied to that node
+// before it gets assigned back to it's parent.
+func Apply(root types.Value, patch Patch) types.Value {
 	var lastPath types.Path
 	stack := patchStack{}
 	sort.Sort(patch)
@@ -44,7 +45,7 @@ func ApplyPatch(root types.Value, patch Patch) types.Value {
 		// p can be identical to lastPath in certain cases. For example, when
 		// one item gets removed from a list at the same place another item
 		// is added to it. In this case, we need pop the last operation of the
-		// stack early and set the idx to be the len(p) - 1
+		// stack early and set the idx to be the len(p) - 1.
 		// Otherwise, if the paths are different we can call commonPrefixCount()
 		if len(p) > 0 && p.Equals(lastPath) {
 			stack.pop()
@@ -140,6 +141,11 @@ func (stack *patchStack) updateNode(top *stackElem, parent types.Value) types.Va
 			case types.DiffChangeRemoved:
 				return el.Remove(part.Index)
 			case types.DiffChangeModified:
+				if part.IntoKey {
+					newPart := types.IndexPath{Index: part.Index}
+					ov := newPart.Resolve(parent)
+					return el.Remove(part.Index).Set(top.newValue, ov)
+				}
 				return el.Set(part.Index, top.newValue)
 			}
 		case types.Set:
@@ -172,6 +178,10 @@ func (stack *patchStack) updateNode(top *stackElem, parent types.Value) types.Va
 			case types.DiffChangeRemoved:
 				return el.Remove(k)
 			case types.DiffChangeModified:
+				if part.IntoKey {
+					v := el.Get(k)
+					return el.Remove(k).Set(top.newValue, v)
+				}
 				return el.Set(k, top.newValue)
 			}
 		}
@@ -217,7 +227,6 @@ func (se stackElem) newestValue() types.Value {
 	}
 	return se.oldValue
 }
-
 type patchStack struct {
 	vals     []stackElem
 	lastPath types.Path

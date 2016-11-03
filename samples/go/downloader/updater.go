@@ -36,7 +36,7 @@ import (
 // and Graph-A1 are small, then Update(Graph-A2) is duplicating a lot of
 // effort.
 //
-// IncrementalUpdate relies on diff.Diff() and diff.ApplyPatch() (see
+// IncrementalUpdate relies on diff.Diff() and diff.Apply() (see
 // apply_patch.go) to do this more efficiently. Rather than applying the tranform
 // function to the entire Graph-A2, IncrementalUpdate gets the Diff of Graph-A1
 // and Graph-A2. It then applies the update function to just those diffs which
@@ -97,7 +97,7 @@ func IncrementalUpdate(vr types.ValueReader, inRoot, lastInRoot, lastOutRoot typ
 		patch = append(patch, dif)
 	}
 
-	return diff.ApplyPatch(lastOutRoot, patch)
+	return diff.Apply(lastOutRoot, patch)
 }
 
 // Update walks through each node in a graph starting at root. It calls
@@ -172,5 +172,5 @@ func Update(vr types.ValueReader, root types.Value, shouldUpdateCb ShouldUpdateC
 		return root
 	}
 
-	return diff.ApplyPatch(root, patch)
+	return diff.Apply(root, patch)
 }

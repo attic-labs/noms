@@ -23,29 +23,16 @@ func (r Patch) Len() int {
 	return len(r)
 }
 
+var vals = map[types.DiffChangeType]int{types.DiffChangeRemoved: 0, types.DiffChangeModified: 1, types.DiffChangeAdded: 2}
 func (r Patch) Less(i, j int) bool {
-	if r[i].Path.Equals(r[j].Path) {
-		if r[i].ChangeType == r[j].ChangeType {
-			return false
-		}
-		if r[i].ChangeType == types.DiffChangeRemoved {
-			return true
-		}
-		if r[i].ChangeType == types.DiffChangeAdded {
-			return false
-		}
-		if r[j].ChangeType == types.DiffChangeRemoved {
-			return false
-		}
-		if r[j].ChangeType == types.DiffChangeAdded {
-			return true
-		}
+    if r[i].Path.Equals(r[j].Path) {
+		return vals[r[i].ChangeType] < vals[r[j].ChangeType]
 	}
 	return pathIsLess(r[i].Path, r[j].Path)
 }
 
 // Utility methods on path
-// Todo: should these be on types.Path & types.PathPart
+// TODO: Should these be on types.Path & types.PathPart?
 func pathIsLess(p1, p2 types.Path) bool {
 	for i, pp1 := range p1 {
 		if len(p2) == i {
@@ -59,11 +46,7 @@ func pathIsLess(p1, p2 types.Path) bool {
 		}
 	}
 
-	if len(p2) > len(p1) {
-		return true // p1 < p2
-	}
-
-	return false // p1 == p2
+	return len(p2) > len(p1) // if true p1 < p2, else p1 == p2
 }
 
 func fieldPathCompare(pp types.FieldPath, o types.PathPart) int {

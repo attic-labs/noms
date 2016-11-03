@@ -47,6 +47,9 @@ func TestCommonPrefixCount(t *testing.T) {
 }
 
 type testFunc func(parent types.Value) types.Value
+type testKey struct {
+	X, Y int
+}
 
 var (
 	vm map[string]types.Value
@@ -91,6 +94,8 @@ func testValues() map[string]types.Value {
 			"m3":      mustMarshal(map[string]int{"k2": 2, "k3": 3, "k4": 4}),
 			"m4":      mustMarshal(map[string]int{"k1": 1, "k3": 3}),
 			"m5":      mustMarshal(map[string]int{"k1": 1, "k2": 2222, "k3": 3}),
+			"ms1":     mustMarshal(map[testKey]int{{1, 1}: 1, {2, 2}: 2, {3, 3}: 3}),
+			"ms2":     mustMarshal(map[testKey]int{{1, 1}: 1, {4, 4}: 4, {5, 5}: 5}),
 		}
 
 		vm["mh1"] = types.NewMap(vfk("k1", "struct1", "k2", "l1")...)
@@ -125,7 +130,7 @@ func getPatch(g1, g2 types.Value) Patch {
 
 func checkApplyPatch(assert *assert.Assertions, g1, expectedG2 types.Value, k1, k2 string) {
 	patch := getPatch(g1, expectedG2)
-	g2 := ApplyPatch(g1, patch)
+	g2 := Apply(g1, patch)
 	assert.True(expectedG2.Equals(g2), "failed to apply diffs for k1: %s and k2: %s", k1, k2)
 }
 
@@ -229,7 +234,7 @@ func checkApplyDiffs(a *assert.Assertions, n1, n2 types.Value, leftRight bool) {
 		difs = append(difs, dif)
 	}
 
-	res := ApplyPatch(n1, difs)
+	res := Apply(n1, difs)
 	a.True(n2.Equals(res))
 }
 

@@ -11,57 +11,82 @@ import (
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
+    "github.com/attic-labs/noms/go/marshal"
 )
 
 // ResourceCache is a Map<String, Ref<Blob>>
-type ResourceCache struct {
-	cache types.Map
-	orig  types.Map
-	mutex sync.Mutex
+type resourceCache struct {
+	cache   types.Map // gets updated when set is called
+	orig    types.Map // original state of the map, commit is a noop if orig==cache
+	rwMutex sync.RWMutex
 }
 
-func GetResourceCache(db datas.Database, dsname string) (*ResourceCache, error) {
+func checkCacheType(c types.Value) (err error) {
+    err = errors.New("resourceCache value is not Map<String, Ref<Blob>>")
+    var m types.Map
+	
+    if err1 := marshal.Unmarshal(c, &m); err1 != nil {
+		return
+    }
+    keyType := c.Type().Desc.(types.CompoundDesc).ElemTypes[0]
+    if keyType.Kind() != types.StringKind {
+        return
+    }
+    valueType := c.Type().Desc.(types.CompoundDesc).ElemTypes[1]
+    if valueType.Kind() != types.RefKind {
+        return
+    }
+    if valueType.Desc.(types.CompoundDesc).ElemTypes[0].Kind() != types.BlobKind {
+        return
+	}
+    
+	err = nil
+	return
+}
+
+func getResourceCache(db datas.Database, dsname string) (*resourceCache, error) {
 	m, ok := db.GetDataset(dsname).MaybeHeadValue()
 	if ok {
-		refOfBlobType := types.MakeRefType(types.BlobType)
-		mapOfStringToRefOfBlobType := types.MakeMapType(types.StringType, refOfBlobType)
-		if !types.IsSubtype(mapOfStringToRefOfBlobType, m.Type()) {
-			return nil, errors.New("commit value in cache-ds must be Map<String, Ref<Blob>>")
+		if err := checkCacheType(m); err != nil {
+			return nil, err
 		}
 	} else {
 		m = types.NewMap()
 	}
-	return &ResourceCache{cache: m.(types.Map), orig: m.(types.Map)}, nil
+	return &resourceCache{cache: m.(types.Map), orig: m.(types.Map)}, nil
 }
 
-func (c *ResourceCache) Commit(db datas.Database, dsname string) error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+func (c *resourceCache) commit(db datas.Database, dsname string) error {
+	c.rwMutex.Lock()
+	defer c.rwMutex.Unlock()
 	if !c.cache.Equals(c.orig) {
 		meta, _ := spec.CreateCommitMetaStruct(db, "", "", nil, nil)
 		dset := db.GetDataset(dsname)
 		commitOptions := datas.CommitOptions{Meta: meta}
 		_, err := db.Commit(dset, c.cache, commitOptions)
+		if err == nil {
+			c.orig = c.cache
+		}
 		return err
 	}
 	return nil
 }
 
-func (c *ResourceCache) Get(k types.String) (types.Ref, bool) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+func (c *resourceCache) get(k types.String) (types.Ref, bool) {
+	c.rwMutex.RLock()
+	defer c.rwMutex.RUnlock()
 	if v, ok := c.cache.MaybeGet(k); ok {
 		return v.(types.Ref), true
 	}
 	return types.Ref{}, false
 }
 
-func (c *ResourceCache) Set(k types.String, v types.Ref) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+func (c *resourceCache) set(k types.String, v types.Ref) {
+	c.rwMutex.Lock()
+	defer c.rwMutex.Unlock()
 	c.cache = c.cache.Set(k, v)
 }
 
-func (c *ResourceCache) Len() uint64 {
+func (c *resourceCache) len() uint64 {
 	return c.cache.Len()
 }

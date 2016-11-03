@@ -36,7 +36,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Println("usage: downloader --in-path <pathspec> --out-ds <dsname> --cache-ds <dsname>")
+	fmt.Println("usage: downloader [--cache-ds <dsname>] [--concurrency <int>] <in-path> <outdsname>")
 	flag.PrintDefaults()
 }
 
@@ -52,44 +52,34 @@ type LocalResource struct {
 }
 
 func download() (win bool) {
-	var inPathArg = flag.String("in-path", "", "root of object hierarchy to scan for RemotePhoto objects")
-	var outDsArg = flag.String("out-ds", "", "name of output dataset")
 	var cacheDsArg = flag.String("cache-ds", "", "name of photo-cache dataset")
-	var concurrencyArg = flag.Uint("concurrency", 4, "number of concurrent http calls to retrieve remote resources")
+	var concurrencyArg = flag.Uint("concurrency", 4, "number of concurrent HTTP calls to retrieve remote resources")
 	verbose.RegisterVerboseFlags(flag.CommandLine)
 	flag.Usage = usage
 	flag.Parse(false)
 
-	if flag.NArg() != 0 {
+	if flag.NArg() != 2 {
+		fmt.Fprintln(os.Stderr, "error: missing required argument")
 		flag.Usage()
 		return
 	}
+	inPath := flag.Arg(0)
+	outDsName := flag.Arg(1)
 
-	// Check that concurrency is at least 1
 	if *concurrencyArg < 1 {
 		fmt.Fprintln(os.Stderr, "error, concurrency cannot be less than 1")
 		flag.Usage()
 		return
 	}
 
-	// Check that all required args are present
-	check := []string{"in-path", *inPathArg, "out-ds", *outDsArg, "cache-ds", *cacheDsArg}
-	for i := 0; i < len(check)-1; i += 2 {
-		if check[i+1] == "" {
-			fmt.Fprintln(os.Stderr, "error: missing required argument:", check[i])
-			flag.Usage()
-			return
-		}
-	}
-
-	// Resolve the in-path arg and get the inRoot.
+	// Resolve the in-path arg and get the inRoot
 	cfg := config.NewResolver()
-	db, inRoot, err := cfg.GetPath(*inPathArg)
+	db, inRoot, err := cfg.GetPath(inPath)
 	if err != nil || inRoot == nil {
 		if err == nil {
 			err = errors.New("Could not find referenced value.")
 		}
-		fmt.Fprintf(os.Stderr, "Invalid input path '%s': %s\n", *inPathArg, err)
+		fmt.Fprintf(os.Stderr, "Invalid input path '%s': %s\n", inPath, err)
 		return
 	}
 
@@ -100,7 +90,7 @@ func download() (win bool) {
 
 	// In order to pin the path, we need to get the path after running it through
 	// the config file processing.
-	resolvedPath := cfg.ResolvePathSpec(*inPathArg)
+	resolvedPath := cfg.ResolvePathSpec(inPath)
 	inSpec, err := spec.ParsePathSpec(resolvedPath)
 	d.PanicIfError(err)
 	pinnedPath := pinPath(db, inSpec.Path)
@@ -109,7 +99,7 @@ func download() (win bool) {
 	// Get the current head of out-ds. If there is one, assume it was created
 	// by an earlier run of this program.
 	var lastOutCommit types.Value
-	if loc, ok := db.GetDataset(*outDsArg).MaybeHead(); ok {
+	if loc, ok := db.GetDataset(outDsName).MaybeHead(); ok {
 		lastOutCommit = loc
 		if lastOutCommit != nil {
 			fmt.Println("Last out commit:", lastOutCommit.Hash())
@@ -127,22 +117,27 @@ func download() (win bool) {
 		}
 	}
 
-	// Get a resourceCache specified by the cache-ds arg.
-	cache, err := GetResourceCache(db, *cacheDsArg)
-	if err != nil {
-		fmt.Println("error: ", err)
-		flag.Usage()
-		return
+	// Get a resourceCache specified by the cache-ds arg
+	var cache *resourceCache
+	if *cacheDsArg != "" {
+		cache, err = getResourceCache(db, *cacheDsArg)
+		if err != nil {
+			fmt.Println("error: ", err)
+			flag.Usage()
+			return
+		}
 	}
 
 	newRoot := downloadPhotos(db, inRoot, lastInRoot, lastOutCommit, cache, *cacheDsArg, *concurrencyArg)
 
 	// Commit latest value for resourceCache
-	d.PanicIfError(cache.Commit(db, *cacheDsArg))
+	if cache != nil {
+		d.PanicIfError(cache.commit(db, *cacheDsArg))
+	}
 
 	// Commit new root
 	meta := newMeta(db, pinnedPath.String())
-	outDs := db.GetDataset(*outDsArg)
+	outDs := db.GetDataset(outDsName)
 	if _, err = db.Commit(outDs, newRoot, datas.CommitOptions{Meta: meta}); err != nil {
 		fmt.Fprintf(os.Stderr, "Could not commit: %s\n", err)
 		return
@@ -152,7 +147,7 @@ func download() (win bool) {
 	return
 }
 
-func downloadPhotos(db datas.Database, inRoot, lastInRoot, lastOutCommit types.Value, cache *ResourceCache, cacheDsName string, concurrency uint) (newRoot types.Value) {
+func downloadPhotos(db datas.Database, inRoot, lastInRoot, lastOutCommit types.Value, cache *resourceCache, cacheDsName string, concurrency uint) (newRoot types.Value) {
 	// return true whenever we find a RemoteResource
 	shouldCnt := &counter{}
 	shouldUpdateCb := func(p types.Path, root, parent, v types.Value) (res bool) {
@@ -164,12 +159,12 @@ func downloadPhotos(db datas.Database, inRoot, lastInRoot, lastOutCommit types.V
 	failedCnt := &counter{}
 	rwMutex := sync.RWMutex{}
 
-	// use info from dif to create a new RemoteResource and return it.
+	// Use info from dif to create a new RemoteResource and return it.
 	// Also keeps a counter of how many times this has been called and commits
 	// the current state of the cache.
 	// Todo: remove rwMutex when issue #2792 is resolved
 	updateCb := func(dif diff.Difference) diff.Difference {
-		doDownload := func(db datas.Database, url string, cache *ResourceCache) LocalResource {
+		doDownload := func(db datas.Database, url string, cache *resourceCache) LocalResource {
 			rwMutex.RLock()
 			defer rwMutex.RUnlock()
 			return downloadRemoteResource(db, url, cache)
@@ -188,10 +183,10 @@ func downloadPhotos(db datas.Database, inRoot, lastInRoot, lastOutCommit types.V
 		dif.NewValue = newValue
 
 		updateCnt.Increment()
-		if updateCnt.Cnt()%1000 == 0 {
+		if cache != nil && updateCnt.Cnt()%1000 == 0 {
 			rwMutex.Lock()
 			defer rwMutex.Unlock()
-			err := cache.Commit(db, cacheDsName)
+			err := cache.commit(db, cacheDsName)
 			d.PanicIfError(err)
 		}
 
@@ -218,8 +213,8 @@ func downloadPhotos(db datas.Database, inRoot, lastInRoot, lastOutCommit types.V
 }
 
 // downloadRemoteResource takes a url and creates a LocalResource by making an
-// http call to get the resource and storing it locally
-func downloadRemoteResource(db datas.Database, url string, cache *ResourceCache) LocalResource {
+// HTTP call to get the resource and storing it locally.
+func downloadRemoteResource(db datas.Database, url string, cache *resourceCache) LocalResource {
 	errorstring := ""
 	downloaded := true
 	blobRef, err := downloadAndCacheBlob(db, url, cache)
@@ -233,10 +228,14 @@ func downloadRemoteResource(db datas.Database, url string, cache *ResourceCache)
 // downloadAndCacheBlob wraps downloadBlob in a wrapper that first checks the
 // cache to see if the blob has already been stored and then adding the blob to
 // a persistent cache once it has been retrieved.
-func downloadAndCacheBlob(db datas.Database, url string, cache *ResourceCache) (types.Ref, error) {
+func downloadAndCacheBlob(db datas.Database, url string, cache *resourceCache) (types.Ref, error) {
+	if cache == nil {
+		return downloadBlob(db, url)
+	}
+
 	nurl := types.String(url)
 	hs := types.String(nurl.Hash().String())
-	if blobRef, ok := cache.Get(hs); ok {
+	if blobRef, ok := cache.get(hs); ok {
 		foundInCacheCnt.Increment()
 		return blobRef, nil
 	}
@@ -244,11 +243,11 @@ func downloadAndCacheBlob(db datas.Database, url string, cache *ResourceCache) (
 	if err != nil {
 		return types.Ref{}, err
 	}
-	cache.Set(hs, blobRef)
+	cache.set(hs, blobRef)
 	return blobRef, nil
 }
 
-// downloadBlob makes the http call to get the resource and store it in a blob.
+// downloadBlob makes the http call to get the resource and store it in a blob
 func downloadBlob(db datas.Database, url string) (types.Ref, error) {
 	resp, err := http.Get(url)
 	if err != nil {

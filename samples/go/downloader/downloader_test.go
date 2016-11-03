@@ -51,7 +51,10 @@ func (s testSuite) TestMain() {
 
 	errorTest := func(args []string, expected string) {
 		_, stderr, recoveredErr := s.Run(main, args)
-		s.Equal(recoveredErr.(clienttest.ExitError).Code, 1)
+		exitError, ok := recoveredErr.(clienttest.ExitError)
+		if s.True(ok) {
+			s.Equal(exitError.Code, 1)
+		}
 		s.Contains(stderr, expected)
 	}
 
@@ -66,7 +69,7 @@ func (s testSuite) TestMain() {
 	}
 	commitToDb(mustMarshal(m), "in-ds", dbSpecString)
 	mustRunTest(
-		[]string{"--in-path", dbSpecString + "::in-ds.value", "--out-ds", "out-ds", "--cache-ds", "cache"},
+		[]string{"--cache-ds", "cache", dbSpecString + "::in-ds.value", "out-ds"},
 		"walked: 3, updated 1, found in cache: 0, errors retrieving: 0",
 	)
 
@@ -74,7 +77,7 @@ func (s testSuite) TestMain() {
 	commitToDb(mustMarshal(m), "in-ds", dbSpecString)
 
 	mustRunTest(
-		[]string{"--in-path", dbSpecString + "::in-ds.value", "--out-ds", "out-ds", "--cache-ds", "cache"},
+		[]string{"--cache-ds", "cache", dbSpecString + "::in-ds.value", "out-ds"},
 		"walked: 1, updated 1, found in cache: 0, errors retrieving: 0",
 	)
 
@@ -86,27 +89,27 @@ func (s testSuite) TestMain() {
 	testBlobValue(db, v.(types.Map), "k2", "/two")
 
 	mustRunTest(
-		[]string{"--in-path", dbSpecString + "::in-ds.value", "--out-ds", "out-ds", "--cache-ds", "cache"},
+		[]string{"--cache-ds", "cache", dbSpecString + "::in-ds.value", "out-ds"},
 		"No change since last run, doing nothing",
 	)
 
 	errorTest(
-		[]string{"--in-path", dbSpecString + "::in-ds.value", "--out-ds", "out-ds", "--cache-ds", "cache", "--concurrency", "0"},
+		[]string{"--cache-ds", "cache", "--concurrency", "0", dbSpecString + "::in-ds.value", "out-ds"},
 		"concurrency cannot be less than 1",
 	)
 
 	errorTest(
-		[]string{"--in-path", dbSpecString + "::in-ds.value", "--out-ds", "out-ds"},
+		[]string{dbSpecString + "::in-ds.value"},
 		"missing required argument",
 	)
 
 	errorTest(
-		[]string{"--in-path", dbSpecString + "::in-ds", "--out-ds", "out-ds", "--cache-ds", "cache"},
+		[]string{"--cache-ds", "cache", dbSpecString + "::in-ds", "out-ds"},
 		"Input cannot be a commit.",
 	)
 
 	errorTest(
-		[]string{"--in-path", dbSpecString + "::not-there.value", "--out-ds", "out-ds", "--cache-ds", "cache"},
+		[]string{"--cache-ds", "cache", dbSpecString + "::not-there.value", "out-ds"},
 		"Could not find referenced value",
 	)
 }

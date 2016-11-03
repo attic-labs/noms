@@ -19,7 +19,6 @@ type TreeWalkCallback func(p types.Path, parent, v types.Value) (stop bool)
 // value it encounters. It calls 'twcb' with a path from the original value to
 // the current value, the current value's parent, and the current value. TreeWalk
 // also takes a ValueReader so that it can traverse values across refs.
-//
 func TreeWalk(vr types.ValueReader, p types.Path, v types.Value, twcb TreeWalkCallback) {
 	var processVal func(p types.Path, parent, v types.Value)
 	var processRef func(p types.Path, parent types.Value, r types.Ref)
@@ -35,30 +34,30 @@ func TreeWalk(vr types.ValueReader, p types.Path, v types.Value, twcb TreeWalkCa
 			switch value := v.(type) {
 			case types.List:
 				value.IterAll(func(c types.Value, index uint64) {
-					p1 := append(p, types.NewIndexPath(types.Number(index)))
+					p1 := p.Append(types.NewIndexPath(types.Number(index)))
 					processVal(p1, v, c)
 				})
 			case types.Set:
 				value.IterAll(func(c types.Value) {
-					p1 := append(p, types.NewHashIndexPath(c.Hash()))
+					p1 := p.Append(types.NewHashIndexPath(c.Hash()))
 					processVal(p1, v, c)
 				})
 			case types.Map:
 				value.IterAll(func(k, c types.Value) {
 					var kp1, vp1 types.Path
 					if types.ValueCanBePathIndex(k) {
-						kp1 = append(p, types.NewIndexIntoKeyPath(k))
-						vp1 = append(p, types.NewIndexPath(k))
+						kp1 = p.Append(types.NewIndexIntoKeyPath(k))
+						vp1 = p.Append(types.NewIndexPath(k))
 					} else {
-						kp1 = append(p, types.NewHashIndexIntoKeyPath(k.Hash()))
-						vp1 = append(p, types.NewHashIndexPath(k.Hash()))
+						kp1 = p.Append(types.NewHashIndexIntoKeyPath(k.Hash()))
+						vp1 = p.Append(types.NewHashIndexPath(k.Hash()))
 					}
 					processVal(kp1, v, k)
 					processVal(vp1, v, c)
 				})
 			case types.Struct:
 				value.Type().Desc.(types.StructDesc).IterFields(func(name string, typ *types.Type) {
-					p1 := append(p, types.NewFieldPath(name))
+					p1 := p.Append(types.NewFieldPath(name))
 					c := value.Get(name)
 					processVal(p1, v, c)
 				})

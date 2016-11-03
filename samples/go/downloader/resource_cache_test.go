@@ -65,18 +65,18 @@ func (s *resourceCacheTestSuite) TestResourceCacheGet() {
 		defer db.Close()
 
 		hr, _ := db.GetDataset(dsName).MaybeHeadRef()
-		rc, err := GetResourceCache(db, dsName)
+		rc, err := getResourceCache(db, dsName)
 		s.NoError(err)
 
 		r := db.WriteValue(v)
 		if setNewValue {
-			rc.Set(k, r)
+			rc.set(k, r)
 		}
-		cachedVal, ok := rc.Get(k)
+		cachedVal, ok := rc.get(k)
 		s.True(ok)
 		s.Equal(r, cachedVal)
 
-		err = rc.Commit(db, dsName)
+		err = rc.commit(db, dsName)
 		s.NoError(err)
 		hr1 := db.GetDataset(dsName).HeadRef()
 		return hr, hr1
@@ -99,12 +99,32 @@ func (s *resourceCacheTestSuite) TestResourceCacheGet() {
 	str := spec.CreateDatabaseSpecString("ldb", s.LdbDir)
 	db, err := spec.GetDatabase(str)
 	s.NoError(err)
-	rc, err := GetResourceCache(db, dsName)
+	rc, err := getResourceCache(db, dsName)
 	s.NoError(err)
-	s.Equal(uint64(2), rc.Len())
-	br1, _ := rc.Get("key1")
+	s.Equal(uint64(2), rc.len())
+	br1, _ := rc.get("key1")
 	b1 := br1.TargetValue(db).(types.Blob)
 	s2 := stringFromBlob(b1)
 
 	s.Equal(s1, s2)
+}
+
+func (s *resourceCacheTestSuite) TestCheckCacheType() {
+    blob1 := randomBlob(s, 30)
+
+    badTestCases := []types.Value {
+        types.NewStruct("testStruct", types.StructData{"f1": types.String("f1value")}),
+        types.NewMap(types.Number(1), types.NewRef(blob1)),
+        types.NewMap(types.String("s1"), types.String("badtype")),
+        types.NewMap(types.String("s1"), types.NewRef(types.String("badtype"))),
+    }
+    
+    for _, tc := range badTestCases {
+        err := checkCacheType(tc)
+        s.Error(err)
+    }
+
+    c1 := types.NewMap(types.String("s1"), types.NewRef(blob1))
+    err := checkCacheType(c1)
+    s.NoError(err)
 }

@@ -77,8 +77,9 @@ func TestPatchSort(t *testing.T) {
 	sortedPaths := Patch{
 		{Path: mustParsePath(assert, `["field1"]`)},
 		{Path: mustParsePath(assert, `["field1"].f1`)},
-		{Path: mustParsePath(assert, `["field1"]["f1"]`)},
-		{Path: mustParsePath(assert, `["field1"]["f1"]`)},
+		{Path: mustParsePath(assert, `["field1"]["f1"]`), ChangeType: types.DiffChangeRemoved},
+		{Path: mustParsePath(assert, `["field1"]["f1"]`), ChangeType: types.DiffChangeModified},
+		{Path: mustParsePath(assert, `["field1"]["f1"]`), ChangeType: types.DiffChangeAdded},
 		{Path: mustParsePath(assert, `["field1"][#01234567890123456789012345678901]`)},
 		{Path: mustParsePath(assert, `["field1"][#0123456789abcdef0123456789abcdef]`)},
 	}
