@@ -5,20 +5,22 @@
 package types
 
 import (
-	"math"
-	"os"
 	"runtime"
 
 	"github.com/attic-labs/noms/go/d"
 )
 
+// The number of go routines to devote to read-ahead.
+// The current setting provides good throughput on on a
+// 2015 MacBook Pro/2.7 GHz i5 /8 GB.
+var readAheadParallelism = runtime.NumCPU() * 64
+
 // sequenceCursor explores a tree of sequence items.
 type sequenceCursor struct {
-	parent        *sequenceCursor
-	seq           sequence
-	idx           int
-	readAheadMap  map[int]chan sequence
-	readAheadNext int
+	parent    *sequenceCursor
+	seq       sequence
+	idx       int
+	readAhead *sequenceReadAhead
 }
 
 // newSequenceCursor creates a cursor on seq positioned at idx.
@@ -29,17 +31,9 @@ func newSequenceCursor(parent *sequenceCursor, seq sequence, idx int) *sequenceC
 		idx += seq.seqLen()
 		d.PanicIfFalse(idx >= 0)
 	}
-
-	var readAheadMap map[int]chan sequence
-	// enable read-ahead if the cursor represents to a meta-sequence containing leaves
-	ms, ok := seq.(metaSequence)
-	if os.Getenv("NOMS_NO_READAHEAD") == "" && ok {
-		if ms.tuples[0].ref.height == 1 {
-			readAheadMap = make(map[int]chan sequence)
-		}
-	}
-	return &sequenceCursor{parent, seq, idx, readAheadMap, 0}
+	return &sequenceCursor{parent, seq, idx, nil}
 }
+
 
 func (cur *sequenceCursor) length() int {
 	return cur.seq.seqLen()
@@ -53,59 +47,19 @@ func (cur *sequenceCursor) getItem(idx int) sequenceItem {
 // It's called whenever the cursor advances/retreats to a different chunk.
 func (cur *sequenceCursor) sync() {
 	d.PanicIfFalse(cur.parent != nil)
+	if cur.readAhead != nil {
+		v := cur.parent.current()
+		hash := v.(metaTuple).ref.TargetHash()
+		if cs, ok := cur.readAhead.get(cur.parent.idx, hash); ok {
+			cur.seq = cs
+			return
+		}
+	}
 	cur.seq = cur.parent.getChildSequence()
-	if cur.readAheadMap != nil {
-		// if this cursor uses read-ahead, reset the cache for the next chunk
-		cur.readAheadMap = make(map[int]chan sequence)
-		cur.readAheadNext = 0
-	}
-}
-
-var readAheadParallelism = runtime.NumCPU() * 8
-
-func minInt(x, y int) int {
-	return int(math.Min(float64(x), float64(y)))
-}
-
-func maxInt(x, y int) int {
-	return int(math.Max(float64(x), float64(y)))
-}
-
-// readAhead (called when read-ahead is enabled) primes the next entries in the
-// read-ahead cache. It ensures that go routines have been allocated for reading
-// the next n entries in the current sequence. N is either readAheadParallelism
-// or the number of entries left in the sequence if smaller.
-func (cur *sequenceCursor) readAhead() {
-	d.PanicIfTrue(cur.readAheadMap == nil)
-	// the next position to be primed
-	cur.readAheadNext = maxInt(cur.idx, cur.readAheadNext)
-	// the last position to be primed
-	last := minInt(cur.idx+readAheadParallelism, cur.seq.seqLen()) - 1
-	// prime all positions between next and last
-	for i := cur.readAheadNext; i <= last; i += 1 {
-		futureSeq := make(chan sequence)
-		cur.readAheadMap[i] = futureSeq
-		go func(seq sequence, idx int) {
-			defer close(futureSeq)
-			futureSeq <- seq.getChildSequence(idx)
-		}(cur.seq, i)
-		cur.readAheadNext += 1
-	}
 }
 
 // getChildSequence retrieves the child at the current cursor position.
 func (cur *sequenceCursor) getChildSequence() sequence {
-	if cur.readAheadMap != nil {
-		// keep priming the cache
-		cur.readAhead()
-
-		// read the child from channel if it's there
-		if raChan, ok := cur.readAheadMap[cur.idx]; ok {
-			result := <-raChan
-			delete(cur.readAheadMap, cur.idx)
-			return result
-		}
-	}
 	return cur.seq.getChildSequence(cur.idx)
 }
 
@@ -179,8 +133,6 @@ func (cur *sequenceCursor) retreatMaybeAllowBeforeStart(allowBeforeStart bool) b
 }
 
 // clone creates a copy of the cursor
-//
-// The clone does not inherit read-ahead behavior
 func (cur *sequenceCursor) clone() *sequenceCursor {
 	var parent *sequenceCursor
 	if cur.parent != nil {
@@ -192,10 +144,9 @@ func (cur *sequenceCursor) clone() *sequenceCursor {
 type cursorIterCallback func(item interface{}) bool
 
 // iter iterates forward from the current position
+// TODO: replace calls to this with direct calls to IterSequence()
 func (cur *sequenceCursor) iter(cb cursorIterCallback) {
-	for cur.valid() && !cb(cur.getItem(cur.idx)) {
-		cur.advance()
-	}
+	iterSequence(cur, cb)
 }
 
 // newCursorAtIndex creates a new cursor over seq positioned at idx.
@@ -214,7 +165,21 @@ func newCursorAtIndex(seq sequence, idx uint64) *sequenceCursor {
 		}
 		seq = cs
 	}
-
 	d.PanicIfTrue(cur == nil)
 	return cur
+}
+
+// enableReadAhead turns on chunk read-ahead for this cursor.
+//
+// Read-ahead should only be used in cases where the caller is iterating sequentially
+// forward through all chunks starting at the current position.
+//
+// should only be call by sequenceIterator
+func (cur *sequenceCursor) enableReadAhead() {
+	_, meta := cur.seq.(metaSequence)
+	d.PanicIfTrue(meta)
+	if cur.parent != nil { // ignore if there are multiple chunks
+		cur.readAhead = newSequenceReadAhead(cur.parent, readAheadParallelism)
+	}
+
 }
