@@ -272,9 +272,9 @@ func (s graphStack) String() string {
 func (e *graphStackElem) done() Collection {
 	switch e.kind {
 	case MapKind:
-		return newMap(e.ch.Done().(orderedSequence))
+		return newMap(e.ch.Done())
 	case SetKind:
-		return newSet(e.ch.Done().(orderedSequence))
+		return newSet(e.ch.Done())
 	case ListKind:
 		return newList(e.ch.Done())
 	}

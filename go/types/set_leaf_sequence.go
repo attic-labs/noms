@@ -9,7 +9,7 @@ type setLeafSequence struct {
 	data []Value // sorted by Hash()
 }
 
-func newSetLeafSequence(vr ValueReader, v ...Value) orderedSequence {
+func newSetLeafSequence(vr ValueReader, v ...Value) sequence {
 	ts := make([]*Type, len(v))
 	for i, v := range v {
 		ts[i] = v.Type()
@@ -37,8 +37,6 @@ func (sl setLeafSequence) getCompareFn(other sequence) compareFn {
 		return entry.Equals(osl.data[otherIdx])
 	}
 }
-
-// orderedSequence interface
 
 func (sl setLeafSequence) getKey(idx int) orderedKey {
 	return newOrderedKey(sl.data[idx])

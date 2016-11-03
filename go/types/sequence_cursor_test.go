@@ -16,6 +16,7 @@ type testSequence struct {
 }
 
 // sequence interface
+
 func (ts testSequence) getItem(idx int) sequenceItem {
 	return ts.items[idx]
 }
@@ -44,7 +45,12 @@ func (ts testSequence) getChildSequence(idx int) sequence {
 	return testSequence{child.([]interface{})}
 }
 
+func (ts testSequence) getKey(idx int) orderedKey {
+	panic("not reached")
+}
+
 // Value interface
+
 func (ts testSequence) Equals(other Value) bool {
 	panic("not reached")
 }

@@ -10,11 +10,6 @@ import (
 	"github.com/attic-labs/noms/go/d"
 )
 
-type orderedSequence interface {
-	sequence
-	getKey(idx int) orderedKey
-}
-
 func newSetMetaSequence(tuples []metaTuple, vr ValueReader) metaSequence {
 	ts := make([]*Type, len(tuples))
 	for i, mt := range tuples {
@@ -38,7 +33,7 @@ func newMapMetaSequence(tuples []metaTuple, vr ValueReader) metaSequence {
 	return newMetaSequence(tuples, t, vr)
 }
 
-func newCursorAtValue(seq orderedSequence, val Value, forInsertion bool, last bool) *sequenceCursor {
+func newCursorAtValue(seq sequence, val Value, forInsertion bool, last bool) *sequenceCursor {
 	var key orderedKey
 	if val != nil {
 		key = newOrderedKey(val)
@@ -46,7 +41,7 @@ func newCursorAtValue(seq orderedSequence, val Value, forInsertion bool, last bo
 	return newCursorAt(seq, key, forInsertion, last)
 }
 
-func newCursorAt(seq orderedSequence, key orderedKey, forInsertion bool, last bool) *sequenceCursor {
+func newCursorAt(seq sequence, key orderedKey, forInsertion bool, last bool) *sequenceCursor {
 	var cur *sequenceCursor
 	for {
 		idx := 0
@@ -65,7 +60,7 @@ func newCursorAt(seq orderedSequence, key orderedKey, forInsertion bool, last bo
 		if cs == nil {
 			break
 		}
-		seq = cs.(orderedSequence)
+		seq = cs
 	}
 
 	d.PanicIfFalse(cur != nil)
@@ -73,7 +68,7 @@ func newCursorAt(seq orderedSequence, key orderedKey, forInsertion bool, last bo
 }
 
 func seekTo(cur *sequenceCursor, key orderedKey, lastPositionIfNotFound bool) bool {
-	seq := cur.seq.(orderedSequence)
+	seq := cur.seq
 
 	// Find smallest idx in seq where key(idx) >= key
 	cur.idx = sort.Search(seq.seqLen(), func(i int) bool {
@@ -90,9 +85,7 @@ func seekTo(cur *sequenceCursor, key orderedKey, lastPositionIfNotFound bool) bo
 
 // Gets the key used for ordering the sequence at current index.
 func getCurrentKey(cur *sequenceCursor) orderedKey {
-	seq, ok := cur.seq.(orderedSequence)
-	d.PanicIfFalse(ok, "need an ordered sequence here")
-	return seq.getKey(cur.idx)
+	return cur.seq.getKey(cur.idx)
 }
 
 // If |vw| is not nil, chunks will be eagerly written as they're created. Otherwise they are

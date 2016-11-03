@@ -33,7 +33,7 @@ func (mes mapEntrySlice) Equals(other mapEntrySlice) bool {
 	return true
 }
 
-func newMapLeafSequence(vr ValueReader, data ...mapEntry) orderedSequence {
+func newMapLeafSequence(vr ValueReader, data ...mapEntry) sequence {
 	kts := make([]*Type, len(data))
 	vts := make([]*Type, len(data))
 	for i, e := range data {
@@ -65,8 +65,6 @@ func (ml mapLeafSequence) getCompareFn(other sequence) compareFn {
 		return entry.key.Equals(otherEntry.key) && entry.value.Equals(otherEntry.value)
 	}
 }
-
-// orderedSequence interface
 
 func (ml mapLeafSequence) getKey(idx int) orderedKey {
 	return newOrderedKey(ml.data[idx].key)
