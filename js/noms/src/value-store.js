@@ -180,6 +180,7 @@ export class SizeCache<T> {
     const key = hash.toString();
     const entry = this._cache.get(key);
     if (entry) {
+      this._cache.delete(key);
       this._size -= entry.size;
     }
   }
