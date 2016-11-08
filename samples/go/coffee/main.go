@@ -22,13 +22,13 @@ import (
 )
 
 var people = []string{
-	"zane",
 	"aa",
 	"arv",
 	"dan",
 	"ehalpern",
 	"kalman",
 	"rafael",
+	"zane",
 }
 
 func main() {
