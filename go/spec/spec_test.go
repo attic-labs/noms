@@ -421,3 +421,21 @@ func TestAlreadyPinnedPathSpec(t *testing.T) {
 	assert.True(ok)
 	assert.Equal(unpinned, pinned)
 }
+
+func TestMultipleSpecsSameLeveldb(t *testing.T) {
+	assert := assert.New(t)
+
+	tmpDir, err := ioutil.TempDir("", "spec_test")
+	assert.NoError(err)
+	defer os.RemoveAll(tmpDir)
+
+	spec1, err1 := ForDatabase(tmpDir)
+	spec2, err2 := ForDatabase(tmpDir)
+
+	assert.NoError(err1)
+	assert.NoError(err2)
+
+	s := types.String("hello")
+	spec1.GetDatabase().WriteValue(s)
+	assert.Equal(s, spec2.GetDatabase().ReadValue(s.Hash()))
+}

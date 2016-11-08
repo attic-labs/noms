@@ -2,8 +2,6 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-// TODO: Make sure that removing access_token still works.
-
 // Package spec provides builders and parsers for spelling Noms databases,
 // datasets and values.
 package spec
