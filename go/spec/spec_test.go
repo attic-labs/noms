@@ -439,3 +439,31 @@ func TestMultipleSpecsSameLeveldb(t *testing.T) {
 	spec1.GetDatabase().WriteValue(s)
 	assert.Equal(s, spec2.GetDatabase().ReadValue(s.Hash()))
 }
+
+func TestAcccessingInvalidSpec(t *testing.T) {
+	assert := assert.New(t)
+
+	test := func(spec string) {
+		sp, err := ForDatabase(spec)
+		assert.Error(err)
+		assert.Equal("", sp.Href())
+		assert.Panics(func() { sp.GetDatabase() })
+		assert.Panics(func() { sp.GetDatabase() })
+		assert.Panics(func() { sp.NewChunkStore() })
+		assert.Panics(func() { sp.NewChunkStore() })
+		assert.Panics(func() { sp.Close() })
+		assert.Panics(func() { sp.Close() })
+		// Spec was created with ForDatabase, so dataset/path related functions
+		// should just fail not panic.
+		_, ok := sp.Pin()
+		assert.False(ok)
+		assert.Equal(datas.Dataset{}, sp.GetDataset())
+		assert.Nil(sp.GetValue())
+	}
+
+	test("")
+	test("invalid:spec")
+	test("💩:spec")
+	test("http:")
+	test("http:💩:")
+}
