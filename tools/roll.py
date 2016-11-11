@@ -10,10 +10,16 @@ import argparse, os, os.path, subprocess, sys, shutil, urlparse
 def main():
   parser = argparse.ArgumentParser(description='Dependency snapshotter')
   parser.add_argument('url')
-  parser.add_argument('--path', help='path to store the dependency at, defaults to vendor/[url without protocol]')
-  parser.add_argument('--incl', help='subdirectory of the dependency to check out, defaults to root. Evaluated before --excl.')
-  parser.add_argument('--excl', help='subdirectory of the dependency to delete after checking out, defaults to nothing. Evaluated after --incl.')
-  parser.add_argument('--version', default='HEAD', help='version of the dependency to snapshot, defaults to HEAD')
+  parser.add_argument('--path', help=(
+      'path to store the dependency at, defaults to vendor/[url without protocol]'))
+  parser.add_argument('--incl', help=(
+      'subdirectory of the dependency to check out, relative to the path. '
+      'Defaults to root. Evaluated before --excl.'))
+  parser.add_argument('--excl', help=(
+      'subdirectory of the dependency to delete after checking out, relative to the path. '
+      'Defaults to nothing. Evaluated after --incl.'))
+  parser.add_argument('--version', default='HEAD', help=(
+      'version of the dependency to snapshot, defaults to HEAD'))
 
   args = parser.parse_args()
 
