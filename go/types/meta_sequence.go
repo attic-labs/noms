@@ -139,7 +139,6 @@ func (ms metaSequence) numLeaves() uint64 {
 	return ms.cumulativeNumberOfLeaves(len(ms.tuples) - 1)
 }
 
-
 // metaSequence interface
 func (ms metaSequence) getChildSequence(idx int) sequence {
 	mt := ms.tuples[idx]

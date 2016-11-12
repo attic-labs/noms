@@ -34,7 +34,6 @@ func newSequenceCursor(parent *sequenceCursor, seq sequence, idx int) *sequenceC
 	return &sequenceCursor{parent, seq, idx, nil}
 }
 
-
 func (cur *sequenceCursor) length() int {
 	return cur.seq.seqLen()
 }
@@ -169,17 +168,15 @@ func newCursorAtIndex(seq sequence, idx uint64) *sequenceCursor {
 	return cur
 }
 
-// enableReadAhead turns on chunk read-ahead for this cursor.
+// enableReadAhead turns on chunk read-ahead for a leaf sequence cursor.
+// It is only intended to be called by sequenceIterator.
 //
 // Read-ahead should only be used in cases where the caller is iterating sequentially
 // forward through all chunks starting at the current position.
-//
-// should only be call by sequenceIterator
 func (cur *sequenceCursor) enableReadAhead() {
 	_, meta := cur.seq.(metaSequence)
 	d.PanicIfTrue(meta)
-	if cur.parent != nil { // ignore if there are multiple chunks
+	if cur.parent != nil { // only operative if sequence is chunked
 		cur.readAhead = newSequenceReadAhead(cur.parent, readAheadParallelism)
 	}
-
 }

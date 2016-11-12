@@ -9,9 +9,11 @@ package types
 //
 // This is preferred to sequenceCursor.iter()
 func iterSequence(sc *sequenceCursor, cb cursorIterCallback) {
-	cur := sc.clone()
-	cur.enableReadAhead()
-	it := &sequenceIterator{cur}
+	sc.enableReadAhead()
+	defer func() {
+		sc.readAhead = nil
+	}()
+	it := &sequenceIterator{sc}
 	for it.hasMore() && !cb(it.item()) {
 		it.advance(1)
 	}
@@ -32,7 +34,6 @@ func newSequenceIterator(seq sequence, idx uint64) *sequenceIterator {
 	return &sequenceIterator{sc}
 }
 
-
 // hasMore return true if there's more to iterate
 func (si sequenceIterator) hasMore() bool {
 	return si.cursor.valid()
@@ -40,8 +41,7 @@ func (si sequenceIterator) hasMore() bool {
 
 // advance advances the iterator by n items
 func (si sequenceIterator) advance(n int) bool {
-	for i := 0; i < n; i++ {
-		si.cursor.advance()
+	for i := 0; i < n && si.cursor.advance(); i++ {
 	}
 	return si.cursor.valid()
 }
@@ -63,6 +63,3 @@ func (si sequenceIterator) readAheadHitRate() float32 {
 	}
 	return 0.0
 }
-
-
-

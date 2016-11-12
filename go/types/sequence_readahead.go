@@ -30,7 +30,6 @@ type sequenceReadAhead struct {
 	cursor      *sequenceCursor
 	cache       map[raKey]chan sequence
 	parallelism int
-	outstanding int
 	getCount    float32
 	hitCount    float32
 }
@@ -39,24 +38,23 @@ type sequenceReadAhead struct {
 // with the local chunk offset. This increases the likelihood that repeat values
 // in the sequence will get unique entries in the map.
 type raKey struct {
-	idx int
+	idx  int
 	hash hash.Hash
 }
 
 func newSequenceReadAhead(cursor *sequenceCursor, parallelism int) *sequenceReadAhead {
 	m := map[raKey]chan sequence{}
-	return &sequenceReadAhead{cursor.clone(), m, parallelism, 0, 0.0, 0.0}
+	return &sequenceReadAhead{cursor.clone(), m, parallelism, 0, 0}
 }
 
-func (ram *sequenceReadAhead) get(idx int, h hash.Hash) (sequence, bool) {
-	ram.readAhead()
-	key := raKey{idx,  h}
-	ram.getCount += 1
-	if future, ok := ram.cache[key]; ok {
-		ram.outstanding -= 1
+func (ra *sequenceReadAhead) get(idx int, h hash.Hash) (sequence, bool) {
+	ra.readAhead()
+	key := raKey{idx, h}
+	ra.getCount += 1
+	if future, ok := ra.cache[key]; ok {
 		result := <-future
-		ram.hitCount += 1
-		delete(ram.cache, key)
+		ra.hitCount += 1
+		delete(ra.cache, key)
 		return result, true
 	}
 	return nil, false
@@ -66,35 +64,31 @@ func (ram *sequenceReadAhead) get(idx int, h hash.Hash) (sequence, bool) {
 // read-ahead cache. It ensures that go routines have been allocated for reading
 // the next n entries in the current sequence. N is either readAheadParallelism
 // or the number of entries left in the sequence if smaller.
-func (ram *sequenceReadAhead) readAhead() {
+func (ra *sequenceReadAhead) readAhead() {
 	// the next position to be primed
-	count := ram.parallelism - ram.outstanding
+	count := ra.parallelism - len(ra.cache)
 	for i := 0; i < count; i += 1 {
-		ram.cursor.advance()
-		if !ram.cursor.valid() {
+		if !ra.cursor.advance() {
 			break
 		}
 		future := make(chan sequence, 1)
 		key := raKey{
-			ram.cursor.idx,
-			ram.cursor.current().(metaTuple).ref.target,
+			ra.cursor.idx,
+			ra.cursor.current().(metaTuple).ref.target,
 		}
-		ram.cache[key] = future
-		seq := ram.cursor.seq
-		idx := ram.cursor.idx
+		ra.cache[key] = future
+		seq := ra.cursor.seq
+		idx := ra.cursor.idx
 		go func() {
+			// close not required here but ensures fast fail if channel is misused
 			defer close(future)
 			val := seq.getChildSequence(idx)
 			future <- val
 
 		}()
-		ram.outstanding += 1
 	}
 }
 
 func (rc *sequenceReadAhead) hitRate() float32 {
-	return rc.hitCount/rc.getCount
+	return rc.hitCount / rc.getCount
 }
-
-
-

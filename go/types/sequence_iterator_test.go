@@ -25,7 +25,7 @@ func genTestBlob() (Blob, []byte) {
 			buffer.WriteString(fmt.Sprintf("%d%s", i, v))
 		}
 	}
-	blob := NewBlob(bytes.NewReader(buffer.Bytes()))
+	blob := NewBlob(&buffer)
 	return blob, buffer.Bytes()
 }
 
@@ -34,7 +34,7 @@ func TestIterBlob(t *testing.T) {
 		assert := assert.New(t)
 		expected = expected[start:]
 		iter := newSequenceIterator(blob.seq, uint64(start))
-		actual := []byte{}
+		var actual []byte
 		for iter.hasMore() {
 			actual = append(actual, iter.item().(byte))
 			iter.advance(1)
