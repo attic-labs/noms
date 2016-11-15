@@ -282,7 +282,7 @@ func sliceDecoder(t reflect.Type) decoderFunc {
 		return d
 	}
 
-	decoder := typeDecoder(t.Elem())
+	var decoder decoderFunc
 
 	d = func(v types.Value, rv reflect.Value) {
 		var slice reflect.Value
@@ -300,6 +300,7 @@ func sliceDecoder(t reflect.Type) decoderFunc {
 	}
 
 	decoderCache.set(t, d)
+	decoder = typeDecoder(t.Elem())
 	return d
 }
 
