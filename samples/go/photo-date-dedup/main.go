@@ -5,10 +5,8 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math"
-	"math/rand"
 	"os"
 	"path"
 	"time"
@@ -20,6 +18,7 @@ import (
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/exit"
+	"github.com/attic-labs/noms/go/util/random"
 	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/attic-labs/noms/go/walk"
 	flag "github.com/juju/gnuflag"
@@ -60,7 +59,7 @@ func index() (win bool) {
 	verbose.RegisterVerboseFlags(flag.CommandLine)
 
 	flag.Usage = usage
-	flag.Parse(false)
+	flag.Parse(true)
 
 	if flag.NArg() == 0 {
 		flag.Usage()
@@ -115,7 +114,7 @@ func index() (win bool) {
 		fmt.Fprintf(os.Stderr, "Could not commit: %s\n", err)
 		return
 	}
-	return
+	return true
 }
 
 func buildDateIndex(db types.ValueReadWriter, inputs []types.Value) types.Map {
@@ -125,9 +124,11 @@ func buildDateIndex(db types.ValueReadWriter, inputs []types.Value) types.Map {
 			var p Photo
 			if err := marshal.Unmarshal(cv, &p); err == nil {
 				stop = true
-				indexBuilder.SetInsert(
-					[]types.Value{types.Number(float64(p.DateTaken.NsSinceEpoch))},
-					cv)
+				if p.DateTaken.NsSinceEpoch != 0 {
+					indexBuilder.SetInsert(
+						[]types.Value{types.Number(float64(p.DateTaken.NsSinceEpoch))},
+						cv)
+				}
 			}
 			return
 		})
@@ -143,7 +144,7 @@ func buildGroups(db types.ValueReadWriter, thresh int, byDate types.Map) types.L
 
 	startGroup := func(first types.Value) {
 		group = &PhotoGroup{
-			Id:     makeID(),
+			Id:     random.Id(),
 			Cover:  first,
 			Photos: types.NewSet(),
 		}
@@ -176,11 +177,4 @@ func buildGroups(db types.ValueReadWriter, thresh int, byDate types.Map) types.L
 	close(vals)
 
 	return <-groupBuilder
-}
-
-func makeID() string {
-	data := make([]byte, 16)
-	_, err := rand.Read(data)
-	d.Chk.NoError(err)
-	return hex.EncodeToString(data)
 }
