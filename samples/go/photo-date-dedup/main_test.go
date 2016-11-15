@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/marshal"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
@@ -22,16 +21,13 @@ func TestBasics(t *testing.T) {
 
 type testSuite struct {
 	clienttest.ClientTestSuite
-	db datas.Database
-	ds datas.Dataset
-}
-
-func (s *testSuite) SetupTest() {
-	sp := fmt.Sprintf("ldb:%s::test", s.LdbDir)
-	s.db, s.ds, _ = spec.GetDataset(sp)
 }
 
 func (s *testSuite) TestBasic() {
+	sp, err := spec.ForDataset(fmt.Sprintf("ldb:%s::test", s.LdbDir))
+	s.NoError(err)
+	defer sp.Close()
+
 	data := types.NewSet(
 		// first group
 		marshal.MustMarshal(Photo{
@@ -79,9 +75,11 @@ func (s *testSuite) TestBasic() {
 		}),
 	)
 
-	s.db.CommitValue(s.ds, data)
+	sp.GetDatabase().CommitValue(sp.GetDataset(), data)
 	s.MustRun(main, []string{"--out-ds", "dedupd", "--db", s.LdbDir, "test.value"})
-	_, ds, _ := spec.GetDataset(fmt.Sprintf("%s::dedupd", s.LdbDir))
+	sp, err = spec.ForDataset(fmt.Sprintf("%s::dedupd", s.LdbDir))
+	s.NoError(err)
+	defer sp.Close()
 
 	var result struct {
 		Groups []struct {
@@ -89,7 +87,7 @@ func (s *testSuite) TestBasic() {
 			Photos []Photo
 		}
 	}
-	err := marshal.Unmarshal(ds.HeadValue(), &result)
+	err = marshal.Unmarshal(sp.GetDataset().HeadValue(), &result)
 	s.NoError(err)
 
 	s.Equal(2, len(result.Groups))
