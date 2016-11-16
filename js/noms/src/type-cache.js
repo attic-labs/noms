@@ -232,48 +232,50 @@ function resolveStructCycles(t: Type<any>, parentStructTypes: Type<any>[]): Type
   return t;
 }
 
-/**
- * We normalize structs during their construction iff they have no unresolved cycles. Normalizing
- * applies a canonical ordering to the composite types of a union (NB: this differs from the Go
- * implementation in that Go also serializes here, but in JS we do it lazily to avoid cylic
- * dependencies). To ensure a consistent ordering of the composite types of a union, we generate
- * a unique "order id" or OID for each of those types. The OID is the hash of a unique type
- * encoding that is independant of the extant order of types within any subordinate unions. This
- * encoding for most types is a straightforward serialization of its components; for unions the
- * encoding is a bytewise XOR of the hashes of each of its composite type encodings.
- *
- * We require a consistent order of types within a union to ensure that equivalent types have a
- * single persistent encoding and, therefore, a single hash. The method described above fails for
- * "unrolled" cycles whereby two equivalent, but uniquely described structures, would have
- * different OIDs.  Consider for example the following two types that, while equivalent, do not
- * yeild the same OID:
- *
- *   Struct A { a: Cycle<0> }
- *   Struct A { a: Struct A { a: Cycle<1> } }
- *
- * We explicitly disallow this sort of redundantly expressed type. If a non-Byzantine use of such a
- * construction arises, we can attempt to simplify the expansive type or find another means of
- * comparison.
- */
+// We normalize structs during their construction iff they have no unresolved cycles. Normalizing
+// applies a canonical ordering to the composite types of a union (NB: this differs from the Go
+// implementation in that Go also serializes here, but in JS we do it lazily to avoid cylic
+// dependencies). To ensure a consistent ordering of the composite types of a union, we generate
+// a unique "order id" or OID for each of those types. The OID is the hash of a unique type
+// encoding that is independant of the extant order of types within any subordinate unions. This
+// encoding for most types is a straightforward serialization of its components; for unions the
+// encoding is a bytewise XOR of the hashes of each of its composite type encodings.
+//
+// We require a consistent order of types within a union to ensure that equivalent types have a
+// single persistent encoding and, therefore, a single hash. The method described above fails for
+// "unrolled" cycles whereby two equivalent, but uniquely described structures, would have
+// different OIDs.  Consider for example the following two types that, while equivalent, do not
+// yeild the same OID:
+//
+//   Struct A { a: Cycle<0> }
+//   Struct A { a: Struct A { a: Cycle<1> } }
+//
+// We explicitly disallow this sort of redundantly expressed type. If a non-Byzantine use of such a
+// construction arises, we can attempt to simplify the expansive type or find another means of
+// comparison.
 function normalize(t: Type<any>) {
-  walkType(t, [], (tt: Type<any>) => {
-    generateOID(tt, false);
-  });
+  walkType(t, [], generateOIDs);
+  walkType(t, [], normalizeCheckForUnrolledCycles);
+  walkType(t, [], normalizeSortUnions);
+}
 
-  walkType(t, [], (tt: Type<any>, parentStructTypes: Type<any>[]) => {
-    if (tt.kind === Kind.Struct) {
-      for (let i = 0; i < parentStructTypes.length; i++) {
-        invariant(tt.oidCompare(parentStructTypes[i]) !== 0,
-          'unrolled cycle types are not supported; ahl owes you a beer');
-      }
-    }
-  });
+function generateOIDs(t: Type<any>) {
+  generateOID(t, false);
+}
 
-  walkType(t, [], (tt: Type<any>) => {
-    if (tt.kind === Kind.Union) {
-      tt.desc.elemTypes.sort((t1: Type<any>, t2: Type<any>): number => t1.oidCompare(t2));
+function normalizeCheckForUnrolledCycles(t: Type<any>, parentStructTypes: Type<any>[]) {
+  if (t.kind === Kind.Struct) {
+    for (let i = 0; i < parentStructTypes.length; i++) {
+      invariant(t.oidCompare(parentStructTypes[i]) !== 0,
+        'unrolled cycle types are not supported; ahl owes you a beer');
     }
-  });
+  }
+}
+
+function normalizeSortUnions(t: Type<any>) {
+  if (t.kind === Kind.Union) {
+    t.desc.elemTypes.sort((t1: Type<any>, t2: Type<any>): number => t1.oidCompare(t2));
+  }
 }
 
 function walkType(t: Type<any>, parentStructTypes: Type<any>[],
@@ -297,9 +299,11 @@ function walkType(t: Type<any>, parentStructTypes: Type<any>[],
 }
 
 function generateOID(t: Type<any>, allowUnresolvedCycles: boolean) {
-  const buf = new BinaryWriter();
-  encodeForOID(t, buf, allowUnresolvedCycles, t, []);
-  t.updateOID(Hash.fromData(buf.data));
+  if (t._oid === null) {
+    const buf = new BinaryWriter();
+    encodeForOID(t, buf, allowUnresolvedCycles, t, []);
+    t.updateOID(Hash.fromData(buf.data));
+  }
 }
 
 function encodeForOID(t: Type<any>, buf: BinaryWriter, allowUnresolvedCycles: boolean,
@@ -338,10 +342,20 @@ function encodeForOID(t: Type<any>, buf: BinaryWriter, allowUnresolvedCycles: bo
         // duplicates, and xor the results together to form an order indepedant encoding.
         const mbuf = new BinaryWriter();
         const oids = new Map();
-        for (let i = 0; i < t.desc.elemTypes.length; i++) {
-          mbuf.reset();
-          encodeForOID(t.desc.elemTypes[i], mbuf, allowUnresolvedCycles, root, parentStructTypes);
-          const h = Hash.fromData(mbuf.data);
+        const {elemTypes} = desc;
+        for (let i = 0; i < elemTypes.length; i++) {
+          const elemType = elemTypes[i];
+          let h = elemType._oid;
+          if (!h) {
+            mbuf.reset();
+            encodeForOID(elemType, mbuf, allowUnresolvedCycles, root, parentStructTypes);
+            h = Hash.fromData(mbuf.data);
+            if (parentStructTypes.indexOf(elemType) === -1) {
+              t.updateOID(h);
+            }
+          } else {
+            checkForUnresolvedCycles(elemType, root, parentStructTypes);
+          }
           oids.set(h.toString(), h);
         }
 
@@ -373,6 +387,57 @@ function encodeForOID(t: Type<any>, buf: BinaryWriter, allowUnresolvedCycles: bo
     for (let i = 0; i < desc.fields.length; i++) {
       buf.writeString(desc.fields[i].name);
       encodeForOID(desc.fields[i].type, buf, allowUnresolvedCycles, root, parentStructTypes);
+    }
+    parentStructTypes.pop(t);
+  }
+}
+
+function checkForUnresolvedCycles(t: Type<any>, root: Type<any>, parentStructTypes: Type<any>[]) {
+  const desc = t.desc;
+
+  if (desc instanceof CycleDesc) {
+    invariant(false, 'found an unexpected resolved cycle');
+
+  } else if (desc instanceof PrimitiveDesc) {
+    //
+  } else if (desc instanceof CompoundDesc) {
+    switch (t.kind) {
+      case Kind.List:
+      case Kind.Map:
+      case Kind.Ref:
+      case Kind.Set: {
+        for (let i = 0; i < desc.elemTypes.length; i++) {
+          checkForUnresolvedCycles(desc.elemTypes[i], root, parentStructTypes);
+        }
+        break;
+      }
+      case Kind.Union: {
+        if (t === root) {
+          // If this is where we started, we don't need to keep going.
+          break;
+        }
+
+        // This is the only subtle case: encode each subordinate type, generate the hash, remove
+        // duplicates, and xor the results together to form an order indepedant encoding.
+        const {elemTypes} = desc;
+        for (let i = 0; i < elemTypes.length; i++) {
+          const elemType = elemTypes[i];
+          checkForUnresolvedCycles(elemType, root, parentStructTypes);
+        }
+        break;
+      }
+      default:
+        invariant(false, 'unknown compound type');
+    }
+  } else if (desc instanceof StructDesc) {
+    const idx = parentStructTypes.indexOf(t);
+    if (idx >= 0) {
+      return;
+    }
+
+    parentStructTypes.push(t);
+    for (let i = 0; i < desc.fields.length; i++) {
+      checkForUnresolvedCycles(desc.fields[i].type, root, parentStructTypes);
     }
     parentStructTypes.pop(t);
   }

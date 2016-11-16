@@ -149,6 +149,7 @@ export class Type<T: TypeDesc> extends ValueBase {
   }
 
   updateOID(o: Hash) {
+    invariant(this._oid === null, 'Should not update OID twice');
     this._oid = o;
   }
 
