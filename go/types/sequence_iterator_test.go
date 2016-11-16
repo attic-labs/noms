@@ -22,14 +22,9 @@ func genTestBlob() (Blob, []byte) {
 	var buffer bytes.Buffer
 	smallTestChunks()
 	defer normalProductionChunks()
-Loop:
-	for i := 0; true; i += 1 {
-		for _, v := range seedData {
-			buffer.WriteString(fmt.Sprintf("%d%s", i, v))
-			if buffer.Len() >= testCollectionSize {
-				break Loop
-			}
-		}
+	for i := 0; buffer.Len() < testCollectionSize; i += 1 {
+		v := seedData[i%len(seedData)]
+		buffer.WriteString(fmt.Sprintf("%d%s", i, v))
 	}
 	raw := buffer.Bytes()
 	blob := NewBlob(&buffer)
@@ -73,16 +68,12 @@ func TestIterList(t *testing.T) {
 		smallTestChunks()
 		defer normalProductionChunks()
 		list := NewList()
-	Loop:
-		for i := 0; true; i += 1 {
-			for _, v := range seedData {
-				s := fmt.Sprintf("%d%s", i, v)
-				buffer = append(buffer, s)
-				lbuffer = append(lbuffer, String(s))
-				if len(buffer) >= testCollectionSize {
-					break Loop
-				}
-			}
+
+		for i := 0; len(buffer) < testCollectionSize; i += 1 {
+			v := seedData[i%len(seedData)]
+			s := fmt.Sprintf("%d%s", i, v)
+			buffer = append(buffer, s)
+			lbuffer = append(lbuffer, String(s))
 		}
 		list = list.Append(lbuffer...)
 		return list, buffer
