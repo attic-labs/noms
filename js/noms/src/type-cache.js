@@ -89,10 +89,11 @@ export default class TypeCache {
   makeStructType(name: string, fields: { [key: string]: Type<any> }): Type<StructDesc> {
     const fieldNames = Object.keys(fields).sort();
     const fieldTypes = fieldNames.map(n => fields[n]);
-    return this.makeStructTypeQuickly(name, fieldNames, fieldTypes);
+    return this.makeStructTypeQuickly(name, fieldNames, fieldTypes, 'normalize');
   }
 
-  makeStructTypeQuickly(name: string, fieldNames: Array<string>, fieldTypes: Array<Type<any>>)
+  makeStructTypeQuickly(name: string, fieldNames: Array<string>, fieldTypes: Array<Type<any>>,
+      checkKind: CheckKind)
       : Type<StructDesc> {
     if (fieldNames.length !== fieldTypes.length) {
       throw new Error('Field names and types must be of equal length');
@@ -119,7 +120,7 @@ export default class TypeCache {
         [t] = toUnresolvedType(t, this, -1, []);
         resolveStructCycles(t, []);
         if (!t.hasUnresolvedCycle([])) {
-          normalize(t);
+          checkStructType(t, checkKind);
         }
       }
       t.id = this.nextTypeId();
@@ -154,6 +155,10 @@ export default class TypeCache {
     }
 
     return notNull(trie.t);
+  }
+
+  generateOID(t: Type<any>) {
+    generateOID(t, true);
   }
 }
 
@@ -253,17 +258,24 @@ function resolveStructCycles(t: Type<any>, parentStructTypes: Type<any>[]): Type
 // We explicitly disallow this sort of redundantly expressed type. If a non-Byzantine use of such a
 // construction arises, we can attempt to simplify the expansive type or find another means of
 // comparison.
-function normalize(t: Type<any>) {
+
+type CheckKind = 'validate' | 'normalize';
+
+function checkStructType(t: Type<any>, checkKind: CheckKind) {
   walkType(t, [], generateOIDs);
-  walkType(t, [], normalizeCheckForUnrolledCycles);
-  walkType(t, [], normalizeSortUnions);
+  if (checkKind === 'normalize') {
+    walkType(t, [], checkForUnrolledCycles);
+    walkType(t, [], sortUnions);
+  } else {
+    walkType(t, [], validateUnionOrder);
+  }
 }
 
 function generateOIDs(t: Type<any>) {
   generateOID(t, false);
 }
 
-function normalizeCheckForUnrolledCycles(t: Type<any>, parentStructTypes: Type<any>[]) {
+function checkForUnrolledCycles(t: Type<any>, parentStructTypes: Type<any>[]) {
   if (t.kind === Kind.Struct) {
     for (let i = 0; i < parentStructTypes.length; i++) {
       invariant(t.oidCompare(parentStructTypes[i]) !== 0,
@@ -272,9 +284,18 @@ function normalizeCheckForUnrolledCycles(t: Type<any>, parentStructTypes: Type<a
   }
 }
 
-function normalizeSortUnions(t: Type<any>) {
+function sortUnions(t: Type<any>) {
   if (t.kind === Kind.Union) {
     t.desc.elemTypes.sort((t1: Type<any>, t2: Type<any>): number => t1.oidCompare(t2));
+  }
+}
+
+function validateUnionOrder(t: Type<any>) {
+  if (t.kind === Kind.Union) {
+    const {elemTypes} = t.desc;
+    for (let i = 1; i < elemTypes.length; i++) {
+      invariant(elemTypes[i - 1].oidCompare(elemTypes[i]) < 0, 'Invalid union order');
+    }
   }
 }
 
