@@ -176,6 +176,14 @@ export class Type<T: TypeDesc> extends ValueBase {
   }
 }
 
+export function getOID(t: Type<TypeDesc>): Hash | null {
+  return t._oid;
+}
+
+export function hasOID(t: Type<TypeDesc>): boolean {
+  return t._oid !== null;
+}
+
 function makePrimitiveType(k: NomsKind): Type<PrimitiveDesc> {
   return new Type(new PrimitiveDesc(k), k);
 }
