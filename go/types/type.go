@@ -30,7 +30,7 @@ type Type struct {
 const initialTypeBufferSize = 128
 
 func newType(desc TypeDesc, id uint32) *Type {
-	t := &Type{desc, &hash.Hash{}, &hash.Hash{}, id, nil}
+	t := &Type{desc, &hash.Hash{}, nil, id, nil}
 	if !t.HasUnresolvedCycle() {
 		serializeType(t)
 	}

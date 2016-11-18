@@ -218,6 +218,12 @@ func (r *valueDecoder) readUnionType() *Type {
 	ts := make(typeSlice, l)
 	for i := uint32(0); i < l; i++ {
 		ts[i] = r.readType()
+		generateOID(ts[i], true)
+		if i > 0 {
+			if !ts[i-1].oid.Less(*ts[i].oid) {
+				panic("Invalid union order")
+			}
+		}
 	}
 	return r.tc.getCompoundType(UnionKind, ts...)
 }
