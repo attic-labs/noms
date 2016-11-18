@@ -249,10 +249,12 @@ func walkType(t *Type, parentStructTypes []*Type, do func(*Type, []*Type)) {
 }
 
 func generateOID(t *Type, allowUnresolvedCycles bool) {
-	buf := newBinaryNomsWriter()
-	encodeForOID(t, buf, allowUnresolvedCycles, t, nil)
-	oid := hash.FromData(buf.data())
-	t.oid = &oid
+	if t.oid == nil {
+		buf := newBinaryNomsWriter()
+		encodeForOID(t, buf, allowUnresolvedCycles, t, nil)
+		oid := hash.FromData(buf.data())
+		t.oid = &oid
+	}
 }
 
 func encodeForOID(t *Type, buf nomsWriter, allowUnresolvedCycles bool, root *Type, parentStructTypes []*Type) {
