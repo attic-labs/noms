@@ -184,4 +184,15 @@ suite('TypeCache', () => {
       });
     });
   });
+
+  test('Union and struct', () => {
+    // Just testing that we are not reassigning oid
+    const t = makeStructType('S', {
+      a: makeCycleType(1),
+    });
+    const t2 = makeUnionType([t, numberType]);
+    makeStructType('S3', {
+      a3: t2,
+    });
+  });
 });

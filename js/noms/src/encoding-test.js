@@ -633,7 +633,7 @@ suite('Encoding', () => {
   });
 
   test('invalid union order', () => {
-    const readAndWrite = data => {
+    const doTest = data => {
       const r = new TestReader(data);
       const dec = new ValueDecoder(r, new TestDatabase(), staticTypeCache);
       dec.readValue();
@@ -643,14 +643,14 @@ suite('Encoding', () => {
       uint8(TypeKind),
       uint8(UnionKind), uint32(2) /* len */, uint8(NumberKind), uint8(BoolKind),
     ];
-    readAndWrite(okData);
+    doTest(okData);
 
     const errorData = [
       uint8(TypeKind),
       uint8(UnionKind), uint32(2) /* len */, uint8(BoolKind), uint8(NumberKind),
     ];
     assert.throws(() => {
-      readAndWrite(errorData);
+      doTest(errorData);
     });
   });
 });
