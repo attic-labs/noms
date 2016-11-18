@@ -9,6 +9,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 import type {
+  Blob,
   Map,
   Set,
 } from '@attic/noms';
@@ -35,6 +36,7 @@ export interface NomsPhoto extends Struct {
   id: string,
   faces: Set<Face>;
   sizes: Map<PhotoSize, string>;
+  resources: Map<PhotoSize, Blob>;
   dateTaken: ?NomsDate;
 }
 

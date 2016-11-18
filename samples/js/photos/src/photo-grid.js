@@ -18,6 +18,7 @@ const photoSpacing = 5;
 
 type Props = {
   availWidth: number,
+  db: Database,
   photo: ?Photo,
   photosIter: PhotoSetIterator,
   nav: Nav,
@@ -59,7 +60,7 @@ export default class PhotoGrid extends React.Component<void, Props, State> {
   }
 
   render(): React.Element<any> {
-    const {availWidth, nav, photo, viewport} = this.props;
+    const {availWidth, db, nav, photo, viewport} = this.props;
     const {photos, photosIter, photosIterDone} = this.state;
 
     if (photo) {
@@ -67,8 +68,9 @@ export default class PhotoGrid extends React.Component<void, Props, State> {
       // Otherwise, show it immediately and don't load any others.
       const found = photos.find(p => p.equals(photo)) !== undefined;
       if (!found) {
-        const [bestSize, bestUrl] = photo.getBestSize(viewport.clientWidth, viewport.clientHeight);
+        const [bestSize, bestBlob] = photo.getBestSize(viewport.clientWidth, viewport.clientHeight);
         return <PhotoGridItem
+          db={db}
           fullscreen={true}
           gridHeight={0}
           gridLeft={0}
@@ -77,7 +79,7 @@ export default class PhotoGrid extends React.Component<void, Props, State> {
           gridWidth={viewport.clientWidth}
           nav={nav}
           photo={photo}
-          url={bestUrl}
+          blob={bestBlob}
           viewport={viewport}/>;
       }
     }
@@ -105,6 +107,7 @@ export default class PhotoGrid extends React.Component<void, Props, State> {
           w -= photoSpacing;
         }
         children.push(<PhotoGridItem
+          db={db}
           fullscreen={!!photo && p.photo.equals(photo)}
           gridHeight={maxPhotoHeight}
           gridLeft={left}
@@ -114,7 +117,7 @@ export default class PhotoGrid extends React.Component<void, Props, State> {
           key={p.photo.nomsPhoto.hash.toString()}
           nav={nav}
           photo={p.photo}
-          url={p.url}
+          blob={p.blob}
           viewport={viewport}
         />);
         left += w;
@@ -125,9 +128,9 @@ export default class PhotoGrid extends React.Component<void, Props, State> {
     };
 
     for (const photo of photos) {
-      const [gridSize, url] = photo.getBestSize(0, maxPhotoHeight);
+      const [gridSize, blob] = photo.getBestSize(0, maxPhotoHeight);
       const scaledWidth = (maxPhotoHeight / gridSize.height) * gridSize.width;
-      row.push({gridSize, photo, scaledWidth, url});
+      row.push({gridSize, photo, scaledWidth, blob});
       right += scaledWidth;
       if (right >= availWidth) {
         finalizeRow();

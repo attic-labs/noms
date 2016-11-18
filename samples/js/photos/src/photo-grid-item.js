@@ -12,10 +12,14 @@ import Nav from './nav.js';
 import Photo from './photo.js';
 import type {PhotoSize} from './types.js';
 import Viewport from './viewport.js';
+import {
+  Blob as NomsBlob,
+} from '@attic/noms';
 
 const transitionDelay = '200ms';
 
 type Props = {
+  db: Database,
   fullscreen: boolean,
   gridHeight: number,
   gridLeft: number,
@@ -24,14 +28,17 @@ type Props = {
   gridWidth: number,
   nav: Nav,
   photo: Photo,
-  url: string,
   viewport: Viewport,
 };
 
 type State = {
-  size: PhotoSize,
-  sizeIsBest: boolean,
-  url: string,
+  // The NomsBlob we are currently supposed to be displaying. When this changes, we start loading
+  // it asynchronously and eventually change |url| to match.
+  blob: ?NomsBlob,
+
+  // A blob: URL referring to a DOM blob we are displaying. This is populated once |blob| has
+  // loaded.
+  url: ?string,
 };
 
 export default class PhotoGridItem extends React.Component<void, Props, State> {
@@ -43,29 +50,86 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
-      size: props.gridSize,
-      sizeIsBest: false,
-      url: props.url,
+      blob: this.getBlob(props),
+      tx: false,
     };
     this._parentTop = 0;
     this._parentLeft = 0;
-    this._shouldTransition = true;
+    this.load(this.state.blob);
   }
 
-  componentWillUpdate() {
+  componentWillReceiveProps(nextProps) {
+    const nextBlob = this.getBlob(nextProps);
+    if (nextBlob == this.state.blob) { 
+      return;
+    }
+    this.setState({
+      blob: nextBlob,
+    });
+    this.load(nextBlob);
+  }
+
+  componentWillUpdate(nextProps, nextState) {
+    if (this.state.url != nextState.url) {
+      this.releaseBlobURL();
+    }
+
     const rect = ReactDOM.findDOMNode(this).parentElement.getBoundingClientRect();
     this._parentTop = rect.top;
     this._parentLeft = rect.left;
   }
 
+  getBlob(props: Props): NomsBlob {
+    let [w, h] = props.fullscreen ?
+      [props.viewport.clientWidth, props.viewport.clientHeight] :
+      [props.gridSize.width, props.gridSize.height];
+    const [_, blob] = props.photo.getBestSize(w, h);
+    return blob;
+  }
+
+  async load(blob: NomsBlob) {
+    const b = await blob.targetValue(this.props.db);
+    const r = b.getReader();
+    const parts = [];
+    while (true) {
+      const n = await r.read();
+
+      // might have changed
+      if (this.state.blob != blob) {
+        return;
+      }
+
+      if (n.value) {
+        parts.push(n.value);
+      }
+      if (n.done) {
+        break;
+      }
+    }
+    this.setState({
+      url: URL.createObjectURL(new Blob(parts)),
+    });
+  }
+
+  componentWillUnmount() {
+    this.releaseBlobURL();
+  }
+
+  releaseBlobURL() {
+    if (this.state.url) {
+      URL.revokeObjectURL(this.state.url);
+    }
+  }
+
   render(): React.Element<*> {
     const {fullscreen, photo, viewport} = this.props;
-    const {sizeIsBest, url} = this.state;
-
     let clipStyle, imgStyle, overlay;
+    const url = this.state.url;
+
     if (fullscreen) {
-      clipStyle = this._getClipFullscreenStyle();
-      imgStyle = this._getImgFullscreenStyle();
+      const [bestSize, _] = photo.getBestSize(viewport.clientWidth, viewport.clientHeight);
+      clipStyle = this._getClipFullscreenStyle(bestSize);
+      imgStyle = this._getImgFullscreenStyle(bestSize);
       overlay = <div style={{
         animation: `fadeIn ${transitionDelay}`,
         backgroundColor: 'black',
@@ -73,23 +137,9 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
         top: 0, right: 0, bottom: 0, left: 0,
         zIndex: 1, // above photo grid, below fullscreen img because it's before in the DOM
       }}/>;
-      if (!sizeIsBest) {
-        // The fullscreen image is low-res, fetch the hi-res version.
-        // disabled to avoid glaring errors, though it's still not perfect - if an image loads in
-        // less than transitionDelay then it will look a bit wonky.
-        // TODO: Also fade in the hi-res image.
-        const [bestSize, bestUrl] = photo.getBestSize(viewport.clientWidth, viewport.clientHeight);
-        preloadImage(bestUrl).then(() => {
-          this._shouldTransition = false;
-          this.setState({size: bestSize, sizeIsBest: true, url: bestUrl});
-          window.requestAnimationFrame(() => {
-            this._shouldTransition = true;
-          });
-        });
-      }
     } else {
-      clipStyle = this._getClipGridStyle();
-      imgStyle = this._getImgGridStyle();
+      clipStyle = this._getClipGridStyle(this.props.gridSize);
+      imgStyle = this._getImgGridStyle(this.props.gridSize);
     }
 
     return <div onClick={() => this._handleOnClick()}>
@@ -100,9 +150,8 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
     </div>;
   }
 
-  _getClipGridStyle(): {[key: string]: any} {
+  _getClipGridStyle(size: PhotoSize): {[key: string]: any} {
     const {gridTop, gridLeft, gridWidth, gridHeight} = this.props;
-    const {size} = this.state;
     const widthScale = gridWidth / size.width;
     const heightScale = gridHeight / size.height;
 
@@ -120,10 +169,9 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
     };
   }
 
-  _getClipFullscreenStyle(): {[key: string]: any} {
+  _getClipFullscreenStyle(size: PhotoSize): {[key: string]: any} {
     // We'll scale the image, not the surrounding div, which is used by the grid to clip the image.
     const {viewport} = this.props;
-    const {size} = this.state;
 
     // Figure out whether we should be scaling width vs height to the dimensions of the screen.
     const widthScale = viewport.clientWidth / size.width;
@@ -145,9 +193,8 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
     };
   }
 
-  _getImgGridStyle(): {[key: string]: any} {
+  _getImgGridStyle(size: PhotoSize): {[key: string]: any} {
     const {gridWidth, gridHeight} = this.props;
-    const {size} = this.state;
     const widthScale = gridWidth / size.width;
     const heightScale = gridHeight / size.height;
 
@@ -159,14 +206,19 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
     };
   }
 
-  _getImgFullscreenStyle(): {[key: string]: any} {
+  _getImgFullscreenStyle(size: PhotoSize): {[key: string]: any} {
+    const t = this._maybeTransition(`transform ${transitionDelay} ease`);
     return {
-      transition: this._maybeTransition(`transform ${transitionDelay} ease`),
+      width: size.width,
+      height: size.height,
+      transition: t,
     };
   }
 
   _maybeTransition(transition: string): string {
-    return this._shouldTransition === true ? transition : '';
+    return false;
+    //TODO
+    //return this._shouldTransition === true ? transition : '';
   }
 
   _handleOnClick() {

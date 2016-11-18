@@ -42,6 +42,7 @@ async function getRenderElement(nav: Nav): Promise<React.Element<any>> {
 
   let index = indexMap.get(indexStr);
   if (!index) {
+    let indexSpec;
     // TODO: Proper auth with localStorage.
     let specOptions;
     if (params.has('access_token')) {
@@ -50,7 +51,6 @@ async function getRenderElement(nav: Nav): Promise<React.Element<any>> {
       };
     }
 
-    let indexSpec;
     try {
       indexSpec = Spec.forPath(indexStr, specOptions);
     } catch (e) {
@@ -87,6 +87,7 @@ async function getRenderElement(nav: Nav): Promise<React.Element<any>> {
   const viewport = new Viewport(window, document.body);
 
   return <PhotosPage
+    db={index.byDate.sequence.vr}
     index={index}
     nav={nav}
     photo={photo}
