@@ -276,7 +276,7 @@ func (w *hrsWriter) writeType(t *Type, parentStructTypes []*Type) {
 		// This can happen for types that have unresolved cyclic refs
 		w.write(fmt.Sprintf("UnresolvedCycle<%d>", uint32(t.Desc.(CycleDesc))))
 		if w.err != nil {
-			return
+			break
 		}
 	default:
 		panic("unreachable")

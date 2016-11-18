@@ -148,11 +148,22 @@ func TestVerifyStructName(t *testing.T) {
 }
 
 func TestUnionWithCycles(tt *testing.T) {
-	inodeType := MakeStructType("Inode", []string{"attr", "contents"}, []*Type{
-		MakeStructType("Attr", []string{"ctime", "mode", "mtime"}, []*Type{NumberType, NumberType, NumberType}),
-		MakeUnionType(MakeStructType("Directory", []string{"entries"}, []*Type{MakeMapType(StringType, MakeCycleType(1))}),
-			MakeStructType("File", []string{"data"}, []*Type{BlobType}),
-			MakeStructType("Symlink", []string{"targetPath"}, []*Type{StringType}),
+	inodeType := MakeStructTypeFromFields("Inode", FieldMap{
+		"attr": MakeStructTypeFromFields("Attr", FieldMap{
+			"ctime": NumberType,
+			"mode":  NumberType,
+			"mtime": NumberType,
+		}),
+		"contents": MakeUnionType(
+			MakeStructTypeFromFields("Directory", FieldMap{
+				"entries": MakeMapType(StringType, MakeCycleType(1)),
+			}),
+			MakeStructTypeFromFields("File", FieldMap{
+				"data": BlobType,
+			}),
+			MakeStructTypeFromFields("Symlink", FieldMap{
+				"targetPath": StringType,
+			}),
 		),
 	})
 
