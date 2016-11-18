@@ -289,10 +289,23 @@ func encodeForOID(t *Type, buf nomsWriter, allowUnresolvedCycles bool, root *Typ
 			// This is the only subtle case: encode each subordinate type, generate the hash, remove duplicates, and xor the results together to form an order independent encoding.
 			mbuf := newBinaryNomsWriter()
 			oids := make(map[hash.Hash]struct{})
-			for _, tt := range desc.ElemTypes {
-				mbuf.reset()
-				encodeForOID(tt, mbuf, allowUnresolvedCycles, root, parentStructTypes)
-				oids[hash.FromData(mbuf.data())] = struct{}{}
+			for _, elemType := range desc.ElemTypes {
+				h := elemType.oid
+				if h == nil {
+					mbuf.reset()
+					encodeForOID(elemType, mbuf, allowUnresolvedCycles, root, parentStructTypes)
+					h2 := hash.FromData(mbuf.data())
+					oids[h2] = struct{}{}
+					// if _, found := indexOfType(elemType, parentStructTypes); !found {
+					// 	elemType.oid = &h2
+					// }
+
+				} else {
+					mbuf.reset()
+					encodeForOID(elemType, mbuf, allowUnresolvedCycles, root, parentStructTypes)
+					// h2 := hash.FromData(mbuf.data())
+					oids[*h] = struct{}{}
+				}
 			}
 
 			data := make([]byte, hash.ByteLen)

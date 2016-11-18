@@ -89,12 +89,7 @@ export default class TypeCache {
   makeStructType(name: string, fields: { [key: string]: Type<any> }): Type<StructDesc> {
     const fieldNames = Object.keys(fields).sort();
     const fieldTypes = fieldNames.map(n => fields[n]);
-    return this.makeStructTypeQuickly(name, fieldNames, fieldTypes, 'normalize');
-  }
 
-  makeStructTypeQuickly(name: string, fieldNames: Array<string>, fieldTypes: Array<Type<any>>,
-      checkKind: CheckKind)
-      : Type<StructDesc> {
     if (fieldNames.length !== fieldTypes.length) {
       throw new Error('Field names and types must be of equal length');
     }
@@ -102,6 +97,12 @@ export default class TypeCache {
     verifyStructName(name);
     verifyFieldNames(fieldNames);
 
+    return this.makeStructTypeQuickly(name, fieldNames, fieldTypes, 'normalize');
+  }
+
+  makeStructTypeQuickly(name: string, fieldNames: Array<string>, fieldTypes: Array<Type<any>>,
+      checkKind: CheckKind)
+      : Type<StructDesc> {
     let trie = notNull(this.trieRoots.get(Kind.Struct)).traverse(this.identTable.getId(name));
     fieldNames.forEach((fn, i) => {
       const ft = fieldTypes[i];
@@ -139,10 +140,9 @@ export default class TypeCache {
     for (let i = 0; i < types.length; i++) {
       generateOID(types[i], true);
     }
-    /*
-     * We sort the contituent types to dedup equivalent types in memory; we may need to sort again
-     * after cycles are resolved for final encoding.
-     */
+
+    // We sort the contituent types to dedup equivalent types in memory; we may need to sort again
+    // after cycles are resolved for final encoding.
     types.sort((t1: Type<any>, t2: Type<any>): number => t1.oidCompare(t2));
     return this.getCompoundType(Kind.Union, ...types);
   }
@@ -259,16 +259,16 @@ function resolveStructCycles(t: Type<any>, parentStructTypes: Type<any>[]): Type
 // construction arises, we can attempt to simplify the expansive type or find another means of
 // comparison.
 
-type CheckKind = 'validate' | 'normalize';
+type CheckKind = 'normalize' | 'no-validate';
 
 function checkStructType(t: Type<any>, checkKind: CheckKind) {
-  walkType(t, [], generateOIDs);
-  if (checkKind === 'normalize') {
-    walkType(t, [], checkForUnrolledCycles);
-    walkType(t, [], sortUnions);
-  } else {
-    walkType(t, [], validateUnionOrder);
+  if (checkKind === 'no-validate') {
+    return;
   }
+
+  walkType(t, [], generateOIDs);
+  walkType(t, [], checkForUnrolledCycles);
+  walkType(t, [], sortUnions);
 }
 
 function generateOIDs(t: Type<any>) {
@@ -287,15 +287,6 @@ function checkForUnrolledCycles(t: Type<any>, parentStructTypes: Type<any>[]) {
 function sortUnions(t: Type<any>) {
   if (t.kind === Kind.Union) {
     t.desc.elemTypes.sort((t1: Type<any>, t2: Type<any>): number => t1.oidCompare(t2));
-  }
-}
-
-function validateUnionOrder(t: Type<any>) {
-  if (t.kind === Kind.Union) {
-    const {elemTypes} = t.desc;
-    for (let i = 1; i < elemTypes.length; i++) {
-      invariant(elemTypes[i - 1].oidCompare(elemTypes[i]) < 0, 'Invalid union order');
-    }
   }
 }
 
@@ -323,7 +314,11 @@ function generateOID(t: Type<any>, allowUnresolvedCycles: boolean) {
   if (!hasOID(t)) {
     const buf = new BinaryWriter();
     encodeForOID(t, buf, allowUnresolvedCycles, t, []);
-    t.updateOID(Hash.fromData(buf.data));
+    const oid = Hash.fromData(buf.data);
+    if (t._oid) {
+      invariant(t._oid.toString() === oid.toString());
+    }
+    t.updateOID(oid);
   }
 }
 
@@ -377,7 +372,7 @@ function encodeForOID(t: Type<any>, buf: BinaryWriter, allowUnresolvedCycles: bo
           encodeForOID(elemType, mbuf, allowUnresolvedCycles, root, parentStructTypes);
           h = Hash.fromData(mbuf.data);
           if (parentStructTypes.indexOf(elemType) === -1) {
-            t.updateOID(h);
+            elemType.updateOID(h);
           }
         } else {
           checkForUnresolvedCycles(elemType, root, parentStructTypes);

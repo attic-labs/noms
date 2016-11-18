@@ -65,10 +65,6 @@ export default class ValueDecoder {
         const types: Type<any>[] = new Array(len);
         for (let i = 0; i < len; i++) {
           types[i] = this.readType();
-          this._tc.generateOID(types[i]);
-          if (i > 0) {
-            invariant(types[i - 1].oidCompare(types[i]) < 0, 'Invalid union order');
-          }
         }
         return this._tc.getCompoundType(k, ...types);
       }
@@ -236,6 +232,6 @@ export default class ValueDecoder {
       fieldNames[i] = this._r.readString();
       fieldTypes[i] = this.readType();
     }
-    return this._tc.makeStructTypeQuickly(name, fieldNames, fieldTypes, 'validate');
+    return this._tc.makeStructTypeQuickly(name, fieldNames, fieldTypes, 'no-validate');
   }
 }
