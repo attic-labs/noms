@@ -37,6 +37,16 @@ func DecodeFromBytes(data []byte, vr ValueReader, tc *TypeCache) Value {
 	return v
 }
 
+func decodeFromBytesWithValidation(data []byte, vr ValueReader, tc *TypeCache) Value {
+	tc.Lock()
+	defer tc.Unlock()
+	br := &binaryNomsReader{data, 0}
+	dec := newValueDecoderWithValidation(br, vr, tc)
+	v := dec.readValue()
+	d.PanicIfFalse(br.pos() == uint32(len(data)))
+	return v
+}
+
 // DecodeValue decodes a value from a chunk source. It is an error to provide an empty chunk.
 func DecodeValue(c chunks.Chunk, vr ValueReader) Value {
 	d.PanicIfTrue(c.IsEmpty())
@@ -272,7 +282,8 @@ func (b *binaryNomsWriter) writeHash(h hash.Hash) {
 }
 
 func (b *binaryNomsWriter) appendType(t *Type) {
-	data := t.serialization
+	ensureTypeSerialization(t)
+	data := t.serializationX
 	size := uint32(len(data))
 	b.ensureCapacity(size)
 

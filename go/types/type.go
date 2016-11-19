@@ -20,28 +20,30 @@ import (
 // If Kind() refers to Struct, then Desc contains a []field.
 
 type Type struct {
-	Desc          TypeDesc
-	h             *hash.Hash
-	oid           *hash.Hash
-	id            uint32
-	serialization []byte
+	Desc           TypeDesc
+	h              *hash.Hash
+	oid            *hash.Hash
+	id             uint32
+	serializationX []byte
 }
 
 const initialTypeBufferSize = 128
 
 func newType(desc TypeDesc, id uint32) *Type {
 	t := &Type{desc, &hash.Hash{}, nil, id, nil}
-	if !t.HasUnresolvedCycle() {
-		serializeType(t)
-	}
+	// if !t.HasUnresolvedCycle() {
+	// 	serializeType(t)
+	// }
 	return t
 }
 
-func serializeType(t *Type) {
-	w := &binaryNomsWriter{make([]byte, initialTypeBufferSize), 0}
-	enc := newValueEncoder(w, nil)
-	enc.writeType(t, nil)
-	t.serialization = w.data()
+func ensureTypeSerialization(t *Type) {
+	if t.serializationX == nil {
+		w := &binaryNomsWriter{make([]byte, initialTypeBufferSize), 0}
+		enc := newValueEncoder(w, nil)
+		enc.writeType(t, nil)
+		t.serializationX = w.data()
+	}
 }
 
 // Describe generate text that should parse into the struct being described.

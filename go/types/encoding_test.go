@@ -134,7 +134,7 @@ func assertEncoding(t *testing.T, expect []interface{}, v Value) {
 	assert.EqualValues(t, expect, tw.a)
 
 	ir := &nomsTestReader{expect, 0}
-	dec := valueDecoder{ir, vs, staticTypeCache}
+	dec := valueDecoder{ir, vs, staticTypeCache, 0, false}
 	v2 := dec.readValue()
 	assert.True(t, ir.atEnd())
 	assert.True(t, v.Equals(v2))
@@ -618,42 +618,5 @@ func TestBogusValueWithUnresolvedCycle(t *testing.T) {
 	g := bogusType(1)
 	assert.Panics(t, func() {
 		EncodeValue(g, nil)
-	})
-}
-
-func TestInvalidStructFieldOrder(t *testing.T) {
-	data := []interface{}{
-		uint8(TypeKind),
-		uint8(StructKind), "S", uint32(2) /* len */, "b", uint8(NumberKind), "a", uint8(NumberKind),
-	}
-
-	vs := NewTestValueStore()
-	r := &nomsTestReader{data, 0}
-	dec := valueDecoder{r, vs, staticTypeCache}
-	assert.Panics(t, func() {
-		dec.readValue()
-	})
-}
-
-func TestInvalidUnionOrder(t *testing.T) {
-	doTest := func(data []interface{}) {
-		vs := NewTestValueStore()
-		r := &nomsTestReader{data, 0}
-		dec := valueDecoder{r, vs, staticTypeCache}
-		dec.readValue()
-	}
-
-	okData := []interface{}{
-		uint8(TypeKind),
-		uint8(UnionKind), uint32(2) /* len */, uint8(NumberKind), uint8(BoolKind),
-	}
-	doTest(okData)
-
-	errorData := []interface{}{
-		uint8(TypeKind),
-		uint8(UnionKind), uint32(2) /* len */, uint8(BoolKind), uint8(NumberKind),
-	}
-	assert.Panics(t, func() {
-		doTest(errorData)
 	})
 }

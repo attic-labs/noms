@@ -13,13 +13,19 @@ import (
 
 type valueDecoder struct {
 	nomsReader
-	vr ValueReader
-	tc *TypeCache
+	vr         ValueReader
+	tc         *TypeCache
+	typeDepth  int
+	validating bool
 }
 
 // |tc| must be locked as long as the valueDecoder is being used
 func newValueDecoder(nr nomsReader, vr ValueReader, tc *TypeCache) *valueDecoder {
-	return &valueDecoder{nr, vr, tc}
+	return &valueDecoder{nr, vr, tc, 0, false}
+}
+
+func newValueDecoderWithValidation(nr nomsReader, vr ValueReader, tc *TypeCache) *valueDecoder {
+	return &valueDecoder{nr, vr, tc, 0, true}
 }
 
 func (r *valueDecoder) readKind() NomsKind {
@@ -33,6 +39,18 @@ func (r *valueDecoder) readRef(t *Type) Ref {
 }
 
 func (r *valueDecoder) readType() *Type {
+	r.typeDepth++
+	t := r.readTypeInner()
+	r.typeDepth--
+	if r.typeDepth == 0 {
+		if r.validating {
+			normalize(t, checkKindValidate)
+		}
+	}
+	return t
+}
+
+func (r *valueDecoder) readTypeInner() *Type {
 	k := r.readKind()
 	switch k {
 	case ListKind:
@@ -210,7 +228,7 @@ func (r *valueDecoder) readStructType() *Type {
 		fieldTypes[i] = r.readType()
 	}
 
-	return r.tc.makeStructType(name, fieldNames, fieldTypes)
+	return r.tc.makeStructTypeQuickly(name, fieldNames, fieldTypes, checkKindNoValidate)
 }
 
 func (r *valueDecoder) readUnionType() *Type {
@@ -218,12 +236,6 @@ func (r *valueDecoder) readUnionType() *Type {
 	ts := make(typeSlice, l)
 	for i := uint32(0); i < l; i++ {
 		ts[i] = r.readType()
-		generateOID(ts[i], true)
-		if i > 0 {
-			if !ts[i-1].oid.Less(*ts[i].oid) {
-				panic("Invalid union order")
-			}
-		}
 	}
 	return r.tc.getCompoundType(UnionKind, ts...)
 }

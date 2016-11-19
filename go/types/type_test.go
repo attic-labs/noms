@@ -168,7 +168,18 @@ func TestUnionWithCycles(tt *testing.T) {
 	})
 
 	t1 := inodeType.Desc.(StructDesc).Field("contents")
-	t2 := DecodeValue(EncodeValue(t1, nil), nil)
+	// fmt.Println(t1.Hash().String())
+	c := EncodeValue(t1, nil)
+	// c is same as in js
+	// fmt.Println(t1.Hash().String())
+	t2 := DecodeValue(c, nil)
+	// fmt.Println(t1.Hash().String())
+
+	// fmt.Println(t1.Describe())
+	// fmt.Println(t2.(*Type).Describe())
+
+	// fmt.Println(t1.Hash().String())
+	// fmt.Println(t2.(*Type).Hash().String())
 
 	assert.True(tt, t1.Equals(t2))
 	// Note that we cannot ensure pointer equality between t1 and t2 because the types used to the construct the Unions, while eventually equivalent, are not identical due to the potentially differing placement of the Cycle type. We do not remake Union types after putting their component types into their canonical ordering.

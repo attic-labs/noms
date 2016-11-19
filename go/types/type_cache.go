@@ -6,6 +6,7 @@ package types
 
 import (
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/attic-labs/noms/go/d"
@@ -76,13 +77,7 @@ func (tc *TypeCache) getCompoundType(kind NomsKind, elemTypes ...*Type) *Type {
 	return trie.t
 }
 
-func (tc *TypeCache) makeStructType(name string, fieldNames []string, fieldTypes []*Type) *Type {
-	if len(fieldNames) != len(fieldTypes) {
-		d.Panic("len(fieldNames) != len(fieldTypes)")
-	}
-	verifyStructName(name)
-	verifyFieldNames(fieldNames)
-
+func (tc *TypeCache) makeStructTypeQuickly(name string, fieldNames []string, fieldTypes []*Type, checkKind checkKindType) *Type {
 	trie := tc.trieRoots[StructKind].Traverse(tc.identTable.GetId(name))
 	for i, fn := range fieldNames {
 		ft := fieldTypes[i]
@@ -102,7 +97,7 @@ func (tc *TypeCache) makeStructType(name string, fieldNames []string, fieldTypes
 			t, _ = toUnresolvedType(t, tc, -1, nil)
 			resolveStructCycles(t, nil)
 			if !t.HasUnresolvedCycle() {
-				normalize(t)
+				normalize(t, checkKind)
 			}
 		}
 		t.id = tc.nextTypeId()
@@ -110,6 +105,27 @@ func (tc *TypeCache) makeStructType(name string, fieldNames []string, fieldTypes
 	}
 
 	return trie.t
+}
+
+type checkKindType uint8
+
+const (
+	checkKindNormalize checkKindType = iota
+	checkKindNoValidate
+	checkKindValidate
+)
+
+func (tc *TypeCache) makeStructType(name string, fieldNames []string, fieldTypes []*Type) *Type {
+	if len(fieldNames) != len(fieldTypes) {
+		d.Panic("len(fieldNames) != len(fieldTypes)")
+	}
+	verifyStructName(name)
+	verifyFieldNames(fieldNames)
+	return tc.makeStructTypeQuickly(name, fieldNames, fieldTypes, checkKindNormalize)
+}
+
+func (tc *TypeCache) validateType(t *Type) {
+	normalize(t, checkKindValidate)
 }
 
 func indexOfType(t *Type, tl []*Type) (uint32, bool) {
@@ -201,11 +217,16 @@ func resolveStructCycles(t *Type, parentStructTypes []*Type) *Type {
 //	Struct A { a: Cycle<0> }
 //	Struct A { a: Struct A { a: Cycle<1> } }
 // We explicitly disallow this sort of redundantly expressed type. If a non-Byzantine use of such a construction arises, we can attempt to simplify the expansive type or find another means of comparison.
-func normalize(t *Type) {
+func normalize(t *Type, checkKind checkKindType) {
+	if checkKind == checkKindNoValidate {
+		return
+	}
+
 	walkType(t, nil, func(tt *Type, _ []*Type) {
 		generateOID(tt, false)
 	})
 
+	// if checkKind != checkKindIgnore {
 	walkType(t, nil, func(tt *Type, parentStructTypes []*Type) {
 		if tt.Kind() == StructKind {
 			for _, ttt := range parentStructTypes {
@@ -215,16 +236,45 @@ func normalize(t *Type) {
 			}
 		}
 	})
+	// }
 
-	walkType(t, nil, func(tt *Type, _ []*Type) {
-		if tt.Kind() == UnionKind {
-			sort.Sort(tt.Desc.(CompoundDesc).ElemTypes)
-		}
-	})
+	if checkKind == checkKindNormalize {
+		walkType(t, nil, func(tt *Type, _ []*Type) {
+			if tt.Kind() == UnionKind {
+				sort.Sort(tt.Desc.(CompoundDesc).ElemTypes)
+			}
+		})
+	}
 
-	walkType(t, nil, func(tt *Type, _ []*Type) {
-		serializeType(tt)
-	})
+	if checkKind == checkKindValidate {
+		walkType(t, nil, func(tt *Type, _ []*Type) {
+			switch tt.Kind() {
+			case UnionKind:
+				elemTypes := tt.Desc.(CompoundDesc).ElemTypes
+				if len(elemTypes) == 1 {
+					panic("Invalid union type")
+				}
+				for i := 1; i < len(elemTypes); i++ {
+					if !elemTypes[i-1].oid.Less(*elemTypes[i].oid) {
+						panic("Invalid union order")
+					}
+				}
+			case StructKind:
+				desc := tt.Desc.(StructDesc)
+				verifyStructName(desc.Name)
+				for i, f := range desc.fields {
+					verifyFieldName(f.name)
+					if i > 0 && strings.Compare(desc.fields[i-1].name, f.name) >= 0 {
+						d.Chk.Fail("Field names must be unique and ordered alphabetically")
+					}
+				}
+			}
+		})
+	}
+	//
+	// walkType(t, nil, func(tt *Type, _ []*Type) {
+	// 	serializeType(tt)
+	// })
 }
 
 func walkType(t *Type, parentStructTypes []*Type, do func(*Type, []*Type)) {
@@ -292,20 +342,45 @@ func encodeForOID(t *Type, buf nomsWriter, allowUnresolvedCycles bool, root *Typ
 			for _, elemType := range desc.ElemTypes {
 				h := elemType.oid
 				if h == nil {
+
 					mbuf.reset()
 					encodeForOID(elemType, mbuf, allowUnresolvedCycles, root, parentStructTypes)
 					h2 := hash.FromData(mbuf.data())
+					if _, found := indexOfType(elemType, parentStructTypes); !found {
+						elemType.oid = &h2
+					}
 					oids[h2] = struct{}{}
-					// if _, found := indexOfType(elemType, parentStructTypes); !found {
-					// 	elemType.oid = &h2
-					// }
-
 				} else {
-					mbuf.reset()
-					encodeForOID(elemType, mbuf, allowUnresolvedCycles, root, parentStructTypes)
-					// h2 := hash.FromData(mbuf.data())
 					oids[*h] = struct{}{}
+					checkForUnresolvedCycles(elemType, root, parentStructTypes)
 				}
+
+				// h := elemType.oid
+				// if h == nil {
+				// 	mbuf.reset()
+				// 	encodeForOID(elemType, mbuf, allowUnresolvedCycles, root, parentStructTypes)
+				// 	h2 := hash.FromData(mbuf.data())
+				// 	if _, found := indexOfType(elemType, parentStructTypes); !found {
+				// 		if elemType.oid != nil {
+				// 			panic("Should not set OID twice")
+				// 		}
+				// 		d.Chk.False(elemType.HasUnresolvedCycle())
+				// 		elemType.oid = &h2
+				// 	}
+				//
+				// 	oids[h2] = struct{}{}
+				// 	// if _, found := indexOfType(elemType, parentStructTypes); !found {
+				// 	// 	elemType.oid = &h2
+				// 	// }
+				//
+				// } else {
+				// 	oids[*h] = struct{}{}
+				//
+				// 	mbuf.reset()
+				// 	encodeForOID(elemType, mbuf, allowUnresolvedCycles, root, parentStructTypes)
+				// 	// h2 := hash.FromData(mbuf.data())
+				//
+				// }
 			}
 
 			data := make([]byte, hash.ByteLen)
@@ -334,6 +409,34 @@ func encodeForOID(t *Type, buf nomsWriter, allowUnresolvedCycles bool, root *Typ
 		for _, field := range desc.fields {
 			buf.writeString(field.name)
 			encodeForOID(field.t, buf, allowUnresolvedCycles, root, parentStructTypes)
+		}
+	}
+}
+
+func checkForUnresolvedCycles(t, root *Type, parentStructTypes []*Type) {
+	desc := t.Desc
+
+	switch t.Kind() {
+	case CycleKind:
+		panic("ound an unexpected resolved cycle")
+
+	case ListKind, MapKind, RefKind, SetKind, UnionKind:
+		if t == root {
+			// If this is where we started, we don't need to keep going.
+			break
+		}
+		for _, elemType := range desc.(CompoundDesc).ElemTypes {
+			checkForUnresolvedCycles(elemType, root, parentStructTypes)
+		}
+
+	case StructKind:
+		if _, found := indexOfType(t, parentStructTypes); found {
+			return
+		}
+
+		parentStructTypes = append(parentStructTypes, t)
+		for _, field := range desc.(StructDesc).fields {
+			checkForUnresolvedCycles(field.t, root, parentStructTypes)
 		}
 	}
 }
