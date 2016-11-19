@@ -33,7 +33,7 @@ import (
 //
 // Slices and arrays are encoded as Noms types.List.
 //
-// Maps are encoded as Noms types.Map, or if the value is struct{}, a types.Set.
+// Maps are encoded as Noms types.Map.
 //
 // Struct values are encoded as Noms structs (types.Struct). Each exported Go
 // struct field becomes a member of the Noms struct unless
