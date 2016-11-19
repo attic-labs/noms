@@ -428,11 +428,13 @@ func (suite *PerfSuite) getEnvironment() types.Value {
 
 	partitions, err := disk.Partitions(false)
 	assert.NoError(err)
+
 	for _, p := range partitions {
-		usage, err := disk.Usage(p.Mountpoint)
-		assert.NoError(err)
-		env.DiskUsages[p.Mountpoint] = *usage
-		env.Partitions[p.Device] = p
+		// Sometimes reading disk usage will fail with "permission denied".
+		if usage, err := disk.Usage(p.Mountpoint); err == nil {
+			env.DiskUsages[p.Mountpoint] = *usage
+			env.Partitions[p.Device] = p
+		}
 	}
 
 	cpus, err := cpu.Info()
