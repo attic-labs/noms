@@ -238,13 +238,12 @@ function resolveStructCycles(t: Type<any>, parentStructTypes: Type<any>[]): Type
 }
 
 // We normalize structs during their construction iff they have no unresolved cycles. Normalizing
-// applies a canonical ordering to the composite types of a union (NB: this differs from the Go
-// implementation in that Go also serializes here, but in JS we do it lazily to avoid cylic
-// dependencies). To ensure a consistent ordering of the composite types of a union, we generate
-// a unique "order id" or OID for each of those types. The OID is the hash of a unique type
-// encoding that is independant of the extant order of types within any subordinate unions. This
-// encoding for most types is a straightforward serialization of its components; for unions the
-// encoding is a bytewise XOR of the hashes of each of its composite type encodings.
+// applies a canonical ordering to the composite types of a union. To ensure a consistent ordering
+// of the composite types of a union, we generate a unique "order id" or OID for each of those
+// types. The OID is the hash of a unique type encoding that is independant of the extant order of
+// types within any subordinate unions. This encoding for most types is a straightforward
+// serialization of its components; for unions the encoding is a bytewise XOR of the hashes of each
+// of its composite type encodings.
 //
 // We require a consistent order of types within a union to ensure that equivalent types have a
 // single persistent encoding and, therefore, a single hash. The method described above fails for

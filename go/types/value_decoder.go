@@ -44,7 +44,7 @@ func (r *valueDecoder) readType() *Type {
 	r.typeDepth--
 	if r.typeDepth == 0 {
 		if r.validating {
-			normalize(t, checkKindValidate)
+			checkStructType(t, checkKindValidate)
 		}
 	}
 	return t

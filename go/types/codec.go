@@ -283,7 +283,7 @@ func (b *binaryNomsWriter) writeHash(h hash.Hash) {
 
 func (b *binaryNomsWriter) appendType(t *Type) {
 	ensureTypeSerialization(t)
-	data := t.serializationX
+	data := t.serialization
 	size := uint32(len(data))
 	b.ensureCapacity(size)
 

@@ -97,7 +97,7 @@ func (tc *TypeCache) makeStructTypeQuickly(name string, fieldNames []string, fie
 			t, _ = toUnresolvedType(t, tc, -1, nil)
 			resolveStructCycles(t, nil)
 			if !t.HasUnresolvedCycle() {
-				normalize(t, checkKind)
+				checkStructType(t, checkKind)
 			}
 		}
 		t.id = tc.nextTypeId()
@@ -106,14 +106,6 @@ func (tc *TypeCache) makeStructTypeQuickly(name string, fieldNames []string, fie
 
 	return trie.t
 }
-
-type checkKindType uint8
-
-const (
-	checkKindNormalize checkKindType = iota
-	checkKindNoValidate
-	checkKindValidate
-)
 
 func (tc *TypeCache) makeStructType(name string, fieldNames []string, fieldTypes []*Type) *Type {
 	if len(fieldNames) != len(fieldTypes) {
@@ -125,7 +117,7 @@ func (tc *TypeCache) makeStructType(name string, fieldNames []string, fieldTypes
 }
 
 func (tc *TypeCache) validateType(t *Type) {
-	normalize(t, checkKindValidate)
+	checkStructType(t, checkKindValidate)
 }
 
 func indexOfType(t *Type, tl []*Type) (uint32, bool) {
@@ -212,69 +204,98 @@ func resolveStructCycles(t *Type, parentStructTypes []*Type) *Type {
 	return t
 }
 
-// We normalize structs during their construction iff they have no unresolved cycles. Normalizing applies a canonical ordering to the composite types of a union and serializes all types under the struct. To ensure a consistent ordering of the composite types of a union, we generate a unique "order id" or OID for each of those types. The OID is the hash of a unique type encoding that is independent of the extant order of types within any subordinate unions. This encoding for most types is a straightforward serialization of its components; for unions the encoding is a bytewise XOR of the hashes of each of its composite type encodings.
-// We require a consistent order of types within a union to ensure that equivalent types have a single persistent encoding and, therefore, a single hash. The method described above fails for "unrolled" cycles whereby two equivalent, but uniquely described structures, would have different OIDs. Consider for example the following two types that, while equivalent, do not yield the same OID:
-//	Struct A { a: Cycle<0> }
-//	Struct A { a: Struct A { a: Cycle<1> } }
-// We explicitly disallow this sort of redundantly expressed type. If a non-Byzantine use of such a construction arises, we can attempt to simplify the expansive type or find another means of comparison.
-func normalize(t *Type, checkKind checkKindType) {
+// We normalize structs during their construction iff they have no unresolved
+// cycles. Normalizing applies a canonical ordering to the composite types of a
+// union and serializes all types under the struct. To ensure a consistent
+// ordering of the composite types of a union, we generate a unique "order id"
+// or OID for each of those types. The OID is the hash of a unique type
+// encoding that is independent of the extant order of types within any
+// subordinate unions. This encoding for most types is a straightforward
+// serialization of its components; for unions the encoding is a bytewise XOR
+// of the hashes of each of its composite type encodings.
+//
+// We require a consistent order of types within a union to ensure that
+// equivalent types have a single persistent encoding and, therefore, a single
+// hash. The method described above fails for "unrolled" cycles whereby two
+// equivalent, but uniquely described structures, would have different OIDs.
+// Consider for example the following two types that, while equivalent, do not
+// yield the same OID:
+//
+//   Struct A { a: Cycle<0> }
+//   Struct A { a: Struct A { a: Cycle<1> } }
+//
+// We explicitly disallow this sort of redundantly expressed type. If a
+// non-Byzantine use of such a construction arises, we can attempt to simplify
+// the expansive type or find another means of comparison.
+
+type checkKindType uint8
+
+const (
+	checkKindNormalize checkKindType = iota
+	checkKindNoValidate
+	checkKindValidate
+)
+
+func checkStructType(t *Type, checkKind checkKindType) {
 	if checkKind == checkKindNoValidate {
 		return
 	}
 
-	walkType(t, nil, func(tt *Type, _ []*Type) {
-		generateOID(tt, false)
-	})
+	walkType(t, nil, generateOIDs)
+	walkType(t, nil, checkForUnrolledCycles)
 
-	// if checkKind != checkKindIgnore {
-	walkType(t, nil, func(tt *Type, parentStructTypes []*Type) {
-		if tt.Kind() == StructKind {
-			for _, ttt := range parentStructTypes {
-				if *tt.oid == *ttt.oid {
-					panic("unrolled cycle types are not supported; ahl owes you a beer")
-				}
+	switch checkKind {
+	case checkKindNormalize:
+		walkType(t, nil, sortUnions)
+	case checkKindValidate:
+		walkType(t, nil, validateTypes)
+	default:
+		panic("unreachable")
+	}
+}
+
+func generateOIDs(t *Type, _ []*Type) {
+	generateOID(t, false)
+}
+
+func checkForUnrolledCycles(t *Type, parentStructTypes []*Type) {
+	if t.Kind() == StructKind {
+		for _, ttt := range parentStructTypes {
+			if *t.oid == *ttt.oid {
+				panic("unrolled cycle types are not supported; ahl owes you a beer")
 			}
 		}
-	})
-	// }
-
-	if checkKind == checkKindNormalize {
-		walkType(t, nil, func(tt *Type, _ []*Type) {
-			if tt.Kind() == UnionKind {
-				sort.Sort(tt.Desc.(CompoundDesc).ElemTypes)
-			}
-		})
 	}
+}
 
-	if checkKind == checkKindValidate {
-		walkType(t, nil, func(tt *Type, _ []*Type) {
-			switch tt.Kind() {
-			case UnionKind:
-				elemTypes := tt.Desc.(CompoundDesc).ElemTypes
-				if len(elemTypes) == 1 {
-					panic("Invalid union type")
-				}
-				for i := 1; i < len(elemTypes); i++ {
-					if !elemTypes[i-1].oid.Less(*elemTypes[i].oid) {
-						panic("Invalid union order")
-					}
-				}
-			case StructKind:
-				desc := tt.Desc.(StructDesc)
-				verifyStructName(desc.Name)
-				for i, f := range desc.fields {
-					verifyFieldName(f.name)
-					if i > 0 && strings.Compare(desc.fields[i-1].name, f.name) >= 0 {
-						d.Chk.Fail("Field names must be unique and ordered alphabetically")
-					}
-				}
-			}
-		})
+func sortUnions(t *Type, _ []*Type) {
+	if t.Kind() == UnionKind {
+		sort.Sort(t.Desc.(CompoundDesc).ElemTypes)
 	}
-	//
-	// walkType(t, nil, func(tt *Type, _ []*Type) {
-	// 	serializeType(tt)
-	// })
+}
+
+func validateTypes(tt *Type, _ []*Type) {
+	switch tt.Kind() {
+	case UnionKind:
+		elemTypes := tt.Desc.(CompoundDesc).ElemTypes
+		if len(elemTypes) == 1 {
+			panic("Invalid union type")
+		}
+		for i := 1; i < len(elemTypes); i++ {
+			if !elemTypes[i-1].oid.Less(*elemTypes[i].oid) {
+				panic("Invalid union order")
+			}
+		}
+	case StructKind:
+		desc := tt.Desc.(StructDesc)
+		verifyStructName(desc.Name)
+		for i, f := range desc.fields {
+			verifyFieldName(f.name)
+			if i > 0 && strings.Compare(desc.fields[i-1].name, f.name) >= 0 {
+				d.Chk.Fail("Field names must be unique and ordered alphabetically")
+			}
+		}
+	}
 }
 
 func walkType(t *Type, parentStructTypes []*Type, do func(*Type, []*Type)) {
@@ -354,33 +375,6 @@ func encodeForOID(t *Type, buf nomsWriter, allowUnresolvedCycles bool, root *Typ
 					oids[*h] = struct{}{}
 					checkForUnresolvedCycles(elemType, root, parentStructTypes)
 				}
-
-				// h := elemType.oid
-				// if h == nil {
-				// 	mbuf.reset()
-				// 	encodeForOID(elemType, mbuf, allowUnresolvedCycles, root, parentStructTypes)
-				// 	h2 := hash.FromData(mbuf.data())
-				// 	if _, found := indexOfType(elemType, parentStructTypes); !found {
-				// 		if elemType.oid != nil {
-				// 			panic("Should not set OID twice")
-				// 		}
-				// 		d.Chk.False(elemType.HasUnresolvedCycle())
-				// 		elemType.oid = &h2
-				// 	}
-				//
-				// 	oids[h2] = struct{}{}
-				// 	// if _, found := indexOfType(elemType, parentStructTypes); !found {
-				// 	// 	elemType.oid = &h2
-				// 	// }
-				//
-				// } else {
-				// 	oids[*h] = struct{}{}
-				//
-				// 	mbuf.reset()
-				// 	encodeForOID(elemType, mbuf, allowUnresolvedCycles, root, parentStructTypes)
-				// 	// h2 := hash.FromData(mbuf.data())
-				//
-				// }
 			}
 
 			data := make([]byte, hash.ByteLen)
