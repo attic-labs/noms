@@ -6,7 +6,6 @@ package types
 
 import (
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/attic-labs/noms/go/d"
@@ -289,12 +288,7 @@ func validateTypes(tt *Type, _ []*Type) {
 	case StructKind:
 		desc := tt.Desc.(StructDesc)
 		verifyStructName(desc.Name)
-		for i, f := range desc.fields {
-			verifyFieldName(f.name)
-			if i > 0 && strings.Compare(desc.fields[i-1].name, f.name) >= 0 {
-				d.Chk.Fail("Field names must be unique and ordered alphabetically")
-			}
-		}
+		verifyFields(desc.fields)
 	}
 }
 
