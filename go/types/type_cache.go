@@ -115,10 +115,6 @@ func (tc *TypeCache) makeStructType(name string, fieldNames []string, fieldTypes
 	return tc.makeStructTypeQuickly(name, fieldNames, fieldTypes, checkKindNormalize)
 }
 
-func (tc *TypeCache) validateType(t *Type) {
-	checkStructType(t, checkKindValidate)
-}
-
 func indexOfType(t *Type, tl []*Type) (uint32, bool) {
 	for i, tt := range tl {
 		if tt == t {
@@ -273,10 +269,10 @@ func sortUnions(t *Type, _ []*Type) {
 	}
 }
 
-func validateTypes(tt *Type, _ []*Type) {
-	switch tt.Kind() {
+func validateTypes(t *Type, _ []*Type) {
+	switch t.Kind() {
 	case UnionKind:
-		elemTypes := tt.Desc.(CompoundDesc).ElemTypes
+		elemTypes := t.Desc.(CompoundDesc).ElemTypes
 		if len(elemTypes) == 1 {
 			panic("Invalid union type")
 		}
@@ -286,29 +282,29 @@ func validateTypes(tt *Type, _ []*Type) {
 			}
 		}
 	case StructKind:
-		desc := tt.Desc.(StructDesc)
+		desc := t.Desc.(StructDesc)
 		verifyStructName(desc.Name)
 		verifyFields(desc.fields)
 	}
 }
 
-func walkType(t *Type, parentStructTypes []*Type, do func(*Type, []*Type)) {
+func walkType(t *Type, parentStructTypes []*Type, cb func(*Type, []*Type)) {
 	if t.Kind() == StructKind {
 		if _, found := indexOfType(t, parentStructTypes); found {
 			return
 		}
 	}
 
-	do(t, parentStructTypes)
+	cb(t, parentStructTypes)
 
 	switch desc := t.Desc.(type) {
 	case CompoundDesc:
 		for _, tt := range desc.ElemTypes {
-			walkType(tt, parentStructTypes, do)
+			walkType(tt, parentStructTypes, cb)
 		}
 	case StructDesc:
 		for _, f := range desc.fields {
-			walkType(f.t, append(parentStructTypes, t), do)
+			walkType(f.t, append(parentStructTypes, t), cb)
 		}
 	}
 }

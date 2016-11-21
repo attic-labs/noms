@@ -314,9 +314,6 @@ function generateOID(t: Type<any>, allowUnresolvedCycles: boolean) {
     const buf = new BinaryWriter();
     encodeForOID(t, buf, allowUnresolvedCycles, t, []);
     const oid = Hash.fromData(buf.data);
-    if (t._oid) {
-      invariant(t._oid.toString() === oid.toString());
-    }
     t.updateOID(oid);
   }
 }

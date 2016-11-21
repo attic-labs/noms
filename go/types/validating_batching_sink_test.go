@@ -57,7 +57,7 @@ func assertPanicsOnInvalidChunk(t *testing.T, data []interface{}) {
 	cs := chunks.NewTestStore()
 	vs := newLocalValueStore(cs)
 	r := &nomsTestReader{data, 0}
-	dec := valueDecoder{r, vs, staticTypeCache, 0, false}
+	dec := newValueDecoder(r, vs, staticTypeCache)
 	v := dec.readValue()
 
 	c := EncodeValue(v, nil)
