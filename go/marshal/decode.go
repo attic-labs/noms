@@ -438,25 +438,14 @@ func interfaceDecoder(t reflect.Type) decoderFunc {
 	}
 
 	return func(v types.Value, rv reflect.Value) {
-		t := getGoTypeForNomsType(v.Type(), rv.Type(), v, nomsTags{})
+		t := getGoTypeForNomsType(v.Type(), rv.Type(), v)
 		i := reflect.New(t).Elem()
 		typeDecoder(t, nomsTags{})(v, i)
 		rv.Set(i)
 	}
 }
 
-func getGoTypeForNomsType(nt *types.Type, rt reflect.Type, v types.Value, tags nomsTags) reflect.Type {
-	listType := func() reflect.Type {
-		et := getGoTypeForNomsType(nt.Desc.(types.CompoundDesc).ElemTypes[0], rt, v, nomsTags{})
-		return reflect.SliceOf(et)
-	}
-
-	mapType := func() reflect.Type {
-		kt := getGoTypeForNomsType(nt.Desc.(types.CompoundDesc).ElemTypes[0], rt, v, nomsTags{})
-		vt := getGoTypeForNomsType(nt.Desc.(types.CompoundDesc).ElemTypes[1], rt, v, nomsTags{})
-		return reflect.MapOf(kt, vt)
-	}
-
+func getGoTypeForNomsType(nt *types.Type, rt reflect.Type, v types.Value) reflect.Type {
 	switch nt.Kind() {
 	case types.BoolKind:
 		return reflect.TypeOf(false)
@@ -464,19 +453,17 @@ func getGoTypeForNomsType(nt *types.Type, rt reflect.Type, v types.Value, tags n
 		return reflect.TypeOf(float64(0))
 	case types.StringKind:
 		return reflect.TypeOf("")
-	case types.ListKind:
-		return listType()
-	case types.SetKind:
-		if shouldSetDecodeAsMap(rt, tags) {
-			return mapType()
-		}
-		return listType()
+	case types.ListKind, types.SetKind:
+		et := getGoTypeForNomsType(nt.Desc.(types.CompoundDesc).ElemTypes[0], rt, v)
+		return reflect.SliceOf(et)
 	case types.MapKind:
-		return mapType()
+		kt := getGoTypeForNomsType(nt.Desc.(types.CompoundDesc).ElemTypes[0], rt, v)
+		vt := getGoTypeForNomsType(nt.Desc.(types.CompoundDesc).ElemTypes[1], rt, v)
+		return reflect.MapOf(kt, vt)
 	case types.UnionKind:
 		// Visit union types to raise potential errors
 		for _, ut := range nt.Desc.(types.CompoundDesc).ElemTypes {
-			getGoTypeForNomsType(ut, rt, v, nomsTags{})
+			getGoTypeForNomsType(ut, rt, v)
 		}
 		return emptyInterface
 	// case types.StructKind:
