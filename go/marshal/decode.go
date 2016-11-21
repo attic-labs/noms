@@ -140,7 +140,7 @@ func typeDecoder(t reflect.Type, tags nomsTags) decoderFunc {
 	case reflect.Array:
 		return arrayDecoder(t)
 	case reflect.Map:
-		if shouldSetDecodeAsMap(t, tags) {
+		if shouldMapDecodeFromSet(t, tags) {
 			return mapFromSetDecoder(t)
 		}
 		return mapDecoder(t, tags)
@@ -473,8 +473,8 @@ func getGoTypeForNomsType(nt *types.Type, rt reflect.Type, v types.Value) reflec
 	}
 }
 
-func shouldSetDecodeAsMap(rt reflect.Type, tags nomsTags) bool {
-	// map[T]struct{} // `noms:,"set"`
+func shouldMapDecodeFromSet(rt reflect.Type, tags nomsTags) bool {
+	// map[T]struct{} `noms:,"set"`
 	return tags.set &&
 		rt.Elem().Kind() == reflect.Struct &&
 		rt.Elem().NumField() == 0

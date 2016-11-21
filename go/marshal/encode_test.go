@@ -567,6 +567,14 @@ func TestEncodeSet(t *testing.T) {
 	assert.True(e.Has(types.String("F")))
 }
 
+func TestInvalidTag(t *testing.T) {
+	_, err := Marshal(struct {
+		F string `noms:",omitEmpty"`
+	}{"F"})
+	assert.Error(t, err)
+	assert.Equal(t, `Unrecognized tag: omitEmpty`, err.Error())
+}
+
 type TestInterface interface {
 	M()
 }

@@ -328,7 +328,7 @@ func getTags(f reflect.StructField) (tags nomsTags) {
 		case "set":
 			tags.set = true
 		default:
-			panic(&InvalidTagError{"Unrecognized tag " + tag})
+			panic(&InvalidTagError{"Unrecognized tag: " + tag})
 		}
 	}
 	return
@@ -502,7 +502,7 @@ func mapEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc {
 
 func shouldMapEncodeAsSet(t reflect.Type, tags nomsTags) bool {
 	d.PanicIfFalse(t.Kind() == reflect.Map)
-	// map[T]struct{} // `noms:,"set"`
+	// map[T]struct{} `noms:,"set"`
 	return tags.set &&
 		t.Elem().Kind() == reflect.Struct &&
 		t.Elem().NumField() == 0
