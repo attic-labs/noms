@@ -503,6 +503,70 @@ func TestEncodeInterface(t *testing.T) {
 	).Equals(v))
 }
 
+func TestEncodeSet(t *testing.T) {
+	assert := assert.New(t)
+
+	v, err := Marshal(struct {
+		A map[int]struct{} `noms:",set"`
+		B map[int]struct{}
+		C map[int]string      `noms:",set"`
+		D map[string]struct{} `noms:",set"`
+		E map[string]struct{}
+		F map[string]int `noms:",set"`
+		G []int          `noms:",set"`
+		H string         `noms:",set"`
+	}{
+		map[int]struct{}{0: {}, 1: {}, 2: {}},
+		map[int]struct{}{3: {}, 4: {}, 5: {}},
+		map[int]string{},
+		map[string]struct{}{"A": {}, "B": {}, "C": {}},
+		map[string]struct{}{"D": {}, "E": {}, "F": {}},
+		map[string]int{},
+		[]int{},
+		"",
+	})
+	assert.NoError(err)
+	s, ok := v.(types.Struct)
+	assert.True(ok)
+
+	expect := map[string]types.NomsKind{
+		"a": types.SetKind,
+		"b": types.MapKind,
+		"c": types.MapKind,
+		"d": types.SetKind,
+		"e": types.MapKind,
+		"f": types.MapKind,
+		"g": types.ListKind,
+		"h": types.StringKind,
+	}
+	for fieldName, kind := range expect {
+		assert.Equal(kind, s.Get(fieldName).Type().Kind())
+	}
+
+	// Test both the Set values are correct, and that the equivalent typed Map
+	// are correct in case the Set marshaling interferes with it.
+
+	a := s.Get("a").(types.Set)
+	assert.True(a.Has(types.Number(0)))
+	assert.True(a.Has(types.Number(1)))
+	assert.True(a.Has(types.Number(2)))
+
+	b := s.Get("b").(types.Map)
+	assert.True(b.Has(types.Number(3)))
+	assert.True(b.Has(types.Number(4)))
+	assert.True(b.Has(types.Number(5)))
+
+	d := s.Get("d").(types.Set)
+	assert.True(d.Has(types.String("A")))
+	assert.True(d.Has(types.String("B")))
+	assert.True(d.Has(types.String("C")))
+
+	e := s.Get("e").(types.Map)
+	assert.True(e.Has(types.String("D")))
+	assert.True(e.Has(types.String("E")))
+	assert.True(e.Has(types.String("F")))
+}
+
 type TestInterface interface {
 	M()
 }
