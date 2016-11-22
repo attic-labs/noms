@@ -11,6 +11,7 @@
 import type {
   Blob,
   Map,
+  Ref,
   Set,
 } from '@attic/noms';
 import type {MapEntry, Struct} from '@attic/noms';
@@ -32,11 +33,17 @@ export interface Face extends Struct {
   y: number;
 }
 
+export interface LocalResource extends Struct {
+  blobRef: Ref<Blob>;
+  downloaded: boolean;
+  url: string;
+}
+
 export interface NomsPhoto extends Struct {
   id: string,
   faces: Set<Face>;
   sizes: Map<PhotoSize, string>;
-  resources: Map<PhotoSize, Blob>;
+  resources: Map<PhotoSize, LocalResource>;
   dateTaken: ?NomsDate;
 }
 

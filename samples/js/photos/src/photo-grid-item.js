@@ -6,7 +6,6 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
-import preloadImage from './preload-image.js';
 import {searchToParams, paramsToSearch} from './params.js';
 import Nav from './nav.js';
 import Photo from './photo.js';
@@ -14,6 +13,8 @@ import type {PhotoSize} from './types.js';
 import Viewport from './viewport.js';
 import {
   Blob as NomsBlob,
+  Ref,
+  Database,
 } from '@attic/noms';
 
 const transitionDelay = '200ms';
@@ -34,11 +35,11 @@ type Props = {
 type State = {
   // The NomsBlob we are currently supposed to be displaying. When this changes, we start loading
   // it asynchronously and eventually change |url| to match.
-  blob: ?NomsBlob,
+  blob: Ref<NomsBlob> | null,
 
   // A blob: URL referring to a DOM blob we are displaying. This is populated once |blob| has
   // loaded.
-  url: ?string,
+  url: string | null,
 };
 
 export default class PhotoGridItem extends React.Component<void, Props, State> {
@@ -50,28 +51,28 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
-      blob: this.getBlob(props),
-      tx: false,
+      blob: this._getBlob(props),
+      url: null,
     };
     this._parentTop = 0;
     this._parentLeft = 0;
-    this.load(this.state.blob);
+    this._load(this.state.blob);
   }
 
-  componentWillReceiveProps(nextProps) {
-    const nextBlob = this.getBlob(nextProps);
-    if (nextBlob == this.state.blob) { 
+  componentWillReceiveProps(nextProps: Props) {
+    const nextBlob = this._getBlob(nextProps);
+    if (nextBlob === this.state.blob) {
       return;
     }
     this.setState({
       blob: nextBlob,
     });
-    this.load(nextBlob);
+    this._load(nextBlob);
   }
 
-  componentWillUpdate(nextProps, nextState) {
-    if (this.state.url != nextState.url) {
-      this.releaseBlobURL();
+  componentWillUpdate(nextProps: Props, nextState: State) {
+    if (this.state.url !== nextState.url) {
+      this._releaseBlobURL();
     }
 
     const rect = ReactDOM.findDOMNode(this).parentElement.getBoundingClientRect();
@@ -79,32 +80,31 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
     this._parentLeft = rect.left;
   }
 
-  getBlob(props: Props): NomsBlob {
-    let [w, h] = props.fullscreen ?
+  _getBlob(props: Props): Ref<NomsBlob> {
+    const [w, h] = props.fullscreen ?
       [props.viewport.clientWidth, props.viewport.clientHeight] :
       [props.gridSize.width, props.gridSize.height];
     const [_, blob] = props.photo.getBestSize(w, h);
     return blob;
   }
 
-  async load(blob: NomsBlob) {
+  async _load(blob: Ref<NomsBlob>) {
     const b = await blob.targetValue(this.props.db);
     const r = b.getReader();
     const parts = [];
-    while (true) {
+    for (;;) {
       const n = await r.read();
 
-      // might have changed
-      if (this.state.blob != blob) {
-        return;
-      }
-
-      if (n.value) {
-        parts.push(n.value);
-      }
       if (n.done) {
         break;
       }
+
+      // might have changed
+      if (this.state.blob !== blob) {
+        return;
+      }
+
+      parts.push(n.value);
     }
     this.setState({
       url: URL.createObjectURL(new Blob(parts)),
@@ -112,10 +112,10 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
   }
 
   componentWillUnmount() {
-    this.releaseBlobURL();
+    this._releaseBlobURL();
   }
 
-  releaseBlobURL() {
+  _releaseBlobURL() {
     if (this.state.url) {
       URL.revokeObjectURL(this.state.url);
     }
@@ -215,10 +215,9 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
     };
   }
 
-  _maybeTransition(transition: string): string {
-    return false;
-    //TODO
-    //return this._shouldTransition === true ? transition : '';
+  _maybeTransition(_: string): string {
+    // TODO: Make transitions work again.
+    return '';
   }
 
   _handleOnClick() {

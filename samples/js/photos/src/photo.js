@@ -9,12 +9,13 @@ import type {NomsPhoto, PhotoSize} from './types.js';
 import type {MapEntry} from '@attic/noms';
 import {
   Blob,
-  StructMirror,
   equals,
   invariant,
   notNull,
+  Ref,
+  StructMirror,
 } from '@attic/noms';
-export type SizeEntry = MapEntry<PhotoSize, Blob>;
+export type SizeEntry = MapEntry<PhotoSize, Ref<Blob>>;
 
 /**
  * createPhoto asynchronously derives a Photo instance from a NomsPhoto.

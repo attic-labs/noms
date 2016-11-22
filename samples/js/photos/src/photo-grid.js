@@ -5,7 +5,10 @@
 // @flow
 
 import React from 'react';
-import {notNull} from '@attic/noms';
+import {
+  Database,
+  notNull,
+} from '@attic/noms';
 import Nav from './nav.js';
 import Photo, {createPhoto} from './photo.js';
 import PhotoGridItem from './photo-grid-item.js';

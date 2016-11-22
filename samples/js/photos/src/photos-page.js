@@ -21,10 +21,10 @@ import PhotoSetIterator, {
 } from './photo-set-iterator.js';
 import {
   Database,
-  Map as NomsMap,
-  Set as NomsSet,
   invariant,
+  Map as NomsMap,
   notNull,
+  Set as NomsSet,
 } from '@attic/noms';
 import Viewport from './viewport.js';
 
