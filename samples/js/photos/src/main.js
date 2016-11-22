@@ -58,7 +58,6 @@ async function getRenderElement(nav: Nav): Promise<React.Element<any>> {
   let index = indexMap.get(indexStr);
   if (!index) {
     const indexValue = await indexSpec.value();
-    console.log('iv', indexValue);
     if (!(indexValue instanceof Struct)) {
       return <div>{notice(indexStr)} not found.</div>;
     }

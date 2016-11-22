@@ -33,12 +33,13 @@ type Props = {
 };
 
 type State = {
-  // The NomsBlob we are currently supposed to be displaying. When this changes, we start loading
-  // it asynchronously and eventually change |url| to match.
+  // The NomsBlob we are either currently displaying, or loading in preparation to display. When
+  // this changes, we start loading it asynchronously and eventually change |url| to match once it
+  // has been loaded.
   blob: Ref<NomsBlob> | null,
 
-  // A blob: URL referring to a DOM blob we are displaying. This is populated once |blob| has
-  // loaded.
+  // A blob: URL referring to the photo we are actually currently displaying. Once |blob| has been
+  // loaded, this is changed to refer to it.
   url: string | null,
 };
 
@@ -47,6 +48,7 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
   _parentTop: number;
   _parentLeft: number;
   _shouldTransition: boolean;
+  _unmounted: boolean;
 
   constructor(props: Props) {
     super(props);
@@ -56,6 +58,7 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
     };
     this._parentTop = 0;
     this._parentLeft = 0;
+    this._unmounted = false;
     this._load(this.state.blob);
   }
 
@@ -84,7 +87,7 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
     const [w, h] = props.fullscreen ?
       [props.viewport.clientWidth, props.viewport.clientHeight] :
       [props.gridSize.width, props.gridSize.height];
-    const [_, blob] = props.photo.getBestSize(w, h);
+    const [, blob] = props.photo.getBestSize(w, h);
     return blob;
   }
 
@@ -104,6 +107,11 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
         return;
       }
 
+      // might have unloaded
+      if (this._unmounted) {
+        return;
+      }
+
       parts.push(n.value);
     }
     this.setState({
@@ -113,6 +121,7 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
 
   componentWillUnmount() {
     this._releaseBlobURL();
+    this._unmounted = true;
   }
 
   _releaseBlobURL() {
@@ -124,10 +133,10 @@ export default class PhotoGridItem extends React.Component<void, Props, State> {
   render(): React.Element<*> {
     const {fullscreen, photo, viewport} = this.props;
     let clipStyle, imgStyle, overlay;
-    const url = this.state.url;
+    const {url} = this.state;
 
     if (fullscreen) {
-      const [bestSize, _] = photo.getBestSize(viewport.clientWidth, viewport.clientHeight);
+      const [bestSize] = photo.getBestSize(viewport.clientWidth, viewport.clientHeight);
       clipStyle = this._getClipFullscreenStyle(bestSize);
       imgStyle = this._getImgFullscreenStyle(bestSize);
       overlay = <div style={{

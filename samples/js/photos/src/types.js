@@ -42,7 +42,6 @@ export interface LocalResource extends Struct {
 export interface NomsPhoto extends Struct {
   id: string,
   faces: Set<Face>;
-  sizes: Map<PhotoSize, string>;
   resources: Map<PhotoSize, LocalResource>;
   dateTaken: ?NomsDate;
 }
