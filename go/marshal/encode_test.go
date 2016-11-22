@@ -567,6 +567,37 @@ func TestEncodeSet(t *testing.T) {
 	assert.True(e.Has(types.String("F")))
 }
 
+func TestEncodeSetWithTags(t *testing.T) {
+	assert := assert.New(t)
+
+	v, err := Marshal(struct {
+		A map[int]struct{} `noms:"foo,set"`
+		B map[int]struct{} `noms:",omitempty,set"`
+		C map[int]struct{} `noms:"bar,omitempty,set"`
+	}{
+		A: map[int]struct{}{0: {}, 1: {}},
+		C: map[int]struct{}{2: {}, 3: {}},
+	})
+	assert.NoError(err)
+	s, ok := v.(types.Struct)
+	assert.True(ok)
+
+	_, ok = s.MaybeGet("a")
+	assert.False(ok)
+	_, ok = s.MaybeGet("b")
+	assert.False(ok)
+	_, ok = s.MaybeGet("c")
+	assert.False(ok)
+
+	foo, ok := s.Get("foo").(types.Set)
+	assert.True(ok)
+	assert.True(types.NewSet(types.Number(0), types.Number(1)).Equals(foo))
+
+	bar, ok := s.Get("bar").(types.Set)
+	assert.True(ok)
+	assert.True(types.NewSet(types.Number(2), types.Number(3)).Equals(bar))
+}
+
 func TestInvalidTag(t *testing.T) {
 	_, err := Marshal(struct {
 		F string `noms:",omitEmpty"`

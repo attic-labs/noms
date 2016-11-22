@@ -673,6 +673,25 @@ func TestDecodeSet(t *testing.T) {
 	}, gs)
 }
 
+func TestDecodeNamedSet(t *testing.T) {
+	assert := assert.New(t)
+
+	type T struct {
+		A map[int]struct{} `noms:"foo,set"`
+	}
+
+	ns := types.NewStruct("T", types.StructData{
+		"a":   types.NewSet(types.Number(0)),
+		"foo": types.NewSet(types.Number(1)),
+	})
+
+	gs := T{}
+	assert.NoError(Unmarshal(ns, &gs))
+	assert.Equal(T{
+		map[int]struct{}{1: {}},
+	}, gs)
+}
+
 func TestDecodeSetWrongMapType(t *testing.T) {
 	assert := assert.New(t)
 
