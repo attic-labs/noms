@@ -17,7 +17,7 @@ import (
 	"github.com/attic-labs/noms/go/hash"
 )
 
-var annotationRe = regexp.MustCompile("^@([a-z]+)")
+var annotationRe = regexp.MustCompile("^([a-z]+)")
 
 // A Path is an address to a Noms value - and unlike hashes (i.e. #abcd...) they
 // can address inlined values.
@@ -76,13 +76,16 @@ func constructPath(p Path, str string) (Path, error) {
 		}
 		rem = rem[1:]
 
+		// TODO: Is there some prettier way to collapse this w/ the common case for annotations
+		// below?
 		intoKey := false
-		if ann, rem2 := getAnnotation(rem); ann != "" {
-			if ann != "key" {
-				return Path{}, fmt.Errorf("Unsupported annotation: @%s", ann)
+		if len(rem) > 1 && rem[0] == '@' {
+			if ann, rem2 := getAnnotation(rem[1:]); ann != "" {
+				if ann == "key" {
+					intoKey = true
+					rem = rem2
+				}
 			}
-			intoKey = true
-			rem = rem2
 		}
 
 		d.Chk.NotEqual(idx == nil, h.IsEmpty())
@@ -100,6 +103,15 @@ func constructPath(p Path, str string) (Path, error) {
 		}
 		p = append(p, part)
 		return constructPath(p, rem)
+
+	case '@':
+		ann, rem := getAnnotation(tail)
+		switch ann {
+		case "type":
+			return constructPath(append(p, TypePart{}), rem)
+		default:
+			return Path{}, fmt.Errorf("Unsupported annotation: @%s", ann)
+		}
 
 	case ']':
 		return Path{}, errors.New("] is missing opening [")
@@ -367,6 +379,17 @@ Switch:
 	}
 
 	return
+}
+
+type TypePart struct {
+}
+
+func (tp TypePart) Resolve(v Value) Value {
+	return v.Type()
+}
+
+func (tp TypePart) String() string {
+	return "@type"
 }
 
 func getAnnotation(str string) (ann, rem string) {
