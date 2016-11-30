@@ -18,7 +18,7 @@ cd ../../js/splore
 ./build.py
 
 # Serve Splore
-node_modules/.bin/http-server &
+./node_modules/.bin/http-server &
 open http://localhost:8080
 ```
 
