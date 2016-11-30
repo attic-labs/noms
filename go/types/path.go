@@ -78,10 +78,9 @@ func constructPath(p Path, str string) (Path, error) {
 		d.Chk.NotEqual(idx == nil, h.IsEmpty())
 
 		var part PathPart
-		switch {
-		case idx != nil:
+		if idx != nil {
 			part = NewIndexPath(idx)
-		default:
+		} else {
 			part = NewHashIndexPath(h)
 		}
 		p = append(p, part)
@@ -98,9 +97,8 @@ func constructPath(p Path, str string) (Path, error) {
 			if ki, ok := lastPart.(keyIndexable); ok {
 				p[len(p)-1] = ki.setIntoKey(true).(PathPart)
 				return constructPath(p, rem)
-			} else {
-				return Path{}, fmt.Errorf("Cannot use @key annotation on: %s", lastPart.String())
 			}
+			return Path{}, fmt.Errorf("Cannot use @key annotation on: %s", lastPart.String())
 		case "type":
 			return constructPath(append(p, TypePart{}), rem)
 		default:
