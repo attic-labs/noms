@@ -293,8 +293,8 @@ func TestPathParseErrors(t *testing.T) {
 	test("#foo", "Invalid operator: #")
 	test("!foo", "Invalid operator: !")
 	test("@foo", "Unsupported annotation: @foo")
-	test("@key", "Unsupported annotation: @key")
-	test(".foo@key", "Unsupported annotation: @key")
+	test("@key", "Cannot use @key annotation at beginning of path")
+	test(".foo@key", "Cannot use @key annotation on: .foo")
 	test(fmt.Sprintf(".foo[#%s]@soup", hash.FromData([]byte{42}).String()), "Unsupported annotation: @soup")
 }
 

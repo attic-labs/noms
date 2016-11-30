@@ -75,29 +75,12 @@ func constructPath(p Path, str string) (Path, error) {
 			return Path{}, errors.New("[ is missing closing ]")
 		}
 		rem = rem[1:]
-
-		// TODO: Is there some prettier way to collapse this w/ the common case for annotations
-		// below?
-		intoKey := false
-		if len(rem) > 1 && rem[0] == '@' {
-			if ann, rem2 := getAnnotation(rem[1:]); ann != "" {
-				if ann == "key" {
-					intoKey = true
-					rem = rem2
-				}
-			}
-		}
-
 		d.Chk.NotEqual(idx == nil, h.IsEmpty())
 
 		var part PathPart
 		switch {
-		case idx != nil && intoKey:
-			part = NewIndexIntoKeyPath(idx)
 		case idx != nil:
 			part = NewIndexPath(idx)
-		case intoKey:
-			part = NewHashIndexIntoKeyPath(h)
 		default:
 			part = NewHashIndexPath(h)
 		}
@@ -107,6 +90,17 @@ func constructPath(p Path, str string) (Path, error) {
 	case '@':
 		ann, rem := getAnnotation(tail)
 		switch ann {
+		case "key":
+			if len(p) == 0 {
+				return Path{}, fmt.Errorf("Cannot use @key annotation at beginning of path")
+			}
+			lastPart := p[len(p)-1]
+			if ki, ok := lastPart.(keyIndexable); ok {
+				p[len(p)-1] = ki.setIntoKey(true).(PathPart)
+				return constructPath(p, rem)
+			} else {
+				return Path{}, fmt.Errorf("Cannot use @key annotation on: %s", lastPart.String())
+			}
 		case "type":
 			return constructPath(append(p, TypePart{}), rem)
 		default:
@@ -251,6 +245,11 @@ func (ip IndexPath) String() (str string) {
 	return fmt.Sprintf("[%s]%s", EncodedIndexValue(ip.Index), ann)
 }
 
+func (ip IndexPath) setIntoKey(v bool) keyIndexable {
+	ip.IntoKey = v
+	return ip
+}
+
 // Indexes into Maps by the hash of a key, or a Set by the hash of a value.
 type HashIndexPath struct {
 	// The hash of the key or value to search for. Maps and Set are ordered, so
@@ -316,6 +315,11 @@ func (hip HashIndexPath) String() string {
 		ann = "@key"
 	}
 	return fmt.Sprintf("[#%s]%s", hip.Hash.String(), ann)
+}
+
+func (hip HashIndexPath) setIntoKey(v bool) keyIndexable {
+	hip.IntoKey = v
+	return hip
 }
 
 // Parse a Noms value from the path index syntax.
@@ -398,4 +402,8 @@ func getAnnotation(str string) (ann, rem string) {
 		rem = str[len(parts[0]):]
 	}
 	return
+}
+
+type keyIndexable interface {
+	setIntoKey(v bool) keyIndexable
 }
