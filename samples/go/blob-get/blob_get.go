@@ -24,7 +24,7 @@ import (
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s <dataset> <file>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "usage: %s <dataset> [<file>]\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 
@@ -32,8 +32,8 @@ func main() {
 	verbose.RegisterVerboseFlags(flag.CommandLine)
 	flag.Parse(true)
 
-	if len(flag.Args()) != 2 {
-		d.CheckError(errors.New("expected dataset and file flags"))
+	if len(flag.Args()) != 1 && len(flag.Args()) != 2 {
+		d.CheckError(errors.New("expected dataset and optional file flag"))
 	}
 
 	cfg := config.NewResolver()
@@ -51,24 +51,32 @@ func main() {
 	}
 
 	filePath := flag.Arg(1)
+	var file *os.File
+	showProgress := true
 	if filePath == "" {
-		d.CheckErrorNoUsage(errors.New("Empty file path"))
+		file = os.Stdout
+		showProgress = false
+	} else {
+		// Note: overwrites any existing file.
+		var err error
+		file, err = os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
+		d.CheckErrorNoUsage(err)
+		defer file.Close()
 	}
-
-	// Note: overwrites any existing file.
-	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
-	d.CheckErrorNoUsage(err)
-	defer file.Close()
 
 	expected := humanize.Bytes(blob.Len())
 	start := time.Now()
 
 	progReader := progressreader.New(blob.Reader(), func(seen uint64) {
-		elapsed := time.Since(start).Seconds()
-		rate := uint64(float64(seen) / elapsed)
-		status.Printf("%s of %s written in %ds (%s/s)...", humanize.Bytes(seen), expected, int(elapsed), humanize.Bytes(rate))
+		if showProgress {
+			elapsed := time.Since(start).Seconds()
+			rate := uint64(float64(seen) / elapsed)
+			status.Printf("%s of %s written in %ds (%s/s)...", humanize.Bytes(seen), expected, int(elapsed), humanize.Bytes(rate))
+		}
 	})
 
 	io.Copy(file, progReader)
-	status.Done()
+	if showProgress {
+		status.Done()
+	}
 }
