@@ -25,6 +25,11 @@ const (
 	lockFileName     = "LOCK"
 )
 
+type manifest interface {
+	ParseIfExists(readHook func()) (exists bool, vers string, root hash.Hash, tableSpecs []tableSpec)
+	Update(tables chunkSources, root, newRoot hash.Hash, writeHook func()) (actual hash.Hash, tableSpecs []tableSpec)
+}
+
 // fileManifest provides access to a NomsBlockStore manifest stored on disk in |dir|. The format
 // is currently human readable:
 //
