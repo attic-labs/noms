@@ -48,6 +48,7 @@ import (
 //    same rules.
 //  - types.Number -> float64
 //  - types.String -> string
+//  - *types.Type -> *types.Type
 //  - types.Union -> interface
 //  - Everything else an error
 //
@@ -149,7 +150,7 @@ func typeDecoder(t reflect.Type, tags nomsTags) decoderFunc {
 		if t.Implements(nomsValueInterface) {
 			return nomsValueDecoder
 		}
-		panic(&UnsupportedTypeError{Type: t})
+		fallthrough
 	default:
 		panic(&UnsupportedTypeError{Type: t})
 	}

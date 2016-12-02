@@ -200,7 +200,7 @@ func typeEncoder(t reflect.Type, parentStructTypes []reflect.Type, tags nomsTags
 		if t.Implements(nomsValueInterface) {
 			return nomsValueEncoder
 		}
-		panic(&UnsupportedTypeError{Type: t})
+		fallthrough
 	default:
 		panic(&UnsupportedTypeError{Type: t})
 	}
