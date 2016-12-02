@@ -321,8 +321,7 @@ func (s *DynamoStore) sendWriteRequests(first Chunk) {
 }
 
 func chunkItemSize(c Chunk) int {
-	r := c.Hash()
-	return len(refAttr) + len(r.DigestSlice()) + len(chunkAttr) + len(c.Data()) + len(compAttr) + len(noneValue)
+	return len(refAttr) + hash.ByteLen + len(chunkAttr) + len(c.Data()) + len(compAttr) + len(noneValue)
 }
 
 func (s *DynamoStore) buildWriteRequests(chunks []Chunk) map[string][]*dynamodb.WriteRequest {
@@ -461,7 +460,7 @@ func (s *DynamoStore) UpdateRoot(current, last hash.Hash) bool {
 		TableName: aws.String(s.table),
 		Item: map[string]*dynamodb.AttributeValue{
 			refAttr:   {B: s.rootKey},
-			chunkAttr: {B: current.DigestSlice()},
+			chunkAttr: {B: current[:]},
 			compAttr:  {S: aws.String(noneValue)},
 		},
 	}
@@ -471,7 +470,7 @@ func (s *DynamoStore) UpdateRoot(current, last hash.Hash) bool {
 	} else {
 		putArgs.ConditionExpression = aws.String(valueEqualsExpression)
 		putArgs.ExpressionAttributeValues = map[string]*dynamodb.AttributeValue{
-			":prev": {B: last.DigestSlice()},
+			":prev": {B: last[:]},
 		}
 	}
 
@@ -491,11 +490,10 @@ func (s *DynamoStore) UpdateRoot(current, last hash.Hash) bool {
 }
 
 func (s *DynamoStore) makeNamespacedKey(h hash.Hash) []byte {
-	// This is semantically `return append(s.namespace, r.DigestSlice()...)`, but it seemed like we'd be doing this a LOT, and we know how much space we're going to need anyway. So, pre-allocate a slice and then copy into it.
-	hashSlice := h.DigestSlice()
-	key := make([]byte, s.namespaceLen+len(hashSlice))
+	// This is semantically `return append(s.namespace, h[:])`, but it seemed like we'd be doing this a LOT, and we know how much space we're going to need anyway. So, pre-allocate a slice and then copy into it.
+	key := make([]byte, s.namespaceLen+hash.ByteLen)
 	copy(key, s.namespace)
-	copy(key[s.namespaceLen:], hashSlice)
+	copy(key[s.namespaceLen:], h[:])
 	return key
 }
 

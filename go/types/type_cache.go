@@ -369,9 +369,8 @@ func encodeForOID(t *Type, buf nomsWriter, allowUnresolvedCycles bool, root *Typ
 
 			data := make([]byte, hash.ByteLen)
 			for o := range oids {
-				digest := o.Digest()
 				for i := 0; i < len(data); i++ {
-					data[i] ^= digest[i]
+					data[i] ^= o[i]
 				}
 			}
 			buf.writeBytes(data)
