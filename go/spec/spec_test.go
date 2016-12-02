@@ -359,7 +359,7 @@ func TestForPath(t *testing.T) {
 func TestPinPathSpec(t *testing.T) {
 	assert := assert.New(t)
 
-	unpinned, err := ForPath("mem::foo.value")
+	unpinned, err := ForPath("mem::foo")
 	assert.NoError(err)
 	defer unpinned.Close()
 
