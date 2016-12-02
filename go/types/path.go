@@ -102,7 +102,8 @@ func constructPath(p Path, str string) (Path, error) {
 		case "type":
 			return constructPath(append(p, TypePart{}), rem)
 		default:
-			return Path{}, fmt.Errorf("Unsupported annotation: @%s", ann)
+			p = append(p, UnknownAnnotationPart{ann})
+			return constructPath(p, rem)
 		}
 
 	case ']':
@@ -404,4 +405,21 @@ func getAnnotation(str string) (ann, rem string) {
 
 type keyIndexable interface {
 	setIntoKey(v bool) keyIndexable
+}
+
+/**
+ * UnknownAnnotationPart is a PathPart of an annotation that wasn't recognized
+ * by Path. Callers can interpret it themselves. For the purpose of
+ * Path.Resolve, it just resolves to the Value it annotates.
+ */
+type UnknownAnnotationPart struct {
+	Annotation string
+}
+
+func (p UnknownAnnotationPart) Resolve(v Value) Value {
+	return v
+}
+
+func (p UnknownAnnotationPart) String() string {
+	return "@" + p.Annotation
 }
