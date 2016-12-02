@@ -124,7 +124,7 @@ func TestAbsolutePathParseErrors(t *testing.T) {
 	test(".foo.bar.baz", "Invalid dataset name: .foo.bar.baz")
 	test("#", "Invalid hash: ")
 	test("#abc", "Invalid hash: abc")
-	test("#abc@commit", "monkey")
+	test("#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@commit", "Unsupported annotation: @commit")
 	invHash := strings.Repeat("z", hash.StringLen)
 	test("#"+invHash, "Invalid hash: "+invHash)
 }

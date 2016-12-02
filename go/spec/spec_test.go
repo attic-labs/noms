@@ -83,7 +83,7 @@ func TestMemHashPathSpec(t *testing.T) {
 func TestMemDatasetPathSpec(t *testing.T) {
 	assert := assert.New(t)
 
-	spec, err := ForPath("mem::test.value[0]")
+	spec, err := ForPath("mem::test[0]")
 	assert.NoError(err)
 	defer spec.Close()
 
