@@ -6,6 +6,7 @@ package nbs
 
 import (
 	"encoding/binary"
+	"sync"
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -73,7 +74,7 @@ func TestChunkStoreManifestAppearsAfterConstruction(t *testing.T) {
 	chunks := [][]byte{[]byte("hello2"), []byte("goodbye2"), []byte("badbye2")}
 	newRoot := hash.Of([]byte("new root"))
 	h, _ := tm.Compact(createMemTable(chunks), nil)
-	fm.Set(constants.NomsVersion, newRoot, []tableSpec{{h, uint32(len(chunks))}})
+	fm.set(constants.NomsVersion, newRoot, []tableSpec{{h, uint32(len(chunks))}})
 
 	// state in store shouldn't change
 	assert.Equal(hash.Hash{}, store.Root())
@@ -89,7 +90,7 @@ func TestChunkStoreManifestFirstWriteByOtherProcess(t *testing.T) {
 	chunks := [][]byte{[]byte("hello2"), []byte("goodbye2"), []byte("badbye2")}
 	newRoot := hash.Of([]byte("new root"))
 	h, _ := tm.Compact(createMemTable(chunks), nil)
-	fm.Set(constants.NomsVersion, newRoot, []tableSpec{{h, uint32(len(chunks))}})
+	fm.set(constants.NomsVersion, newRoot, []tableSpec{{h, uint32(len(chunks))}})
 
 	store := newNomsBlockStore(fm, tm, defaultMemTableSize)
 	defer store.Close()
@@ -108,7 +109,7 @@ func TestChunkStoreUpdateRootOptimisticLockFail(t *testing.T) {
 	chunks := [][]byte{[]byte("hello2"), []byte("goodbye2"), []byte("badbye2")}
 	newRoot := hash.Of([]byte("new root"))
 	h, _ := tm.Compact(createMemTable(chunks), nil)
-	fm.Set(constants.NomsVersion, newRoot, []tableSpec{{h, uint32(len(chunks))}})
+	fm.set(constants.NomsVersion, newRoot, []tableSpec{{h, uint32(len(chunks))}})
 
 	newRoot2 := hash.Of([]byte("new root 2"))
 	assert.False(store.UpdateRoot(newRoot2, hash.Hash{}))
@@ -137,43 +138,48 @@ func assertDataInStore(slices [][]byte, store chunks.ChunkSource, assert *assert
 	}
 }
 
+// fakeManifest simulates a fileManifest without touching disk.
 type fakeManifest struct {
 	version    string
 	root       hash.Hash
 	tableSpecs []tableSpec
+	mu         sync.RWMutex
 }
 
+// ParseIfExists returns any fake manifest data the caller has injected using Update() or set(). It treats an empty |fm.root| as a non-existent manifest.
 func (fm *fakeManifest) ParseIfExists(readHook func()) (exists bool, vers string, root hash.Hash, tableSpecs []tableSpec) {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
 	if fm.root != (hash.Hash{}) {
 		return true, fm.version, fm.root, fm.tableSpecs
 	}
-	return false, constants.NomsVersion, hash.Hash{}, nil
+	return false, "", hash.Hash{}, nil
 }
 
+// Update checks whether |root| == |fm.root| and, if so, updates internal fake manifest state as per the manifest.Update() contract: |fm.root| is set to |newRoot|, and the contents of |tables| are merged into |fm.tableSpecs|. If |root| != |fm.root|, then the update fails. Regardless of success or failure, the current state is returned.
 func (fm *fakeManifest) Update(tables chunkSources, root, newRoot hash.Hash, writeHook func()) (actual hash.Hash, tableSpecs []tableSpec) {
+	fm.mu.Lock()
+	defer fm.mu.Unlock()
 	if fm.root != root {
 		return fm.root, fm.tableSpecs
 	}
 	fm.version = constants.NomsVersion
 	fm.root = newRoot
 
-	newTables := make([]tableSpec, len(fm.tableSpecs))
 	known := map[addr]struct{}{}
-	for i, t := range fm.tableSpecs {
+	for _, t := range fm.tableSpecs {
 		known[t.name] = struct{}{}
-		newTables[i] = t
 	}
 
 	for _, t := range tables {
 		if _, present := known[t.hash()]; !present {
-			newTables = append(newTables, tableSpec{t.hash(), t.count()})
+			fm.tableSpecs = append(fm.tableSpecs, tableSpec{t.hash(), t.count()})
 		}
 	}
-	fm.tableSpecs = newTables
 	return fm.root, fm.tableSpecs
 }
 
-func (fm *fakeManifest) Set(version string, root hash.Hash, specs []tableSpec) {
+func (fm *fakeManifest) set(version string, root hash.Hash, specs []tableSpec) {
 	fm.version, fm.root, fm.tableSpecs = version, root, specs
 }
 

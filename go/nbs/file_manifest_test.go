@@ -104,7 +104,7 @@ func TestFileManifestUpdate(t *testing.T) {
 		assert.NoError(err, string(b))
 	})
 	assert.Equal(newRoot, actual)
-	assert.Nil(tableSpecs)
+	assert.Equal([]tableSpec{{source.hash(), source.count()}}, tableSpecs)
 
 	// Now, test the case where the optimistic lock fails, and someone else updated the root since last we checked.
 	newRoot2 := hash.Of([]byte("new root 2"))
