@@ -65,7 +65,7 @@ func (h Hash) String() string {
 }
 
 // FromData computes a new Hash from data.
-func FromData(data []byte) Hash {
+func Of(data []byte) Hash {
 	r := sha512.Sum512(data)
 	h := Hash{}
 	copy(h[:], r[:ByteLen])
@@ -73,7 +73,7 @@ func FromData(data []byte) Hash {
 }
 
 // FromSlice creates a new Hash backed by data, ensuring that data is an acceptable length.
-func FromSlice(data []byte) Hash {
+func New(data []byte) Hash {
 	d.PanicIfFalse(len(data) == ByteLen)
 	h := Hash{}
 	copy(h[:], data)
@@ -87,7 +87,7 @@ func MaybeParse(s string) (Hash, bool) {
 	if match == nil {
 		return emptyHash, false
 	}
-	return FromSlice(decode(s)), true
+	return New(decode(s)), true
 }
 
 // MaybeParse parses a string representing a hash as a Base32 encoded byte array.

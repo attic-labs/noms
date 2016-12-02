@@ -238,7 +238,7 @@ func (s *DynamoStore) processResponses(responses []map[string]*dynamodb.Attribut
 	for _, item := range responses {
 		p := item[refAttr]
 		d.PanicIfFalse(p != nil)
-		r := hash.FromSlice(s.removeNamespace(p.B))
+		r := hash.New(s.removeNamespace(p.B))
 		p = item[chunkAttr]
 		d.PanicIfFalse(p != nil)
 		b := p.B
@@ -449,7 +449,7 @@ func (s *DynamoStore) Root() hash.Hash {
 		d.PanicIfFalse(result.Item[compAttr].S != nil)
 		d.PanicIfFalse(noneValue == *result.Item[compAttr].S)
 	}
-	return hash.FromSlice(result.Item[chunkAttr].B)
+	return hash.New(result.Item[chunkAttr].B)
 }
 
 func (s *DynamoStore) UpdateRoot(current, last hash.Hash) bool {

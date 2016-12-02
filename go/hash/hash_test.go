@@ -79,8 +79,8 @@ func TestString(t *testing.T) {
 	assert.Equal(t, s, r.String())
 }
 
-func TestFromData(t *testing.T) {
-	r := FromData([]byte("abc"))
+func TestOf(t *testing.T) {
+	r := Of([]byte("abc"))
 	assert.Equal(t, "rmnjb8cjc5tblj21ed4qs821649eduie", r.String())
 }
 
