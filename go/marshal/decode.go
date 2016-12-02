@@ -144,6 +144,12 @@ func typeDecoder(t reflect.Type, tags nomsTags) decoderFunc {
 			return mapFromSetDecoder(t)
 		}
 		return mapDecoder(t, tags)
+	case reflect.Ptr:
+		// Allow implementations of types.Value (like *types.Type)
+		if t.Implements(nomsValueInterface) {
+			return nomsValueDecoder
+		}
+		panic(&UnsupportedTypeError{Type: t})
 	default:
 		panic(&UnsupportedTypeError{Type: t})
 	}
