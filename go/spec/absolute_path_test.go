@@ -60,11 +60,12 @@ func TestAbsolutePaths(t *testing.T) {
 		}
 	}
 
-	resolvesTo(head, "ds")
-	resolvesTo(emptySet, "ds.parents")
-	resolvesTo(list, "ds.value")
-	resolvesTo(s0, "ds.value[0]")
-	resolvesTo(s1, "ds.value[1]")
+	resolvesTo(list, "ds")
+	resolvesTo(head, "ds@commit")
+	resolvesTo(emptySet, "ds@commit.parents")
+	resolvesTo(list, "ds@commit.value")
+	resolvesTo(s0, "ds[0]")
+	resolvesTo(s1, "ds[1]")
 	resolvesTo(head, "#"+head.Hash().String())
 	resolvesTo(list, "#"+list.Hash().String())
 	resolvesTo(s0, "#"+s0.Hash().String())
@@ -73,9 +74,10 @@ func TestAbsolutePaths(t *testing.T) {
 	resolvesTo(s1, "#"+list.Hash().String()+"[1]")
 
 	resolvesTo(nil, "foo")
-	resolvesTo(nil, "foo.parents")
-	resolvesTo(nil, "foo.value")
-	resolvesTo(nil, "foo.value[0]")
+	resolvesTo(nil, "foo@commit")
+	resolvesTo(nil, "foo@commit.parents")
+	resolvesTo(nil, "foo@commit.value")
+	resolvesTo(nil, "foo[0]")
 	resolvesTo(nil, "#"+types.String("baz").Hash().String())
 	resolvesTo(nil, "#"+types.String("baz").Hash().String()+"[0]")
 }
@@ -91,7 +93,7 @@ func TestReadAbsolutePaths(t *testing.T) {
 	ds, err := db.CommitValue(ds, list)
 	assert.NoError(err)
 
-	vals, err := ReadAbsolutePaths(db, "ds.value[0]", "ds.value[1]")
+	vals, err := ReadAbsolutePaths(db, "ds[0]", "ds[1]")
 	assert.NoError(err)
 
 	assert.Equal(2, len(vals))
@@ -122,6 +124,7 @@ func TestAbsolutePathParseErrors(t *testing.T) {
 	test(".foo.bar.baz", "Invalid dataset name: .foo.bar.baz")
 	test("#", "Invalid hash: ")
 	test("#abc", "Invalid hash: abc")
+	test("#abc@commit", "monkey")
 	invHash := strings.Repeat("z", hash.StringLen)
 	test("#"+invHash, "Invalid hash: "+invHash)
 }

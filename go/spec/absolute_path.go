@@ -8,11 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
 )
+
+const commitAnnotation = "@commit"
 
 var datasetCapturePrefixRe = regexp.MustCompile("^(" + datas.DatasetRe.String() + ")")
 
@@ -25,6 +28,9 @@ type AbsolutePath struct {
 	Dataset string
 	Hash    hash.Hash
 	Path    types.Path
+	// If true, Path is resolved relative to the Commit struct that Dataset or Hash point at.
+	// Otherwise, Path is resolved relative to that Commit struct's Value field.
+	PathFromCommit bool
 }
 
 // NewAbsolutePath attempts to parse 'str' and return an AbsolutePath.
@@ -36,6 +42,7 @@ func NewAbsolutePath(str string) (AbsolutePath, error) {
 	var h hash.Hash
 	var dataset string
 	var pathStr string
+	var pfc bool
 
 	if str[0] == '#' {
 		tail := str[1:]
@@ -59,10 +66,15 @@ func NewAbsolutePath(str string) (AbsolutePath, error) {
 
 		dataset = datasetParts[1]
 		pathStr = str[len(dataset):]
+
+		if strings.HasPrefix(pathStr, commitAnnotation) {
+			pathStr = pathStr[len(commitAnnotation):]
+			pfc = true
+		}
 	}
 
 	if len(pathStr) == 0 {
-		return AbsolutePath{Hash: h, Dataset: dataset}, nil
+		return AbsolutePath{Hash: h, Dataset: dataset, PathFromCommit: pfc}, nil
 	}
 
 	path, err := types.ParsePath(pathStr)
@@ -70,16 +82,20 @@ func NewAbsolutePath(str string) (AbsolutePath, error) {
 		return AbsolutePath{}, err
 	}
 
-	return AbsolutePath{Hash: h, Dataset: dataset, Path: path}, nil
+	return AbsolutePath{Hash: h, Dataset: dataset, Path: path, PathFromCommit: pfc}, nil
 }
 
 // Resolve returns the Value reachable by 'p' in 'db'.
 func (p AbsolutePath) Resolve(db datas.Database) (val types.Value) {
 	if len(p.Dataset) > 0 {
-		var ok bool
 		ds := db.GetDataset(p.Dataset)
-		if val, ok = ds.MaybeHead(); !ok {
-			val = nil
+		if p.PathFromCommit {
+			var ok bool
+			if val, ok = ds.MaybeHead(); !ok {
+				val = nil
+			}
+		} else {
+			val, _ = ds.MaybeHeadValue()
 		}
 	} else if !p.Hash.IsEmpty() {
 		val = db.ReadValue(p.Hash)
@@ -106,7 +122,12 @@ func (p AbsolutePath) String() (str string) {
 		panic("Unreachable")
 	}
 
-	return str + p.Path.String()
+	if p.PathFromCommit {
+		str += commitAnnotation
+	}
+
+	str += p.Path.String()
+	return
 }
 
 // ReadAbsolutePaths attempts to parse each path in 'paths' and resolve them.
