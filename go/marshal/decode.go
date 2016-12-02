@@ -230,9 +230,11 @@ func (c *decoderCacheT) set(t reflect.Type, d decoderFunc) {
 }
 
 type decField struct {
-	name    string
-	decoder decoderFunc
-	index   int
+	name      string
+	decoder   decoderFunc
+	index     int
+	omitEmpty bool
+	original  bool
 }
 
 func structDecoder(t reflect.Type) decoderFunc {
@@ -256,9 +258,11 @@ func structDecoder(t reflect.Type) decoderFunc {
 		}
 
 		fields = append(fields, decField{
-			name:    tags.name,
-			decoder: typeDecoder(f.Type, tags),
-			index:   i,
+			name:      tags.name,
+			decoder:   typeDecoder(f.Type, tags),
+			index:     i,
+			omitEmpty: tags.omitEmpty,
+			original:  tags.original,
 		})
 	}
 
@@ -270,11 +274,19 @@ func structDecoder(t reflect.Type) decoderFunc {
 
 		for _, f := range fields {
 			sf := rv.Field(f.index)
+			if f.original {
+				if sf.Type() != reflect.TypeOf(s) {
+					panic(&UnmarshalTypeMismatchError{v, rv.Type(), ", field with tag \"original\" must have type String"})
+				}
+				sf.Set(reflect.ValueOf(s))
+				continue
+			}
 			fv, ok := s.MaybeGet(f.name)
-			if !ok {
+			if ok {
+				f.decoder(fv, sf)
+			} else if !f.omitEmpty {
 				panic(&UnmarshalTypeMismatchError{v, rv.Type(), ", missing field \"" + f.name + "\""})
 			}
-			f.decoder(fv, sf)
 		}
 	}
 
