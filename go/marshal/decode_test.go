@@ -811,5 +811,5 @@ func TestDecodeOriginalReceiveTypeError(t *testing.T) {
 	var actual S
 	err := Unmarshal(input, &actual)
 	assert.Error(err)
-	assert.Equal(`Cannot unmarshal struct S {} into Go value of type marshal.S, field with tag "original" must have type String`, err.Error())
+	assert.Equal(`Cannot unmarshal struct S {} into Go value of type marshal.S, field with tag "original" must have type Struct`, err.Error())
 }

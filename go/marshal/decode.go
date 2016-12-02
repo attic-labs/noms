@@ -21,7 +21,11 @@ import (
 // To unmarshal a Noms struct into a Go struct, Unmarshal matches incoming
 // object fields to the fields used by Marshal (either the struct field name or
 // its tag).  Unmarshal will only set exported fields of the struct.  The name
-// of the Go struct must match (ignoring case) the name of the Noms struct.
+// of the Go struct must match (ignoring case) the name of the Noms struct. All
+// exported fields on the Go struct must be present in the Noms struct, unless
+// the field on the Go struct is marked with the "omitempty" tag. Go struct
+// fields also support the "original" tag which causes the Go field to receive
+// the entire original unmarshaled Noms struct.
 //
 // To unmarshal a Noms list or set into a slice, Unmarshal resets the slice
 // length to zero and then appends each element to the slice. If the Go slice
@@ -276,7 +280,7 @@ func structDecoder(t reflect.Type) decoderFunc {
 			sf := rv.Field(f.index)
 			if f.original {
 				if sf.Type() != reflect.TypeOf(s) {
-					panic(&UnmarshalTypeMismatchError{v, rv.Type(), ", field with tag \"original\" must have type String"})
+					panic(&UnmarshalTypeMismatchError{v, rv.Type(), ", field with tag \"original\" must have type Struct"})
 				}
 				sf.Set(reflect.ValueOf(s))
 				continue
