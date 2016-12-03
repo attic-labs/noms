@@ -9,6 +9,7 @@ import (
 	"crypto/sha512"
 	"encoding/base32"
 	"encoding/binary"
+	"hash/crc32"
 )
 
 /*
@@ -22,9 +23,9 @@ import (
    +----------------+----------------+-----+----------------+-------+--------+
 
    Chunk Record:
-   +--------------------+---------------------------+
-   | (4) Address suffix | (Chunk Length) Chunk Data |
-   +--------------------+---------------------------+
+   +--------------------+-----------------------+
+   | (Chunk Length) Chunk Data | (Uint32) CRC32 |
+   +--------------------+-----------------------+
 
      -Address suffix is the 4 least-significant bytes of the Chunk's address. Used (e.g. in place
       of CRC32) as a checksum and a filter against false positive reads costing more than one IOP.
@@ -116,6 +117,13 @@ const (
 	maxChunkLengthSize uint64 = binary.MaxVarintLen64
 	maxChunkSize       uint64 = 0xffffffff // Snappy won't compress slices bigger than this
 )
+
+var crcTable = crc32.MakeTable(crc32.Castagnoli)
+
+// CORRECT?
+func crc(b []byte) uint32 {
+	return crc32.Update(0, crcTable, b)
+}
 
 func computeAddrDefault(data []byte) addr {
 	r := sha512.Sum512(data)
