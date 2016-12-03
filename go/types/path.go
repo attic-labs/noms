@@ -74,17 +74,38 @@ func constructPath(p Path, str string) (Path, error) {
 		if !strings.HasPrefix(rem, "]") {
 			return Path{}, errors.New("[ is missing closing ]")
 		}
-		rem = rem[1:]
-		d.Chk.NotEqual(idx == nil, h.IsEmpty())
+		d.PanicIfTrue(idx == nil && h.IsEmpty())
+		d.PanicIfTrue(idx != nil && !h.IsEmpty())
 
-		var part PathPart
 		if idx != nil {
-			part = NewIndexPath(idx)
+			p = append(p, NewIndexPath(idx))
 		} else {
-			part = NewHashIndexPath(h)
+			p = append(p, NewHashIndexPath(h))
 		}
-		p = append(p, part)
-		return constructPath(p, rem)
+		return constructPath(p, rem[1:])
+
+	case '{':
+		if len(tail) == 0 {
+			return Path{}, errors.New("Path ends in {")
+		}
+
+		closingIdx := strings.Index(tail, "}")
+		if closingIdx == -1 {
+			return Path{}, errors.New("{ is missing closing }")
+		}
+
+		pos := tail[:closingIdx]
+		if len(pos) == 0 {
+			return Path{}, fmt.Errorf("Empty position value")
+		}
+
+		idx, err := strconv.ParseInt(pos, 10, 64)
+		if err != nil {
+			return Path{}, fmt.Errorf("Invalid position: %s", pos)
+		}
+
+		p = append(p, NewPositionPath(idx))
+		return constructPath(p, tail[closingIdx+1:])
 
 	case '@':
 		ann, rem := getAnnotation(tail)
@@ -100,13 +121,16 @@ func constructPath(p Path, str string) (Path, error) {
 			}
 			return Path{}, fmt.Errorf("Cannot use @key annotation on: %s", lastPart.String())
 		case "type":
-			return constructPath(append(p, TypePart{}), rem)
+			return constructPath(append(p, TypeAnnotation{}), rem)
 		default:
 			return Path{}, fmt.Errorf("Unsupported annotation: @%s", ann)
 		}
 
 	case ']':
 		return Path{}, errors.New("] is missing opening [")
+
+	case '}':
+		return Path{}, errors.New("} is missing opening {")
 
 	default:
 		return Path{}, fmt.Errorf("Invalid operator: %c", op)
@@ -178,7 +202,8 @@ func (fp FieldPath) String() string {
 
 // Indexes into Maps and Lists by key or index.
 type IndexPath struct {
-	// The value of the index, e.g. `[42]` or `["value"]`.
+	// The value of the index, e.g. `[42]` or `["value"]`. If Index is a negative
+	// number and the path is resolved in a List, it means index from the back.
 	Index Value
 	// Whether this index should resolve to the key of a map, given by a `@key`
 	// annotation. Typically IntoKey is false, and indices would resolve to the
@@ -212,14 +237,15 @@ func (ip IndexPath) Resolve(v Value) Value {
 	case List:
 		if n, ok := ip.Index.(Number); ok {
 			f := float64(n)
-			if f == math.Trunc(f) && f >= 0 {
-				u := uint64(f)
-				if u < v.Len() {
-					if ip.IntoKey {
-						return ip.Index
-					}
-					return v.Get(u)
+			if f == math.Trunc(f) {
+				absIndex, ok := getAbsoluteIndex(v, int64(f))
+				if !ok {
+					return nil
 				}
+				if ip.IntoKey {
+					return Number(absIndex)
+				}
+				return v.Get(absIndex)
 			}
 		}
 
@@ -383,14 +409,16 @@ Switch:
 	return
 }
 
-type TypePart struct {
+// TypeAnntation is a PathPart annotation to resolve to the type of the value
+// it's resolved in.
+type TypeAnnotation struct {
 }
 
-func (tp TypePart) Resolve(v Value) Value {
+func (ann TypeAnnotation) Resolve(v Value) Value {
 	return v.Type()
 }
 
-func (tp TypePart) String() string {
+func (ann TypeAnnotation) String() string {
 	return "@type"
 }
 
@@ -404,4 +432,75 @@ func getAnnotation(str string) (ann, rem string) {
 
 type keyIndexable interface {
 	setIntoKey(v bool) keyIndexable
+}
+
+// PositionPath is like IndexPath, but indexes at a position rather than a key
+// for Sets and Maps.
+type PositionPath struct {
+	// Index is the value of the position. It may be negative to indicate an
+	// index from the back. For example, an Index of -1 means the last element.
+	Index int64
+	// IntoKey: see IndexPath.IntoKey.
+	IntoKey bool
+}
+
+func NewPositionPath(idx int64) PositionPath {
+	return PositionPath{idx, false}
+}
+
+func NewPositionIntoKeyPath(idx int64) PositionPath {
+	return PositionPath{idx, true}
+}
+
+func (pp PositionPath) Resolve(v Value) Value {
+	var absIndex uint64
+	if col, ok := v.(Collection); !ok {
+		return nil
+	} else if absIndex, ok = getAbsoluteIndex(col, pp.Index); !ok {
+		return nil
+	}
+
+	switch v := v.(type) {
+	case List:
+		if pp.IntoKey {
+			return Number(absIndex)
+		}
+		return v.Get(absIndex)
+	case Set:
+		return v.At(absIndex)
+	case Map:
+		k, mapv := v.At(absIndex)
+		if pp.IntoKey {
+			return k
+		}
+		return mapv
+	default:
+		return nil
+	}
+}
+
+func (pp PositionPath) String() string {
+	return fmt.Sprintf("{%d}", pp.Index)
+}
+
+func (pp PositionPath) setIntoKey(v bool) keyIndexable {
+	pp.IntoKey = v
+	return pp
+}
+
+func getAbsoluteIndex(col Collection, relIdx int64) (absIdx uint64, ok bool) {
+	if relIdx < 0 {
+		if uint64(-relIdx) > col.Len() {
+			return
+		}
+		absIdx = col.Len() - uint64(-relIdx)
+	} else {
+		if uint64(relIdx) >= col.Len() {
+			return
+		}
+		absIdx = uint64(relIdx)
+	}
+
+	ok = true
+	return
 }
