@@ -335,7 +335,7 @@ func (tr tableReader) getMany(reqs []getRecord) (remaining bool) {
 // Fetches the byte stream of data logically encoded within the table starting at |pos|.
 func (tr tableReader) parseChunk(h addr, buff []byte) []byte {
 	dataLen := uint64(len(buff)) - checksumSize
-	data, err := snappy.Decode(nil, buff[:uint64(len(buff))-uint32Size])
+	data, err := snappy.Decode(nil, buff[:dataLen])
 	d.Chk.NoError(err)
 	buff = buff[dataLen:]
 
