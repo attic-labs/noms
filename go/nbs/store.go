@@ -27,7 +27,7 @@ const (
 )
 
 type NomsBlockStore struct {
-	mm          fileManifest
+	mm          manifest
 	tm          tableManager
 	nomsVersion string
 
@@ -79,22 +79,22 @@ func (css chunkSources) getMany(reqs []getRecord) (remaining bool) {
 	return true
 }
 
-func NewBlockStore(dir string, memTableSize uint64) *NomsBlockStore {
-	return hookedNewNomsBlockStore(dir, memTableSize, nil)
+func NewLocalStore(dir string, memTableSize uint64) *NomsBlockStore {
+	return newNomsBlockStore(fileManifest{dir}, &fileTableManager{dir}, memTableSize)
 }
 
-func hookedNewNomsBlockStore(dir string, memTableSize uint64, readHook func()) *NomsBlockStore {
+func newNomsBlockStore(mm manifest, tm tableManager, memTableSize uint64) *NomsBlockStore {
 	if memTableSize == 0 {
 		memTableSize = defaultMemTableSize
 	}
 	nbs := &NomsBlockStore{
-		mm:          fileManifest{dir},
-		tm:          &fileTableManager{dir},
+		mm:          mm,
+		tm:          tm,
 		nomsVersion: constants.NomsVersion,
 		mtSize:      memTableSize,
 	}
 
-	if exists, vers, root, tableSpecs := nbs.mm.ParseIfExists(readHook); exists {
+	if exists, vers, root, tableSpecs := nbs.mm.ParseIfExists(nil); exists {
 		nbs.nomsVersion, nbs.root = vers, root
 		nbs.immTables = unionTables(nil, nbs.tm, tableSpecs)
 	}
@@ -113,7 +113,7 @@ func unionTables(curTables chunkSources, tm tableManager, tableSpecs []tableSpec
 
 	for _, t := range tableSpecs {
 		if _, present := known[t.name]; !present {
-			newTables = append(newTables, tm.open(t.name, t.chunkCount))
+			newTables = append(newTables, tm.Open(t.name, t.chunkCount))
 		}
 	}
 	return newTables
@@ -151,8 +151,8 @@ func (nbs *NomsBlockStore) addChunk(h addr, data []byte) bool {
 		nbs.mt = newMemTable(nbs.mtSize)
 	}
 	if !nbs.mt.addChunk(h, data) {
-		if tableHash, chunkCount := nbs.tm.compact(nbs.mt, nbs.immTables); chunkCount > 0 {
-			nbs.immTables = prependTable(nbs.immTables, nbs.tm.open(tableHash, chunkCount))
+		if tableHash, chunkCount := nbs.tm.Compact(nbs.mt, nbs.immTables); chunkCount > 0 {
+			nbs.immTables = prependTable(nbs.immTables, nbs.tm.Open(tableHash, chunkCount))
 		}
 		nbs.mt = newMemTable(nbs.mtSize)
 		return nbs.mt.addChunk(h, data)
@@ -253,8 +253,8 @@ func (nbs *NomsBlockStore) UpdateRoot(current, last hash.Hash) bool {
 	d.Chk.True(nbs.root == last, "UpdateRoot: last != nbs.Root(); %s != %s", last, nbs.root)
 
 	if nbs.mt != nil && nbs.mt.count() > 0 {
-		if tableHash, chunkCount := nbs.tm.compact(nbs.mt, nbs.immTables); chunkCount > 0 {
-			nbs.immTables = prependTable(nbs.immTables, nbs.tm.open(tableHash, chunkCount))
+		if tableHash, chunkCount := nbs.tm.Compact(nbs.mt, nbs.immTables); chunkCount > 0 {
+			nbs.immTables = prependTable(nbs.immTables, nbs.tm.Open(tableHash, chunkCount))
 		}
 		nbs.mt = nil
 	}
