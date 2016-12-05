@@ -62,14 +62,9 @@ func TestPathIndex(t *testing.T) {
 	assert := assert.New(t)
 
 	var v Value
-	resolvesTo := func(exp, val Value, str string) {
-		// Indices resolve to |exp|.
-		assertResolvesTo(assert, exp, v, str)
-		// Keys resolve to themselves.
-		if exp != nil {
-			exp = val
-		}
-		assertResolvesTo(assert, exp, v, str+"@key")
+	resolvesTo := func(expVal, expKey Value, str string) {
+		assertResolvesTo(assert, expVal, v, str)
+		assertResolvesTo(assert, expKey, v, str+"@key")
 	}
 
 	v = NewList(Number(1), Number(3), String("foo"), Bool(false))
@@ -78,21 +73,25 @@ func TestPathIndex(t *testing.T) {
 	resolvesTo(Number(3), Number(1), "[1]")
 	resolvesTo(String("foo"), Number(2), "[2]")
 	resolvesTo(Bool(false), Number(3), "[3]")
-	resolvesTo(nil, Number(4), "[4]")
-	resolvesTo(nil, Number(-4), "[-4]")
+	resolvesTo(nil, nil, "[4]")
+	resolvesTo(nil, nil, "[-5]")
+	resolvesTo(Number(1), Number(0), "[-4]")
+	resolvesTo(Number(3), Number(1), "[-3]")
+	resolvesTo(String("foo"), Number(2), "[-2]")
+	resolvesTo(Bool(false), Number(3), "[-1]")
 
 	v = NewMap(
-		Number(1), String("foo"),
-		String("two"), String("bar"),
 		Bool(false), Number(23),
+		Number(1), String("foo"),
 		Number(2.3), Number(4.5),
+		String("two"), String("bar"),
 	)
 
 	resolvesTo(String("foo"), Number(1), "[1]")
 	resolvesTo(String("bar"), String("two"), `["two"]`)
 	resolvesTo(Number(23), Bool(false), "[false]")
 	resolvesTo(Number(4.5), Number(2.3), "[2.3]")
-	resolvesTo(nil, Number(4), "[4]")
+	resolvesTo(nil, nil, "[4]")
 }
 
 func TestPathHashIndex(t *testing.T) {
@@ -113,34 +112,29 @@ func TestPathHashIndex(t *testing.T) {
 	)
 	s := NewSet(b, br, i, str, l, lr)
 
-	resolvesTo := func(col, exp, val Value) {
-		// Values resolve to |exp|.
-		assertResolvesTo(assert, exp, col, hashIdx(val))
-		// Keys resolve to themselves.
-		if exp != nil {
-			exp = val
-		}
-		assertResolvesTo(assert, exp, col, hashIdx(val)+"@key")
+	resolvesTo := func(col, key, expVal, expKey Value) {
+		assertResolvesTo(assert, expVal, col, hashIdx(key))
+		assertResolvesTo(assert, expKey, col, hashIdx(key)+"@key")
 	}
 
 	// Primitives are only addressable by their values.
-	resolvesTo(m, nil, b)
-	resolvesTo(m, nil, i)
-	resolvesTo(m, nil, str)
-	resolvesTo(s, nil, b)
-	resolvesTo(s, nil, i)
-	resolvesTo(s, nil, str)
+	resolvesTo(m, b, nil, nil)
+	resolvesTo(m, i, nil, nil)
+	resolvesTo(m, str, nil, nil)
+	resolvesTo(s, b, nil, nil)
+	resolvesTo(s, i, nil, nil)
+	resolvesTo(s, str, nil, nil)
 
 	// Other values are only addressable by their hashes.
-	resolvesTo(m, i, br)
-	resolvesTo(m, lr, l)
-	resolvesTo(m, b, lr)
-	resolvesTo(s, br, br)
-	resolvesTo(s, l, l)
-	resolvesTo(s, lr, lr)
+	resolvesTo(m, br, i, br)
+	resolvesTo(m, l, lr, l)
+	resolvesTo(m, lr, b, lr)
+	resolvesTo(s, br, br, br)
+	resolvesTo(s, l, l, l)
+	resolvesTo(s, lr, lr, lr)
 
 	// Lists cannot be addressed by hashes, obviously.
-	resolvesTo(l, nil, i)
+	resolvesTo(l, i, nil, nil)
 }
 
 func TestPathHashIndexOfSingletonCollection(t *testing.T) {

@@ -74,17 +74,15 @@ func constructPath(p Path, str string) (Path, error) {
 		if !strings.HasPrefix(rem, "]") {
 			return Path{}, errors.New("[ is missing closing ]")
 		}
-		rem = rem[1:]
-		d.Chk.NotEqual(idx == nil, h.IsEmpty())
+		d.PanicIfTrue(idx == nil && h.IsEmpty())
+		d.PanicIfTrue(idx != nil && !h.IsEmpty())
 
-		var part PathPart
 		if idx != nil {
-			part = NewIndexPath(idx)
+			p = append(p, NewIndexPath(idx))
 		} else {
-			part = NewHashIndexPath(h)
+			p = append(p, NewHashIndexPath(h))
 		}
-		p = append(p, part)
-		return constructPath(p, rem)
+		return constructPath(p, rem[1:])
 
 	case '@':
 		ann, rem := getAnnotation(tail)
@@ -100,7 +98,7 @@ func constructPath(p Path, str string) (Path, error) {
 			}
 			return Path{}, fmt.Errorf("Cannot use @key annotation on: %s", lastPart.String())
 		case "type":
-			return constructPath(append(p, TypePart{}), rem)
+			return constructPath(append(p, TypeAnnotation{}), rem)
 		default:
 			return Path{}, fmt.Errorf("Unsupported annotation: @%s", ann)
 		}
@@ -178,7 +176,8 @@ func (fp FieldPath) String() string {
 
 // Indexes into Maps and Lists by key or index.
 type IndexPath struct {
-	// The value of the index, e.g. `[42]` or `["value"]`.
+	// The value of the index, e.g. `[42]` or `["value"]`. If Index is a negative
+	// number and the path is resolved in a List, it means index from the back.
 	Index Value
 	// Whether this index should resolve to the key of a map, given by a `@key`
 	// annotation. Typically IntoKey is false, and indices would resolve to the
@@ -212,14 +211,15 @@ func (ip IndexPath) Resolve(v Value) Value {
 	case List:
 		if n, ok := ip.Index.(Number); ok {
 			f := float64(n)
-			if f == math.Trunc(f) && f >= 0 {
-				u := uint64(f)
-				if u < v.Len() {
-					if ip.IntoKey {
-						return ip.Index
-					}
-					return v.Get(u)
+			if f == math.Trunc(f) {
+				absIndex, ok := getAbsoluteIndex(v, int64(f))
+				if !ok {
+					return nil
 				}
+				if ip.IntoKey {
+					return Number(absIndex)
+				}
+				return v.Get(absIndex)
 			}
 		}
 
@@ -383,14 +383,16 @@ Switch:
 	return
 }
 
-type TypePart struct {
+// TypeAnntation is a PathPart annotation to resolve to the type of the value
+// it's resolved in.
+type TypeAnnotation struct {
 }
 
-func (tp TypePart) Resolve(v Value) Value {
+func (ann TypeAnnotation) Resolve(v Value) Value {
 	return v.Type()
 }
 
-func (tp TypePart) String() string {
+func (ann TypeAnnotation) String() string {
 	return "@type"
 }
 
@@ -404,4 +406,21 @@ func getAnnotation(str string) (ann, rem string) {
 
 type keyIndexable interface {
 	setIntoKey(v bool) keyIndexable
+}
+
+func getAbsoluteIndex(col Collection, relIdx int64) (absIdx uint64, ok bool) {
+	if relIdx < 0 {
+		if uint64(-relIdx) > col.Len() {
+			return
+		}
+		absIdx = col.Len() - uint64(-relIdx)
+	} else {
+		if uint64(relIdx) >= col.Len() {
+			return
+		}
+		absIdx = uint64(relIdx)
+	}
+
+	ok = true
+	return
 }
