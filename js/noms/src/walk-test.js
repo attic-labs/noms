@@ -21,6 +21,7 @@ import Blob from './blob.js';
 import List from './list.js';
 import Map from './map.js';
 import NomsSet from './set.js'; // namespace collision with JS Set
+import Struct from './struct.js';
 import walk from './walk.js';
 import type Value from './value.js';
 import {smallTestChunks, normalProductionChunks} from './rolling-value-hasher.js';
@@ -53,6 +54,14 @@ suite('walk', () => {
     assert.isAbove(blob.chunks.length, 1);
 
     await callbackHappensOnce(blob, ds, false);
+  });
+
+  test('type', async () => {
+    const t = makeStructType('TestStruct', {
+      foo: stringType,
+    });
+
+    await callbackHappensOnce(t, ds, false);
   });
 
   test('list', async () => {

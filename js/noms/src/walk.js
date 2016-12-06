@@ -10,6 +10,7 @@ import Set from './set.js';
 import Map from './map.js';
 import Ref from './ref.js';
 import Struct, {StructMirror} from './struct.js';
+import {Type} from './type.js';
 
 import type Database from './database.js';
 import type Value from './value.js';
@@ -44,7 +45,7 @@ export default async function walk(v: Value, ds: Database, cb: walkCb): Promise<
       return;
   }
 
-  if (v instanceof Blob) {
+  if (v instanceof Blob || v instanceof Type) {
     return;
   }
 
