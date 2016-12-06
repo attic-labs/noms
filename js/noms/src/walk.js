@@ -10,6 +10,9 @@ import Set from './set.js';
 import Map from './map.js';
 import Ref from './ref.js';
 import Struct, {StructMirror} from './struct.js';
+import {CompoundDesc, StructDesc, Type} from './type.js';
+import {Kind} from './noms-kind.js';
+import {invariant} from './assert.js';
 
 import type Database from './database.js';
 import type Value from './value.js';
@@ -46,6 +49,37 @@ export default async function walk(v: Value, ds: Database, cb: walkCb): Promise<
 
   if (v instanceof Blob) {
     return;
+  }
+
+  if (v instanceof Type) {
+    switch (v.kind) {
+      case Kind.Set:
+      case Kind.Union:
+      case Kind.Map:
+      case Kind.List:
+      case Kind.Ref: {
+        const {desc} = v;
+        invariant(desc instanceof CompoundDesc);
+        await Promise.all(desc.elemTypes.map(t => walk(t, ds, cb)));
+        return;
+      }
+      case Kind.Struct: {
+        const {desc} = v;
+        invariant(desc instanceof StructDesc);
+        await Promise.all(desc.fields.map(f => walk(f.type, ds, cb)));
+        return;
+      }
+      case Kind.Blob:
+      case Kind.Bool:
+      case Kind.Cycle:
+      case Kind.Number:
+      case Kind.String:
+      case Kind.Type:
+      case Kind.Value:
+        return;
+      default:
+        throw new Error('unreachable');
+    }
   }
 
   if (v instanceof Ref) {
