@@ -56,13 +56,13 @@ type Date struct {
 }
 
 func (d Date) IsEmpty() bool {
-	return d.NsSinceEpoch == float64(0)
+	return d.NsSinceEpoch == 0
 }
 
 func index() (win bool) {
 	var dbStr = flag.String("db", "", "input database spec")
 	var outDSStr = flag.String("out-ds", "", "output dataset to write to - if empty, defaults to input dataset")
-	var indexPhotos = flag.Bool("index-photos", false, "index Photo (rather than PhotoGroup)")
+	var indexCovers = flag.Bool("index-covers", false, "the resulting index will contain only the cover Photo, not the entire PhotoGroup")
 	verbose.RegisterVerboseFlags(flag.CommandLine)
 
 	flag.Usage = usage
@@ -102,7 +102,7 @@ func index() (win bool) {
 	tagCounts := map[types.String]int{}
 
 	addToIndex := func(gb *types.GraphBuilder, path []types.Value, pg PhotoGroup) {
-		if *indexPhotos {
+		if *indexCovers {
 			gb.SetInsert(path, pg.Cover.Original)
 		} else {
 			gb.SetInsert(path, pg.Original)
@@ -124,7 +124,7 @@ func index() (win bool) {
 		addToIndex(byDate, []types.Value{types.Number(d)}, pg)
 
 		allPhotos := []Photo{pg.Cover}
-		if !*indexPhotos {
+		if !*indexCovers {
 			allPhotos = append(allPhotos, pg.Photos...)
 		}
 
