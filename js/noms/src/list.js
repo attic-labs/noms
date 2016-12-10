@@ -60,11 +60,7 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
   }
 
   walkValues(vr: ValueReader, cb: WalkCallback): Promise<void> {
-    const p = [];
-    p.push(this.forEach((v) => {
-      p.push(walk(v, vr, cb));
-    }));
-    return Promise.all(p).then();
+    return this.forEach(v => walk(v, vr, cb));
   }
 
   /**
@@ -118,10 +114,11 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
   async forEach(cb: (v: T, i: number) => ?Promise<any>): Promise<void> {
     const cursor = await this.sequence.newCursorAt(0, true);
     const promises = [];
-    return cursor.iter((v, i) => {
+    await cursor.iter((v, i) => {
       promises.push(cb(v, i));
       return false;
-    }).then(() => Promise.all(promises)).then(() => void 0);
+    });
+    await Promise.all(promises);
   }
 
   /**

@@ -62,11 +62,7 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
   }
 
   walkValues(vr: ValueReader, cb: WalkCallback): Promise<void> {
-    const p = [];
-    p.push(this.forEach((v) => {
-      p.push(walk(v, vr, cb));
-    }));
-    return Promise.all(p).then();
+    return this.forEach(v => walk(v, vr, cb));
   }
 
   async has(key: T): Promise<boolean> {
@@ -90,10 +86,11 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
   async forEach(cb: (v: T) => ?Promise<any>): Promise<void> {
     const cursor = await this.sequence.newCursorAt(null, false, false, true);
     const promises = [];
-    return cursor.iter(v => {
+    await cursor.iter(v => {
       promises.push(cb(v));
       return false;
-    }).then(() => Promise.all(promises)).then(() => void 0);
+    });
+    await Promise.all(promises);
   }
 
   iterator(): AsyncIterator<T> {
