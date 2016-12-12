@@ -25,8 +25,10 @@ const (
 	tableSpecsAttr = "specs"
 )
 
-var valueEqualsExpression = fmt.Sprintf("(%s = :prev) and (%s = :vers)", rootAttr, versAttr)
-var valueNotExistsOrEqualsExpression = fmt.Sprintf("attribute_not_exists("+rootAttr+") or %s", valueEqualsExpression)
+var (
+	valueEqualsExpression            = fmt.Sprintf("(%s = :prev) and (%s = :vers)", rootAttr, versAttr)
+	valueNotExistsOrEqualsExpression = fmt.Sprintf("attribute_not_exists("+rootAttr+") or %s", valueEqualsExpression)
+)
 
 type ddbsvc interface {
 	GetItem(input *dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error)
