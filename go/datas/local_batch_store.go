@@ -45,11 +45,7 @@ func (lbs *localBatchStore) Get(h hash.Hash) chunks.Chunk {
 }
 
 func (lbs *localBatchStore) GetMany(hashes []hash.Hash) (batch []chunks.Chunk) {
-	batch = make([]chunks.Chunk, len(hashes))
-	for i, h := range hashes {
-		batch[i] = lbs.Get(h)
-	}
-	return
+	return lbs.cs.GetMany(hashes)
 }
 
 // Has checks the internal Chunk cache, proxying to the backing ChunkStore if not present.
