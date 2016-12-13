@@ -185,7 +185,7 @@ func TestFSTablePersisterCompact(t *testing.T) {
 	if assert.True(chunkCount > 0) {
 		buff, err := ioutil.ReadFile(filepath.Join(dir, tableAddr.String()))
 		assert.NoError(err)
-		tr := newTableReader(buff, bytes.NewReader(buff))
+		tr := newTableReader(buff, bytes.NewReader(buff), fileReadAmpThresh)
 		for _, c := range testChunks {
 			assert.True(tr.has(computeAddr(c)))
 		}
