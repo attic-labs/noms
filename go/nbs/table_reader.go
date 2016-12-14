@@ -28,7 +28,7 @@ type tableReader struct {
 	readAmpThresh uint64
 }
 
-// parses a valid nbs table index byte stream and returns a reader. |buff| must end with an NBS index and footer, though it may contain an unspecified number of bytes before that data. |tableIndex| doesn't keep alive any references to |buff|.
+// parses a valid nbs tableIndex from a byte stream. |buff| must end with an NBS index and footer, though it may contain an unspecified number of bytes before that data. |tableIndex| doesn't keep alive any references to |buff|.
 func parseTableIndex(buff []byte) tableIndex {
 	pos := uint64(len(buff))
 
@@ -121,9 +121,8 @@ func (ti tableIndex) ordinalSuffixMatches(ordinal uint32, h addr) bool {
 // returns the ordinal of |h| if present. returns |ti.chunkCount| if absent
 func (ti tableIndex) lookupOrdinal(h addr) uint32 {
 	prefix := h.Prefix()
-	idx := ti.prefixIdx(prefix)
 
-	for ; idx < ti.chunkCount && ti.prefixes[idx] == prefix; idx++ {
+	for idx := ti.prefixIdx(prefix); idx < ti.chunkCount && ti.prefixes[idx] == prefix; idx++ {
 		ordinal := ti.prefixIdxToOrdinal(idx)
 		if ti.ordinalSuffixMatches(ordinal, h) {
 			return ordinal
