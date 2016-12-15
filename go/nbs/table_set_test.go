@@ -9,20 +9,16 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
 
 	"github.com/attic-labs/testify/assert"
-	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 var testChunks = [][]byte{[]byte("hello2"), []byte("goodbye2"), []byte("badbye2")}
 
 func TestTableSetPrependEmpty(t *testing.T) {
 	ts := newFakeTableSet().Prepend(newMemTable(testMemTableSize))
-	// assert.Empty(t, ts.ToSpecs())
-	assert.Len(t, ts.ToSpecs(), 1)
-	assert.EqualValues(t, 0, ts.chunkSources[0].count())
+	assert.Empty(t, ts.ToSpecs())
 }
 
 func TestTableSetPrepend(t *testing.T) {
@@ -76,102 +72,6 @@ func TestTableSetUnion(t *testing.T) {
 	assert.Len(ts.ToSpecs(), 3)
 }
 
-func TestS3TablePersisterCompact(t *testing.T) {
-	assert := assert.New(t)
-	mt := newMemTable(testMemTableSize)
-
-	for _, c := range testChunks {
-		assert.True(mt.addChunk(computeAddr(c), c))
-	}
-
-	s3svc := makeFakeS3(assert)
-	cache := newS3IndexCache(1024)
-	s3p := s3TablePersister{s3: s3svc, bucket: "bucket", partSize: calcPartSize(mt, 3), indexCache: cache}
-
-	src := s3p.Compact(mt, nil)
-	assert.NotNil(cache.get(src.hash()))
-
-	if assert.True(src.count() > 0) {
-		if r := s3svc.readerForTable(src.hash()); assert.NotNil(r) {
-			assertChunksInReader(testChunks, r, assert)
-		}
-	}
-}
-
-func calcPartSize(mt *memTable, maxPartNum int) int {
-	return int(maxTableSize(uint64(mt.count()), mt.totalData)) / maxPartNum
-}
-
-func TestS3TablePersisterCompactSinglePart(t *testing.T) {
-	assert := assert.New(t)
-	mt := newMemTable(testMemTableSize)
-
-	for _, c := range testChunks {
-		assert.True(mt.addChunk(computeAddr(c), c))
-	}
-
-	s3svc := makeFakeS3(assert)
-	s3p := s3TablePersister{s3: s3svc, bucket: "bucket", partSize: calcPartSize(mt, 1)}
-
-	src := s3p.Compact(mt, nil)
-	if assert.True(src.count() > 0) {
-		if r := s3svc.readerForTable(src.hash()); assert.NotNil(r) {
-			assertChunksInReader(testChunks, r, assert)
-		}
-	}
-}
-
-func TestS3TablePersisterCompactAbort(t *testing.T) {
-	assert := assert.New(t)
-	mt := newMemTable(testMemTableSize)
-
-	for _, c := range testChunks {
-		assert.True(mt.addChunk(computeAddr(c), c))
-	}
-
-	numParts := 4
-	s3svc := &failingFakeS3{makeFakeS3(assert), sync.Mutex{}, 1}
-	s3p := s3TablePersister{s3: s3svc, bucket: "bucket", partSize: calcPartSize(mt, numParts)}
-
-	assert.Panics(func() { s3p.Compact(mt, nil) })
-}
-
-type failingFakeS3 struct {
-	*fakeS3
-	mu           sync.Mutex
-	numSuccesses int
-}
-
-func (m *failingFakeS3) UploadPart(input *s3.UploadPartInput) (*s3.UploadPartOutput, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.numSuccesses > 0 {
-		m.numSuccesses--
-		return m.fakeS3.UploadPart(input)
-	}
-	return nil, mockAWSError("MalformedXML")
-}
-
-func TestS3TablePersisterCompactNoData(t *testing.T) {
-	assert := assert.New(t)
-	mt := newMemTable(testMemTableSize)
-	existingTable := newMemTable(testMemTableSize)
-
-	for _, c := range testChunks {
-		assert.True(mt.addChunk(computeAddr(c), c))
-		assert.True(existingTable.addChunk(computeAddr(c), c))
-	}
-
-	s3svc := makeFakeS3(assert)
-	s3p := s3TablePersister{s3: s3svc, bucket: "bucket", partSize: 1 << 10}
-
-	src := s3p.Compact(mt, existingTable)
-	assert.True(src.count() == 0)
-
-	_, present := s3svc.data[src.hash().String()]
-	assert.False(present)
-}
-
 func TestFSTablePersisterCompact(t *testing.T) {
 	assert := assert.New(t)
 	mt := newMemTable(testMemTableSize)
@@ -184,11 +84,11 @@ func TestFSTablePersisterCompact(t *testing.T) {
 	defer os.RemoveAll(dir)
 	fts := fsTablePersister{dir}
 
-	src := fts.Compact(mt, nil)
-	if assert.True(src.count() > 0) {
-		buff, err := ioutil.ReadFile(filepath.Join(dir, src.hash().String()))
+	tableAddr, chunkCount := fts.Compact(mt, nil)
+	if assert.True(chunkCount > 0) {
+		buff, err := ioutil.ReadFile(filepath.Join(dir, tableAddr.String()))
 		assert.NoError(err)
-		tr := newTableReader(parseTableIndex(buff), bytes.NewReader(buff), fileReadAmpThresh)
+		tr := newTableReader(buff, bytes.NewReader(buff))
 		for _, c := range testChunks {
 			assert.True(tr.has(computeAddr(c)))
 		}
@@ -209,9 +109,9 @@ func TestFSTablePersisterCompactNoData(t *testing.T) {
 	defer os.RemoveAll(dir)
 	fts := fsTablePersister{dir}
 
-	src := fts.Compact(mt, existingTable)
-	assert.True(src.count() == 0)
+	tableAddr, chunkCount := fts.Compact(mt, existingTable)
+	assert.True(chunkCount == 0)
 
-	_, err := os.Stat(filepath.Join(dir, src.hash().String()))
+	_, err := os.Stat(filepath.Join(dir, tableAddr.String()))
 	assert.True(os.IsNotExist(err), "%v", err)
 }

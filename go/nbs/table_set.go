@@ -5,122 +5,51 @@
 package nbs
 
 import (
-	"sync"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+
+	"github.com/attic-labs/noms/go/d"
 )
 
-const concurrentCompactions = 5
-
-func newS3TableSet(s3 s3svc, bucket string, indexCache *s3IndexCache) tableSet {
-	return tableSet{
-		p:  s3TablePersister{s3, bucket, defaultS3PartSize, indexCache},
-		rl: make(chan struct{}, concurrentCompactions),
-	}
-}
-
 func newFSTableSet(dir string) tableSet {
-	return tableSet{
-		p:  fsTablePersister{dir},
-		rl: make(chan struct{}, concurrentCompactions),
-	}
+	return tableSet{p: fsTablePersister{dir}}
 }
 
 // tableSet is an immutable set of persistable chunkSources.
 type tableSet struct {
 	chunkSources
-	p  tablePersister
-	rl chan struct{}
-}
-
-type chunkSources []chunkSource
-
-func (css chunkSources) has(h addr) bool {
-	for _, haver := range css {
-		if haver.has(h) {
-			return true
-		}
-	}
-	return false
-}
-
-func (css chunkSources) hasMany(addrs []hasRecord) (remaining bool) {
-	for _, haver := range css {
-		if !haver.hasMany(addrs) {
-			return false
-		}
-	}
-	return true
-}
-
-func (css chunkSources) get(h addr) []byte {
-	for _, haver := range css {
-		if data := haver.get(h); data != nil {
-			return data
-		}
-	}
-	return nil
-}
-
-func (css chunkSources) getMany(reqs []getRecord) (remaining bool) {
-	for _, haver := range css {
-		if !haver.getMany(reqs) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (css chunkSources) count() (count uint32) {
-	for _, haver := range css {
-		count += haver.count()
-	}
-	return
+	p tablePersister
 }
 
 // Prepend adds a memTable to an existing tableSet, compacting |mt| and
 // returning a new tableSet with newly compacted table added.
 func (ts tableSet) Prepend(mt *memTable) tableSet {
-	newTables := make(chunkSources, len(ts.chunkSources)+1)
-	newTables[0] = newCompactingChunkSource(mt, ts, ts.p, ts.rl)
-	copy(newTables[1:], ts.chunkSources)
-	return tableSet{newTables, ts.p, ts.rl}
+	if tableHash, chunkCount := ts.p.Compact(mt, ts); chunkCount > 0 {
+		newTables := make(chunkSources, len(ts.chunkSources)+1)
+		newTables[0] = ts.p.Open(tableHash, chunkCount)
+		copy(newTables[1:], ts.chunkSources)
+		return tableSet{newTables, ts.p}
+	}
+	return ts
 }
 
 // Union returns a new tableSet holding the union of the tables managed by
 // |ts| and those specified by |specs|.
 func (ts tableSet) Union(specs []tableSpec) tableSet {
-	newTables := make(chunkSources, 0, len(ts.chunkSources))
+	newTables := make(chunkSources, len(ts.chunkSources))
 	known := map[addr]struct{}{}
-	for _, t := range ts.chunkSources {
-		if t.count() > 0 {
-			known[t.hash()] = struct{}{}
-			newTables = append(newTables, t)
-		}
+	for i, t := range ts.chunkSources {
+		known[t.hash()] = struct{}{}
+		newTables[i] = ts.chunkSources[i]
 	}
 
-	// Create a list of tables to open so we can open them in parallel
-	tablesToOpen := make([]tableSpec, 0, len(specs))
 	for _, t := range specs {
 		if _, present := known[t.name]; !present {
-			tablesToOpen = append(tablesToOpen, t)
+			newTables = append(newTables, ts.p.Open(t.name, t.chunkCount))
 		}
 	}
-
-	openedTables := make(chunkSources, len(tablesToOpen))
-	wg := &sync.WaitGroup{}
-
-	for i, spec := range tablesToOpen {
-		wg.Add(1)
-		go func(idx int, spec tableSpec) {
-			openedTables[idx] = ts.p.Open(spec.name, spec.chunkCount)
-			wg.Done()
-		}(i, spec)
-	}
-
-	wg.Wait()
-	newTables = append(newTables, openedTables...)
-
-	return tableSet{newTables, ts.p, ts.rl}
+	return tableSet{newTables, ts.p}
 }
 
 func (ts tableSet) ToSpecs() []tableSpec {
@@ -135,6 +64,36 @@ func (ts tableSet) Close() (err error) {
 	for _, t := range ts.chunkSources {
 		err = t.close() // TODO: somehow coalesce these errors??
 	}
-	close(ts.rl)
 	return
+}
+
+type tablePersister interface {
+	Compact(mt *memTable, haver chunkReader) (name addr, chunkCount uint32)
+	Open(name addr, chunkCount uint32) chunkSource
+}
+
+type fsTablePersister struct {
+	dir string
+}
+
+func (ftp fsTablePersister) Compact(mt *memTable, haver chunkReader) (name addr, chunkCount uint32) {
+	tempName, name, chunkCount := func() (string, addr, uint32) {
+		temp, err := ioutil.TempFile(ftp.dir, "nbs_table_")
+		d.PanicIfError(err)
+		defer checkClose(temp)
+
+		name, chunkCount := mt.write(temp, haver)
+		return temp.Name(), name, chunkCount
+	}()
+	if chunkCount > 0 {
+		err := os.Rename(tempName, filepath.Join(ftp.dir, name.String()))
+		d.PanicIfError(err)
+	} else {
+		os.Remove(tempName)
+	}
+	return name, chunkCount
+}
+
+func (ftp fsTablePersister) Open(name addr, chunkCount uint32) chunkSource {
+	return newMmapTableReader(ftp.dir, name, chunkCount)
 }
