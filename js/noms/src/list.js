@@ -25,8 +25,6 @@ import {equals} from './compare.js';
 import {Kind} from './noms-kind.js';
 import {DEFAULT_MAX_SPLICE_MATRIX_SIZE} from './edit-distance.js';
 import {hashValueBytes} from './rolling-value-hasher.js';
-import walk from './walk.js';
-import type {WalkCallback} from './walk.js';
 
 function newListLeafChunkFn<T: Value>(vr: ?ValueReader): makeChunkFn<any, any> {
   return (items: Array<T>) => {
@@ -57,10 +55,6 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
         hashValueBytes);
     invariant(seq instanceof IndexedSequence);
     super(seq);
-  }
-
-  walkValues(vr: ValueReader, cb: WalkCallback): Promise<void> {
-    return this.forEach(v => walk(v, vr, cb));
   }
 
   /**
@@ -112,27 +106,26 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
    * promises have been fulfilled.
    */
   async forEach(cb: (v: T, i: number) => ?Promise<any>): Promise<void> {
-    const cursor = await this.sequence.newCursorAt(0, true);
+    const cursor = await this.sequence.newCursorAt(0);
     const promises = [];
-    await cursor.iter((v, i) => {
+    return cursor.iter((v, i) => {
       promises.push(cb(v, i));
       return false;
-    });
-    await Promise.all(promises);
+    }).then(() => Promise.all(promises)).then(() => void 0);
   }
 
   /**
    * Returns a new `AsyncIterator` which can be used to iterate over the list.
    */
   iterator(): AsyncIterator<T> {
-    return new IndexedSequenceIterator(this.sequence.newCursorAt(0, true));
+    return new IndexedSequenceIterator(this.sequence.newCursorAt(0));
   }
 
   /**
    * Returns a new `AsyncIterator` starting at `i` which can be used to iterate over the list.
    */
   iteratorAt(i: number): AsyncIterator<T> {
-    return new IndexedSequenceIterator(this.sequence.newCursorAt(i, true));
+    return new IndexedSequenceIterator(this.sequence.newCursorAt(i));
   }
 
   /**

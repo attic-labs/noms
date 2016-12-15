@@ -8,14 +8,8 @@ var (
 	// ErrNoValidProvidersFoundInChain Is returned when there are no valid
 	// providers in the ChainProvider.
 	//
-	// This has been deprecated. For verbose error messaging set
-	// aws.Config.CredentialsChainVerboseErrors to true
-	//
 	// @readonly
-	ErrNoValidProvidersFoundInChain = awserr.New("NoCredentialProviders",
-		`no valid providers in chain. Deprecated. 
-	For verbose messaging see aws.Config.CredentialsChainVerboseErrors`,
-		nil)
+	ErrNoValidProvidersFoundInChain = awserr.New("NoCredentialProviders", "no valid providers in chain", nil)
 )
 
 // A ChainProvider will search for a provider which returns credentials
@@ -34,7 +28,7 @@ var (
 //
 // Example of ChainProvider to be used with an EnvProvider and EC2RoleProvider.
 // In this example EnvProvider will first check if any credentials are available
-// via the environment variables. If there are none ChainProvider will check
+// vai the environment variables. If there are none ChainProvider will check
 // the next Provider in the list, EC2RoleProvider in this case. If EC2RoleProvider
 // does not return any credentials ChainProvider will return the error
 // ErrNoValidProvidersFoundInChain
@@ -51,9 +45,8 @@ var (
 //     svc := ec2.New(&aws.Config{Credentials: creds})
 //
 type ChainProvider struct {
-	Providers     []Provider
-	curr          Provider
-	VerboseErrors bool
+	Providers []Provider
+	curr      Provider
 }
 
 // NewChainCredentials returns a pointer to a new Credentials object
@@ -70,23 +63,17 @@ func NewChainCredentials(providers []Provider) *Credentials {
 // If a provider is found it will be cached and any calls to IsExpired()
 // will return the expired state of the cached provider.
 func (c *ChainProvider) Retrieve() (Value, error) {
-	var errs []error
 	for _, p := range c.Providers {
-		creds, err := p.Retrieve()
-		if err == nil {
+		if creds, err := p.Retrieve(); err == nil {
 			c.curr = p
 			return creds, nil
 		}
-		errs = append(errs, err)
 	}
 	c.curr = nil
 
-	var err error
-	err = ErrNoValidProvidersFoundInChain
-	if c.VerboseErrors {
-		err = awserr.NewBatchError("NoCredentialProviders", "no valid providers in chain", errs)
-	}
-	return Value{}, err
+	// TODO better error reporting. maybe report error for each failed retrieve?
+
+	return Value{}, ErrNoValidProvidersFoundInChain
 }
 
 // IsExpired will returned the expired state of the currently cached provider

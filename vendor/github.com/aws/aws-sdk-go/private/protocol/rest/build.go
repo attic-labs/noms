@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/request"
 )
@@ -40,29 +39,16 @@ func init() {
 	}
 }
 
-// BuildHandler is a named request handler for building rest protocol requests
-var BuildHandler = request.NamedHandler{Name: "awssdk.rest.Build", Fn: Build}
-
 // Build builds the REST component of a service request.
 func Build(r *request.Request) {
 	if r.ParamsFilled() {
 		v := reflect.ValueOf(r.Params).Elem()
-		buildLocationElements(r, v, false)
+		buildLocationElements(r, v)
 		buildBody(r, v)
 	}
 }
 
-// BuildAsGET builds the REST component of a service request with the ability to hoist
-// data from the body.
-func BuildAsGET(r *request.Request) {
-	if r.ParamsFilled() {
-		v := reflect.ValueOf(r.Params).Elem()
-		buildLocationElements(r, v, true)
-		buildBody(r, v)
-	}
-}
-
-func buildLocationElements(r *request.Request, v reflect.Value, buildGETQuery bool) {
+func buildLocationElements(r *request.Request, v reflect.Value) {
 	query := r.HTTPRequest.URL.Query()
 
 	for i := 0; i < v.NumField(); i++ {
@@ -94,10 +80,6 @@ func buildLocationElements(r *request.Request, v reflect.Value, buildGETQuery bo
 				err = buildURI(r.HTTPRequest.URL, m, name)
 			case "querystring":
 				err = buildQueryString(query, m, name)
-			default:
-				if buildGETQuery {
-					err = buildQueryString(query, m, name)
-				}
 			}
 			r.Error = err
 		}
@@ -107,7 +89,7 @@ func buildLocationElements(r *request.Request, v reflect.Value, buildGETQuery bo
 	}
 
 	r.HTTPRequest.URL.RawQuery = query.Encode()
-	updatePath(r.HTTPRequest.URL, r.HTTPRequest.URL.Path, aws.BoolValue(r.Config.DisableRestProtocolURICleaning))
+	updatePath(r.HTTPRequest.URL, r.HTTPRequest.URL.Path)
 }
 
 func buildBody(r *request.Request, v reflect.Value) {
@@ -208,15 +190,13 @@ func buildQueryString(query url.Values, v reflect.Value, name string) error {
 	return nil
 }
 
-func updatePath(url *url.URL, urlPath string, disableRestProtocolURICleaning bool) {
+func updatePath(url *url.URL, urlPath string) {
 	scheme, query := url.Scheme, url.RawQuery
 
 	hasSlash := strings.HasSuffix(urlPath, "/")
 
 	// clean up path
-	if !disableRestProtocolURICleaning {
-		urlPath = path.Clean(urlPath)
-	}
+	urlPath = path.Clean(urlPath)
 	if hasSlash && !strings.HasSuffix(urlPath, "/") {
 		urlPath += "/"
 	}
@@ -239,7 +219,8 @@ func EscapePath(path string, encodeSep bool) string {
 		if noEscape[c] || (c == '/' && !encodeSep) {
 			buf.WriteByte(c)
 		} else {
-			fmt.Fprintf(&buf, "%%%02X", c)
+			buf.WriteByte('%')
+			buf.WriteString(strings.ToUpper(strconv.FormatUint(uint64(c), 16)))
 		}
 	}
 	return buf.String()

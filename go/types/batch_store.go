@@ -77,10 +77,8 @@ func (bsa *BatchStoreAdaptor) UpdateRoot(current, last hash.Hash) bool {
 // AddHints is a noop.
 func (bsa *BatchStoreAdaptor) AddHints(hints Hints) {}
 
-func (bsa *BatchStoreAdaptor) Flush() {
-	bsa.once.Do(bsa.expectVersion)
-	bsa.cs.Flush()
-}
+// Flush is a noop.
+func (bsa *BatchStoreAdaptor) Flush() {}
 
 // Close closes the underlying ChunkStore
 func (bsa *BatchStoreAdaptor) Close() error {

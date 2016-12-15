@@ -28,8 +28,6 @@ import {ValueBase} from './value.js';
 import {Kind} from './noms-kind.js';
 import type {EqualsFn} from './edit-distance.js';
 import RollingValueHasher, {hashValueBytes} from './rolling-value-hasher.js';
-import walk from './walk.js';
-import type {WalkCallback} from './walk.js';
 
 export type MapEntry<K: Value, V: Value> = [K, V];
 
@@ -91,17 +89,13 @@ export default class Map<K: Value, V: Value> extends
     super(seq);
   }
 
-  walkValues(vr: ValueReader, cb: WalkCallback): Promise<void> {
-    return this.forEach((v, k) => Promise.all([walk(k, vr, cb), walk(v, vr, cb)]));
-  }
-
   async has(key: K): Promise<boolean> {
     const cursor = await this.sequence.newCursorAtValue(key);
     return cursor.valid && equals(cursor.getCurrentKey().value(), key);
   }
 
   async _firstOrLast(last: boolean): Promise<?MapEntry<K, V>> {
-    const cursor = await this.sequence.newCursorAt(null, false, last, true);
+    const cursor = await this.sequence.newCursorAt(null, false, last);
     if (!cursor.valid) {
       return undefined;
     }
@@ -128,21 +122,20 @@ export default class Map<K: Value, V: Value> extends
   }
 
   async forEach(cb: (v: V, k: K) => ?Promise<any>): Promise<void> {
-    const cursor = await this.sequence.newCursorAt(null, false, false, true);
+    const cursor = await this.sequence.newCursorAt(null);
     const promises = [];
-    await cursor.iter(entry => {
+    return cursor.iter(entry => {
       promises.push(cb(entry[VALUE], entry[KEY]));
       return false;
-    });
-    await Promise.all(promises);
+    }).then(() => Promise.all(promises)).then(() => void 0);
   }
 
   iterator(): AsyncIterator<MapEntry<K, V>> {
-    return new OrderedSequenceIterator(this.sequence.newCursorAt(null, false, false, true));
+    return new OrderedSequenceIterator(this.sequence.newCursorAt(null));
   }
 
   iteratorAt(k: K): AsyncIterator<MapEntry<K, V>> {
-    return new OrderedSequenceIterator(this.sequence.newCursorAtValue(k, false, false, true));
+    return new OrderedSequenceIterator(this.sequence.newCursorAtValue(k));
   }
 
   _splice(cursor: OrderedSequenceCursor<any, any>, insert: Array<MapEntry<K, V>>, remove: number)

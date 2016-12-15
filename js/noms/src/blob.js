@@ -18,7 +18,6 @@ import {SequenceCursor} from './sequence.js';
 import {blobType} from './type.js';
 import {invariant} from './assert.js';
 import {hashValueByte} from './rolling-value-hasher.js';
-import type {WalkCallback} from './walk.js';
 
 export default class Blob extends Collection<IndexedSequence<any>> {
   constructor(bytes: Uint8Array) {
@@ -32,11 +31,6 @@ export default class Blob extends Collection<IndexedSequence<any>> {
     const seq = chunker.doneSync();
     invariant(seq instanceof IndexedSequence);
     super(seq);
-  }
-
-  walkValues(vr: ValueReader, cb: WalkCallback):  // eslint-disable-line no-unused-vars
-      Promise<void> {
-    return Promise.resolve();
   }
 
   getReader(): BlobReader {
@@ -64,7 +58,7 @@ export class BlobReader {
 
   constructor(sequence: IndexedSequence<any>) {
     this._sequence = sequence;
-    this._cursor = sequence.newCursorAt(0, true);
+    this._cursor = sequence.newCursorAt(0);
     this._pos = 0;
     this._lock = '';
   }
@@ -135,7 +129,7 @@ export class BlobReader {
 
     invariant(abs >= 0, `cannot seek to negative position ${abs}`);
 
-    this._cursor = this._sequence.newCursorAt(abs, true);
+    this._cursor = this._sequence.newCursorAt(abs);
 
     // Wait for the seek to complete so that reads will be relative to the new position.
     return this._cursor.then(() => {

@@ -76,9 +76,6 @@ type Value struct {
 
 	// AWS Session Token
 	SessionToken string
-
-	// Provider used to get credentials
-	ProviderName string
 }
 
 // A Provider is the interface for any component which will provide credentials

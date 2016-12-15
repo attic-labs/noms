@@ -6,10 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/private/waiter"
 )
 
-// WaitUntilTableExists uses the DynamoDB API operation
-// DescribeTable to wait for a condition to be met before returning.
-// If the condition is not meet within the max attempt window an error will
-// be returned.
 func (c *DynamoDB) WaitUntilTableExists(input *DescribeTableInput) error {
 	waiterCfg := waiter.Config{
 		Operation:   "DescribeTable",
@@ -39,10 +35,6 @@ func (c *DynamoDB) WaitUntilTableExists(input *DescribeTableInput) error {
 	return w.Wait()
 }
 
-// WaitUntilTableNotExists uses the DynamoDB API operation
-// DescribeTable to wait for a condition to be met before returning.
-// If the condition is not meet within the max attempt window an error will
-// be returned.
 func (c *DynamoDB) WaitUntilTableNotExists(input *DescribeTableInput) error {
 	waiterCfg := waiter.Config{
 		Operation:   "DescribeTable",

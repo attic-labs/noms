@@ -35,7 +35,6 @@ const (
 	NomsVersionHeader     = "x-noms-vers"
 	nomsBaseHTML          = "<html><head></head><body><p>Hi. This is a Noms HTTP server.</p><p>To learn more, visit <a href=\"https://github.com/attic-labs/noms\">our GitHub project</a>.</p></body></html>"
 	writeValueConcurrency = 16
-	maxGetBatchSize       = 1 << 11 // Limit GetMany() to ~8MB of data
 )
 
 var (
@@ -252,21 +251,11 @@ func handleGetRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs ch
 	writer := respWriter(req, w)
 	defer writer.Close()
 
-	for len(hashes) > 0 {
-		batch := hashes
-
-		// Limit RAM consumption by streaming chunks in ~8MB batches
-		if len(batch) > maxGetBatchSize {
-			batch = batch[:maxGetBatchSize]
+	for _, h := range hashes {
+		c := cs.Get(h)
+		if !c.IsEmpty() {
+			chunks.Serialize(c, writer)
 		}
-
-		for _, c := range cs.GetMany(hashes) {
-			if !c.IsEmpty() {
-				chunks.Serialize(c, writer)
-			}
-		}
-
-		hashes = hashes[len(batch):]
 	}
 }
 

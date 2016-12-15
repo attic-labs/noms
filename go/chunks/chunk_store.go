@@ -36,7 +36,6 @@ type RootTracker interface {
 type ChunkSource interface {
 	// Get the Chunk for the value of the hash in the store. If the hash is absent from the store nil is returned.
 	Get(h hash.Hash) Chunk
-	GetMany(hashes []hash.Hash) []Chunk
 
 	// Returns true iff the value at the address |h| is contained in the source
 	Has(h hash.Hash) bool
@@ -52,9 +51,6 @@ type ChunkSink interface {
 
 	// PutMany tries to write chunks into the sink. It will block as it handles as many as possible, then return a BackpressureError containing the rest (if any).
 	PutMany(chunks []Chunk) BackpressureError
-
-	// On return, any previously Put chunks should be durable
-	Flush()
 
 	io.Closer
 }

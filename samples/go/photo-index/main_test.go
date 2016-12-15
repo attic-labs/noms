@@ -24,6 +24,10 @@ type testSuite struct {
 }
 
 func (s *testSuite) TestWin() {
+	sp, err := spec.ForDataset(fmt.Sprintf("ldb:%s::test", s.LdbDir))
+	s.NoError(err)
+	defer sp.Close()
+
 	type Face struct {
 		Name       string
 		X, Y, W, H int
@@ -45,12 +49,6 @@ func (s *testSuite) TestWin() {
 		DateTaken     Date
 		DatePublished Date
 		DateUpdated   Date
-	}
-
-	type PhotoGroup struct {
-		Id     string
-		Cover  Photo
-		Photos []Photo
 	}
 
 	getTags := func(n int) types.Set {
@@ -88,23 +86,12 @@ func (s *testSuite) TestWin() {
 		}
 	}
 
-	getPhotoGroup := func(n int) PhotoGroup {
-		return PhotoGroup{
-			Id:    fmt.Sprintf("pg%d", n),
-			Cover: getPhoto(n),
-		}
-	}
-
-	groups := []PhotoGroup{}
+	photos := []Photo{}
 	for i := 0; i < 5; i++ {
-		groups = append(groups, getPhotoGroup(i))
+		photos = append(photos, getPhoto(i))
 	}
 
-	sp, err := spec.ForDataset(fmt.Sprintf("ldb:%s::test", s.LdbDir))
-	s.NoError(err)
-	defer sp.Close()
-
-	v, err := marshal.Marshal(groups)
+	v, err := marshal.Marshal(photos)
 	s.NoError(err)
 	_, err = sp.GetDatabase().CommitValue(sp.GetDataset(), v)
 	s.NoError(err)
@@ -126,12 +113,8 @@ func (s *testSuite) TestWin() {
 
 	s.Equal(5, len(idx.ByDate))
 	for i := 0; i < 5; i++ {
-		k := -i * 10
-		if k == 0 {
-			k = -1
-		}
-		s.Equal(uint64(1), idx.ByDate[k].Len())
-		p := idx.ByDate[k].First().(types.Struct).Get("cover").(types.Struct)
+		s.Equal(uint64(1), idx.ByDate[-i*10].Len())
+		p := idx.ByDate[-i*10].First().(types.Struct)
 		s.Equal(fmt.Sprintf("photo %d", i), string(p.Get("title").(types.String)))
 	}
 

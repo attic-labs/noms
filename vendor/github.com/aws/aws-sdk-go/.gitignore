@@ -1,6 +1,5 @@
 dist
-/doc
-/doc-staging
+doc
 .yardoc
 Gemfile.lock
 awstesting/integration/smoke/**/importmarker__.go

@@ -5,10 +5,12 @@
 package nbs
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -30,6 +32,11 @@ const (
 // | nbs version:Noms version:Base32-encoded root hash:table 1 hash:table 1 cnt:...:table N hash:table N cnt|
 type fileManifest struct {
 	dir string
+}
+
+type tableSpec struct {
+	name       addr
+	chunkCount uint32
 }
 
 // ParseIfExists looks for a LOCK and manifest file in fm.dir. If it finds
@@ -75,13 +82,34 @@ func parseManifest(r io.Reader) (string, hash.Hash, []tableSpec) {
 	manifest, err := ioutil.ReadAll(r)
 	d.PanicIfError(err)
 
-	slices := strings.Split(string(manifest), ":")
+	slices := bytes.Split(manifest, []byte(":"))
 	if len(slices) < 3 || len(slices)%2 == 0 {
 		d.Chk.Fail("Malformed manifest: " + string(manifest))
 	}
 	d.PanicIfFalse(StorageVersion == string(slices[0]))
 
-	return slices[1], hash.Parse(slices[2]), parseSpecs(slices[3:])
+	tableInfo := slices[3:]
+	specs := make([]tableSpec, len(tableInfo)/2)
+	for i := range specs {
+		specs[i].name = ParseAddr(tableInfo[2*i])
+		c, err := strconv.ParseUint(string(tableInfo[2*i+1]), 10, 32)
+		d.PanicIfError(err)
+		specs[i].chunkCount = uint32(c)
+	}
+
+	return string(slices[1]), hash.Parse(string(slices[2])), specs
+}
+
+func writeManifest(temp io.Writer, root hash.Hash, tables chunkSources) {
+	strs := make([]string, 2*len(tables)+3)
+	strs[0], strs[1], strs[2] = StorageVersion, constants.NomsVersion, root.String()
+	tableInfo := strs[3:]
+	for i, t := range tables {
+		tableInfo[2*i] = t.hash().String()
+		tableInfo[2*i+1] = strconv.FormatUint(uint64(t.count()), 10)
+	}
+	_, err := io.WriteString(temp, strings.Join(strs, ":"))
+	d.PanicIfError(err)
 }
 
 // Update optimistically tries to write a new manifest, containing |newRoot|
@@ -92,8 +120,7 @@ func parseManifest(r io.Reader) (string, hash.Hash, []tableSpec) {
 // contents of |tableSpecs| before trying again.
 // If writeHook is non-nil, it will be invoked wile the manifest file lock is
 // held. This is to allow for testing of race conditions.
-func (fm fileManifest) Update(specs []tableSpec, root, newRoot hash.Hash, writeHook func()) (actual hash.Hash, tableSpecs []tableSpec) {
-	tableSpecs = specs
+func (fm fileManifest) Update(tables chunkSources, root, newRoot hash.Hash, writeHook func()) (actual hash.Hash, tableSpecs []tableSpec) {
 
 	// Write a temporary manifest file, to be renamed over manifestFileName upon success.
 	// The closure here ensures this file is closed before moving on.
@@ -101,7 +128,7 @@ func (fm fileManifest) Update(specs []tableSpec, root, newRoot hash.Hash, writeH
 		temp, err := ioutil.TempFile(fm.dir, "nbs_manifest_")
 		d.PanicIfError(err)
 		defer checkClose(temp)
-		writeManifest(temp, newRoot, tableSpecs)
+		writeManifest(temp, newRoot, tables)
 		return temp.Name()
 	}()
 	defer os.Remove(tempManifestPath) // If we rename below, this will be a no-op
@@ -133,16 +160,7 @@ func (fm fileManifest) Update(specs []tableSpec, root, newRoot hash.Hash, writeH
 	}
 	err := os.Rename(tempManifestPath, manifestPath)
 	d.PanicIfError(err)
-	return newRoot, tableSpecs
-}
-
-func writeManifest(temp io.Writer, root hash.Hash, specs []tableSpec) {
-	strs := make([]string, 2*len(specs)+3)
-	strs[0], strs[1], strs[2] = StorageVersion, constants.NomsVersion, root.String()
-	tableInfo := strs[3:]
-	formatSpecs(specs, tableInfo)
-	_, err := io.WriteString(temp, strings.Join(strs, ":"))
-	d.PanicIfError(err)
+	return newRoot, nil
 }
 
 func checkClose(c io.Closer) {

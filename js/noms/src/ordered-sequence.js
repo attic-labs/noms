@@ -15,14 +15,13 @@ import Sequence, {SequenceCursor} from './sequence.js';
 
 export class OrderedSequence<K: Value, T> extends Sequence<T> {
   // See newCursorAt().
-  newCursorAtValue(val: ?K, forInsertion: boolean = false, last: boolean = false,
-                   readAhead: boolean = false)
+  newCursorAtValue(val: ?K, forInsertion: boolean = false, last: boolean = false)
       : Promise<OrderedSequenceCursor<any, any>> {
     let key;
     if (val !== null && val !== undefined) {
       key = new OrderedKey(val);
     }
-    return this.newCursorAt(key, forInsertion, last, readAhead);
+    return this.newCursorAt(key, forInsertion, last);
   }
 
   // Returns:
@@ -31,13 +30,13 @@ export class OrderedSequence<K: Value, T> extends Sequence<T> {
   //   -cursor positioned at
   //      -first value, if |key| is null
   //      -first value >= |key|
-  async newCursorAt(key: ?OrderedKey<any>, forInsertion: boolean = false, last: boolean = false,
-      readAhead: boolean = false): Promise<OrderedSequenceCursor<any, any>> {
+  async newCursorAt(key: ?OrderedKey<any>, forInsertion: boolean = false, last: boolean = false)
+      : Promise<OrderedSequenceCursor<any, any>> {
     let cursor: ?OrderedSequenceCursor<any, any> = null;
     let sequence: ?OrderedSequence<any, any> = this;
 
     while (sequence) {
-      cursor = new OrderedSequenceCursor(cursor, sequence, last ? -1 : 0, readAhead);
+      cursor = new OrderedSequenceCursor(cursor, sequence, last ? -1 : 0);
       if (key !== null && key !== undefined) {
         const lastPositionIfNotfound = forInsertion && sequence.isMeta;
         if (!cursor._seekTo(key, lastPositionIfNotfound)) {
@@ -71,8 +70,7 @@ export class OrderedSequenceCursor<T, K: Value> extends
   }
 
   clone(): OrderedSequenceCursor<T, K> {
-    return new OrderedSequenceCursor(this.parent && this.parent.clone(), this.sequence, this.idx,
-                                     this.readAhead);
+    return new OrderedSequenceCursor(this.parent && this.parent.clone(), this.sequence, this.idx);
   }
 
   // Moves the cursor to the first value in sequence >= key and returns true.

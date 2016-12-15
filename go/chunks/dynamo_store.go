@@ -121,14 +121,6 @@ func (s *DynamoStore) Get(h hash.Hash) Chunk {
 	return <-ch
 }
 
-func (s *DynamoStore) GetMany(hashes []hash.Hash) (batch []Chunk) {
-	batch = make([]Chunk, len(hashes))
-	for i, h := range hashes {
-		batch[i] = s.Get(h)
-	}
-	return
-}
-
 func (s *DynamoStore) Has(h hash.Hash) bool {
 	pending := s.unwrittenPuts.Get(h)
 	if !pending.IsEmpty() {
@@ -369,8 +361,6 @@ func (s *DynamoStore) buildWriteRequests(chunks []Chunk) map[string][]*dynamodb.
 func (s *DynamoStore) writeLargeChunk(c Chunk) {
 	d.Chk.Fail("Unsupported!")
 }
-
-func (s *DynamoStore) Flush() {}
 
 func (s *DynamoStore) Close() error {
 	s.requestWg.Wait()

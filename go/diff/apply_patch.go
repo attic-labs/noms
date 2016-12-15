@@ -227,7 +227,6 @@ func (se stackElem) newestValue() types.Value {
 	}
 	return se.oldValue
 }
-
 type patchStack struct {
 	vals     []stackElem
 	lastPath types.Path

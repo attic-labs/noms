@@ -5,7 +5,6 @@
 package types
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/attic-labs/noms/go/hash"
@@ -112,15 +111,6 @@ func (s Set) First() Value {
 	if !cur.valid() {
 		return nil
 	}
-	return cur.current().(Value)
-}
-
-func (s Set) At(idx uint64) Value {
-	if idx >= s.Len() {
-		panic(fmt.Errorf("Out of bounds: %s >= %s", idx, s.Len()))
-	}
-
-	cur := newCursorAtIndex(s.seq, idx)
 	return cur.current().(Value)
 }
 

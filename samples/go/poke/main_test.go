@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/marshal"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/clienttest"
@@ -24,67 +22,41 @@ type testSuite struct {
 	clienttest.ClientTestSuite
 }
 
-type testKeySub struct {
-	Sub1, Sub2 string
-}
-type testKey struct {
-	F1 testKeySub
-	F2 int
-}
-
 func (s *testSuite) TestWin() {
-	sp := fmt.Sprintf("ldb:%s::test", s.LdbDir)
-	dsSpec, err := spec.ForDataset(sp)
-	d.Chk.NoError(err)
+	sp, err := spec.ForDataset(fmt.Sprintf("ldb:%s::test", s.LdbDir))
+	s.NoError(err)
+	defer sp.Close()
 
-	orig := types.NewStruct("", map[string]types.Value{
+	sp.GetDatabase().CommitValue(sp.GetDataset(), types.NewStruct("", map[string]types.Value{
 		"num": types.Number(42),
 		"str": types.String("foobar"),
 		"lst": types.NewList(types.Number(1), types.String("foo")),
-		"map": mustParse(map[interface{}]interface{}{
-			1:        "foo",
-			"foo":    1,
-			"foofoo": 11,
-			testKey{testKeySub{"1", "2"}, 3}: "blahblah",
-		}),
-	})
-	db := dsSpec.GetDatabase()
-	_, err = db.CommitValue(dsSpec.GetDataset(), orig)
-	defer dsSpec.Close()
+		"map": types.NewMap(types.Number(1), types.String("foo"),
+			types.String("foo"), types.Number(1)),
+	}))
 
-	tKey1 := mustParse(testKey{testKeySub{"1", "2"}, 3})
-	structKeyPath1 := fmt.Sprintf(`.map[#%s]@key.f1.sub1`, tKey1.Hash())
-	tKey2 := mustParse(testKey{testKeySub{"222", "2"}, 3})
-	structKeyPath2 := fmt.Sprintf(`.map[#%s]@key.f1.sub1`, tKey2.Hash())
-
-	testCases := [][]string{
-		// path to set, path to check, value to check
-		{".num", ".num", "43"},
-		{".str", ".str", `"foobaz"`},
-		{".lst[0]", ".lst[0]", "2"},
-		{".map[1]", ".map[1]", `"bar"`},
-		{`.map["foo"]`, `.map["foo"]`, "2"},
-		{`.map["foofoo"]@key`, `.map["barbar"]@key`, `"barbar"`},
-		{structKeyPath1, structKeyPath2, `"222"`},
+	changes := map[string]string{
+		".num":        "43",
+		".str":        `"foobaz"`,
+		".lst[0]":     "2",
+		".map[1]":     `"bar"`,
+		`.map["foo"]`: "2",
 	}
 
-	for _, tc := range testCases {
-		pathToSet, nv := tc[0], tc[2]
-		stdout, stderr, err := s.Run(main, []string{sp, pathToSet, nv})
+	for k, v := range changes {
+		stdout, stderr, err := s.Run(main, []string{sp.Spec, k, v})
 		s.Equal("", stdout)
 		s.Equal("", stderr)
 		s.Equal(nil, err)
 	}
 
-	dsSpec, err = spec.ForDataset(sp)
-	d.Chk.NoError(err)
-	defer dsSpec.Close()
+	sp, _ = spec.ForDataset(sp.Spec)
+	defer sp.Close()
 
-	r := dsSpec.GetDataset().HeadValue()
-	for _, tc := range testCases {
-		pathToCheck, vs := tc[1], tc[2]
+	r := sp.GetDataset().HeadValue()
+	for k, vs := range changes {
 		v, _, _, _ := types.ParsePathIndex(vs)
-		p, err := types.ParsePath(pathToCheck)
+		p, err := types.ParsePath(k)
 		s.NoError(err)
 		actual := p.Resolve(r)
 		s.True(actual.Equals(v), "value at path %s incorrect (expected: %#v, got: %#v)", p.String(), v, actual)
@@ -109,6 +81,7 @@ func (s *testSuite) TestLose() {
 		{[]string{sp.Spec, ".nothinghere", `"bar"`}, "No value at path '.nothinghere' - cannot update\n"},
 		{[]string{sp.Spec, ".foo", "bar"}, "Invalid new value: 'bar': Invalid index: bar\n"},
 		{[]string{"--out-ds-name", "!invalid", sp.Spec, ".foo", `"bar"`}, "Invalid output dataset name: !invalid\n"},
+		{[]string{sp.Spec, `.bar["baz"]@key`, "42"}, "Error updating path [\"baz\"]@key: @key paths not supported\n"},
 		{[]string{sp.Spec, `.bar[#00000000000000000000000000000000]`, "42"}, "Invalid path '.bar[#00000000000000000000000000000000]': Invalid hash: 00000000000000000000000000000000\n"},
 	}
 
@@ -123,10 +96,4 @@ func (s *testSuite) TestLose() {
 		s.Equal(c.err, stderr, "Unexpected output for case: %#v\n", c.args)
 		s.Equal(clienttest.ExitError{1}, err)
 	}
-}
-
-func mustParse(v interface{}) types.Value {
-	nv, err := marshal.Marshal(v)
-	d.Chk.NoError(err)
-	return nv
 }

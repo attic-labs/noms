@@ -78,11 +78,7 @@ func (mt *memTable) getMany(reqs []getRecord) (remaining bool) {
 	return
 }
 
-func (mt *memTable) write(haver chunkReader) (name addr, data []byte, count uint32) {
-	maxSize := maxTableSize(uint64(len(mt.order)), mt.totalData)
-	buff := make([]byte, maxSize)
-	tw := newTableWriter(buff)
-
+func (mt *memTable) write(tw chunkWriter, haver chunkReader) (count uint32) {
 	if haver != nil {
 		sort.Sort(hasRecordByPrefix(mt.order)) // hasMany() requires addresses to be sorted.
 		haver.hasMany(mt.order)
@@ -96,6 +92,5 @@ func (mt *memTable) write(haver chunkReader) (name addr, data []byte, count uint
 			count++
 		}
 	}
-	tableSize, name := tw.finish()
-	return name, buff[:tableSize], count
+	return
 }
