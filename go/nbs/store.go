@@ -42,34 +42,48 @@ type NomsBlockStore struct {
 	putCount uint64
 }
 
-type AWSStoreFactory struct {
-	sess          *session.Session
-	table, bucket string
-	indexCache    *s3IndexCache
-}
+type chunkSources []chunkSource
 
-func NewAWSStoreFactory(sess *session.Session, table, bucket string, indexCacheSize uint64) chunks.Factory {
-	var indexCache *s3IndexCache
-	if indexCacheSize > 0 {
-		indexCache = newS3IndexCache(indexCacheSize)
+func (css chunkSources) has(h addr) bool {
+	for _, haver := range css {
+		if haver.has(h) {
+			return true
+		}
 	}
-	return &AWSStoreFactory{sess, table, bucket, indexCache}
+	return false
 }
 
-func (asf *AWSStoreFactory) CreateStore(ns string) chunks.ChunkStore {
-	return newAWSStore(asf.table, ns, asf.bucket, asf.sess, 1<<26 /* 64MB */, asf.indexCache)
+func (css chunkSources) hasMany(addrs []hasRecord) (remaining bool) {
+	for _, haver := range css {
+		if !haver.hasMany(addrs) {
+			return false
+		}
+	}
+	return true
 }
 
-func (asf *AWSStoreFactory) Shutter() {
+func (css chunkSources) get(h addr) []byte {
+	for _, haver := range css {
+		if data := haver.get(h); data != nil {
+			return data
+		}
+	}
+	return nil
+}
+
+func (css chunkSources) getMany(reqs []getRecord) (remaining bool) {
+	for _, haver := range css {
+		if !haver.getMany(reqs) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func NewAWSStore(table, ns, bucket string, sess *session.Session, memTableSize uint64) *NomsBlockStore {
-	return newAWSStore(table, ns, bucket, sess, memTableSize, nil)
-}
-
-func newAWSStore(table, ns, bucket string, sess *session.Session, memTableSize uint64, indexCache *s3IndexCache) *NomsBlockStore {
 	mm := newDynamoManifest(table, ns, dynamodb.New(sess))
-	ts := newS3TableSet(s3.New(sess), bucket, indexCache)
+	ts := newS3TableSet(s3.New(sess), bucket)
 	return newNomsBlockStore(mm, ts, memTableSize)
 }
 
@@ -118,7 +132,6 @@ func (nbs *NomsBlockStore) PutMany(chunx []chunks.Chunk) (err chunks.Backpressur
 	for _, c := range chunx {
 		err = append(err, c.Hash())
 	}
-
 	return err
 }
 
@@ -253,6 +266,5 @@ func (nbs *NomsBlockStore) AddHints(hints types.Hints) {
 }
 
 func (nbs *NomsBlockStore) Flush() {
-	success := nbs.UpdateRoot(nbs.root, nbs.root)
-	d.Chk.True(success)
+	// noop
 }

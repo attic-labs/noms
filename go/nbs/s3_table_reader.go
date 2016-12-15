@@ -13,10 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-const (
-	s3RangePrefix   = "bytes"
-	s3ReadAmpThresh = uint64(5)
-)
+const s3RangePrefix = "bytes"
 
 type s3TableReader struct {
 	tableReader
@@ -34,30 +31,17 @@ type s3svc interface {
 	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
 }
 
-func newS3TableReader(s3 s3svc, bucket string, h addr, chunkCount uint32, indexCache *s3IndexCache) chunkSource {
+func newS3TableReader(s3 s3svc, bucket string, h addr, chunkCount uint32) chunkSource {
 	source := &s3TableReader{s3: s3, bucket: bucket, h: h}
 
-	var index tableIndex
-	found := false
-	if indexCache != nil {
-		index, found = indexCache.get(h)
-	}
+	size := indexSize(chunkCount) + footerSize
+	buff := make([]byte, size)
 
-	if !found {
-		size := indexSize(chunkCount) + footerSize
-		buff := make([]byte, size)
+	n, err := source.readRange(buff, fmt.Sprintf("%s=-%d", s3RangePrefix, size))
+	d.PanicIfError(err)
+	d.PanicIfFalse(size == uint64(n))
 
-		n, err := source.readRange(buff, fmt.Sprintf("%s=-%d", s3RangePrefix, size))
-		d.PanicIfError(err)
-		d.PanicIfFalse(size == uint64(n))
-		index = parseTableIndex(buff)
-
-		if indexCache != nil {
-			indexCache.put(h, index)
-		}
-	}
-
-	source.tableReader = newTableReader(index, source, s3ReadAmpThresh)
+	source.tableReader = newTableReader(buff, source)
 	d.PanicIfFalse(chunkCount == source.count())
 	return source
 }

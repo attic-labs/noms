@@ -5,7 +5,7 @@
 package nbs
 
 import (
-	"bytes"
+	"encoding/binary"
 	"sync"
 	"testing"
 
@@ -73,8 +73,8 @@ func TestChunkStoreManifestAppearsAfterConstruction(t *testing.T) {
 	// Simulate another process writing a manifest after construction.
 	chunks := [][]byte{[]byte("hello2"), []byte("goodbye2"), []byte("badbye2")}
 	newRoot := hash.Of([]byte("new root"))
-	src := tt.p.Compact(createMemTable(chunks), nil)
-	fm.set(constants.NomsVersion, newRoot, []tableSpec{{src.hash(), uint32(len(chunks))}})
+	h, _ := tt.p.Compact(createMemTable(chunks), nil)
+	fm.set(constants.NomsVersion, newRoot, []tableSpec{{h, uint32(len(chunks))}})
 
 	// state in store shouldn't change
 	assert.Equal(hash.Hash{}, store.Root())
@@ -89,8 +89,8 @@ func TestChunkStoreManifestFirstWriteByOtherProcess(t *testing.T) {
 	// Simulate another process having already written a manifest.
 	chunks := [][]byte{[]byte("hello2"), []byte("goodbye2"), []byte("badbye2")}
 	newRoot := hash.Of([]byte("new root"))
-	src := tt.p.Compact(createMemTable(chunks), nil)
-	fm.set(constants.NomsVersion, newRoot, []tableSpec{{src.hash(), uint32(len(chunks))}})
+	h, _ := tt.p.Compact(createMemTable(chunks), nil)
+	fm.set(constants.NomsVersion, newRoot, []tableSpec{{h, uint32(len(chunks))}})
 
 	store := newNomsBlockStore(fm, tt, defaultMemTableSize)
 	defer store.Close()
@@ -108,8 +108,8 @@ func TestChunkStoreUpdateRootOptimisticLockFail(t *testing.T) {
 	// Simulate another process writing a manifest behind store's back.
 	chunks := [][]byte{[]byte("hello2"), []byte("goodbye2"), []byte("badbye2")}
 	newRoot := hash.Of([]byte("new root"))
-	src := tt.p.Compact(createMemTable(chunks), nil)
-	fm.set(constants.NomsVersion, newRoot, []tableSpec{{src.hash(), uint32(len(chunks))}})
+	h, _ := tt.p.Compact(createMemTable(chunks), nil)
+	fm.set(constants.NomsVersion, newRoot, []tableSpec{{h, uint32(len(chunks))}})
 
 	newRoot2 := hash.Of([]byte("new root 2"))
 	assert.False(store.UpdateRoot(newRoot2, hash.Hash{}))
@@ -184,25 +184,22 @@ func (fm *fakeManifest) set(version string, root hash.Hash, specs []tableSpec) {
 }
 
 func newFakeTableSet() tableSet {
-	return tableSet{p: newFakeTablePersister(), rl: make(chan struct{}, 1)}
-}
-
-func newFakeTablePersister() tablePersister {
-	return fakeTablePersister{map[addr]tableReader{}}
+	return tableSet{p: fakeTablePersister{map[addr]*memTable{}}}
 }
 
 type fakeTablePersister struct {
-	sources map[addr]tableReader
+	sources map[addr]*memTable
 }
 
-func (ftp fakeTablePersister) Compact(mt *memTable, haver chunkReader) chunkSource {
+func (ftp fakeTablePersister) Compact(mt *memTable, haver chunkReader) (name addr, count uint32) {
 	if mt.count() > 0 {
-		var data []byte
-		name, data, _ := mt.write(haver)
-		ftp.sources[name] = newTableReader(parseTableIndex(data), bytes.NewReader(data), fileReadAmpThresh)
-		return chunkSourceAdapter{ftp.sources[name], name}
+		scratch := [binary.MaxVarintLen64]byte{}
+		binary.PutUvarint(scratch[:], uint64(len(ftp.sources)))
+		name = computeAddr(scratch[:])
+		ftp.sources[name] = mt
+		count = uint32(len(ftp.sources))
 	}
-	return emptyChunkSource{}
+	return
 }
 
 func (ftp fakeTablePersister) Open(name addr, chunkCount uint32) chunkSource {
@@ -210,7 +207,7 @@ func (ftp fakeTablePersister) Open(name addr, chunkCount uint32) chunkSource {
 }
 
 type chunkSourceAdapter struct {
-	tableReader
+	*memTable
 	h addr
 }
 

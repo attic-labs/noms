@@ -62,7 +62,11 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
   }
 
   walkValues(vr: ValueReader, cb: WalkCallback): Promise<void> {
-    return this.forEach(v => walk(v, vr, cb));
+    const p = [];
+    p.push(this.forEach((v) => {
+      p.push(walk(v, vr, cb));
+    }));
+    return Promise.all(p).then();
   }
 
   async has(key: T): Promise<boolean> {
@@ -84,21 +88,20 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
   }
 
   async forEach(cb: (v: T) => ?Promise<any>): Promise<void> {
-    const cursor = await this.sequence.newCursorAt(null, false, false, true);
+    const cursor = await this.sequence.newCursorAt(null);
     const promises = [];
-    await cursor.iter(v => {
+    return cursor.iter(v => {
       promises.push(cb(v));
       return false;
-    });
-    await Promise.all(promises);
+    }).then(() => Promise.all(promises)).then(() => void 0);
   }
 
   iterator(): AsyncIterator<T> {
-    return new OrderedSequenceIterator(this.sequence.newCursorAt(null, false, false, true));
+    return new OrderedSequenceIterator(this.sequence.newCursorAt(null));
   }
 
   iteratorAt(v: T): AsyncIterator<T> {
-    return new OrderedSequenceIterator(this.sequence.newCursorAtValue(v, false, false, true));
+    return new OrderedSequenceIterator(this.sequence.newCursorAtValue(v));
   }
 
   _splice(cursor: OrderedSequenceCursor<any, any>, insert: Array<T>, remove: number)

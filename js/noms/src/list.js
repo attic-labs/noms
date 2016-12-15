@@ -60,7 +60,11 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
   }
 
   walkValues(vr: ValueReader, cb: WalkCallback): Promise<void> {
-    return this.forEach(v => walk(v, vr, cb));
+    const p = [];
+    p.push(this.forEach((v) => {
+      p.push(walk(v, vr, cb));
+    }));
+    return Promise.all(p).then();
   }
 
   /**
@@ -112,27 +116,26 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
    * promises have been fulfilled.
    */
   async forEach(cb: (v: T, i: number) => ?Promise<any>): Promise<void> {
-    const cursor = await this.sequence.newCursorAt(0, true);
+    const cursor = await this.sequence.newCursorAt(0);
     const promises = [];
-    await cursor.iter((v, i) => {
+    return cursor.iter((v, i) => {
       promises.push(cb(v, i));
       return false;
-    });
-    await Promise.all(promises);
+    }).then(() => Promise.all(promises)).then(() => void 0);
   }
 
   /**
    * Returns a new `AsyncIterator` which can be used to iterate over the list.
    */
   iterator(): AsyncIterator<T> {
-    return new IndexedSequenceIterator(this.sequence.newCursorAt(0, true));
+    return new IndexedSequenceIterator(this.sequence.newCursorAt(0));
   }
 
   /**
    * Returns a new `AsyncIterator` starting at `i` which can be used to iterate over the list.
    */
   iteratorAt(i: number): AsyncIterator<T> {
-    return new IndexedSequenceIterator(this.sequence.newCursorAt(i, true));
+    return new IndexedSequenceIterator(this.sequence.newCursorAt(i));
   }
 
   /**
