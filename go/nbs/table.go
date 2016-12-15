@@ -9,6 +9,7 @@ import (
 	"crypto/sha512"
 	"encoding/base32"
 	"encoding/binary"
+	"hash/crc32"
 )
 
 /*
@@ -22,9 +23,9 @@ import (
    +----------------+----------------+-----+----------------+-------+--------+
 
    Chunk Record:
-   +--------------------+---------------------------+
-   | (4) Address suffix | (Chunk Length) Chunk Data |
-   +--------------------+---------------------------+
+   +---------------------------+----------------+
+   | (Chunk Length) Chunk Data | (Uint32) CRC32 |
+   +---------------------------+----------------+
 
      -Address suffix is the 4 least-significant bytes of the Chunk's address. Used (e.g. in place
       of CRC32) as a checksum and a filter against false positive reads costing more than one IOP.
@@ -104,18 +105,24 @@ const (
 	addrSize           uint64 = 20
 	addrPrefixSize     uint64 = 8
 	addrSuffixSize            = addrSize - addrPrefixSize
-	ordinalSize        uint64 = 4
-	lengthSize         uint64 = 4
 	uint64Size         uint64 = 8
 	uint32Size         uint64 = 4
+	ordinalSize        uint64 = uint32Size
+	lengthSize         uint64 = uint32Size
 	magicNumber               = "\xff\xb5\xd8\xc2\x24\x63\xee\x50"
 	magicNumberSize    uint64 = uint64(len(magicNumber))
 	footerSize                = uint32Size + uint64Size + magicNumberSize
 	prefixTupleSize           = addrPrefixSize + ordinalSize
-	checksumSize       uint64 = 4
+	checksumSize       uint64 = uint32Size
 	maxChunkLengthSize uint64 = binary.MaxVarintLen64
 	maxChunkSize       uint64 = 0xffffffff // Snappy won't compress slices bigger than this
 )
+
+var crcTable = crc32.MakeTable(crc32.Castagnoli)
+
+func crc(b []byte) uint32 {
+	return crc32.Update(0, crcTable, b)
+}
 
 func computeAddrDefault(data []byte) addr {
 	r := sha512.Sum512(data)
