@@ -183,6 +183,7 @@ type getRecord struct {
 	a      *addr
 	prefix uint64
 	order  int
+	found  bool
 	data   []byte
 }
 

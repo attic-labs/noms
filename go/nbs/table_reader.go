@@ -314,6 +314,10 @@ func (tr tableReader) findOffsets(reqs []getRecord) (ors offsetRecSlice, remaini
 	// Iterate over |reqs| and |tr.prefixes| (both sorted by address) and build the set
 	// of table locations which must be read in order to satisfy |reqs|.
 	for i, req := range reqs {
+		if req.found {
+			continue
+		}
+
 		// advance within the prefixes until we reach one which is >= req.prefix
 		for filterIdx < filterLen && tr.prefixes[filterIdx] < req.prefix {
 			filterIdx++
@@ -332,6 +336,7 @@ func (tr tableReader) findOffsets(reqs []getRecord) (ors offsetRecSlice, remaini
 		// record all offsets within the table which contain the data required.
 		for j := filterIdx; j < filterLen && req.prefix == tr.prefixes[j]; j++ {
 			if tr.ordinalSuffixMatches(tr.prefixIdxToOrdinal(j), *req.a) {
+				reqs[i].found = true
 				ors = append(ors, offsetRec{uint32(i), tr.ordinals[j], tr.offsets[tr.ordinals[j]]})
 			}
 		}

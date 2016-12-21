@@ -163,9 +163,9 @@ func TestGetMany(t *testing.T) {
 
 	addrs := addrSlice{computeAddr(chunks[0]), computeAddr(chunks[1]), computeAddr(chunks[2])}
 	getBatch := []getRecord{
-		{&addrs[0], binary.BigEndian.Uint64(addrs[0][:addrPrefixSize]), 0, nil},
-		{&addrs[1], binary.BigEndian.Uint64(addrs[1][:addrPrefixSize]), 1, nil},
-		{&addrs[2], binary.BigEndian.Uint64(addrs[2][:addrPrefixSize]), 2, nil},
+		{&addrs[0], binary.BigEndian.Uint64(addrs[0][:addrPrefixSize]), 0, false, nil},
+		{&addrs[1], binary.BigEndian.Uint64(addrs[1][:addrPrefixSize]), 1, false, nil},
+		{&addrs[2], binary.BigEndian.Uint64(addrs[2][:addrPrefixSize]), 2, false, nil},
 	}
 	sort.Sort(getRecordByPrefix(getBatch))
 
@@ -188,9 +188,9 @@ func TestCalcReads(t *testing.T) {
 	tr := newTableReader(parseTableIndex(tableData), bytes.NewReader(tableData), 0, 0)
 	addrs := addrSlice{computeAddr(chunks[0]), computeAddr(chunks[1]), computeAddr(chunks[2])}
 	getBatch := []getRecord{
-		{&addrs[0], binary.BigEndian.Uint64(addrs[0][:addrPrefixSize]), 0, nil},
-		{&addrs[1], binary.BigEndian.Uint64(addrs[1][:addrPrefixSize]), 1, nil},
-		{&addrs[2], binary.BigEndian.Uint64(addrs[2][:addrPrefixSize]), 2, nil},
+		{&addrs[0], binary.BigEndian.Uint64(addrs[0][:addrPrefixSize]), 0, false, nil},
+		{&addrs[1], binary.BigEndian.Uint64(addrs[1][:addrPrefixSize]), 1, false, nil},
+		{&addrs[2], binary.BigEndian.Uint64(addrs[2][:addrPrefixSize]), 2, false, nil},
 	}
 
 	gb2 := []getRecord{getBatch[0], getBatch[2]}
@@ -271,7 +271,7 @@ func doTestNGetMany(t *testing.T, count int) {
 	getBatch := make([]getRecord, len(chunks))
 	for i := 0; i < count; i++ {
 		a := computeAddr(dataFn(i))
-		getBatch[i] = getRecord{&a, a.Prefix(), i, nil}
+		getBatch[i] = getRecord{&a, a.Prefix(), i, false, nil}
 	}
 
 	sort.Sort(getRecordByPrefix(getBatch))
