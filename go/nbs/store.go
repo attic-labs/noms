@@ -156,16 +156,7 @@ func (nbs *NomsBlockStore) Get(h hash.Hash) chunks.Chunk {
 }
 
 func (nbs *NomsBlockStore) GetMany(hashes []hash.Hash) []chunks.Chunk {
-	reqs := make([]getRecord, len(hashes))
-	for i, h := range hashes {
-		a := addr(h)
-		reqs[i] = getRecord{
-			a:      &a,
-			prefix: a.Prefix(),
-			order:  i,
-		}
-	}
-
+	reqs := toGetRecords(hashes)
 	tables, remaining := func() (tables chunkReader, remaining bool) {
 		nbs.mu.RLock()
 		defer nbs.mu.RUnlock()
@@ -200,7 +191,7 @@ func (nbs *NomsBlockStore) GetMany(hashes []hash.Hash) []chunks.Chunk {
 	return resp
 }
 
-func (nbs *NomsBlockStore) CalcReads(hashes []hash.Hash) (reads int, split bool) {
+func toGetRecords(hashes []hash.Hash) []getRecord {
 	reqs := make([]getRecord, len(hashes))
 	for i, h := range hashes {
 		a := addr(h)
@@ -210,7 +201,11 @@ func (nbs *NomsBlockStore) CalcReads(hashes []hash.Hash) (reads int, split bool)
 			order:  i,
 		}
 	}
+	return reqs
+}
 
+func (nbs *NomsBlockStore) CalcReads(hashes []hash.Hash) (reads int, split bool) {
+	reqs := toGetRecords(hashes)
 	tables := func() (tables tableSet) {
 		nbs.mu.RLock()
 		defer nbs.mu.RUnlock()

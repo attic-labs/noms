@@ -82,28 +82,27 @@ func main() {
 				mu.Unlock()
 
 				if !visited {
-					if ref.Height() >= uint64(2) {
-						numbers <- record{count: 1}
-					}
+					v := ref.TargetValue(db)
+					d.Chk.NotNil(v)
 
-					if ref.Height() > 1 {
-						v := ref.TargetValue(db)
-						d.Chk.NotNil(v)
-						children := types.RefSlice{}
-						hashes := hash.HashSlice{}
-						v.WalkRefs(func(r types.Ref) {
-							hashes = append(hashes, r.TargetHash())
+					children := types.RefSlice{}
+					hashes := hash.HashSlice{}
+					v.WalkRefs(func(r types.Ref) {
+						hashes = append(hashes, r.TargetHash())
+						if r.Height() > 1 { // leaves are uninteresting, so skip them.
 							children = append(children, r)
-						})
-						reads, split := store.CalcReads(hashes)
-						numbers <- record{calc: reads, split: split}
-						wg.Add(len(children))
-						go func() {
-							for _, r := range children {
-								refs <- r
-							}
-						}()
-					}
+						}
+					})
+
+					reads, split := store.CalcReads(hashes)
+					numbers <- record{count: 1, calc: reads, split: split}
+
+					wg.Add(len(children))
+					go func() {
+						for _, r := range children {
+							refs <- r
+						}
+					}()
 				}
 				wg.Done()
 			}
