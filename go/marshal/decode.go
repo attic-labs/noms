@@ -331,7 +331,7 @@ func sliceDecoder(t reflect.Type) decoderFunc {
 	d = func(v types.Value, rv reflect.Value) {
 		var slice reflect.Value
 		if rv.IsNil() {
-			slice = reflect.MakeSlice(t, 0, int(v.(types.Collection).Len()))
+			slice = rv
 		} else {
 			slice = rv.Slice(0, 0)
 		}
@@ -387,9 +387,6 @@ func mapFromSetDecoder(t reflect.Type) decoderFunc {
 
 	d = func(v types.Value, rv reflect.Value) {
 		m := rv
-		if m.IsNil() {
-			m = reflect.MakeMap(t)
-		}
 
 		nomsSet, ok := v.(types.Set)
 		if !ok {
@@ -399,6 +396,9 @@ func mapFromSetDecoder(t reflect.Type) decoderFunc {
 		nomsSet.IterAll(func(v types.Value) {
 			keyRv := reflect.New(t.Key()).Elem()
 			decoder(v, keyRv)
+			if m.IsNil() {
+				m = reflect.MakeMap(t)
+			}
 			m.SetMapIndex(keyRv, reflect.New(t.Elem()).Elem())
 		})
 		rv.Set(m)
@@ -420,9 +420,6 @@ func mapDecoder(t reflect.Type, tags nomsTags) decoderFunc {
 
 	d = func(v types.Value, rv reflect.Value) {
 		m := rv
-		if m.IsNil() {
-			m = reflect.MakeMap(t)
-		}
 
 		// Special case decoding failure if it looks like the "set" tag is missing,
 		// because it's helpful.
@@ -440,6 +437,9 @@ func mapDecoder(t reflect.Type, tags nomsTags) decoderFunc {
 			keyDecoder(k, keyRv)
 			valueRv := reflect.New(t.Elem()).Elem()
 			valueDecoder(v, valueRv)
+			if m.IsNil() {
+				m = reflect.MakeMap(t)
+			}
 			m.SetMapIndex(keyRv, valueRv)
 		})
 		rv.Set(m)
