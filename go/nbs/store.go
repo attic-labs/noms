@@ -163,7 +163,7 @@ func (nbs *NomsBlockStore) GetMany(hashes []hash.Hash) []chunks.Chunk {
 		tables = nbs.tables
 
 		if nbs.mt != nil {
-			remaining = nbs.mt.getMany(reqs)
+			remaining = nbs.mt.getMany(reqs, &sync.WaitGroup{})
 		} else {
 			remaining = true
 		}
@@ -174,7 +174,9 @@ func (nbs *NomsBlockStore) GetMany(hashes []hash.Hash) []chunks.Chunk {
 	sort.Sort(getRecordByPrefix(reqs))
 
 	if remaining {
-		tables.getMany(reqs)
+		wg := &sync.WaitGroup{}
+		tables.getMany(reqs, wg)
+		wg.Wait()
 	}
 
 	sort.Sort(getRecordByOrder(reqs))

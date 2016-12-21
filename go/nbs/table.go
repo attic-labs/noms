@@ -10,6 +10,7 @@ import (
 	"encoding/base32"
 	"encoding/binary"
 	"hash/crc32"
+	"sync"
 )
 
 /*
@@ -203,7 +204,7 @@ type chunkReader interface {
 	has(h addr) bool
 	hasMany(addrs []hasRecord) bool
 	get(h addr) []byte
-	getMany(reqs []getRecord) bool
+	getMany(reqs []getRecord, wg *sync.WaitGroup) bool
 	count() uint32
 }
 

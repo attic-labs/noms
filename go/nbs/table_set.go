@@ -58,9 +58,9 @@ func (css chunkSources) get(h addr) []byte {
 	return nil
 }
 
-func (css chunkSources) getMany(reqs []getRecord) (remaining bool) {
+func (css chunkSources) getMany(reqs []getRecord, wg *sync.WaitGroup) (remaining bool) {
 	for _, haver := range css {
-		if !haver.getMany(reqs) {
+		if !haver.getMany(reqs, wg) {
 			return false
 		}
 	}

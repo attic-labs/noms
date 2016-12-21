@@ -6,6 +6,7 @@ package nbs
 
 import (
 	"bytes"
+	"sync"
 	"testing"
 
 	"github.com/attic-labs/testify/assert"
@@ -124,9 +125,9 @@ func (crg chunkReaderGroup) hasMany(addrs []hasRecord) (remaining bool) {
 	return true
 }
 
-func (crg chunkReaderGroup) getMany(reqs []getRecord) (remaining bool) {
+func (crg chunkReaderGroup) getMany(reqs []getRecord, wg *sync.WaitGroup) (remaining bool) {
 	for _, haver := range crg {
-		if !haver.getMany(reqs) {
+		if !haver.getMany(reqs, wg) {
 			return false
 		}
 	}

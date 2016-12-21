@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"io"
 	"sort"
+	"sync"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/golang/snappy"
@@ -203,7 +204,7 @@ func (tr tableReader) get(h addr) (data []byte) {
 	n, err := tr.r.ReadAt(buff, int64(offset))
 	d.Chk.NoError(err)
 	d.Chk.True(n == int(length))
-	data = tr.parseChunk(h, buff)
+	data = tr.parseChunk(buff)
 	d.Chk.True(data != nil)
 
 	return
@@ -220,9 +221,27 @@ func (hs offsetRecSlice) Len() int           { return len(hs) }
 func (hs offsetRecSlice) Less(i, j int) bool { return hs[i].offset < hs[j].offset }
 func (hs offsetRecSlice) Swap(i, j int)      { hs[i], hs[j] = hs[j], hs[i] }
 
+func (tr tableReader) readAtOffsets(readStart, readEnd uint64, reqs []getRecord, offsets offsetRecSlice, wg *sync.WaitGroup) {
+	readLength := readEnd - readStart
+	buff := make([]byte, readLength)
+	n, err := tr.r.ReadAt(buff, int64(readStart))
+	d.Chk.NoError(err)
+	d.Chk.True(uint64(n) == readLength)
+
+	for _, rec := range offsets {
+		d.Chk.True(rec.offset >= readStart)
+		localStart := rec.offset - readStart
+		localEnd := localStart + uint64(tr.lengths[rec.ordinal])
+		d.Chk.True(localEnd <= readLength)
+		reqs[rec.reqIdx].data = tr.parseChunk(buff[localStart:localEnd])
+	}
+
+	wg.Done()
+}
+
 // getMany retrieves multiple stored blocks and optimizes by attempting to read in larger physical
 // blocks which contain multiple stored blocks. |reqs| must be sorted by address prefix.
-func (tr tableReader) getMany(reqs []getRecord) (remaining bool) {
+func (tr tableReader) getMany(reqs []getRecord, wg *sync.WaitGroup) (remaining bool) {
 	// Pass #1: Iterate over |reqs| and |tr.prefixes| (both sorted by address) and build the set
 	// of table locations which must be read in order to satisfy the getMany operation.
 	var offsetRecords offsetRecSlice
@@ -233,69 +252,41 @@ func (tr tableReader) getMany(reqs []getRecord) (remaining bool) {
 	// grouping sequences of reads into large physical reads.
 	sort.Sort(offsetRecords)
 
-	scratch := []byte{} // raw byte area into which reads occur
-	// slice within |scratch| which contains a contiguous sequence of bytes read from the table
-	buff := scratch[:]
-	baseOffset := uint64(0) // the offset within the table which corresponds to byte 0 of |buff|
+	var batch offsetRecSlice
+	var readStart, readEnd, readAmp uint64
 
-	for i, rec := range offsetRecords {
-		if reqs[rec.reqIdx].data != nil {
-			continue // already satisfied
-		}
-
-		// offset within |buff| which corresponds to the logical location of the chunkRecord
-		localOffset := rec.offset - baseOffset
+	for i := 0; i < len(offsetRecords); {
+		rec := offsetRecords[i]
 		length := tr.lengths[rec.ordinal]
 
-		if uint64(len(buff)) < localOffset+uint64(length) {
-			// |buff| doesn't contain sufficient bytes to read the current chunk record. scan forward
-			// and read in a new sequence of bytes
-
-			readStart := rec.offset
-			readEnd := rec.offset + uint64(length) // implicitly include the first chunk
-
-			// As we scan forward, for each location/length, we'll include it in the current read if
-			// the total number of bytes we'll read contains fewer than X bytes we don't care about.
-			readAmp := uint64(0)
-
-			// scan ahead in offsets
-			for j := i + 1; j < len(offsetRecords); j++ {
-				fRec := offsetRecords[j]
-
-				if reqs[fRec.reqIdx].data != nil {
-					continue // already satisfied
-				}
-
-				newEnd, newAmp, canRead := canReadAhead(fRec, tr.lengths[fRec.ordinal], readStart, readEnd, readAmp, tr.blockSize, tr.readAmpThresh)
-				if !canRead {
-					break // including the next block will read too many unneeded bytes
-				}
-
-				readEnd = newEnd
-				readAmp = newAmp
-			}
-
-			// Ensure our memory buffer is large enough
-			if readEnd-readStart > uint64(len(scratch)) {
-				scratch = make([]byte, readEnd-readStart)
-			}
-
-			buff = scratch[:readEnd-readStart]
-			n, err := tr.r.ReadAt(buff, int64(readStart))
-			d.Chk.NoError(err)
-			d.Chk.True(uint64(n) == readEnd-readStart)
-
-			baseOffset = readStart
-			localOffset = 0
+		if batch == nil {
+			batch = make(offsetRecSlice, 1)
+			batch[0] = offsetRecords[i]
+			readStart = rec.offset
+			readEnd = readStart + uint64(length)
+			readAmp = 0
+			i++
+			continue
 		}
 
-		chunkRecord := buff[localOffset : localOffset+uint64(length)]
-		data := tr.parseChunk(*reqs[rec.reqIdx].a, chunkRecord)
-		if data != nil {
-			reqs[rec.reqIdx].data = data
-		} else {
-			remaining = true
+		newReadEnd, newReadAmp, canRead := canReadAhead(rec, tr.lengths[rec.ordinal], readStart, readEnd, readAmp, tr.blockSize, tr.readAmpThresh)
+		if canRead {
+			batch = append(batch, rec)
+			readEnd = newReadEnd
+			readAmp = newReadAmp
+			i++
+			continue
 		}
+
+		wg.Add(1)
+		go tr.readAtOffsets(readStart, readEnd, reqs, batch, wg)
+		batch = nil
+	}
+
+	if batch != nil {
+		wg.Add(1)
+		go tr.readAtOffsets(readStart, readEnd, reqs, batch, wg)
+		batch = nil
 	}
 
 	return
@@ -373,7 +364,7 @@ func canReadAhead(fRec offsetRec, fLength uint32, readStart, readEnd, readAmp, b
 }
 
 // Fetches the byte stream of data logically encoded within the table starting at |pos|.
-func (tr tableReader) parseChunk(h addr, buff []byte) []byte {
+func (tr tableReader) parseChunk(buff []byte) []byte {
 	dataLen := uint64(len(buff)) - checksumSize
 	data, err := snappy.Decode(nil, buff[:dataLen])
 	d.Chk.NoError(err)

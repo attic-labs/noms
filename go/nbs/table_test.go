@@ -12,6 +12,8 @@ import (
 
 	"bytes"
 
+	"sync"
+
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/testify/assert"
@@ -169,7 +171,10 @@ func TestGetMany(t *testing.T) {
 	}
 	sort.Sort(getRecordByPrefix(getBatch))
 
-	tr.getMany(getBatch)
+	wg := &sync.WaitGroup{}
+	tr.getMany(getBatch, wg)
+	wg.Wait()
+
 	for _, rec := range getBatch {
 		assert.NotNil(rec.data, "Nothing for prefix %d", rec.prefix)
 	}
@@ -276,7 +281,9 @@ func doTestNGetMany(t *testing.T, count int) {
 
 	sort.Sort(getRecordByPrefix(getBatch))
 
-	tr.getMany(getBatch)
+	wg := &sync.WaitGroup{}
+	tr.getMany(getBatch, wg)
+	wg.Wait()
 
 	sort.Sort(getRecordByOrder(getBatch))
 

@@ -62,10 +62,10 @@ func (ccs *compactingChunkSource) get(h addr) []byte {
 	return cr.get(h)
 }
 
-func (ccs *compactingChunkSource) getMany(reqs []getRecord) bool {
+func (ccs *compactingChunkSource) getMany(reqs []getRecord, wg *sync.WaitGroup) bool {
 	cr := ccs.getReader()
 	d.Chk.True(cr != nil)
-	return cr.getMany(reqs)
+	return cr.getMany(reqs, wg)
 }
 
 func (ccs *compactingChunkSource) close() error {
@@ -106,7 +106,7 @@ func (ecs emptyChunkSource) get(h addr) []byte {
 	return nil
 }
 
-func (ecs emptyChunkSource) getMany(reqs []getRecord) bool {
+func (ecs emptyChunkSource) getMany(reqs []getRecord, wg *sync.WaitGroup) bool {
 	return true
 }
 
