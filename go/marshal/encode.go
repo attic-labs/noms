@@ -38,8 +38,12 @@ import (
 //
 // Struct values are encoded as Noms structs (types.Struct). Each exported Go
 // struct field becomes a member of the Noms struct unless
-//   - the field's tag is "-"
-//   - the field is empty and its tag specifies the "omitempty" option.
+//   - The field's tag is "-"
+//   - The field is empty and its tag specifies the "omitempty" option.
+//   - The field has the "original" tag, in which case the field is used as an
+//     initial value onto which the fields of the Go type are added. When
+//     combined with the corresponding support for "original" in Unmarshal(),
+//     this allows one to find and modify any values of a known subtype.
 //
 // The empty values are false, 0, any nil pointer or interface value, and any
 // array, slice, map, or string of length zero.
