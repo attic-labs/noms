@@ -159,6 +159,9 @@ func (nbs *NomsBlockStore) Get(h hash.Hash) chunks.Chunk {
 
 func (nbs *NomsBlockStore) GetMany(hashes []hash.Hash) []chunks.Chunk {
 	reqs := toGetRecords(hashes)
+
+	wg := &sync.WaitGroup{}
+
 	tables, remaining := func() (tables chunkReader, remaining bool) {
 		nbs.mu.RLock()
 		defer nbs.mu.RUnlock()
@@ -166,6 +169,7 @@ func (nbs *NomsBlockStore) GetMany(hashes []hash.Hash) []chunks.Chunk {
 
 		if nbs.mt != nil {
 			remaining = nbs.mt.getMany(reqs, &sync.WaitGroup{})
+			wg.Wait()
 		} else {
 			remaining = true
 		}
@@ -176,7 +180,6 @@ func (nbs *NomsBlockStore) GetMany(hashes []hash.Hash) []chunks.Chunk {
 	sort.Sort(getRecordByPrefix(reqs))
 
 	if remaining {
-		wg := &sync.WaitGroup{}
 		tables.getMany(reqs, wg)
 		wg.Wait()
 	}
