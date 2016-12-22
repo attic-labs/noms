@@ -218,7 +218,7 @@ func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc
 	}
 
 	parentStructTypes = append(parentStructTypes, t)
-	fields, structType := typeFields(t, parentStructTypes)
+	fields, structType, originalFieldIndex := typeFields(t, parentStructTypes)
 	if structType != nil {
 		e = func(v reflect.Value) types.Value {
 			values := make([]types.Value, len(fields))
@@ -227,8 +227,9 @@ func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc
 			}
 			return types.NewStructWithType(structType, values)
 		}
-	} else {
-		// Cannot precompute the Noms type since there are Noms collections.
+	} else if originalFieldIndex == nil {
+		// Slower path: cannot precompute the Noms type since there are Noms collections,
+		// but at least there are a set number of fields
 		name := strings.Title(t.Name())
 		e = func(v reflect.Value) types.Value {
 			data := make(types.StructData, len(fields))
@@ -240,6 +241,20 @@ func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc
 				data[f.name] = f.encoder(fv)
 			}
 			return types.NewStruct(name, data)
+		}
+	} else {
+		// Slowest path - we are extending some other struct. We need to start with the
+		// type of that struct and extend.
+		e = func(v reflect.Value) types.Value {
+			ret := v.FieldByIndex(originalFieldIndex).Interface().(types.Struct)
+			for _, f := range fields {
+				fv := v.Field(f.index)
+				if !fv.IsValid() || f.omitEmpty && isEmptyValue(fv) {
+					continue
+				}
+				ret = ret.Set(f.name, f.encoder(fv))
+			}
+			return ret
 		}
 	}
 
@@ -352,12 +367,18 @@ func validateField(f reflect.StructField, t reflect.Type) {
 	}
 }
 
-func typeFields(t reflect.Type, parentStructTypes []reflect.Type) (fields fieldSlice, structType *types.Type) {
+func typeFields(t reflect.Type, parentStructTypes []reflect.Type) (fields fieldSlice, structType *types.Type, originalFieldIndex []int) {
 	canComputeStructType := true
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		tags := getTags(f)
 		if tags.skip {
+			continue
+		}
+
+		if tags.original {
+			canComputeStructType = false
+			originalFieldIndex = f.Index
 			continue
 		}
 
@@ -441,7 +462,7 @@ func structNomsType(t reflect.Type, parentStructTypes []reflect.Type) *types.Typ
 		}
 	}
 
-	_, structType := typeFields(t, parentStructTypes)
+	_, structType, _ := typeFields(t, parentStructTypes)
 	return structType
 }
 
