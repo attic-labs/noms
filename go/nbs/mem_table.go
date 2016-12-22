@@ -79,6 +79,20 @@ func (mt *memTable) getMany(reqs []getRecord, wg *sync.WaitGroup) (remaining boo
 	return
 }
 
+func (mt *memTable) extract(order EnumerationOrder, chunks chan<- extractRecord) {
+	sort.Sort(hasRecordByOrder(mt.order)) // ensure "insertion" order for extraction
+	if order == InsertOrder {
+		for _, hrec := range mt.order {
+			chunks <- extractRecord{*hrec.a, mt.chunks[*hrec.a]}
+		}
+		return
+	}
+	for i := len(mt.order) - 1; i >= 0; i-- {
+		hrec := mt.order[i]
+		chunks <- extractRecord{*hrec.a, mt.chunks[*hrec.a]}
+	}
+}
+
 func (mt *memTable) write(haver chunkReader) (name addr, data []byte, count uint32) {
 	maxSize := maxTableSize(uint64(len(mt.order)), mt.totalData)
 	buff := make([]byte, maxSize)

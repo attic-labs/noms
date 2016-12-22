@@ -22,12 +22,17 @@ import (
 // names of the tables that hold all the chunks in the store. The number of
 // chunks in each table is also stored in the manifest.
 
+type EnumerationOrder uint8
+
 const (
 	// StorageVersion is the version of the on-disk Noms Chunks Store data format.
 	StorageVersion = "0"
 
 	defaultMemTableSize uint64 = 512 * 1 << 20 // 512MB
 	defaultAWSReadLimit        = 1024
+
+	InsertOrder EnumerationOrder = iota
+	ReverseOrder
 )
 
 type NomsBlockStore struct {
@@ -226,6 +231,31 @@ func (nbs *NomsBlockStore) CalcReads(hashes []hash.Hash, blockSize, maxReadSize,
 	reads, split, remaining := tables.calcReads(reqs, blockSize, maxReadSize, ampThresh)
 	d.Chk.False(remaining)
 	return
+}
+
+func (nbs *NomsBlockStore) extractChunks(order EnumerationOrder, chunkChan chan<- *chunks.Chunk) {
+	ch := make(chan extractRecord, 1)
+	go func() {
+		nbs.mu.RLock()
+		defer nbs.mu.RUnlock()
+		// Chunks in nbs.tables were inserted before those in nbs.mt, so extract chunks there _first_ if we're doing InsertOrder...
+		if order == InsertOrder {
+			nbs.tables.extract(order, ch)
+		}
+		if nbs.mt != nil {
+			nbs.mt.extract(order, ch)
+		}
+		// ...and do them _second_ if we're doing ReverseOrder
+		if order == ReverseOrder {
+			nbs.tables.extract(order, ch)
+		}
+
+		close(ch)
+	}()
+	for rec := range ch {
+		c := chunks.NewChunkWithHash(hash.Hash(rec.a), rec.data)
+		chunkChan <- &c
+	}
 }
 
 func (nbs *NomsBlockStore) Has(h hash.Hash) bool {
