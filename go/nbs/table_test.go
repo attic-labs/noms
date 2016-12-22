@@ -201,12 +201,12 @@ func TestCalcReads(t *testing.T) {
 	gb2 := []getRecord{getBatch[0], getBatch[2]}
 	sort.Sort(getRecordByPrefix(getBatch))
 
-	reads, remaining := tr.calcReads(getBatch)
+	reads, remaining := tr.calcReads(getBatch, 0, fileMaxReadSize, 0)
 	assert.False(remaining)
 	assert.Equal(1, reads)
 
 	sort.Sort(getRecordByPrefix(gb2))
-	reads, remaining = tr.calcReads(gb2)
+	reads, remaining = tr.calcReads(gb2, 0, fileMaxReadSize, 0)
 	assert.False(remaining)
 	assert.Equal(2, reads)
 }

@@ -68,9 +68,9 @@ func (css chunkSources) getMany(reqs []getRecord, wg *sync.WaitGroup) (remaining
 	return true
 }
 
-func (css chunkSources) calcReads(reqs []getRecord) (reads int, split, remaining bool) {
+func (css chunkSources) calcReads(reqs []getRecord, blockSize, maxReadSize, ampThresh uint64) (reads int, split, remaining bool) {
 	for _, haver := range css {
-		rds, remaining := haver.calcReads(reqs)
+		rds, remaining := haver.calcReads(reqs, blockSize, maxReadSize, ampThresh)
 		reads += rds
 		if !remaining {
 			return reads, split, remaining

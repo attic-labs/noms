@@ -208,7 +208,7 @@ func toGetRecords(hashes []hash.Hash) []getRecord {
 	return reqs
 }
 
-func (nbs *NomsBlockStore) CalcReads(hashes []hash.Hash) (reads int, split bool) {
+func (nbs *NomsBlockStore) CalcReads(hashes []hash.Hash, blockSize, maxReadSize, ampThresh uint64) (reads int, split bool) {
 	reqs := toGetRecords(hashes)
 	tables := func() (tables tableSet) {
 		nbs.mu.RLock()
@@ -220,7 +220,7 @@ func (nbs *NomsBlockStore) CalcReads(hashes []hash.Hash) (reads int, split bool)
 
 	sort.Sort(getRecordByPrefix(reqs))
 
-	reads, split, remaining := tables.calcReads(reqs)
+	reads, split, remaining := tables.calcReads(reqs, blockSize, maxReadSize, ampThresh)
 	d.Chk.False(remaining)
 	return
 }
