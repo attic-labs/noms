@@ -86,10 +86,10 @@ func (ccs *compactingChunkSource) hash() addr {
 	return ccs.cs.hash()
 }
 
-func (ccs *compactingChunkSource) calcReads(reqs []getRecord, blockSize, ampThresh uint64) (reads int, remaining bool) {
+func (ccs *compactingChunkSource) calcReads(reqs []getRecord) (reads int, remaining bool) {
 	ccs.wg.Wait()
 	d.Chk.True(ccs.cs != nil)
-	return ccs.cs.calcReads(reqs, blockSize, ampThresh)
+	return ccs.cs.calcReads(reqs)
 }
 
 type emptyChunkSource struct{}
@@ -122,6 +122,6 @@ func (ecs emptyChunkSource) hash() addr {
 	return addr{} // TODO: is this legal?
 }
 
-func (ecs emptyChunkSource) calcReads(reqs []getRecord, blockSize, ampThresh uint64) (reads int, remaining bool) {
+func (ecs emptyChunkSource) calcReads(reqs []getRecord) (reads int, remaining bool) {
 	return 0, true
 }

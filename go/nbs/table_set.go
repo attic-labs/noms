@@ -8,9 +8,9 @@ import "sync"
 
 const concurrentCompactions = 5
 
-func newS3TableSet(s3 s3svc, bucket string, indexCache *s3IndexCache) tableSet {
+func newS3TableSet(s3 s3svc, bucket string, indexCache *s3IndexCache, readRl chan struct{}) tableSet {
 	return tableSet{
-		p:  s3TablePersister{s3, bucket, defaultS3PartSize, indexCache},
+		p:  s3TablePersister{s3, bucket, defaultS3PartSize, indexCache, readRl},
 		rl: make(chan struct{}, concurrentCompactions),
 	}
 }
@@ -68,9 +68,9 @@ func (css chunkSources) getMany(reqs []getRecord, wg *sync.WaitGroup) (remaining
 	return true
 }
 
-func (css chunkSources) calcReads(reqs []getRecord, blockSize, ampThresh uint64) (reads int, split, remaining bool) {
+func (css chunkSources) calcReads(reqs []getRecord) (reads int, split, remaining bool) {
 	for _, haver := range css {
-		rds, remaining := haver.calcReads(reqs, blockSize, ampThresh)
+		rds, remaining := haver.calcReads(reqs)
 		reads += rds
 		if !remaining {
 			return reads, split, remaining
