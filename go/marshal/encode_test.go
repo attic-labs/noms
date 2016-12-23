@@ -694,6 +694,62 @@ func TestEncodeOriginal(t *testing.T) {
 	assert.True(out.Type().Equals(st))
 }
 
+type MarshalOptionsTestT struct {
+	Abc  int
+	opts MarshalOptions `noms:"-"`
+}
+
+func (t MarshalOptionsTestT) GetMarshalOptions() MarshalOptions {
+	return t.opts
+}
+
+func TestEncodeMarshalOptionsName(t *testing.T) {
+	assert := assert.New(t)
+
+	s := MarshalOptionsTestT{
+		Abc: 42,
+		opts: MarshalOptions{
+			Name: "",
+		},
+	}
+	v, err := Marshal(s)
+	assert.NoError(err)
+	assert.True(types.NewStruct("MarshalOptionsTestT", types.StructData{
+		"abc": types.Number(42),
+	}).Equals(v))
+
+	s.opts.Name = "FooBar"
+	v, err = Marshal(s)
+	assert.NoError(err)
+	assert.True(types.NewStruct("FooBar", types.StructData{
+		"abc": types.Number(42),
+	}).Equals(v))
+
+	s.opts.EmptyName = true
+	v, err = Marshal(s)
+	assert.NoError(err)
+	assert.True(types.NewStruct("", types.StructData{
+		"abc": types.Number(42),
+	}).Equals(v))
+}
+
+type IntMarshalOptionsTestT int
+
+func (i IntMarshalOptionsTestT) GetMarshalOptions() (opts MarshalOptions) {
+	opts.EmptyName = true
+	opts.Name = "NotStruct"
+	return
+}
+
+func TestEncodeMarshalOptionsNameNonStruct(t *testing.T) {
+	assert := assert.New(t)
+
+	i := IntMarshalOptionsTestT(42)
+	v, err := Marshal(i)
+	assert.NoError(err)
+	assert.Equal(types.Number(42), v)
+}
+
 type TestInterface interface {
 	M()
 }
