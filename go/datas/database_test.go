@@ -477,10 +477,7 @@ func (suite *DatabaseSuite) TestDatabaseHeightOfRefs() {
 
 	r2 := suite.db.WriteValue(r1)
 	suite.Equal(uint64(2), r2.Height())
-	r3 := suite.db.WriteValue(r2)
-	suite.Equal(uint64(3), r3.Height())
-	_, err := suite.db.CommitValue(suite.db.GetDataset("ds1"), r3)
-	suite.NoError(err)
+	suite.Equal(uint64(3), suite.db.WriteValue(r2).Height())
 }
 
 func (suite *DatabaseSuite) TestDatabaseHeightOfCollections() {
@@ -527,8 +524,7 @@ func (suite *DatabaseSuite) TestDatabaseHeightOfCollections() {
 	}
 	andMore = append(andMore, setOfStringType, setOfRefOfStringType)
 
-	_, err := suite.db.CommitValue(suite.db.GetDataset("ds1"), suite.db.WriteValue(types.NewList(andMore...)))
-	suite.NoError(err)
+	suite.db.WriteValue(types.NewList(andMore...))
 }
 
 func (suite *DatabaseSuite) TestMetaOption() {

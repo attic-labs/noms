@@ -88,8 +88,8 @@ func TestTableSetExtract(t *testing.T) {
 	for rec := range chunkChan {
 		a := computeAddr(testChunks[i])
 		assert.NotNil(rec.data, "Nothing for", a)
+		assert.Equal(testChunks[i], rec.data, "Item %d: %s != %s", i, string(testChunks[i]), string(rec.data))
 		assert.Equal(a, rec.a)
-		assert.Equal(testChunks[i], rec.data)
 		i++
 	}
 
@@ -99,8 +99,8 @@ func TestTableSetExtract(t *testing.T) {
 	for rec := range chunkChan {
 		a := computeAddr(testChunks[i])
 		assert.NotNil(rec.data, "Nothing for", a)
+		assert.Equal(testChunks[i], rec.data, "Item %d: %s != %s", i, string(testChunks[i]), string(rec.data))
 		assert.Equal(a, rec.a)
-		assert.Equal(testChunks[i], rec.data)
 		i--
 	}
 

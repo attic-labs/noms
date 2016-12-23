@@ -14,7 +14,6 @@ import (
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/hash"
-	"github.com/attic-labs/noms/go/nbs"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/testify/suite"
 	"github.com/julienschmidt/httprouter"
@@ -130,7 +129,7 @@ func (suite *HTTPBatchStoreSuite) TearDownTest() {
 func (suite *HTTPBatchStoreSuite) TestPutChunk() {
 	c := types.EncodeValue(types.String("abc"), nil)
 	suite.store.SchedulePut(c, 1, types.Hints{})
-	suite.store.flushInternal(nbs.InsertOrder)
+	suite.store.Flush()
 
 	suite.Equal(1, suite.cs.Writes)
 }
@@ -146,7 +145,7 @@ func (suite *HTTPBatchStoreSuite) TestPutChunksInOrder() {
 		l = l.Append(types.NewRef(val))
 	}
 	suite.store.SchedulePut(types.EncodeValue(l, nil), 2, types.Hints{})
-	suite.store.flushInternal(nbs.InsertOrder)
+	suite.store.Flush()
 
 	suite.Equal(3, suite.cs.Writes)
 }
@@ -157,6 +156,7 @@ func (suite *HTTPBatchStoreSuite) TestPutChunksReverseOrder() {
 
 	suite.store.SchedulePut(types.EncodeValue(l, nil), 2, types.Hints{})
 	suite.store.SchedulePut(types.EncodeValue(val, nil), 1, types.Hints{})
+	suite.store.SetReverseFlushOrder()
 	suite.store.Flush()
 
 	suite.Equal(2, suite.cs.Writes)
@@ -178,7 +178,7 @@ func (suite *HTTPBatchStoreSuite) TestPutChunkWithHints() {
 		chnx[0].Hash(): struct{}{},
 		chnx[1].Hash(): struct{}{},
 	})
-	suite.store.flushInternal(nbs.InsertOrder)
+	suite.store.Flush()
 
 	suite.Equal(3, suite.cs.Writes)
 }
@@ -224,7 +224,7 @@ func (suite *HTTPBatchStoreSuite) TestPutChunksBackpressure() {
 		l = l.Append(types.NewRef(v))
 	}
 	bs.SchedulePut(types.EncodeValue(l, nil), 2, types.Hints{})
-	bs.flushInternal(nbs.InsertOrder)
+	bs.Flush()
 
 	suite.Equal(6, suite.cs.Writes)
 }

@@ -129,6 +129,7 @@ func (nbs *NomsBlockStore) PutMany(chunx []chunks.Chunk) (err chunks.Backpressur
 	return err
 }
 
+// TODO: figure out if there's a non-error reason for this to return false. If not, get rid of return value.
 func (nbs *NomsBlockStore) addChunk(h addr, data []byte) bool {
 	nbs.mu.Lock()
 	defer nbs.mu.Unlock()
@@ -256,6 +257,18 @@ func (nbs *NomsBlockStore) extractChunks(order EnumerationOrder, chunkChan chan<
 		c := chunks.NewChunkWithHash(hash.Hash(rec.a), rec.data)
 		chunkChan <- &c
 	}
+}
+
+func (nbs *NomsBlockStore) Count() uint32 {
+	count, tables := func() (count uint32, tables chunkReader) {
+		nbs.mu.RLock()
+		defer nbs.mu.RUnlock()
+		if nbs.mt != nil {
+			count = nbs.mt.count()
+		}
+		return count, nbs.tables
+	}()
+	return count + tables.count()
 }
 
 func (nbs *NomsBlockStore) Has(h hash.Hash) bool {

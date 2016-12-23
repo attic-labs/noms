@@ -93,9 +93,9 @@ func (ccs *compactingChunkSource) calcReads(reqs []getRecord, blockSize, maxRead
 }
 
 func (ccs *compactingChunkSource) extract(order EnumerationOrder, chunks chan<- extractRecord) {
-	cr := ccs.getReader()
-	d.Chk.True(cr != nil)
-	cr.extract(order, chunks)
+	ccs.wg.Wait()
+	d.Chk.True(ccs.cs != nil)
+	ccs.cs.extract(order, chunks)
 }
 
 type emptyChunkSource struct{}

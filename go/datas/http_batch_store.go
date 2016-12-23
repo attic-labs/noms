@@ -36,19 +36,21 @@ const (
 
 // httpBatchStore implements types.BatchStore
 type httpBatchStore struct {
-	host          *url.URL
-	httpClient    httpDoer
-	auth          string
-	getQueue      chan chunks.ReadRequest
-	hasQueue      chan chunks.ReadRequest
-	writeQueue    chan writeRequest
-	flushChan     chan nbs.EnumerationOrder
-	finishedChan  chan struct{}
-	rateLimit     chan struct{}
-	requestWg     *sync.WaitGroup
-	workerWg      *sync.WaitGroup
-	unwrittenPuts *nbs.NomsBlockCache
+	host         *url.URL
+	httpClient   httpDoer
+	auth         string
+	getQueue     chan chunks.ReadRequest
+	hasQueue     chan chunks.ReadRequest
+	writeQueue   chan writeRequest
+	finishedChan chan struct{}
+	rateLimit    chan struct{}
+	requestWg    *sync.WaitGroup
+	workerWg     *sync.WaitGroup
+	flushOrder   nbs.EnumerationOrder
+
 	cacheMu       *sync.RWMutex
+	unwrittenPuts *nbs.NomsBlockCache
+	hints         types.Hints
 }
 
 func newHTTPBatchStore(baseURL, auth string) *httpBatchStore {
@@ -64,17 +66,17 @@ func newHTTPBatchStore(baseURL, auth string) *httpBatchStore {
 		getQueue:      make(chan chunks.ReadRequest, readBufferSize),
 		hasQueue:      make(chan chunks.ReadRequest, readBufferSize),
 		writeQueue:    make(chan writeRequest, writeBufferSize),
-		flushChan:     make(chan nbs.EnumerationOrder),
 		finishedChan:  make(chan struct{}),
 		rateLimit:     make(chan struct{}, httpChunkSinkConcurrency),
 		requestWg:     &sync.WaitGroup{},
 		workerWg:      &sync.WaitGroup{},
-		unwrittenPuts: nbs.NewCache(),
+		flushOrder:    nbs.InsertOrder,
 		cacheMu:       &sync.RWMutex{},
+		unwrittenPuts: nbs.NewCache(),
+		hints:         types.Hints{},
 	}
 	buffSink.batchGetRequests()
 	buffSink.batchHasRequests()
-	buffSink.batchPutRequests()
 	return buffSink
 }
 
@@ -97,12 +99,14 @@ func makeHTTPClient(requestLimit int) *http.Client {
 	return &http.Client{Transport: &t}
 }
 
-func (bhcs *httpBatchStore) Flush() {
-	bhcs.flushInternal(nbs.ReverseOrder)
+func (bhcs *httpBatchStore) SetReverseFlushOrder() {
+	bhcs.cacheMu.Lock()
+	defer bhcs.cacheMu.Unlock()
+	bhcs.flushOrder = nbs.ReverseOrder
 }
 
-func (bhcs *httpBatchStore) flushInternal(order nbs.EnumerationOrder) {
-	bhcs.flushChan <- order
+func (bhcs *httpBatchStore) Flush() {
+	bhcs.sendWriteRequests()
 	bhcs.requestWg.Wait()
 	return
 }
@@ -112,7 +116,6 @@ func (bhcs *httpBatchStore) Close() (e error) {
 	bhcs.requestWg.Wait()
 	bhcs.workerWg.Wait()
 
-	close(bhcs.flushChan)
 	close(bhcs.getQueue)
 	close(bhcs.hasQueue)
 	close(bhcs.writeQueue)
@@ -332,80 +335,38 @@ func resBodyReader(res *http.Response) (reader io.ReadCloser) {
 }
 
 func (bhcs *httpBatchStore) SchedulePut(c chunks.Chunk, refHeight uint64, hints types.Hints) {
-	tryCache := func(c chunks.Chunk) bool {
-		bhcs.cacheMu.RLock()
-		defer bhcs.cacheMu.RUnlock()
-		return bhcs.unwrittenPuts.Insert(c)
+	bhcs.cacheMu.RLock()
+	defer bhcs.cacheMu.RUnlock()
+	bhcs.unwrittenPuts.Insert(c)
+	for hint := range hints {
+		hints[hint] = struct{}{}
 	}
-	if !tryCache(c) {
-		return
-	}
-
-	bhcs.requestWg.Add(1)
-	bhcs.writeQueue <- writeRequest{hints, false}
 }
 
 func (bhcs *httpBatchStore) AddHints(hints types.Hints) {
-	bhcs.writeQueue <- writeRequest{hints, true}
+	bhcs.cacheMu.RLock()
+	defer bhcs.cacheMu.RUnlock()
+	for hint := range hints {
+		hints[hint] = struct{}{}
+	}
 }
 
-func (bhcs *httpBatchStore) batchPutRequests() {
-	bhcs.workerWg.Add(1)
-	go func() {
-		defer bhcs.workerWg.Done()
+func (bhcs *httpBatchStore) sendWriteRequests() {
+	bhcs.rateLimit <- struct{}{}
+	defer func() { <-bhcs.rateLimit }()
 
-		hints := types.Hints{}
-		count := 0
-		handleRequest := func(wr writeRequest) {
-			if !wr.justHints {
-				count++
-			}
-			for hint := range wr.hints {
-				hints[hint] = struct{}{}
-			}
-		}
-		for done := false; !done; {
-			order := nbs.InsertOrder
-			drainAndSend := false
-			select {
-			case wr := <-bhcs.writeQueue:
-				handleRequest(wr)
-			case order = <-bhcs.flushChan:
-				drainAndSend = true
-			case <-bhcs.finishedChan:
-				drainAndSend = true
-				done = true
-			}
+	bhcs.cacheMu.Lock()
+	defer bhcs.cacheMu.Unlock()
 
-			if drainAndSend {
-				for drained := false; !drained; {
-					select {
-					case wr := <-bhcs.writeQueue:
-						handleRequest(wr)
-					default:
-						drained = true
-						bhcs.sendWriteRequests(order, count, hints)
-						hints = types.Hints{}
-						count = 0
-					}
-				}
-			}
-		}
-	}()
-}
-
-func (bhcs *httpBatchStore) sendWriteRequests(order nbs.EnumerationOrder, count int, hints types.Hints) {
+	count := bhcs.unwrittenPuts.Count()
 	if count == 0 {
 		return
 	}
-	bhcs.rateLimit <- struct{}{}
-	bhcs.cacheMu.Lock()
 	defer func() {
-		<-bhcs.rateLimit
 		bhcs.unwrittenPuts.Destroy()
 		bhcs.unwrittenPuts = nbs.NewCache()
-		bhcs.cacheMu.Unlock()
-		bhcs.requestWg.Add(-count)
+		bhcs.hints = types.Hints{}
+		bhcs.flushOrder = nbs.InsertOrder
 	}()
 
 	var res *http.Response
@@ -414,11 +375,11 @@ func (bhcs *httpBatchStore) sendWriteRequests(order nbs.EnumerationOrder, count 
 		verbose.Log("Sending %d chunks", count)
 		chunkChan := make(chan *chunks.Chunk, 1024)
 		go func() {
-			bhcs.unwrittenPuts.ExtractChunks(order, chunkChan)
+			bhcs.unwrittenPuts.ExtractChunks(bhcs.flushOrder, chunkChan)
 			close(chunkChan)
 		}()
 
-		body := buildWriteValueRequest(chunkChan, hints)
+		body := buildWriteValueRequest(chunkChan, bhcs.hints)
 		url := *bhcs.host
 		url.Path = httprouter.CleanPath(bhcs.host.Path + constants.WriteValuePath)
 		// TODO: Make this accept snappy encoding
@@ -470,7 +431,8 @@ func (bhcs *httpBatchStore) Root() hash.Hash {
 // UpdateRoot flushes outstanding writes to the backing ChunkStore before updating its Root, because it's almost certainly the case that the caller wants to point that root at some recently-Put Chunk.
 func (bhcs *httpBatchStore) UpdateRoot(current, last hash.Hash) bool {
 	// POST http://<host>/root?current=<ref>&last=<ref>. Response will be 200 on success, 409 if current is outdated.
-	bhcs.flushInternal(nbs.InsertOrder)
+	bhcs.Flush()
+
 	res := bhcs.requestRoot("POST", current, last)
 	expectVersion(res)
 	defer closeResponse(res.Body)

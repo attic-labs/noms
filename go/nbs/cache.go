@@ -31,11 +31,9 @@ type NomsBlockCache struct {
 	dbDir  string
 }
 
-// Insert stores c in the cache. If c is successfully added to the cache,
-// Insert returns true. If c was already in the cache, Insert returns false.
-func (nbc *NomsBlockCache) Insert(c chunks.Chunk) bool {
-	a := addr(c.Hash())
-	return nbc.chunks.addChunk(a, c.Data())
+// Insert stores c in the cache.
+func (nbc *NomsBlockCache) Insert(c chunks.Chunk) {
+	d.PanicIfFalse(nbc.chunks.addChunk(addr(c.Hash()), c.Data()))
 }
 
 // Has checks if the chunk referenced by hash is in the cache.
@@ -51,11 +49,16 @@ func (nbc *NomsBlockCache) Get(hash hash.Hash) chunks.Chunk {
 
 // ExtractChunks writes the entire contents of the cache to chunkChan. The
 // chunks are extracted in insertion order.
-func (nbc *NomsBlockCache) ExtractChunks(order EnumerationOrder, chunkChan chan *chunks.Chunk) error {
+func (nbc *NomsBlockCache) ExtractChunks(order EnumerationOrder, chunkChan chan *chunks.Chunk) {
 	nbc.chunks.extractChunks(order, chunkChan)
-	return nil
 }
 
+// Count returns the number of items in the cache.
+func (nbc *NomsBlockCache) Count() uint32 {
+	return nbc.chunks.Count()
+}
+
+// Destroy drops the cache and deletes any backing storage.
 func (nbc *NomsBlockCache) Destroy() error {
 	d.Chk.NoError(nbc.chunks.Close())
 	return os.RemoveAll(nbc.dbDir)

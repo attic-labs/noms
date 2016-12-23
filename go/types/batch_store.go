@@ -31,7 +31,7 @@ type BatchStore interface {
 	// of c's refs. Thus, by checking only the hinted Chunks, c can be
 	// validated with fewer read operations.
 	// c may or may not be persisted when SchedulePut() returns, but is
-	// guaranteed to be persistent after a call to Flush() or Close().
+	// guaranteed to be persistent after a call to Flush() or UpdateRoot().
 	SchedulePut(c chunks.Chunk, refHeight uint64, hints Hints)
 
 	// AddHints allows additional hints, as used by SchedulePut, to be added for use in the current batch.

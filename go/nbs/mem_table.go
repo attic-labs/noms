@@ -4,12 +4,14 @@
 
 package nbs
 
-import "sort"
-import "sync"
+import (
+	"sort"
+	"sync"
+)
 
 type memTable struct {
 	chunks             map[addr][]byte
-	order              []hasRecord
+	order              []hasRecord // Must maintain the invariant that these are sorted by rec.order
 	maxData, totalData uint64
 }
 
@@ -80,7 +82,6 @@ func (mt *memTable) getMany(reqs []getRecord, wg *sync.WaitGroup) (remaining boo
 }
 
 func (mt *memTable) extract(order EnumerationOrder, chunks chan<- extractRecord) {
-	sort.Sort(hasRecordByOrder(mt.order)) // ensure "insertion" order for extraction
 	if order == InsertOrder {
 		for _, hrec := range mt.order {
 			chunks <- extractRecord{*hrec.a, mt.chunks[*hrec.a]}

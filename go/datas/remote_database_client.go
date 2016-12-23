@@ -19,8 +19,11 @@ func NewRemoteDatabase(baseURL, auth string) *RemoteDatabaseClient {
 	return &RemoteDatabaseClient{newDatabaseCommon(newCachingChunkHaver(httpBS), types.NewValueStore(httpBS), httpBS)}
 }
 
-func (rdb *RemoteDatabaseClient) validatingBatchStore() (bs types.BatchStore) {
-	return rdb.BatchStore()
+func (rdb *RemoteDatabaseClient) validatingBatchStore() types.BatchStore {
+	hbs := rdb.BatchStore().(*httpBatchStore)
+	// TODO: Get rid of this (BUG 2982)
+	hbs.SetReverseFlushOrder()
+	return hbs
 }
 
 func (rdb *RemoteDatabaseClient) GetDataset(datasetID string) Dataset {
@@ -42,13 +45,11 @@ func (rdb *RemoteDatabaseClient) Delete(ds Dataset) (Dataset, error) {
 }
 
 func (rdb *RemoteDatabaseClient) SetHead(ds Dataset, newHeadRef types.Ref) (Dataset, error) {
-	rdb.BatchStore().Flush()
 	err := rdb.doSetHead(ds, newHeadRef)
 	return rdb.GetDataset(ds.ID()), err
 }
 
 func (rdb *RemoteDatabaseClient) FastForward(ds Dataset, newHeadRef types.Ref) (Dataset, error) {
-	rdb.BatchStore().Flush()
 	err := rdb.doFastForward(ds, newHeadRef)
 	return rdb.GetDataset(ds.ID()), err
 }
