@@ -70,8 +70,9 @@ import (
 //   //  omitted from the object if its value is empty, as defined above.
 //   Field int `noms:",omitempty"
 //
-// The name of the Noms struct is the name of the Go struct where the first
-// character is changed to upper case.
+// The name of the Noms struct, by default, is the name of the Go struct where
+// the first character is changed to upper case. This can be customized by
+// implementing MarshalOptionsGetter.
 //
 // Anonymous struct fields are currently not supported.
 //
@@ -110,6 +111,42 @@ func MustMarshal(v interface{}) types.Value {
 	d.Chk.NoError(err)
 	return r
 }
+
+// MarshalOptions customize how a type is marshalled.
+//
+// For example, to specify a name for a struct when it's marshalled:
+//
+//  type MyStruct struct {
+//    Foo string
+//  }
+//
+//  func (ms MyStruct) GetMarshalOptions() (opts marshal.MarshalOptions) {
+//    opts.Name = "SomeOtherName"
+//    return
+//  }
+//
+//  v, err := marshal.Marshal(MyStruct{"abc"})
+//  // v == types.NewStruct("SomeOtherName", types.StructData{
+//  //   "foo": types.String("abc"),
+//  // })
+type MarshalOptions struct {
+	// EmptyName sets the name of the Noms Struct to an empty string, regardless
+	// of the value of Name. Simply having Name as empty is not sufficient, since
+	// it defaults to the struct type's name.
+	EmptyName bool
+
+	// Name sets the name of the Noms struct when it's marshaled. If this is the
+	// empty string, defaults to the name of the Go struct unless EmptyName is
+	// true. If EmptyName is true, Name is ignored.
+	Name string
+}
+
+// MarshalOptionsGetter is the interface for types to provide MarshalOptions.
+type MarshalOptionsGetter interface {
+	GetMarshalOptions() (opts MarshalOptions)
+}
+
+var optionsGetterType = reflect.TypeOf((*MarshalOptionsGetter)(nil)).Elem()
 
 // UnsupportedTypeError is returned by encode when attempting to encode a type
 // that isn't supported.
@@ -223,30 +260,12 @@ func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc
 
 	parentStructTypes = append(parentStructTypes, t)
 	fields, structType, originalFieldIndex := typeFields(t, parentStructTypes)
-	if structType != nil {
-		e = func(v reflect.Value) types.Value {
-			values := make([]types.Value, len(fields))
-			for i, f := range fields {
-				values[i] = f.encoder(v.Field(f.index))
-			}
-			return types.NewStructWithType(structType, values)
-		}
-	} else if originalFieldIndex == nil {
-		// Slower path: cannot precompute the Noms type since there are Noms collections,
-		// but at least there are a set number of fields
-		name := strings.Title(t.Name())
-		e = func(v reflect.Value) types.Value {
-			data := make(types.StructData, len(fields))
-			for _, f := range fields {
-				fv := v.Field(f.index)
-				if !fv.IsValid() || f.omitEmpty && isEmptyValue(fv) {
-					continue
-				}
-				data[f.name] = f.encoder(fv)
-			}
-			return types.NewStruct(name, data)
-		}
-	} else {
+
+	// It won't be possible to use the pre-computed struct type if it implements
+	// MarshalOptionsGetter, because the struct name can change at runtime.
+	isOptsGetter := t.Implements(optionsGetterType)
+
+	if originalFieldIndex != nil {
 		// Slowest path - we are extending some other struct. We need to start with the
 		// type of that struct and extend.
 		e = func(v reflect.Value) types.Value {
@@ -260,10 +279,48 @@ func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc
 			}
 			return ret
 		}
+	} else if structType == nil || isOptsGetter {
+		// Slower path: cannot precompute the Noms type since there are Noms
+		// collections, or behavior might change at marshal-time via
+		// MarshalOptions, but at least there are a set number of fields.
+		e = func(v reflect.Value) types.Value {
+			data := make(types.StructData, len(fields))
+			for _, f := range fields {
+				fv := v.Field(f.index)
+				if !fv.IsValid() || f.omitEmpty && isEmptyValue(fv) {
+					continue
+				}
+				data[f.name] = f.encoder(fv)
+			}
+			return types.NewStruct(getTypeName(v), data)
+		}
+	} else {
+		// Fast path: final Noms type is known up-front.
+		e = func(v reflect.Value) types.Value {
+			values := make([]types.Value, len(fields))
+			for i, f := range fields {
+				values[i] = f.encoder(v.Field(f.index))
+			}
+			return types.NewStructWithType(structType, values)
+		}
 	}
 
 	encoderCache.set(t, e)
 	return e
+}
+
+func getTypeName(v reflect.Value) string {
+	if optsGetter, ok := v.Interface().(MarshalOptionsGetter); ok {
+		opts := optsGetter.GetMarshalOptions()
+		if opts.EmptyName {
+			return ""
+		}
+		if opts.Name != "" {
+			return opts.Name
+		}
+	}
+
+	return strings.Title(v.Type().Name())
 }
 
 func isEmptyValue(v reflect.Value) bool {
