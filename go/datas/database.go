@@ -94,8 +94,13 @@ type Database interface {
 	// Regardless, Datasets() is updated to match backing storage upon return.
 	FastForward(ds Dataset, newHeadRef types.Ref) (Dataset, error)
 
+	// ValidatingBatchStore returns the BatchStore used to read and write
+	// groups of values to the database efficiently. This interface is a low-
+	// level detail of the database that should infrequently be needed by
+	// clients.
+	ValidatingBatchStore() types.BatchStore
+
 	has(h hash.Hash) bool
-	validatingBatchStore() types.BatchStore
 }
 
 func NewDatabase(cs chunks.ChunkStore) Database {

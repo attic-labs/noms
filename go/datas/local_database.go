@@ -61,7 +61,7 @@ func (ldb *LocalDatabase) doHeadUpdate(ds Dataset, updateFunc func(ds Dataset) e
 	return ldb.GetDataset(ds.ID()), err
 }
 
-func (ldb *LocalDatabase) validatingBatchStore() types.BatchStore {
+func (ldb *LocalDatabase) ValidatingBatchStore() types.BatchStore {
 	if ldb.vbs == nil {
 		ldb.vbs = newLocalBatchStore(ldb.cs)
 	}
