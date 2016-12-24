@@ -5,8 +5,10 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/clienttest"
@@ -68,4 +70,28 @@ func (s *nomsShowTestSuite) TestNomsShow() {
 	_ = s.writeTestData(str, s1)
 	res, _ = s.MustRun(main, []string{"show", str})
 	test.EqualsIgnoreHashes(s.T(), res5, res)
+}
+
+func (s *nomsShowTestSuite) TestNomsShowNotFound() {
+	str := spec.CreateValueSpecString("ldb", s.LdbDir, "not-there")
+	stdout, stderr, err := s.Run(main, []string{"show", str})
+	s.Equal("", stdout)
+	s.Equal(fmt.Sprintf("Object not found: %s\n", str), stderr)
+	s.Nil(err)
+}
+
+func (s *nomsShowTestSuite) TestNomsShowRaw() {
+	datasetName := "showRaw"
+	str := spec.CreateValueSpecString("ldb", s.LdbDir, datasetName)
+	sp, err := spec.ForDataset(str)
+	s.NoError(err)
+	defer sp.Close()
+
+	db := sp.GetDatabase()
+	r1 := db.WriteValue(types.String("test"))
+	res, _ := s.MustRun(main, []string{"show", "--raw", spec.CreateValueSpecString("ldb", s.LdbDir, "#"+r1.TargetHash().String())})
+
+	ch := chunks.NewChunk([]byte(res))
+	v := types.DecodeValue(ch, db)
+	s.True(v.Equals(types.String("test")))
 }
