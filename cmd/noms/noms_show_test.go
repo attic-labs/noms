@@ -88,10 +88,34 @@ func (s *nomsShowTestSuite) TestNomsShowRaw() {
 	defer sp.Close()
 
 	db := sp.GetDatabase()
-	r1 := db.WriteValue(types.String("test"))
-	res, _ := s.MustRun(main, []string{"show", "--raw", spec.CreateValueSpecString("ldb", s.LdbDir, "#"+r1.TargetHash().String())})
 
-	ch := chunks.NewChunk([]byte(res))
-	v := types.DecodeValue(ch, db)
-	s.True(v.Equals(types.String("test")))
+	// Put a value into the db, get its raw serialization, then deserialize it and ensure it comes
+	// out to same thing.
+	test := func(in types.Value) {
+		r1 := db.WriteValue(in)
+		res, _ := s.MustRun(main, []string{"show", "--raw",
+			spec.CreateValueSpecString("ldb", s.LdbDir, "#"+r1.TargetHash().String())})
+		ch := chunks.NewChunk([]byte(res))
+		out := types.DecodeValue(ch, db)
+		s.True(out.Equals(in))
+	}
+
+	// Primitive value with no child chunks
+	test(types.String("hello"))
+
+	// Ref (one child chunk)
+	test(db.WriteValue(types.Number(42)))
+
+	// Prolly tree with multiple child chunks
+	items := make([]types.Value, 10000)
+	for i := 0; i < len(items); i++ {
+		items[i] = types.Number(i)
+	}
+	l := types.NewList(items...)
+	numChildChunks := 0
+	l.WalkRefs(func(r types.Ref) {
+		numChildChunks++
+	})
+	s.True(numChildChunks > 0)
+	test(l)
 }
