@@ -12,7 +12,7 @@ func newListMetaSequence(tuples []metaTuple, vr ValueReader) metaSequence {
 		// Ref<List<T>>
 		ts[i] = mt.ref.Type().Desc.(CompoundDesc).ElemTypes[0].Desc.(CompoundDesc).ElemTypes[0]
 	}
-	t := MakeListType(MakeUnionType(ts...))
+	t := MakeListType(accreteTypes(ts...))
 	return newMetaSequence(tuples, t, vr)
 }
 

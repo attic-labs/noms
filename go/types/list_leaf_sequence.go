@@ -14,7 +14,7 @@ func newListLeafSequence(vr ValueReader, v ...Value) sequence {
 	for i, v := range v {
 		ts[i] = v.Type()
 	}
-	t := MakeListType(MakeUnionType(ts...))
+	t := MakeListType(accreteTypes(ts...))
 	return listLeafSequence{leafSequence{vr, len(v), t}, v}
 }
 

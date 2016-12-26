@@ -21,7 +21,7 @@ func newSetMetaSequence(tuples []metaTuple, vr ValueReader) metaSequence {
 		// Ref<Set<T>>
 		ts[i] = mt.ref.Type().Desc.(CompoundDesc).ElemTypes[0].Desc.(CompoundDesc).ElemTypes[0]
 	}
-	t := MakeSetType(MakeUnionType(ts...))
+	t := MakeSetType(accreteTypes(ts...))
 	return newMetaSequence(tuples, t, vr)
 }
 
@@ -34,7 +34,7 @@ func newMapMetaSequence(tuples []metaTuple, vr ValueReader) metaSequence {
 		kts[i] = ets[0]
 		vts[i] = ets[1]
 	}
-	t := MakeMapType(MakeUnionType(kts...), MakeUnionType(vts...))
+	t := MakeMapType(accreteTypes(kts...), accreteTypes(vts...))
 	return newMetaSequence(tuples, t, vr)
 }
 

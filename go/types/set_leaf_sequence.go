@@ -14,7 +14,7 @@ func newSetLeafSequence(vr ValueReader, v ...Value) orderedSequence {
 	for i, v := range v {
 		ts[i] = v.Type()
 	}
-	t := MakeSetType(MakeUnionType(ts...))
+	t := MakeSetType(accreteTypes(ts...))
 	return setLeafSequence{leafSequence{vr, len(v), t}, v}
 }
 
