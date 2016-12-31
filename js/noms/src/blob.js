@@ -11,7 +11,7 @@ import {default as SequenceChunker, chunkSequence} from './sequence-chunker.js';
 import type {EqualsFn} from './edit-distance.js';
 import type {ValueReader, ValueReadWriter} from './value-store.js';
 import type {makeChunkFn} from './sequence-chunker.js';
-import {IndexedSequence} from './indexed-sequence.js';
+import {IndexedSequence, newCursorAtIndex} from './indexed-sequence.js';
 import {Kind} from './noms-kind.js';
 import {OrderedKey, newIndexedMetaSequenceChunkFn} from './meta-sequence.js';
 import {SequenceCursor} from './sequence.js';
@@ -49,7 +49,7 @@ export default class Blob extends Collection<IndexedSequence<any>> {
 
   splice(idx: number, deleteCount: number, insert: Uint8Array): Promise<Blob> {
     const vr = this.sequence.vr;
-    return this.sequence.newCursorAt(idx).then(cursor =>
+    return newCursorAtIndex(this.sequence, idx).then(cursor =>
       chunkSequence(cursor, vr, Array.from(insert), deleteCount, newBlobLeafChunkFn(vr),
                     newIndexedMetaSequenceChunkFn(Kind.Blob, vr, null),
                     hashValueByte)).then(s => Blob.fromSequence(s));
@@ -64,7 +64,7 @@ export class BlobReader {
 
   constructor(sequence: IndexedSequence<any>) {
     this._sequence = sequence;
-    this._cursor = sequence.newCursorAt(0, true);
+    this._cursor = newCursorAtIndex(sequence, 0, true);
     this._pos = 0;
     this._lock = '';
   }
@@ -135,7 +135,7 @@ export class BlobReader {
 
     invariant(abs >= 0, `cannot seek to negative position ${abs}`);
 
-    this._cursor = this._sequence.newCursorAt(abs, true);
+    this._cursor = newCursorAtIndex(this._sequence, abs, true);
 
     // Wait for the seek to complete so that reads will be relative to the new position.
     return this._cursor.then(() => {

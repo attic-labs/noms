@@ -11,7 +11,7 @@ import type Value from './value.js'; // eslint-disable-line no-unused-vars
 import type {AsyncIterator} from './async-iterator.js';
 import {default as SequenceChunker, chunkSequence, chunkSequenceSync} from './sequence-chunker.js';
 import Collection from './collection.js';
-import {IndexedSequence, IndexedSequenceIterator} from './indexed-sequence.js';
+import {IndexedSequence, IndexedSequenceIterator, newCursorAtIndex} from './indexed-sequence.js';
 import {diff} from './indexed-sequence-diff.js';
 import {invariant} from './assert.js';
 import {
@@ -69,7 +69,7 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
    */
   async get(idx: number): Promise<T> {
     invariant(idx >= 0 && idx < this.length);
-    return this.sequence.newCursorAt(idx).then(cursor => cursor.getCurrent());
+    return newCursorAtIndex(this.sequence, idx).then(cursor => cursor.getCurrent());
   }
 
   /**
@@ -78,7 +78,7 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
    */
   splice(idx: number, deleteCount: number, ...insert: Array<T>): Promise<List<T>> {
     const vr = this.sequence.vr;
-    return this.sequence.newCursorAt(idx).then(cursor =>
+    return newCursorAtIndex(this.sequence, idx).then(cursor =>
       chunkSequence(cursor, vr, insert, deleteCount, newListLeafChunkFn(vr),
                     newIndexedMetaSequenceChunkFn(Kind.List, vr, null),
                     hashValueBytes)).then(s => List.fromSequence(s));
@@ -112,7 +112,7 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
    * promises have been fulfilled.
    */
   async forEach(cb: (v: T, i: number) => ?Promise<any>): Promise<void> {
-    const cursor = await this.sequence.newCursorAt(0, true);
+    const cursor = await newCursorAtIndex(this.sequence, 0, true);
     const promises = [];
     await cursor.iter((v, i) => {
       promises.push(cb(v, i));
@@ -125,14 +125,14 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
    * Returns a new `AsyncIterator` which can be used to iterate over the list.
    */
   iterator(): AsyncIterator<T> {
-    return new IndexedSequenceIterator(this.sequence.newCursorAt(0, true));
+    return new IndexedSequenceIterator(newCursorAtIndex(this.sequence, 0, true));
   }
 
   /**
    * Returns a new `AsyncIterator` starting at `i` which can be used to iterate over the list.
    */
   iteratorAt(i: number): AsyncIterator<T> {
-    return new IndexedSequenceIterator(this.sequence.newCursorAt(i, true));
+    return new IndexedSequenceIterator(newCursorAtIndex(this.sequence, i, true));
   }
 
   /**
@@ -154,7 +154,8 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
       return Promise.resolve([[0, 0, this.length, 0]]); // Everything added
     }
 
-    return Promise.all([last.sequence.newCursorAt(0), this.sequence.newCursorAt(0)]).then(cursors =>
+    return Promise.all([newCursorAtIndex(last.sequence, 0),
+                        newCursorAtIndex(this.sequence, 0)]).then(cursors =>
         diff(last.sequence, cursors[0].depth, 0, this.sequence, cursors[1].depth, 0,
              maxSpliceMatrixSize));
   }

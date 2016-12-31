@@ -12,6 +12,19 @@ import {AsyncIterator} from './async-iterator.js';
 import {equals} from './compare.js';
 import {notNull} from './assert.js';
 
+export async function newCursorAtIndex(sequence: IndexedSequence<any>, idx: number,
+    readAhead: boolean = false): Promise<IndexedSequenceCursor<any>> {
+  let cursor: ?IndexedSequenceCursor<any> = null;
+
+  while (sequence) {
+    cursor = new IndexedSequenceCursor(cursor, sequence, 0, readAhead);
+    idx -= cursor.advanceToOffset(idx);
+    sequence = await cursor.getChildSequence();
+  }
+
+  return notNull(cursor);
+}
+
 export class IndexedSequence<T> extends Sequence<T> {
   cumulativeNumberOfLeaves(idx: number): number { // eslint-disable-line no-unused-vars
     throw new Error('override');
@@ -23,18 +36,6 @@ export class IndexedSequence<T> extends Sequence<T> {
       equals(this.items[idx], other.items[otherIdx]);
   }
 
-  async newCursorAt(idx: number, readAhead: boolean = false): Promise<IndexedSequenceCursor<any>> {
-    let cursor: ?IndexedSequenceCursor<any> = null;
-    let sequence: ?IndexedSequence<any> = this;
-
-    while (sequence) {
-      cursor = new IndexedSequenceCursor(cursor, sequence, 0, readAhead);
-      idx -= cursor.advanceToOffset(idx);
-      sequence = await cursor.getChildSequence();
-    }
-
-    return notNull(cursor);
-  }
 
   range(start: number, end: number): Promise<Array<T>> { // eslint-disable-line no-unused-vars
     throw new Error('override');
