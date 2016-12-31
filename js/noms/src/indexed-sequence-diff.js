@@ -7,7 +7,7 @@
 import type {Splice} from './edit-distance.js';
 import {calcSplices, SPLICE_ADDED, SPLICE_AT, SPLICE_FROM,
   SPLICE_REMOVED} from './edit-distance.js';
-import {IndexedMetaSequence} from './meta-sequence.js';
+import {getCompositeChildSequence, IndexedMetaSequence} from './meta-sequence.js';
 import {invariant} from './assert.js';
 import type {IndexedSequence} from './indexed-sequence.js';
 
@@ -18,7 +18,7 @@ export function diff(last: IndexedSequence<any>, lastHeight: number, lastOffset:
   if (lastHeight > currentHeight) {
     invariant(lastOffset === 0 && currentOffset === 0);
     invariant(last instanceof IndexedMetaSequence);
-    return last.getCompositeChildSequence(0, last.length).then(lastChild =>
+    return getCompositeChildSequence(last, 0, last.length).then(lastChild =>
         diff(lastChild, lastHeight - 1, lastOffset, current, currentHeight, currentOffset,
              maxSpliceMatrixSize));
   }
@@ -26,7 +26,7 @@ export function diff(last: IndexedSequence<any>, lastHeight: number, lastOffset:
   if (currentHeight > lastHeight) {
     invariant(lastOffset === 0 && currentOffset === 0);
     invariant(current instanceof IndexedMetaSequence);
-    return current.getCompositeChildSequence(0, current.length).then(currentChild =>
+    return getCompositeChildSequence(current, 0, current.length).then(currentChild =>
         diff(last, lastHeight, lastOffset, currentChild, currentHeight - 1, currentOffset,
              maxSpliceMatrixSize));
   }
@@ -83,8 +83,8 @@ export function diff(last: IndexedSequence<any>, lastHeight: number, lastOffset:
 
     // Meta sequence splice which includes removed & added sub-sequences. Must recurse down.
     invariant(last instanceof IndexedMetaSequence && current instanceof IndexedMetaSequence);
-    const lastChildP = last.getCompositeChildSequence(splice[SPLICE_AT], splice[SPLICE_REMOVED]);
-    const currentChildP = current.getCompositeChildSequence(splice[SPLICE_FROM],
+    const lastChildP = getCompositeChildSequence(last, splice[SPLICE_AT], splice[SPLICE_REMOVED]);
+    const currentChildP = getCompositeChildSequence(current, splice[SPLICE_FROM],
       splice[SPLICE_ADDED]);
 
     let lastChildOffset = lastOffset;

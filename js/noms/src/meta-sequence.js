@@ -29,13 +29,14 @@ import Ref, {constructRef} from './ref.js';
 import Sequence from './sequence.js';
 import {Kind} from './noms-kind.js';
 import type {NomsKind} from './noms-kind.js';
-import List, {ListLeafSequence} from './list.js';
+import List from './list.js';
 import Map from './map.js';
 import Set from './set.js';
 import Blob from './blob.js';
 import type {EqualsFn} from './edit-distance.js';
 import {hashValueBytes} from './rolling-value-hasher.js';
 import RollingValueHasher from './rolling-value-hasher.js';
+import {ListLeafSequence} from './list.js';
 
 export type MetaSequence<T: Value> = Sequence<MetaTuple<T>>;
 
@@ -142,6 +143,37 @@ export function newBlobMetaSequence(vr: ?ValueReader, items: Array<MetaTuple<any
   return new IndexedMetaSequence(vr, blobType, items);
 }
 
+class EmptySequence extends IndexedSequence {
+  constructor() {
+    super(null, valueType, []);
+  }
+}
+
+// Returns the sequences pointed to by all items[i], s.t. start <= i < end, and returns the
+// concatentation as one long composite sequence
+export function getCompositeChildSequence(sequence: IndexedSequence<any>, start: number,
+    length: number): Promise<IndexedSequence<any>> {
+  if (length === 0) {
+    return Promise.resolve(new EmptySequence());
+  }
+
+  const childrenP = [];
+  for (let i = start; i < start + length; i++) {
+    childrenP.push(sequence.items[i].getChildSequence(sequence.vr));
+  }
+
+  return Promise.all(childrenP).then(children => {
+    const items = [];
+    children.forEach(child => items.push(...child.items));
+    if (!children[0].isMeta) {
+      // Any because our type params are all screwy and FlowIssue didn't suppress the error.
+      return new ListLeafSequence(sequence.vr, sequence.type, (items: any));
+    }
+
+    return new IndexedMetaSequence(sequence.vr, sequence.type, items);
+  });
+}
+
 export class IndexedMetaSequence extends IndexedSequence<MetaTuple<any>> {
   _offsets: Array<number>;
 
@@ -166,32 +198,6 @@ export class IndexedMetaSequence extends IndexedSequence<MetaTuple<any>> {
     return getMetaSequenceChunks(this);
   }
 
-  range(start: number, end: number): Promise<Array<any>> {
-    invariant(start >= 0 && end >= 0 && end >= start);
-
-    const childRanges = [];
-    for (let i = 0; i < this.items.length && end > start; i++) {
-      const cum = this.cumulativeNumberOfLeaves(i);
-      const seqLength = this.items[i].key.numberValue();
-      if (start < cum) {
-        const seqStart = cum - seqLength;
-        const childStart = start - seqStart;
-        const childEnd = Math.min(seqLength, end - seqStart);
-        childRanges.push(this.getChildSequence(i).then(child => {
-          invariant(child instanceof IndexedSequence);
-          return child.range(childStart, childEnd);
-        }));
-        start += childEnd - childStart;
-      }
-    }
-
-    return Promise.all(childRanges).then(ranges => {
-      const range = [];
-      ranges.forEach(r => range.push(...r));
-      return range;
-    });
-  }
-
   getChildSequence(idx: number): Promise<?Sequence<any>> {
     if (!this.isMeta) {
       return Promise.resolve(null);
@@ -208,30 +214,6 @@ export class IndexedMetaSequence extends IndexedSequence<MetaTuple<any>> {
 
     const mt = this.items[idx];
     return mt.getChildSequenceSync();
-  }
-
-  // Returns the sequences pointed to by all items[i], s.t. start <= i < end, and returns the
-  // concatentation as one long composite sequence
-  getCompositeChildSequence(start: number, length: number): Promise<IndexedSequence<any>> {
-    if (length === 0) {
-      return Promise.resolve(new EmptySequence());
-    }
-
-    const childrenP = [];
-    for (let i = start; i < start + length; i++) {
-      childrenP.push(this.items[i].getChildSequence(this.vr));
-    }
-
-    return Promise.all(childrenP).then(children => {
-      const items = [];
-      children.forEach(child => items.push(...child.items));
-      if (!children[0].isMeta) {
-        // Any because our type params are all screwy and FlowIssue didn't suppress the error.
-        return new ListLeafSequence(this.vr, this.type, (items: any));
-      }
-
-      return new IndexedMetaSequence(this.vr, this.type, items);
-    });
   }
 
   cumulativeNumberOfLeaves(idx: number): number {
@@ -350,10 +332,4 @@ export function newIndexedMetaSequenceChunkFn(kind: NomsKind, vr: ?ValueReader)
 
 function getMetaSequenceChunks(ms: MetaSequence<any>): Array<Ref<any>> {
   return ms.items.map(mt => mt.ref);
-}
-
-class EmptySequence extends IndexedSequence {
-  constructor() {
-    super(null, valueType, []);
-  }
 }

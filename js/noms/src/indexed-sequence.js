@@ -35,11 +35,6 @@ export class IndexedSequence<T> extends Sequence<T> {
       // $FlowIssue: Does not realize that these are Values.
       equals(this.items[idx], other.items[otherIdx]);
   }
-
-
-  range(start: number, end: number): Promise<Array<T>> { // eslint-disable-line no-unused-vars
-    throw new Error('override');
-  }
 }
 
 export class IndexedSequenceCursor<T> extends SequenceCursor<T, IndexedSequence<any>> {

@@ -161,20 +161,6 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
   }
 
   /**
-   * Returns a new JS array with the same values as list.
-   */
-  // $FlowIssue: Flow doesn't understand this in default param expressions.
-  toJS(start: number = 0, end: number = this.length): Promise<Array<T>> {
-    const l = this.length;
-    start = clampIndex(start, l);
-    end = clampIndex(end, l);
-    if (start >= end) {
-      return Promise.resolve([]);
-    }
-    return this.sequence.range(start, end);
-  }
-
-  /**
    * The number of elements in the list.
    */
   get length(): number {
@@ -197,27 +183,11 @@ export class ListLeafSequence<T: Value> extends IndexedSequence<T> {
   cumulativeNumberOfLeaves(idx: number): number {
     return idx + 1;
   }
-
-  /**
-   * Returns an array of the values in the list.
-   */
-  range(start: number, end: number): Promise<Array<T>> {
-    invariant(start >= 0 && end >= 0 && end <= this.items.length);
-    return Promise.resolve(this.items.slice(start, end));
-  }
 }
 
 export function newListLeafSequence<T: Value>(vr: ?ValueReader, items: T[]): ListLeafSequence<T> {
   const t = makeListType(makeUnionType(items.map(getTypeOfValue)));
   return new ListLeafSequence(vr, t, items);
-}
-
-function clampIndex(idx: number, length: number): number {
-  if (idx > length) {
-    return length;
-  }
-
-  return idx < 0 ? Math.max(0, length + idx) : idx;
 }
 
 type ListWriterState = 'writable' | 'closed';
