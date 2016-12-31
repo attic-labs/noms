@@ -15,7 +15,7 @@ import type Value from './value.js'; // eslint-disable-line no-unused-vars
  * Returns a 3-tuple [added, removed, modified] sorted keys.
  */
 export default async function diff<K: Value, T>(
-    last: OrderedSequence<K, T>, current: OrderedSequence<K, T>): Promise<[K[], K[], K[]]> {
+    last: OrderedSequence<T>, current: OrderedSequence<T>): Promise<[K[], K[], K[]]> {
   // TODO: Construct the cursor at exactly the right position. There is no point reading in the
   // first chunk of each sequence if we're not going to use them. This needs for chunks (or at
   // least meta chunks) to encode their height.

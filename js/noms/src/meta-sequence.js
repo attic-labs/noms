@@ -244,21 +244,21 @@ export class IndexedMetaSequence extends IndexedSequence<MetaTuple<any>> {
   }
 }
 
-export function newMapMetaSequence<K: Value>(vr: ?ValueReader,
-    tuples: Array<MetaTuple<any>>): OrderedMetaSequence<K> {
+export function newMapMetaSequence(vr: ?ValueReader,
+    tuples: Array<MetaTuple<any>>): OrderedMetaSequence {
   const kt = makeUnionType(tuples.map(mt => getCollectionTypes(mt)[0]));
   const vt = makeUnionType(tuples.map(mt => getCollectionTypes(mt)[1]));
   const t = makeMapType(kt, vt);
   return new OrderedMetaSequence(vr, t, tuples);
 }
 
-export function newSetMetaSequence<K: Value>(vr: ?ValueReader,
-    tuples: Array<MetaTuple<any>>): OrderedMetaSequence<K> {
+export function newSetMetaSequence(vr: ?ValueReader,
+    tuples: Array<MetaTuple<any>>): OrderedMetaSequence {
   const t = makeSetType(makeUnionType(tuples.map(mt => getCollectionTypes(mt)[0])));
   return new OrderedMetaSequence(vr, t, tuples);
 }
 
-export class OrderedMetaSequence<K: Value> extends OrderedSequence<K, MetaTuple<any>> {
+export class OrderedMetaSequence extends OrderedSequence<MetaTuple<any>> {
   _numLeaves: number;
 
   constructor(vr: ?ValueReader, t: Type<any>, items: Array<MetaTuple<any>>) {
@@ -300,7 +300,7 @@ export class OrderedMetaSequence<K: Value> extends OrderedSequence<K, MetaTuple<
     return this.items[idx].key;
   }
 
-  getCompareFn(other: OrderedSequence<any, any>): EqualsFn {
+  getCompareFn(other: OrderedSequence<any>): EqualsFn {
     return (idx: number, otherIdx: number) =>
       this.items[idx].ref.targetHash.equals(other.items[otherIdx].ref.targetHash);
   }
@@ -311,7 +311,7 @@ export function newOrderedMetaSequenceChunkFn(kind: NomsKind, vr: ?ValueReader)
   return (tuples: Array<MetaTuple<any>>) => {
     const numLeaves = tuples.reduce((l, mt) => l + mt.numLeaves, 0);
     const last = tuples[tuples.length - 1];
-    let seq: OrderedMetaSequence<any>;
+    let seq: OrderedMetaSequence;
     let col: Collection<any>;
     if (kind === Kind.Map) {
       seq = newMapMetaSequence(vr, tuples);

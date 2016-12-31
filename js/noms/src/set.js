@@ -17,8 +17,13 @@ import {
   OrderedKey,
   newOrderedMetaSequenceChunkFn,
 } from './meta-sequence.js';
-import {OrderedSequence, OrderedSequenceCursor, OrderedSequenceIterator, newCursorAt} from
-  './ordered-sequence.js';
+import {
+  OrderedSequence,
+  OrderedSequenceCursor,
+  OrderedSequenceIterator,
+  newCursorAt,
+  newCursorAtValue,
+} from './ordered-sequence.js';
 import diff from './ordered-sequence-diff.js';
 import {makeSetType, makeUnionType, getTypeOfValue} from './type.js';
 import {removeDuplicateFromOrdered} from './map.js';
@@ -50,7 +55,7 @@ export function newSetLeafSequence<K: Value>(
   return new SetLeafSequence(vr, t, items);
 }
 
-export default class Set<T: Value> extends Collection<OrderedSequence<any, any>> {
+export default class Set<T: Value> extends Collection<OrderedSequence<any>> {
   constructor(values: Array<T> = []) {
     const seq = chunkSequenceSync(
         buildSetData(values),
@@ -66,7 +71,7 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
   }
 
   async has(key: T): Promise<boolean> {
-    const cursor = await this.sequence.newCursorAtValue(key);
+    const cursor = await newCursorAtValue(this.sequence, key);
     return cursor.valid && equals(cursor.getCurrentKey().value(), key);
   }
 
@@ -98,7 +103,7 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
   }
 
   iteratorAt(v: T): AsyncIterator<T> {
-    return new OrderedSequenceIterator(this.sequence.newCursorAtValue(v, false, false, true));
+    return new OrderedSequenceIterator(newCursorAtValue(this.sequence, v, false, false, true));
   }
 
   _splice(cursor: OrderedSequenceCursor<any, any>, insert: Array<T>, remove: number)
@@ -110,7 +115,7 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
   }
 
   async add(value: T): Promise<Set<T>> {
-    const cursor = await this.sequence.newCursorAtValue(value, true);
+    const cursor = await newCursorAtValue(this.sequence, value, true);
     if (cursor.valid && equals(cursor.getCurrentKey().value(), value)) {
       return this;
     }
@@ -119,7 +124,7 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
   }
 
   async delete(value: T): Promise<Set<T>> {
-    const cursor = await this.sequence.newCursorAtValue(value);
+    const cursor = await newCursorAtValue(this.sequence, value);
     if (cursor.valid && equals(cursor.getCurrentKey().value(), value)) {
       return this._splice(cursor, [], 1);
     }
@@ -154,12 +159,12 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
   }
 }
 
-export class SetLeafSequence<K: Value> extends OrderedSequence<K, K> {
+export class SetLeafSequence<K: Value> extends OrderedSequence<K> {
   getKey(idx: number): OrderedKey<any> {
     return new OrderedKey(this.items[idx]);
   }
 
-  getCompareFn(other: OrderedSequence<any, any>): EqualsFn {
+  getCompareFn(other: OrderedSequence<any>): EqualsFn {
     return (idx: number, otherIdx: number) =>
       equals(this.items[idx], other.items[otherIdx]);
   }

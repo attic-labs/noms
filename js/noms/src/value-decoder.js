@@ -133,7 +133,7 @@ export default class ValueDecoder {
     return new IndexedMetaSequence(this._ds, t, this.readMetaSequence());
   }
 
-  readOrderedMetaSequence(t: Type<any>): OrderedMetaSequence<any> {
+  readOrderedMetaSequence(t: Type<any>): OrderedMetaSequence {
     return new OrderedMetaSequence(this._ds, t, this.readMetaSequence());
   }
 

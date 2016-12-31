@@ -103,7 +103,7 @@ function formatKeyString(v: any): string {
 function handleChunkLoad(hash: Hash, val: any, fromHash: ?string) {
   let counter = 0;
 
-  function processMetaSequence(id, sequence: IndexedMetaSequence | OrderedMetaSequence<any>,
+  function processMetaSequence(id, sequence: IndexedMetaSequence | OrderedMetaSequence,
                                name: string) {
     data.nodes[id] = {name: name};
     sequence.items.forEach(tuple => {

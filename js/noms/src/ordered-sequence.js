@@ -13,13 +13,25 @@ import search from './binary-search.js';
 import type {EqualsFn} from './edit-distance.js';
 import Sequence, {SequenceCursor} from './sequence.js';
 
+// See newCursorAt().
+export function newCursorAtValue<T>(sequence: OrderedSequence<T>, val: ?Value,
+    forInsertion: boolean = false, last: boolean = false, readAhead: boolean = false)
+    : Promise<OrderedSequenceCursor<any, any>> {
+  let key;
+  if (val !== null && val !== undefined) {
+    key = new OrderedKey(val);
+  }
+  return newCursorAt(sequence, key, forInsertion, last, readAhead);
+}
+
+
 // Returns:
 //   -null, if sequence is empty.
 //   -null, if all values in sequence are < key.
 //   -cursor positioned at
 //      -first value, if |key| is null
 //      -first value >= |key|
-export async function newCursorAt<K: Value, T>(sequence: ?OrderedSequence<K, T>,
+export async function newCursorAt<T>(sequence: ?OrderedSequence<T>,
     key: ?OrderedKey<any>, forInsertion: boolean = false, last: boolean = false,
     readAhead: boolean = false): Promise<OrderedSequenceCursor<any, any>> {
   let cursor: ?OrderedSequenceCursor<any, any> = null;
@@ -39,20 +51,7 @@ export async function newCursorAt<K: Value, T>(sequence: ?OrderedSequence<K, T>,
   return notNull(cursor);
 }
 
-
-
-export class OrderedSequence<K: Value, T> extends Sequence<T> {
-  // See newCursorAt().
-  newCursorAtValue(val: ?K, forInsertion: boolean = false, last: boolean = false,
-                   readAhead: boolean = false)
-      : Promise<OrderedSequenceCursor<any, any>> {
-    let key;
-    if (val !== null && val !== undefined) {
-      key = new OrderedKey(val);
-    }
-    return newCursorAt(this, key, forInsertion, last, readAhead);
-  }
-
+export class OrderedSequence<T> extends Sequence<T> {
   /**
    * Gets the key used for ordering the sequence at index |idx|.
    */
@@ -60,13 +59,13 @@ export class OrderedSequence<K: Value, T> extends Sequence<T> {
     throw new Error('override');
   }
 
-  getCompareFn(other: OrderedSequence<any, any>): EqualsFn { // eslint-disable-line no-unused-vars
+  getCompareFn(other: OrderedSequence<any>): EqualsFn { // eslint-disable-line no-unused-vars
     throw new Error('override');
   }
 }
 
 export class OrderedSequenceCursor<T, K: Value> extends
-    SequenceCursor<T, OrderedSequence<any, any>> {
+    SequenceCursor<T, OrderedSequence<any>> {
   getCurrentKey(): OrderedKey<any> {
     invariant(this.idx >= 0 && this.idx < this.length);
     return this.sequence.getKey(this.idx);
