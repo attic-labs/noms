@@ -22,6 +22,7 @@ import {
   OrderedSequence,
   OrderedSequenceCursor,
   OrderedSequenceIterator,
+  newCursorAt,
 } from './ordered-sequence.js';
 import diff from './ordered-sequence-diff.js';
 import {ValueBase} from './value.js';
@@ -101,7 +102,7 @@ export default class Map<K: Value, V: Value> extends
   }
 
   async _firstOrLast(last: boolean): Promise<?MapEntry<K, V>> {
-    const cursor = await this.sequence.newCursorAt(null, false, last, true);
+    const cursor = await newCursorAt(this.sequence, null, false, last, true);
     if (!cursor.valid) {
       return undefined;
     }
@@ -128,7 +129,7 @@ export default class Map<K: Value, V: Value> extends
   }
 
   async forEach(cb: (v: V, k: K) => ?Promise<any>): Promise<void> {
-    const cursor = await this.sequence.newCursorAt(null, false, false, true);
+    const cursor = await newCursorAt(this.sequence, null, false, false, true);
     const promises = [];
     await cursor.iter(entry => {
       promises.push(cb(entry[VALUE], entry[KEY]));
@@ -138,7 +139,7 @@ export default class Map<K: Value, V: Value> extends
   }
 
   iterator(): AsyncIterator<MapEntry<K, V>> {
-    return new OrderedSequenceIterator(this.sequence.newCursorAt(null, false, false, true));
+    return new OrderedSequenceIterator(newCursorAt(this.sequence, null, false, false, true));
   }
 
   iteratorAt(k: K): AsyncIterator<MapEntry<K, V>> {

@@ -17,7 +17,7 @@ import {
   OrderedKey,
   newOrderedMetaSequenceChunkFn,
 } from './meta-sequence.js';
-import {OrderedSequence, OrderedSequenceCursor, OrderedSequenceIterator} from
+import {OrderedSequence, OrderedSequenceCursor, OrderedSequenceIterator, newCursorAt} from
   './ordered-sequence.js';
 import diff from './ordered-sequence-diff.js';
 import {makeSetType, makeUnionType, getTypeOfValue} from './type.js';
@@ -71,7 +71,7 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
   }
 
   async _firstOrLast(last: boolean): Promise<?T> {
-    const cursor = await this.sequence.newCursorAt(null, false, last);
+    const cursor = await newCursorAt(this.sequence, null, false, last);
     return cursor.valid ? cursor.getCurrent() : null;
   }
 
@@ -84,7 +84,7 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
   }
 
   async forEach(cb: (v: T) => ?Promise<any>): Promise<void> {
-    const cursor = await this.sequence.newCursorAt(null, false, false, true);
+    const cursor = await newCursorAt(this.sequence, null, false, false, true);
     const promises = [];
     await cursor.iter(v => {
       promises.push(cb(v));
@@ -94,7 +94,7 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
   }
 
   iterator(): AsyncIterator<T> {
-    return new OrderedSequenceIterator(this.sequence.newCursorAt(null, false, false, true));
+    return new OrderedSequenceIterator(newCursorAt(this.sequence, null, false, false, true));
   }
 
   iteratorAt(v: T): AsyncIterator<T> {
@@ -129,7 +129,7 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any, any>>
 
   // TODO: Find some way to return a Set.
   async map<S>(cb: (v: T) => (Promise<S> | S)): Promise<Array<S>> {
-    const cursor = await this.sequence.newCursorAt(null);
+    const cursor = await newCursorAt(this.sequence, null);
     const values = [];
     await cursor.iter(v => {
       values.push(cb(v));

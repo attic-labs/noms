@@ -11,6 +11,7 @@ import {default as diff, fastForward} from './ordered-sequence-diff.js';
 import {default as Set, newSetLeafSequence} from './set.js';
 import Ref from './ref.js';
 import {smallTestChunks, normalProductionChunks} from './rolling-value-hasher.js';
+import {newCursorAt} from './ordered-sequence.js';
 
 suite('OrderedSequence', () => {
   suiteSetup(() => {
@@ -33,7 +34,7 @@ suite('OrderedSequence', () => {
     const newMetaSequenceCursor = nums => {
       const lst = new Set(nums);
       assert.isTrue(lst.sequence.isMeta);
-      return lst.sequence.newCursorAt();
+      return newCursorAt(lst.sequence);
     };
 
     {

@@ -13,6 +13,34 @@ import search from './binary-search.js';
 import type {EqualsFn} from './edit-distance.js';
 import Sequence, {SequenceCursor} from './sequence.js';
 
+// Returns:
+//   -null, if sequence is empty.
+//   -null, if all values in sequence are < key.
+//   -cursor positioned at
+//      -first value, if |key| is null
+//      -first value >= |key|
+export async function newCursorAt<K: Value, T>(sequence: ?OrderedSequence<K, T>,
+    key: ?OrderedKey<any>, forInsertion: boolean = false, last: boolean = false,
+    readAhead: boolean = false): Promise<OrderedSequenceCursor<any, any>> {
+  let cursor: ?OrderedSequenceCursor<any, any> = null;
+
+  while (sequence) {
+    cursor = new OrderedSequenceCursor(cursor, sequence, last ? -1 : 0, readAhead);
+    if (key !== null && key !== undefined) {
+      const lastPositionIfNotfound = forInsertion && sequence.isMeta;
+      if (!cursor._seekTo(key, lastPositionIfNotfound)) {
+        return cursor; // invalid
+      }
+    }
+
+    sequence = await cursor.getChildSequence();
+  }
+
+  return notNull(cursor);
+}
+
+
+
 export class OrderedSequence<K: Value, T> extends Sequence<T> {
   // See newCursorAt().
   newCursorAtValue(val: ?K, forInsertion: boolean = false, last: boolean = false,
@@ -22,33 +50,7 @@ export class OrderedSequence<K: Value, T> extends Sequence<T> {
     if (val !== null && val !== undefined) {
       key = new OrderedKey(val);
     }
-    return this.newCursorAt(key, forInsertion, last, readAhead);
-  }
-
-  // Returns:
-  //   -null, if sequence is empty.
-  //   -null, if all values in sequence are < key.
-  //   -cursor positioned at
-  //      -first value, if |key| is null
-  //      -first value >= |key|
-  async newCursorAt(key: ?OrderedKey<any>, forInsertion: boolean = false, last: boolean = false,
-      readAhead: boolean = false): Promise<OrderedSequenceCursor<any, any>> {
-    let cursor: ?OrderedSequenceCursor<any, any> = null;
-    let sequence: ?OrderedSequence<any, any> = this;
-
-    while (sequence) {
-      cursor = new OrderedSequenceCursor(cursor, sequence, last ? -1 : 0, readAhead);
-      if (key !== null && key !== undefined) {
-        const lastPositionIfNotfound = forInsertion && sequence.isMeta;
-        if (!cursor._seekTo(key, lastPositionIfNotfound)) {
-          return cursor; // invalid
-        }
-      }
-
-      sequence = await cursor.getChildSequence();
-    }
-
-    return notNull(cursor);
+    return newCursorAt(this, key, forInsertion, last, readAhead);
   }
 
   /**

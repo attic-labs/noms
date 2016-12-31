@@ -12,7 +12,7 @@ import List from './list.js';
 import Map from './map.js';
 import Set from './set.js';
 import {OrderedKey} from './meta-sequence.js';
-import {OrderedSequence} from './ordered-sequence.js';
+import {OrderedSequence, newCursorAt} from './ordered-sequence.js';
 import {fieldNameComponentRe} from './struct.js';
 import {getTypeOfValue, StructDesc} from './type.js';
 
@@ -363,7 +363,7 @@ export class HashIndexPath {
       return null;
     }
 
-    const cur = await seq.newCursorAt(OrderedKey.fromHash(this.hash));
+    const cur = await newCursorAt(seq, OrderedKey.fromHash(this.hash));
     if (!cur.valid) {
       return null;
     }
