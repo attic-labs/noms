@@ -7,12 +7,10 @@
 import Sequence, {SequenceCursor} from './sequence.js';
 import search from './binary-search.js';
 import type {AsyncIteratorResult} from './async-iterator.js';
-import type {EqualsFn} from './edit-distance.js';
 import {AsyncIterator} from './async-iterator.js';
-import {equals} from './compare.js';
 import {notNull} from './assert.js';
 
-export async function newCursorAtIndex(sequence: IndexedSequence<any>, idx: number,
+export async function newCursorAtIndex(sequence: Sequence<any>, idx: number,
     readAhead: boolean = false): Promise<IndexedSequenceCursor<any>> {
   let cursor: ?IndexedSequenceCursor<any> = null;
 
@@ -25,19 +23,7 @@ export async function newCursorAtIndex(sequence: IndexedSequence<any>, idx: numb
   return notNull(cursor);
 }
 
-export class IndexedSequence<T> extends Sequence<T> {
-  cumulativeNumberOfLeaves(idx: number): number { // eslint-disable-line no-unused-vars
-    throw new Error('override');
-  }
-
-  getCompareFn(other: IndexedSequence<any>): EqualsFn {
-    return (idx: number, otherIdx: number) =>
-      // $FlowIssue: Does not realize that these are Values.
-      equals(this.items[idx], other.items[otherIdx]);
-  }
-}
-
-export class IndexedSequenceCursor<T> extends SequenceCursor<T, IndexedSequence<any>> {
+export class IndexedSequenceCursor<T> extends SequenceCursor<T, Sequence<any>> {
   advanceToOffset(idx: number): number {
     this.idx = search(this.length, (i: number) => idx < this.sequence.cumulativeNumberOfLeaves(i));
 

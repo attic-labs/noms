@@ -6,15 +6,14 @@
 
 import {AsyncIterator} from './async-iterator.js';
 import type {AsyncIteratorResult} from './async-iterator.js';
-import {OrderedKey} from './meta-sequence.js';
+import {OrderedKey} from './sequence.js';
 import type Value from './value.js'; // eslint-disable-line no-unused-vars
 import {invariant, notNull} from './assert.js';
 import search from './binary-search.js';
-import type {EqualsFn} from './edit-distance.js';
 import Sequence, {SequenceCursor} from './sequence.js';
 
 // See newCursorAt().
-export function newCursorAtValue<T>(sequence: OrderedSequence<T>, val: ?Value,
+export function newCursorAtValue<T>(sequence: Sequence<T>, val: ?Value,
     forInsertion: boolean = false, last: boolean = false, readAhead: boolean = false)
     : Promise<OrderedSequenceCursor<any, any>> {
   let key;
@@ -31,7 +30,7 @@ export function newCursorAtValue<T>(sequence: OrderedSequence<T>, val: ?Value,
 //   -cursor positioned at
 //      -first value, if |key| is null
 //      -first value >= |key|
-export async function newCursorAt<T>(sequence: ?OrderedSequence<T>,
+export async function newCursorAt<T>(sequence: ?Sequence<T>,
     key: ?OrderedKey<any>, forInsertion: boolean = false, last: boolean = false,
     readAhead: boolean = false): Promise<OrderedSequenceCursor<any, any>> {
   let cursor: ?OrderedSequenceCursor<any, any> = null;
@@ -51,21 +50,8 @@ export async function newCursorAt<T>(sequence: ?OrderedSequence<T>,
   return notNull(cursor);
 }
 
-export class OrderedSequence<T> extends Sequence<T> {
-  /**
-   * Gets the key used for ordering the sequence at index |idx|.
-   */
-  getKey(idx: number): OrderedKey<any> { // eslint-disable-line no-unused-vars
-    throw new Error('override');
-  }
-
-  getCompareFn(other: OrderedSequence<any>): EqualsFn { // eslint-disable-line no-unused-vars
-    throw new Error('override');
-  }
-}
-
 export class OrderedSequenceCursor<T, K: Value> extends
-    SequenceCursor<T, OrderedSequence<any>> {
+    SequenceCursor<T, Sequence<any>> {
   getCurrentKey(): OrderedKey<any> {
     invariant(this.idx >= 0 && this.idx < this.length);
     return this.sequence.getKey(this.idx);

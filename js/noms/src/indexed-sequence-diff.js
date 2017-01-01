@@ -7,17 +7,17 @@
 import type {Splice} from './edit-distance.js';
 import {calcSplices, SPLICE_ADDED, SPLICE_AT, SPLICE_FROM,
   SPLICE_REMOVED} from './edit-distance.js';
-import {getCompositeChildSequence, IndexedMetaSequence} from './meta-sequence.js';
+import {getCompositeChildSequence, MetaSequence} from './meta-sequence.js';
 import {invariant} from './assert.js';
-import type {IndexedSequence} from './indexed-sequence.js';
+import Sequence from './sequence.js';
 
-export function diff(last: IndexedSequence<any>, lastHeight: number, lastOffset: number,
-                     current: IndexedSequence<any>, currentHeight: number, currentOffset: number,
+export function diff(last: Sequence<any>, lastHeight: number, lastOffset: number,
+                     current: Sequence<any>, currentHeight: number, currentOffset: number,
                      maxSpliceMatrixSize: number): Promise<Array<Splice>> {
 
   if (lastHeight > currentHeight) {
     invariant(lastOffset === 0 && currentOffset === 0);
-    invariant(last instanceof IndexedMetaSequence);
+    invariant(last instanceof MetaSequence);
     return getCompositeChildSequence(last, 0, last.length).then(lastChild =>
         diff(lastChild, lastHeight - 1, lastOffset, current, currentHeight, currentOffset,
              maxSpliceMatrixSize));
@@ -25,7 +25,7 @@ export function diff(last: IndexedSequence<any>, lastHeight: number, lastOffset:
 
   if (currentHeight > lastHeight) {
     invariant(lastOffset === 0 && currentOffset === 0);
-    invariant(current instanceof IndexedMetaSequence);
+    invariant(current instanceof MetaSequence);
     return getCompositeChildSequence(current, 0, current.length).then(currentChild =>
         diff(last, lastHeight, lastOffset, currentChild, currentHeight - 1, currentOffset,
              maxSpliceMatrixSize));
@@ -82,7 +82,7 @@ export function diff(last: IndexedSequence<any>, lastHeight: number, lastOffset:
     }
 
     // Meta sequence splice which includes removed & added sub-sequences. Must recurse down.
-    invariant(last instanceof IndexedMetaSequence && current instanceof IndexedMetaSequence);
+    invariant(last instanceof MetaSequence && current instanceof MetaSequence);
     const lastChildP = getCompositeChildSequence(last, splice[SPLICE_AT], splice[SPLICE_REMOVED]);
     const currentChildP = getCompositeChildSequence(current, splice[SPLICE_FROM],
       splice[SPLICE_ADDED]);

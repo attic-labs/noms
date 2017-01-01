@@ -4,7 +4,6 @@
 
 // @flow
 
-import Ref from './ref.js';
 import type {ValueReader} from './value-store.js';
 import type {makeChunkFn} from './sequence-chunker.js';
 import type Value from './value.js'; // eslint-disable-line no-unused-vars
@@ -13,12 +12,11 @@ import {chunkSequence, chunkSequenceSync} from './sequence-chunker.js';
 import Collection from './collection.js';
 import {compare, equals} from './compare.js';
 import {invariant} from './assert.js';
+import Sequence, {OrderedKey} from './sequence.js';
 import {
-  OrderedKey,
   newOrderedMetaSequenceChunkFn,
 } from './meta-sequence.js';
 import {
-  OrderedSequence,
   OrderedSequenceCursor,
   OrderedSequenceIterator,
   newCursorAt,
@@ -27,9 +25,7 @@ import {
 import diff from './ordered-sequence-diff.js';
 import {makeSetType, makeUnionType, getTypeOfValue} from './type.js';
 import {removeDuplicateFromOrdered} from './map.js';
-import {getValueChunks} from './sequence.js';
 import {Kind} from './noms-kind.js';
-import type {EqualsFn} from './edit-distance.js';
 import {hashValueBytes} from './rolling-value-hasher.js';
 import walk from './walk.js';
 import type {WalkCallback} from './walk.js';
@@ -55,14 +51,13 @@ export function newSetLeafSequence<K: Value>(
   return new SetLeafSequence(vr, t, items);
 }
 
-export default class Set<T: Value> extends Collection<OrderedSequence<any>> {
+export default class Set<T: Value> extends Collection<Sequence<any>> {
   constructor(values: Array<T> = []) {
     const seq = chunkSequenceSync(
         buildSetData(values),
         newSetLeafChunkFn(null),
         newOrderedMetaSequenceChunkFn(Kind.Set, null),
         hashValueBytes);
-    invariant(seq instanceof OrderedSequence);
     super(seq);
   }
 
@@ -159,17 +154,4 @@ export default class Set<T: Value> extends Collection<OrderedSequence<any>> {
   }
 }
 
-export class SetLeafSequence<K: Value> extends OrderedSequence<K> {
-  getKey(idx: number): OrderedKey<any> {
-    return new OrderedKey(this.items[idx]);
-  }
-
-  getCompareFn(other: OrderedSequence<any>): EqualsFn {
-    return (idx: number, otherIdx: number) =>
-      equals(this.items[idx], other.items[otherIdx]);
-  }
-
-  get chunks(): Array<Ref<any>> {
-    return getValueChunks(this.items);
-  }
-}
+export class SetLeafSequence<K: Value> extends Sequence<K> {}

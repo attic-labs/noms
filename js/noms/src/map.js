@@ -4,7 +4,6 @@
 
 // @flow
 
-import {invariant} from './assert.js';
 import Ref from './ref.js';
 import type {ValueReader} from './value-store.js';
 import type {makeChunkFn} from './sequence-chunker.js';
@@ -14,12 +13,9 @@ import {chunkSequence, chunkSequenceSync} from './sequence-chunker.js';
 import Collection from './collection.js';
 import {compare, equals} from './compare.js';
 import {getTypeOfValue, makeMapType, makeUnionType} from './type.js';
+import Sequence, {OrderedKey} from './sequence.js';
+import {newOrderedMetaSequenceChunkFn} from './meta-sequence.js';
 import {
-  OrderedKey,
-  newOrderedMetaSequenceChunkFn,
-} from './meta-sequence.js';
-import {
-  OrderedSequence,
   OrderedSequenceCursor,
   OrderedSequenceIterator,
   newCursorAt,
@@ -82,14 +78,13 @@ function buildMapData<K: Value, V: Value>(
 }
 
 export default class Map<K: Value, V: Value> extends
-    Collection<OrderedSequence<any>> {
+    Collection<Sequence<any>> {
   constructor(kvs: Array<MapEntry<K, V>> = []) {
     const seq = chunkSequenceSync(
         buildMapData(kvs),
         newMapLeafChunkFn(null),
         newOrderedMetaSequenceChunkFn(Kind.Map, null),
         mapHashValueBytes);
-    invariant(seq instanceof OrderedSequence);
     super(seq);
   }
 
@@ -191,13 +186,12 @@ export default class Map<K: Value, V: Value> extends
   }
 }
 
-export class MapLeafSequence<K: Value, V: Value> extends
-    OrderedSequence<MapEntry<K, V>> {
+export class MapLeafSequence<K: Value, V: Value> extends Sequence<MapEntry<K, V>> {
   getKey(idx: number): OrderedKey<any> {
     return new OrderedKey(this.items[idx][KEY]);
   }
 
-  getCompareFn(other: OrderedSequence<any>): EqualsFn {
+  getCompareFn(other: Sequence<any>): EqualsFn {
     return (idx: number, otherIdx: number) =>
       equals(this.items[idx][KEY], other.items[otherIdx][KEY]) &&
       equals(this.items[idx][VALUE], other.items[otherIdx][VALUE]);

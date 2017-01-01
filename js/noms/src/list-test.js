@@ -9,7 +9,7 @@ import {suite, setup, teardown, test} from 'mocha';
 
 import List, {ListWriter, ListLeafSequence, newListLeafSequence} from './list.js';
 import Ref from './ref.js';
-import {OrderedKey, MetaTuple, newListMetaSequence} from './meta-sequence.js';
+import {MetaSequence, MetaTuple, newListMetaSequence} from './meta-sequence.js';
 import {DEFAULT_MAX_SPLICE_MATRIX_SIZE, calcSplices} from './edit-distance.js';
 import {equals} from './compare.js';
 import {invariant, notNull} from './assert.js';
@@ -35,7 +35,7 @@ import {
   testRoundTripAndValidate,
 } from './test-util.js';
 import {TestDatabase} from './test-util.js';
-import {IndexedMetaSequence} from './meta-sequence.js';
+import {OrderedKey} from './sequence.js';
 
 const testListSize = 5000;
 const listOfNRef = 'tqpbqlu036sosdq9kg3lka7sjaklgslg';
@@ -696,6 +696,6 @@ suite('ListWriter', () => {
     }
 
     await t(15, ListLeafSequence);
-    await t(1500, IndexedMetaSequence);
+    await t(1500, MetaSequence);
   });
 });

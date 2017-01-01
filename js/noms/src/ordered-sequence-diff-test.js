@@ -6,7 +6,8 @@
 
 import {suite, suiteSetup, suiteTeardown, test} from 'mocha';
 import {assert} from 'chai';
-import {MetaTuple, newSetMetaSequence, OrderedKey} from './meta-sequence.js';
+import {OrderedKey} from './sequence.js';
+import {MetaTuple, newSetMetaSequence} from './meta-sequence.js';
 import {default as diff, fastForward} from './ordered-sequence-diff.js';
 import {default as Set, newSetLeafSequence} from './set.js';
 import Ref from './ref.js';

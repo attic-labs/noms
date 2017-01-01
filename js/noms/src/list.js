@@ -11,15 +11,12 @@ import type Value from './value.js'; // eslint-disable-line no-unused-vars
 import type {AsyncIterator} from './async-iterator.js';
 import {default as SequenceChunker, chunkSequence, chunkSequenceSync} from './sequence-chunker.js';
 import Collection from './collection.js';
-import {IndexedSequence, IndexedSequenceIterator, newCursorAtIndex} from './indexed-sequence.js';
+import {IndexedSequenceIterator, newCursorAtIndex} from './indexed-sequence.js';
 import {diff} from './indexed-sequence-diff.js';
 import {invariant} from './assert.js';
 import {
-  OrderedKey,
   newIndexedMetaSequenceChunkFn,
 } from './meta-sequence.js';
-import Ref from './ref.js';
-import {getValueChunks} from './sequence.js';
 import {makeListType, makeUnionType, getTypeOfValue} from './type.js';
 import {equals} from './compare.js';
 import {Kind} from './noms-kind.js';
@@ -27,6 +24,7 @@ import {DEFAULT_MAX_SPLICE_MATRIX_SIZE} from './edit-distance.js';
 import {hashValueBytes} from './rolling-value-hasher.js';
 import walk from './walk.js';
 import type {WalkCallback} from './walk.js';
+import Sequence, {OrderedKey} from './sequence.js';
 
 function newListLeafChunkFn<T: Value>(vr: ?ValueReader): makeChunkFn<any, any> {
   return (items: Array<T>) => {
@@ -48,14 +46,13 @@ function newListLeafChunkFn<T: Value>(vr: ?ValueReader): makeChunkFn<any, any> {
  *
  * Lists, like all Noms values are immutable so the "mutation" methods return a new list.
  */
-export default class List<T: Value> extends Collection<IndexedSequence<any>> {
+export default class List<T: Value> extends Collection<Sequence<any>> {
   constructor(values: Array<T> = []) {
     const seq = chunkSequenceSync(
         values,
         newListLeafChunkFn(null),
         newIndexedMetaSequenceChunkFn(Kind.List, null, null),
         hashValueBytes);
-    invariant(seq instanceof IndexedSequence);
     super(seq);
   }
 
@@ -171,19 +168,7 @@ export default class List<T: Value> extends Collection<IndexedSequence<any>> {
 /**
  * ListLeafSequence is used for the leaf lists of a list prolly-tree.
  */
-export class ListLeafSequence<T: Value> extends IndexedSequence<T> {
-  get chunks(): Array<Ref<any>> {
-    return getValueChunks(this.items);
-  }
-
-  /**
-   * This method is for internal use of sequences. It returns how many leaf items there are up to an
-   * index within its sequence.
-   */
-  cumulativeNumberOfLeaves(idx: number): number {
-    return idx + 1;
-  }
-}
+export class ListLeafSequence<T: Value> extends Sequence<T> {}
 
 export function newListLeafSequence<T: Value>(vr: ?ValueReader, items: T[]): ListLeafSequence<T> {
   const t = makeListType(makeUnionType(items.map(getTypeOfValue)));
