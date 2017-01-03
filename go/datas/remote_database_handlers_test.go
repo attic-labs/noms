@@ -224,7 +224,7 @@ func TestHandleGetRefs(t *testing.T) {
 	)
 
 	if assert.Equal(http.StatusOK, w.Code, "Handler error:\n%s", string(w.Body.Bytes())) {
-		chunkChan := make(chan interface{}, 2)
+		chunkChan := make(chan interface{}, len(chnx))
 		chunks.DeserializeToChan(w.Body, chunkChan)
 		close(chunkChan)
 
