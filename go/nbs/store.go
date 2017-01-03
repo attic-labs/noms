@@ -191,12 +191,14 @@ func (nbs *NomsBlockStore) GetMany(hashes hash.HashSet, foundChunks chan *chunks
 
 func toGetRecords(hashes hash.HashSet) []getRecord {
 	reqs := make([]getRecord, len(hashes))
+	idx := 0
 	for h, _ := range hashes {
 		a := addr(h)
-		reqs = append(reqs, getRecord{
+		reqs[idx] = getRecord{
 			a:      &a,
 			prefix: a.Prefix(),
-		})
+		}
+		idx++
 	}
 
 	sort.Sort(getRecordByPrefix(reqs))

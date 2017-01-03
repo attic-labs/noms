@@ -387,6 +387,7 @@ func (tr tableReader) calcReads(reqs []getRecord, blockSize uint64) (reads int, 
 
 		if !readStarted {
 			readStarted = true
+			reads++
 			readStart = rec.offset
 			readEnd = readStart + uint64(length)
 			i++
@@ -399,12 +400,7 @@ func (tr tableReader) calcReads(reqs []getRecord, blockSize uint64) (reads int, 
 			continue
 		}
 
-		reads++
 		readStarted = false
-	}
-
-	if readStarted {
-		reads++
 	}
 
 	return
