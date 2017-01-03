@@ -203,7 +203,7 @@ func toGetRecords(hashes hash.HashSet) []getRecord {
 	return reqs
 }
 
-func (nbs *NomsBlockStore) CalcReads(hashes hash.HashSet, blockSize, maxReadSize, ampThresh uint64) (reads int, split bool) {
+func (nbs *NomsBlockStore) CalcReads(hashes hash.HashSet, blockSize uint64) (reads int, split bool) {
 	reqs := toGetRecords(hashes)
 	tables := func() (tables tableSet) {
 		nbs.mu.RLock()
@@ -213,7 +213,7 @@ func (nbs *NomsBlockStore) CalcReads(hashes hash.HashSet, blockSize, maxReadSize
 		return
 	}()
 
-	reads, split, remaining := tables.calcReads(reqs, blockSize, maxReadSize, ampThresh)
+	reads, split, remaining := tables.calcReads(reqs, blockSize)
 	d.Chk.False(remaining)
 	return
 }

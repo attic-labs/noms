@@ -72,9 +72,9 @@ func (css chunkSources) getMany(reqs []getRecord, foundChunks chan *chunks.Chunk
 	return true
 }
 
-func (css chunkSources) calcReads(reqs []getRecord, blockSize, maxReadSize, ampThresh uint64) (reads int, split, remaining bool) {
+func (css chunkSources) calcReads(reqs []getRecord, blockSize uint64) (reads int, split, remaining bool) {
 	for _, haver := range css {
-		rds, remaining := haver.calcReads(reqs, blockSize, maxReadSize, ampThresh)
+		rds, remaining := haver.calcReads(reqs, blockSize)
 		reads += rds
 		if !remaining {
 			return reads, split, remaining
