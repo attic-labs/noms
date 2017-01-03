@@ -28,7 +28,7 @@ const (
 	// StorageVersion is the version of the on-disk Noms Chunks Store data format.
 	StorageVersion = "0"
 
-	defaultMemTableSize uint64 = 512 * 1 << 20 // 512MB
+	defaultMemTableSize uint64 = (1 << 20) * 128 // 128MB
 	defaultAWSReadLimit        = 1024
 
 	InsertOrder EnumerationOrder = iota
