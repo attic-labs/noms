@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/constants"
@@ -123,8 +124,15 @@ func handleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs
 		d.Panic("Expected post method.")
 	}
 
+	t1 := time.Now()
+	totalDataWritten := 0
+	chunkCount := 0
+
 	verbose.Log("Handling WriteValue from " + req.RemoteAddr)
-	defer verbose.Log("Finished handling WriteValue from " + req.RemoteAddr)
+	defer func() {
+		verbose.Log("Wrote %d Kb as %d chunks from %s in %s", totalDataWritten/1024, chunkCount, req.RemoteAddr, time.Since(t1))
+	}()
+
 	reader := bodyReader(req)
 	defer func() {
 		// Ensure all data on reader is consumed
@@ -151,16 +159,16 @@ func handleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs
 		},
 		writeValueConcurrency)
 
-	count := 0
 	var bpe chunks.BackpressureError
 	for dci := range decoded {
 		dc := dci.(types.DecodedChunk)
 		if dc.Chunk != nil && dc.Value != nil {
 			if bpe == nil {
+				totalDataWritten += len(dc.Chunk.Data())
 				bpe = vbs.Enqueue(*dc.Chunk, *dc.Value)
-				count++
-				if count%100 == 0 {
-					verbose.Log("Enqueued %d chunks", count)
+				chunkCount++
+				if chunkCount%100 == 0 {
+					verbose.Log("Enqueued %d chunks", chunkCount)
 				}
 			} else {
 				bpe = append(bpe, dc.Chunk.Hash())
@@ -260,10 +268,14 @@ func handleGetRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs ch
 			batch = batch[:maxGetBatchSize]
 		}
 
-		for _, c := range cs.GetMany(hashes) {
-			if !c.IsEmpty() {
-				chunks.Serialize(c, writer)
-			}
+		chunkChan := make(chan *chunks.Chunk, maxGetBatchSize)
+		go func() {
+			cs.GetMany(hashes.HashSet(), chunkChan)
+			close(chunkChan)
+		}()
+
+		for c := range chunkChan {
+			chunks.Serialize(*c, writer)
 		}
 
 		hashes = hashes[len(batch):]

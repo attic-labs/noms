@@ -11,8 +11,8 @@ import {Kind} from './noms-kind.js';
 import List from './list.js';
 import Map from './map.js';
 import Set from './set.js';
-import {OrderedKey} from './meta-sequence.js';
-import {OrderedSequence} from './ordered-sequence.js';
+import Sequence, {OrderedKey} from './sequence.js';
+import {newCursorAt} from './ordered-sequence.js';
 import {fieldNameComponentRe} from './struct.js';
 import {getTypeOfValue, StructDesc, Type, TypeDesc} from './type.js';
 
@@ -387,7 +387,7 @@ export class HashIndexPath extends KeyIndexable {
   }
 
   async resolve(value: Value): Promise<Value | null> {
-    let seq: OrderedSequence<any, any>;
+    let seq: Sequence<any>;
     let getCurrentValue; // (cur: sequenceCursor): Value
 
     if (value instanceof Set) {
@@ -406,7 +406,7 @@ export class HashIndexPath extends KeyIndexable {
       return null;
     }
 
-    const cur = await seq.newCursorAt(OrderedKey.fromHash(this.hash));
+    const cur = await newCursorAt(seq, OrderedKey.fromHash(this.hash));
     if (!cur.valid) {
       return null;
     }
