@@ -4,7 +4,11 @@
 
 package nbs
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/attic-labs/noms/go/chunks"
+)
 
 const concurrentCompactions = 5
 
@@ -58,9 +62,9 @@ func (css chunkSources) get(h addr) []byte {
 	return nil
 }
 
-func (css chunkSources) getMany(reqs []getRecord, wg *sync.WaitGroup) (remaining bool) {
+func (css chunkSources) getMany(reqs []getRecord, foundChunks chan *chunks.Chunk, wg *sync.WaitGroup) (remaining bool) {
 	for _, haver := range css {
-		if !haver.getMany(reqs, wg) {
+		if !haver.getMany(reqs, foundChunks, wg) {
 			return false
 		}
 	}

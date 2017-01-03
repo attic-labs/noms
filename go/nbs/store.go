@@ -163,7 +163,7 @@ func (nbs *NomsBlockStore) Get(h hash.Hash) chunks.Chunk {
 	return chunks.EmptyChunk
 }
 
-func (nbs *NomsBlockStore) GetMany(hashes []hash.Hash) []chunks.Chunk {
+func (nbs *NomsBlockStore) GetMany(hashes hash.HashSet, foundChunks chan *chunks.Chunk) {
 	reqs := toGetRecords(hashes)
 
 	wg := &sync.WaitGroup{}
@@ -174,7 +174,7 @@ func (nbs *NomsBlockStore) GetMany(hashes []hash.Hash) []chunks.Chunk {
 		tables = nbs.tables
 
 		if nbs.mt != nil {
-			remaining = nbs.mt.getMany(reqs, &sync.WaitGroup{})
+			remaining = nbs.mt.getMany(reqs, foundChunks, &sync.WaitGroup{})
 			wg.Wait()
 		} else {
 			remaining = true
@@ -183,41 +183,27 @@ func (nbs *NomsBlockStore) GetMany(hashes []hash.Hash) []chunks.Chunk {
 		return
 	}()
 
-	sort.Sort(getRecordByPrefix(reqs))
-
 	if remaining {
-		tables.getMany(reqs, wg)
+		tables.getMany(reqs, foundChunks, wg)
 		wg.Wait()
 	}
-
-	sort.Sort(getRecordByOrder(reqs))
-
-	resp := make([]chunks.Chunk, len(hashes))
-	for i, req := range reqs {
-		if req.data == nil {
-			resp[i] = chunks.EmptyChunk
-		} else {
-			resp[i] = chunks.NewChunkWithHash(hashes[i], req.data)
-		}
-	}
-
-	return resp
 }
 
-func toGetRecords(hashes []hash.Hash) []getRecord {
+func toGetRecords(hashes hash.HashSet) []getRecord {
 	reqs := make([]getRecord, len(hashes))
-	for i, h := range hashes {
+	for h, _ := range hashes {
 		a := addr(h)
-		reqs[i] = getRecord{
+		reqs = append(reqs, getRecord{
 			a:      &a,
 			prefix: a.Prefix(),
-			order:  i,
-		}
+		})
 	}
+
+	sort.Sort(getRecordByPrefix(reqs))
 	return reqs
 }
 
-func (nbs *NomsBlockStore) CalcReads(hashes []hash.Hash, blockSize, maxReadSize, ampThresh uint64) (reads int, split bool) {
+func (nbs *NomsBlockStore) CalcReads(hashes hash.HashSet, blockSize, maxReadSize, ampThresh uint64) (reads int, split bool) {
 	reqs := toGetRecords(hashes)
 	tables := func() (tables tableSet) {
 		nbs.mu.RLock()
@@ -226,8 +212,6 @@ func (nbs *NomsBlockStore) CalcReads(hashes []hash.Hash, blockSize, maxReadSize,
 
 		return
 	}()
-
-	sort.Sort(getRecordByPrefix(reqs))
 
 	reads, split, remaining := tables.calcReads(reqs, blockSize, maxReadSize, ampThresh)
 	d.Chk.False(remaining)

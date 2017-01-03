@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/testify/assert"
 )
 
@@ -125,9 +126,9 @@ func (crg chunkReaderGroup) hasMany(addrs []hasRecord) (remaining bool) {
 	return true
 }
 
-func (crg chunkReaderGroup) getMany(reqs []getRecord, wg *sync.WaitGroup) (remaining bool) {
+func (crg chunkReaderGroup) getMany(reqs []getRecord, foundChunks chan *chunks.Chunk, wg *sync.WaitGroup) (remaining bool) {
 	for _, haver := range crg {
-		if !haver.getMany(reqs, wg) {
+		if !haver.getMany(reqs, foundChunks, wg) {
 			return false
 		}
 	}

@@ -7,6 +7,7 @@ package nbs
 import (
 	"sync"
 
+	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 )
 
@@ -62,10 +63,10 @@ func (ccs *compactingChunkSource) get(h addr) []byte {
 	return cr.get(h)
 }
 
-func (ccs *compactingChunkSource) getMany(reqs []getRecord, wg *sync.WaitGroup) bool {
+func (ccs *compactingChunkSource) getMany(reqs []getRecord, foundChunks chan *chunks.Chunk, wg *sync.WaitGroup) bool {
 	cr := ccs.getReader()
 	d.Chk.True(cr != nil)
-	return cr.getMany(reqs, wg)
+	return cr.getMany(reqs, foundChunks, wg)
 }
 
 func (ccs *compactingChunkSource) close() error {
@@ -112,7 +113,7 @@ func (ecs emptyChunkSource) get(h addr) []byte {
 	return nil
 }
 
-func (ecs emptyChunkSource) getMany(reqs []getRecord, wg *sync.WaitGroup) bool {
+func (ecs emptyChunkSource) getMany(reqs []getRecord, foundChuns chan *chunks.Chunk, wg *sync.WaitGroup) bool {
 	return true
 }
 

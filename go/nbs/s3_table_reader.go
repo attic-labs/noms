@@ -16,8 +16,8 @@ import (
 const (
 	s3RangePrefix   = "bytes"
 	s3ReadAmpThresh = uint64(5)
-	s3BlockSize     = (1 << 20) * 5  // 8MiB
-	s3MaxReadSize   = (1 << 20) * 20 // 20MiB
+	s3BlockSize     = (1 << 10) * 512 // 512K
+	s3MaxReadSize   = (1 << 20) * 20  // 20MiB
 )
 
 type s3TableReader struct {
