@@ -68,7 +68,7 @@ func (s3p s3TablePersister) Compact(mt *memTable, haver chunkReader) chunkSource
 		d.Chk.NoError(err)
 		s3tr := &s3TableReader{s3: s3p.s3, bucket: s3p.bucket, h: name}
 
-		verbose.Log("Compacted table of %d Kb in %s", len(data), time.Since(t1))
+		verbose.Log("Compacted table of %d Kb in %s", len(data)/1024, time.Since(t1))
 		index := parseTableIndex(data)
 		if s3p.indexCache != nil {
 			s3p.indexCache.put(name, index)
