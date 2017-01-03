@@ -15,6 +15,7 @@ import Map from './map.js';
 import Path from './path.js';
 import Ref from './ref.js';
 import Set from './set.js';
+import {getTypeOfValue, numberType, stringType} from './type.js';
 import type Value from './value.js';
 import {newStruct} from './struct.js';
 
@@ -203,11 +204,14 @@ suite('Path', () => {
     const h = getHash(42); // arbitrary hash
 
     t('.foo');
+    t('.foo@type');
     t('.Q');
     t('.QQ');
     t('[true]');
+    t('[true]@type');
     t('[false]');
     t('[false]@key');
+    t('[false]@key@type');
     t('[42]');
     t('[42]@key');
     t('[1e4]');
@@ -277,8 +281,44 @@ suite('Path', () => {
     t('.foo[42]bar', 'Invalid operator: b');
     t('#foo', 'Invalid operator: #');
     t('!foo', 'Invalid operator: !');
-    t('@foo', 'Invalid operator: @');
-    t('@key', 'Invalid operator: @');
+    t('@foo', 'Unsupported annotation: @foo');
+    t('@key', 'Cannot use @key annotation at beginning of path');
     t('.foo[42]@soup', 'Unsupported annotation: @soup');
+    t('.foo@key', 'Cannot use @key annotation on: .foo');
+    t('.foo@key()', '@key annotation does not support arguments');
+    t('.foo@key(42)', '@key annotation does not support arguments');
+    t('.foo@type()', '@type annotation does not support arguments');
+    t('.foo@type(42)', '@type annotation does not support arguments');
+  });
+
+  test('type annotation', async () => {
+    const m = new Map([
+      ['string', 'foo'],
+      ['bool', false],
+      ['number', 42],
+      ['List<number|string>', new List([42, 'foo'])],
+      ['Map<bool, bool>', new Map([[true, false]])],
+    ]);
+
+    const s = newStruct('', {
+      str: 'foo',
+      num: 42,
+    });
+
+    const tests = [];
+
+    await m.forEach((v: string, k: Value) => {
+      tests.push(assertResolvesTo(getTypeOfValue(v), m, `["${k}"]@type`));
+    });
+    tests.push(
+      assertResolvesTo(stringType, m, '["string"]@key@type'),
+      assertResolvesTo(m.type, m, '@type'),
+    );
+    tests.push(
+      assertResolvesTo(stringType, s, '.str@type'),
+      assertResolvesTo(numberType, s, '.num@type'),
+    );
+
+    await Promise.all(tests);
   });
 });
