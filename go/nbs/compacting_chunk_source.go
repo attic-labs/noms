@@ -113,7 +113,7 @@ func (ecs emptyChunkSource) get(h addr) []byte {
 	return nil
 }
 
-func (ecs emptyChunkSource) getMany(reqs []getRecord, foundChuns chan *chunks.Chunk, wg *sync.WaitGroup) bool {
+func (ecs emptyChunkSource) getMany(reqs []getRecord, foundChunks chan *chunks.Chunk, wg *sync.WaitGroup) bool {
 	return true
 }
 
