@@ -157,7 +157,7 @@ func TestBuildWriteValueRequest(t *testing.T) {
 	}
 	assert.Equal(len(hints), count)
 
-	outChunkChan := make(chan interface{}, 16)
+	outChunkChan := make(chan interface{}, len(chnx))
 	chunks.DeserializeToChan(gr, outChunkChan)
 	close(outChunkChan)
 
