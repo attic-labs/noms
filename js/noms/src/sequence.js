@@ -16,6 +16,11 @@ import type Value from './value.js'; // eslint-disable-line no-unused-vars
 import Hash from './hash.js';
 import {compare, equals} from './compare.js';
 
+// Sequence<T> is the base class of all prolly-tree nodes. It represents a sequence of "values"
+// which are grouped together and defined by the output of a rolling hash value as a result of
+// chunking. In this context, |T| need not be a `Value` type. In the case of non-leaf prolly-tree
+// levels, it will be a |MetaTuple|, and in the case of a Map leaf sequence, it will be a
+// |MapEntry|.
 export default class Sequence<T> {
   vr: ?ValueReader;
   _type: Type<any>;
