@@ -14,7 +14,7 @@ import Set from './set.js';
 import {OrderedKey} from './meta-sequence.js';
 import {OrderedSequence} from './ordered-sequence.js';
 import {fieldNameComponentRe} from './struct.js';
-import {getTypeOfValue, StructDesc} from './type.js';
+import {getTypeOfValue, StructDesc, Type, TypeDesc} from './type.js';
 
 // For an annotation like @type, 1st capture group is the annotation.
 // For @at(42), 1st capture group is the annotation and 3rd is the parameter.
@@ -123,7 +123,7 @@ function constructPath(parts: Array<Part>, str: string) {
     }
 
     case '@': {
-      const [ann, hasArg, , rem] = getAnnotation(tail);
+      const {ann, hasArg, rem} = getAnnotation(tail);
 
       switch (ann) {
         case 'at': {
@@ -233,15 +233,26 @@ function parsePathIndex(str: string): [indexType | null, Hash | null, string] {
   throw new SyntaxError(`Invalid index: ${idxStr}`);
 }
 
-function getAnnotation(str: string)
-    : [string /* ann */, boolean /* hasArg */, string /* arg */, string /* rem */] {
+type getAnnotationResult = {
+  ann: string;
+  arg: string;
+  hasArg: boolean;
+  rem: string;
+};
+
+function getAnnotation(str: string): getAnnotationResult {
   const parts = annotationRe.exec(str);
   if (!parts) {
     throw new SyntaxError('Does not match annotation: ' + str);
   }
 
   invariant(parts.length === 4);
-  return [parts[1], parts[2] !== undefined, parts[3] || '', str.slice(parts[0].length)];
+  return {
+    ann: parts[1],
+    arg: parts[3] || '',
+    hasArg: parts[2] !== undefined,
+    rem: str.slice(parts[0].length),
+  };
 }
 
 /**
@@ -419,7 +430,7 @@ export class HashIndexPath extends KeyIndexable {
  * it's resolved in.
  */
 class TypeAnnotation {
-  resolve(v: Value): Promise<Value | null> {
+  resolve(v: Value): Promise<Type<TypeDesc>> {
     return Promise.resolve(getTypeOfValue(v));
   }
 

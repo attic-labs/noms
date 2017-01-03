@@ -23,10 +23,10 @@ function hashIdx(v: Value): string {
   return `[#${getHash(v).toString()}]`;
 }
 
-async function assertResolvesTo(expect: Value | null, ref: Value, str: string) {
+async function assertResolvesTo(expect: Value | null, target: Value, str: string) {
   const j = s => JSON.stringify(s);
   const p = Path.parse(str);
-  const actual = await p.resolve(ref);
+  const actual = await p.resolve(target);
   if (expect === null) {
     assert.isTrue(actual === null, `Expected null, but got ${j(actual)}`);
   } else if (actual === null) {
@@ -292,14 +292,14 @@ suite('Path', () => {
   });
 
   test('type annotation', async () => {
-    const m = new Map([
+    const mkv = [
       ['string', 'foo'],
       ['bool', false],
       ['number', 42],
       ['List<number|string>', new List([42, 'foo'])],
       ['Map<bool, bool>', new Map([[true, false]])],
-    ]);
-
+    ];
+    const m = new Map(mkv);
     const s = newStruct('', {
       str: 'foo',
       num: 42,
@@ -307,9 +307,10 @@ suite('Path', () => {
 
     const tests = [];
 
-    await m.forEach((v: string, k: Value) => {
+    for (const [k, v] of mkv) {
       tests.push(assertResolvesTo(getTypeOfValue(v), m, `["${k}"]@type`));
-    });
+      tests.push(assertResolvesTo(stringType, m, `["${k}"]@key@type`));
+    }
     tests.push(
       assertResolvesTo(stringType, m, '["string"]@key@type'),
       assertResolvesTo(m.type, m, '@type'),
