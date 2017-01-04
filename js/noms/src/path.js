@@ -8,7 +8,6 @@ import {invariant, notNull} from './assert.js';
 import type Value from './value.js';
 import Hash from './hash.js';
 import {Kind} from './noms-kind.js';
-import Collection from './collection.js';
 import List from './list.js';
 import Map, {KEY, VALUE} from './map.js';
 import Set from './set.js';
@@ -462,10 +461,6 @@ class AtAnnotation extends KeyIndexable {
   }
 
   async resolve(v: Value): Promise<Value | null> {
-    if (!(v instanceof Collection)) {
-      return null;
-    }
-
     if (v instanceof List) {
       const absIdx = getAbsoluteIndex(v.length, this.index);
       if (Number.isNaN(absIdx)) {
