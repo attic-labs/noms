@@ -162,15 +162,17 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 	// TODO: It _really_ feels like there should be some refactoring that allows us to only have to walk the refs of |v| once, but I'm hesitant to undertake that refactor right now.
 	hints := lvs.chunkHintsFromCache(v)
 
-	lvs.pendingMu.Lock()
-	lvs.pendingPuts[h] = pendingChunk{c, height, hints}
-	v.WalkRefs(func(reachable Ref) {
-		if pc, present := lvs.pendingPuts[reachable.TargetHash()]; present {
-			lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
-			delete(lvs.pendingPuts, reachable.TargetHash())
-		}
-	})
-	lvs.pendingMu.Unlock()
+	func() {
+		lvs.pendingMu.Lock()
+		defer lvs.pendingMu.Unlock()
+		lvs.pendingPuts[h] = pendingChunk{c, height, hints}
+		v.WalkRefs(func(reachable Ref) {
+			if pc, present := lvs.pendingPuts[reachable.TargetHash()]; present {
+				lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
+				delete(lvs.pendingPuts, reachable.TargetHash())
+			}
+		})
+	}()
 
 	lvs.set(h, (*presentChunk)(v.Type()))
 	lvs.valueCache.Drop(h)
