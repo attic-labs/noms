@@ -2,22 +2,7 @@ package types
 
 import (
 	"github.com/attic-labs/noms/go/d"
-	flag "github.com/juju/gnuflag"
 )
-
-var enableTypeSimplification = false
-
-func RegisterTypeSimplificationFlags(flags *flag.FlagSet) {
-	flags.BoolVar(&enableTypeSimplification, "type-simplificatino", false, "enables type simplification (see https://github.com/attic-labs/noms/issues/2995)")
-}
-
-func accreteTypes(t ...*Type) *Type {
-	if enableTypeSimplification {
-		return makeSimplifiedUnion(t...)
-	} else {
-		return MakeUnionType(t...)
-	}
-}
 
 // makeSimplifiedUnion returns a type that is a supertype of all the input types, but is much
 // smaller and less complex than a straight union of all those types would be.
@@ -52,7 +37,7 @@ func accreteTypes(t ...*Type) *Type {
 func makeSimplifiedUnion(in ...*Type) *Type {
 	d.Chk.True(len(in) > 0)
 
-	ts := typeset{}
+	ts := make(typeset, len(in))
 	for _, t := range in {
 		// De-cycle so that we handle cycles explicitly below. Otherwise, we would implicitly crawl
 		// cycles and recurse forever.
@@ -85,24 +70,23 @@ func (ts typeset) Add(t *Type) {
 }
 
 func newTypeset(t ...*Type) typeset {
-	ts := typeset{}
+	ts := make(typeset, len(t))
 	for _, t := range t {
 		ts.Add(t)
 	}
 	return ts
 }
 
-// makeSimplifiedUnionImpl is an implementation detail of MakeSimplifiedUnion.
-// Warning: Do not call this directly. It assumes its input has been
-// de-cycled using ToUnresolvedType() and will inifinitely recurse otherwise
-// on cyclic types otherwise.
+// makeSimplifiedUnionImpl is an implementation detail of makeSimplifiedUnion.
+// Warning: Do not call this directly. It assumes its input has been de-cycled using
+// ToUnresolvedType() and will infinitely recurse on cyclic types otherwise.
 func makeSimplifiedUnionImpl(in typeset) *Type {
 	type how struct {
 		k NomsKind
 		n string
 	}
 
-	out := []*Type{}
+	out := make([]*Type, 0, len(in))
 	groups := map[how]typeset{}
 	for t, _ := range in {
 		var h how
@@ -151,7 +135,7 @@ func makeSimplifiedUnionImpl(in typeset) *Type {
 		return out[0]
 	}
 
-	return MakeUnionType(out...)
+	return staticTypeCache.makeUnionType(out...)
 }
 
 func simplifyRefs(ts typeset) *Type {
@@ -167,19 +151,19 @@ func simplifyLists(ts typeset) *Type {
 }
 
 func simplifyContainers(expectedKind NomsKind, makeContainer func(elem *Type) *Type, ts typeset) *Type {
-	elemTypes := typeset{}
+	elemTypes := make(typeset, len(ts))
 	for t, _ := range ts {
-		d.Chk.Equal(expectedKind, t.Kind())
+		d.Chk.True(expectedKind == t.Kind())
 		elemTypes.Add(t.Desc.(CompoundDesc).ElemTypes[0])
 	}
 	return makeContainer(makeSimplifiedUnionImpl(elemTypes))
 }
 
 func simplifyMaps(ts typeset) *Type {
-	keyTypes := typeset{}
-	valTypes := typeset{}
+	keyTypes := make(typeset, len(ts))
+	valTypes := make(typeset, len(ts))
 	for t, _ := range ts {
-		d.Chk.Equal(MapKind, t.Kind())
+		d.Chk.True(MapKind == t.Kind())
 		desc := t.Desc.(CompoundDesc)
 		keyTypes.Add(desc.ElemTypes[0])
 		valTypes.Add(desc.ElemTypes[1])
@@ -194,15 +178,16 @@ func simplifyStructs(expectedName string, ts typeset) *Type {
 
 	first := true
 	for t, _ := range ts {
-		d.Chk.Equal(StructKind, t.Kind())
+		d.Chk.True(StructKind == t.Kind())
 		desc := t.Desc.(StructDesc)
-		d.Chk.Equal(expectedName, desc.Name)
+		d.Chk.True(expectedName == desc.Name)
 		if first {
 			for _, f := range desc.fields {
 				ts := typeset{}
 				ts.Add(f.t)
 				commonFields[f.name] = ts
 			}
+			first = false
 		} else {
 			for n, ts := range commonFields {
 				t := desc.Field(n)
@@ -213,10 +198,9 @@ func simplifyStructs(expectedName string, ts typeset) *Type {
 				}
 			}
 		}
-		first = false
 	}
 
-	fm := FieldMap{}
+	fm := make(FieldMap, len(ts))
 	for n, ts := range commonFields {
 		fm[n] = makeSimplifiedUnionImpl(ts)
 	}

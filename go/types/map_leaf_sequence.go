@@ -40,7 +40,7 @@ func newMapLeafSequence(vr ValueReader, data ...mapEntry) orderedSequence {
 		kts[i] = e.key.Type()
 		vts[i] = e.value.Type()
 	}
-	t := MakeMapType(accreteTypes(kts...), accreteTypes(vts...))
+	t := MakeMapType(MakeUnionType(kts...), MakeUnionType(vts...))
 	return mapLeafSequence{leafSequence{vr, len(data), t}, data}
 }
 

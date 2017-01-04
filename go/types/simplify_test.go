@@ -140,7 +140,7 @@ func TestSimplifyHelpers(t *testing.T) {
 func TestMakeSimplifiedUnion(t *testing.T) {
 	cycleType := MakeStructTypeFromFields("", FieldMap{"self": MakeCycleType(0)})
 
-	// TODO: why is this first step necessary?
+	// TODO: Why is this first step necessary?
 	cycleType = ToUnresolvedType(cycleType)
 	cycleType = resolveStructCycles(cycleType, nil)
 
