@@ -543,9 +543,8 @@ func MakeUnionType(elemTypes ...*Type) *Type {
 	defer staticTypeCache.Unlock()
 	if enableTypeSimplification {
 		return makeSimplifiedUnion(elemTypes...)
-	} else {
-		return staticTypeCache.makeUnionType(elemTypes...)
 	}
+	return staticTypeCache.makeUnionType(elemTypes...)
 }
 
 func MakeCycleType(level uint32) *Type {
