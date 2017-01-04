@@ -239,10 +239,8 @@ class HashCache {
     for (const [hashStr, entry] of this._pending) {
       this._cache.set(hashStr, entry);
     }
-
     this._pending = new Map();
   }
-
 
   addIfNotPresent(hash: Hash, entry: HashCacheEntry) {
     const hashStr = hash.toString();
