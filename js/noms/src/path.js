@@ -407,9 +407,8 @@ export class HashIndexPath extends KeyIndexable {
       getCurrentValue = cur => cur.getCurrent();
     } else if (value instanceof Map) {
       seq = value.sequence;
-      getCurrentValue = this.intoKey ?
-        cur => cur.getCurrent()[KEY] :
-        cur => cur.getCurrent()[VALUE];
+      const prop = this.intoKey ? KEY : VALUE;
+      getCurrentValue = cur => cur.getCurrent()[prop];
     } else {
       return null;
     }
