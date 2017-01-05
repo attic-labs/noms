@@ -25,6 +25,7 @@ type ValueReader interface {
 // package that implements Value writing.
 type ValueWriter interface {
 	WriteValue(v Value) Ref
+	Flush()
 }
 
 // ValueReadWriter is an interface that knows how to read and write Noms
