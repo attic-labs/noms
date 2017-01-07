@@ -9,19 +9,32 @@ const next = '8';
 let useNext = false;
 
 export default {
-  current: function(): string {
+  /**
+   * The noms version currently being used. This will be the current stable version, until
+   * useNext() is called.
+   */
+  current(): string {
     return useNext ? next : stable;
   },
 
-  isStable: function(): boolean {
+  /**
+   * Whether we are currently using the stable noms version.
+   */
+  isStable(): boolean {
     return !useNext;
   },
 
-  isNext: function(): boolean {
+  /**
+   * Whether we are currently using the next noms version that is under development.
+   */
+  isNext(): boolean {
     return useNext;
   },
 
-  useNext: function(v: boolean) {
+  /**
+   * Sets the noms version to either be the next version or not.
+   */
+  useNext(v: boolean) {
     useNext = v;
   },
 };
