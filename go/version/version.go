@@ -37,10 +37,6 @@ func IsNext() bool {
 	return Current() == nomsVersionNext
 }
 
-func SetNext() {
-	useVersionNext = true
-}
-
-func SetStable() {
-	useVersionNext = false
+func UseNext(v bool) {
+	useVersionNext = v
 }

@@ -4,4 +4,24 @@
 
 // @flow
 
-export default '7';
+const stable = '7';
+const next = '8';
+let useNext = false;
+
+export default {
+  current: function(): string {
+    return useNext ? next : stable;
+  },
+
+  isStable: function(): boolean {
+    return !useNext;
+  },
+
+  isNext: function(): boolean {
+    return useNext;
+  },
+
+  useNext: function(v: boolean) {
+    useNext = v;
+  },
+};
