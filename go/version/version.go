@@ -6,7 +6,11 @@
 package version
 
 import (
-	flag "github.com/juju/gnuflag"
+	"os"
+)
+
+const (
+	USE_VNEXT_ENV = "NOMS_VERSION_NEXT"
 )
 
 var (
@@ -14,29 +18,24 @@ var (
 	nomsVersionStable = "7"
 	nomsVersionNext   = "8"
 	NomsGitSHA        = "<developer build>"
-	useVersionNext    = false
 )
 
-func RegisterVersionFlags(flags flag.FlagSet) {
-	flags.BoolVar(&useVersionNext, "v8", false, "Enables noms format version 8")
-}
-
 func Current() string {
-	if useVersionNext {
+	if IsNext() {
 		return nomsVersionNext
 	} else {
 		return nomsVersionStable
 	}
 }
 
-func IsStable() bool {
-	return Current() == nomsVersionStable
+func IsNext() bool {
+	return os.Getenv(USE_VNEXT_ENV) == "1"
 }
 
-func IsNext() bool {
-	return Current() == nomsVersionNext
+func IsStable() bool {
+	return !IsNext()
 }
 
 func UseNext(v bool) {
-	useVersionNext = v
+	os.Setenv(USE_VNEXT_ENV, "1")
 }

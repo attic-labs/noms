@@ -6,7 +6,8 @@
 
 const stable = '7';
 const next = '8';
-let useNext = false;
+
+export const useVNextEnv = 'NOMS_VERSION_NEXT';
 
 export default {
   /**
@@ -14,27 +15,20 @@ export default {
    * useNext() is called.
    */
   current(): string {
-    return useNext ? next : stable;
+    return this.isNext() ? next : stable;
   },
 
   /**
    * Whether we are currently using the stable noms version.
    */
   isStable(): boolean {
-    return !useNext;
+    return !this.isNext();
   },
 
   /**
    * Whether we are currently using the next noms version that is under development.
    */
   isNext(): boolean {
-    return useNext;
-  },
-
-  /**
-   * Sets the noms version to either be the next version or not.
-   */
-  useNext(v: boolean) {
-    useNext = v;
+    return process.env[useVNextEnv] === '1';
   },
 };
