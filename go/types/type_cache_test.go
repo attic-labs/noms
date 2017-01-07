@@ -111,8 +111,8 @@ func TestTypeCacheUnionVersionNext(t *testing.T) {
 	u := MakeUnionType(MakeSetType(NumberType), MakeSetType(StringType))
 	assert.Equal("Set<String> | Set<Number>", u.Describe())
 
-	version.SetNext()
-	defer version.SetStable()
+	version.UseNext(true)
+	defer version.UseNext(false)
 	u = MakeUnionType(MakeSetType(NumberType), MakeSetType(StringType))
 	assert.Equal("Set<Number | String>", u.Describe())
 }
