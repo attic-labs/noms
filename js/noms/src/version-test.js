@@ -6,7 +6,7 @@
 
 import {assert} from 'chai';
 import {suite, test} from 'mocha';
-import version from './version.js';
+import version, {useVNextEnv} from './version.js';
 
 suite('version', () => {
   test('basic', () => {
@@ -14,9 +14,13 @@ suite('version', () => {
     assert.isOk(version.isStable());
     assert.isOk(!version.isNext());
 
-    version.useNext(true);
-    assert.equal('8', version.current());
-    assert.isOk(!version.isStable());
-    assert.isOk(version.isNext());
+    try {
+      process.env[useVNextEnv] = '1';
+      assert.equal('8', version.current());
+      assert.isOk(!version.isStable());
+      assert.isOk(version.isNext());
+    } finally {
+      process.env[useVNextEnv] = '';
+    }
   });
 });
