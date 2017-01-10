@@ -5,6 +5,7 @@
 package types
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -45,18 +46,20 @@ type ValueReadWriter interface {
 // - all Refs in v point to a Value that can be read from this ValueStore
 // - all Refs in v point to a Value of the correct Type
 type ValueStore struct {
-	bs           BatchStore
-	cacheMu      sync.RWMutex
-	hintCache    map[hash.Hash]chunkCacheEntry
-	pendingHints map[hash.Hash]chunkCacheEntry
-	pendingMu    sync.RWMutex
-	pendingPuts  map[hash.Hash]pendingChunk
-	valueCache   *sizecache.SizeCache
-	opcStore     opCacheStore
-	once         sync.Once
+	bs             BatchStore
+	cacheMu        sync.RWMutex
+	hintCache      map[hash.Hash]chunkCacheEntry
+	pendingHints   map[hash.Hash]chunkCacheEntry
+	pendingMu      sync.RWMutex
+	pendingPuts    map[hash.Hash]pendingChunk
+	pendingPutSize uint64
+	valueCache     *sizecache.SizeCache
+	opcStore       opCacheStore
+	once           sync.Once
 }
 
 const defaultValueCacheSize = 1 << 25 // 32MB
+const defaultPendingPutSize = 1 << 27 // 128MB
 
 type chunkCacheEntry interface {
 	Present() bool
@@ -230,12 +233,14 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 		lvs.pendingMu.Lock()
 		defer lvs.pendingMu.Unlock()
 		lvs.pendingPuts[h] = pendingChunk{c, height, hints}
-		v.WalkRefs(func(reachable Ref) {
-			if pc, present := lvs.pendingPuts[reachable.TargetHash()]; present {
-				lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
-				delete(lvs.pendingPuts, reachable.TargetHash())
-			}
-		})
+		lvs.pendingPutSize += uint64(len(c.Data()))
+		// v.WalkRefs(func(reachable Ref) {
+		// 	if pc, present := lvs.pendingPuts[reachable.TargetHash()]; present {
+		// 		lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
+		// 		delete(lvs.pendingPuts, reachable.TargetHash())
+		// 		lvs.pendingPutSize -= uint64(len(pc.c.Data()))
+		// 	}
+		// })
 	}()
 
 	lvs.setHintsForReachable(v, v.Hash(), true)
@@ -244,12 +249,85 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 	return r
 }
 
+type pendingFlush struct {
+	pendingChunk
+	depth, order int
+}
+
+type pendingFlushByDepthOrder []pendingFlush
+
+func (pfdo pendingFlushByDepthOrder) Len() int      { return len(pfdo) }
+func (pfdo pendingFlushByDepthOrder) Swap(i, j int) { pfdo[i], pfdo[j] = pfdo[j], pfdo[i] }
+func (pfdo pendingFlushByDepthOrder) Less(i, j int) bool {
+	if pfdo[i].depth == pfdo[j].depth {
+		return pfdo[i].order < pfdo[j].order
+	}
+	return pfdo[i].depth > pfdo[j].depth
+}
+
+func (lvs *ValueStore) flushFrom(root hash.Hash) []pendingFlush {
+
+	// lvs.pendingMu.Lock()
+	// defer lvs.pendingMu.Unlock()
+	// lvs.cacheMu.Lock()
+	// defer lvs.cacheMu.Unlock()
+
+	// for _, pc := range lvs.pendingPuts {
+	// 	lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
+	// 			delete(lvs.pendingPuts, reachable.TargetHash())
+	// 			lvs.pendingPutSize -= uint64(len(pc.c.Data()))
+	// 	lvs.pendingPutSize -= uint64(len(pc.c.Data()))
+	// }
+	// lvs.pendingPuts = map[hash.Hash]pendingChunk{}
+	return []pendingFlush{}
+}
+
+func getFlushOrder(root hash.Hash, pendingPuts map[hash.Hash]pendingChunk, vr ValueReader) []pendingFlush {
+	toFlush := []pendingFlush{}
+
+	bfs := func(pc pendingChunk) {
+		frontier := []pendingChunk{pc}
+		visited := hash.HashSet{}
+		next := []pendingChunk{}
+
+		depth, i := 0, 0
+		for 0 < len(frontier) {
+			next = []pendingChunk{}
+			for _, pc := range frontier {
+				visited.Insert(pc.c.Hash())
+
+				toFlush = append(toFlush, pendingFlush{pc, depth, i})
+				i++
+
+				v := DecodeValue(pc.c, vr)
+				v.WalkRefs(func(reachable Ref) {
+					h := reachable.TargetHash()
+					if pc, present := pendingPuts[h]; present && !visited.Has(h) {
+						next = append(next, pc)
+					}
+				})
+			}
+
+			frontier = next
+			depth++
+		}
+	}
+
+	if pc, ok := pendingPuts[root]; ok {
+		bfs(pc)
+	}
+
+	sort.Sort(pendingFlushByDepthOrder(toFlush))
+	return toFlush
+}
+
 func (lvs *ValueStore) Flush() {
 	func() {
 		lvs.pendingMu.Lock()
 		defer lvs.pendingMu.Unlock()
 		for _, pc := range lvs.pendingPuts {
 			lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
+			lvs.pendingPutSize -= uint64(len(pc.c.Data()))
 		}
 		lvs.pendingPuts = map[hash.Hash]pendingChunk{}
 	}()

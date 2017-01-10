@@ -5,6 +5,7 @@
 package types
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -60,6 +61,21 @@ func TestValueReadMany(t *testing.T) {
 	}
 }
 
+func TestValueWriteFlush(t *testing.T) {
+	assert := assert.New(t)
+
+	vals := ValueSlice{String("hello"), Bool(true), Number(42)}
+	vs := NewTestValueStore()
+	hashes := hash.HashSet{}
+	for _, v := range vals {
+		hashes.Insert(vs.WriteValue(v).TargetHash())
+	}
+	assert.NotZero(vs.pendingPutSize)
+
+	vs.Flush()
+	assert.Zero(vs.pendingPutSize)
+}
+
 func TestCheckChunksInCache(t *testing.T) {
 	assert := assert.New(t)
 	cs := chunks.NewTestStore()
@@ -109,6 +125,51 @@ func TestCheckChunksNotInCache(t *testing.T) {
 
 	bref := NewRef(b)
 	assert.Panics(func() { cvs.chunkHintsFromCache(bref) })
+}
+
+/*func TestFlushFrom(t *testing.T) {
+	// assert := assert.New(t)
+	cs := chunks.NewTestStore()
+	cvs := newLocalValueStore(cs)
+
+	b := NewEmptyBlob()
+	s := String("oy")
+	bref := cvs.WriteValue(b)
+	sref := cvs.WriteValue(s)
+	l := NewList(bref, sref)
+
+	lref := cvs.WriteValue(l)
+
+	shit := cvs.flushFrom(lref.TargetHash())
+	fmt.Println(bref.TargetHash(), sref.TargetHash(), lref.TargetHash())
+	for _, pf := range shit {
+		fmt.Println(pf.c.Hash(), pf.depth, pf.order)
+	}
+}*/
+
+func TestFlushOrder(t *testing.T) {
+	// assert := assert.New(t)
+	// cs := chunks.NewTestStore()
+
+	b := NewEmptyBlob()
+	s := String("oy")
+	bc := EncodeValue(b, nil)
+	sc := EncodeValue(s, nil)
+
+	l := NewList(NewRef(b), NewRef(s))
+	lc := EncodeValue(l, nil)
+
+	pending := map[hash.Hash]pendingChunk{
+		bc.Hash(): pendingChunk{bc, 1, Hints{}},
+		sc.Hash(): pendingChunk{sc, 1, Hints{}},
+		lc.Hash(): pendingChunk{lc, 2, Hints{}},
+	}
+
+	shit := getFlushOrder(lc.Hash(), pending, nil)
+	fmt.Println(bc.Hash(), sc.Hash(), lc.Hash())
+	for _, pf := range shit {
+		fmt.Println(pf.c.Hash(), pf.depth, pf.order)
+	}
 }
 
 func TestEnsureChunksInCache(t *testing.T) {
