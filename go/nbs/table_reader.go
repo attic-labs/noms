@@ -290,7 +290,6 @@ func (tr tableReader) getMany(reqs []getRecord, foundChunks chan *chunks.Chunk, 
 		go tr.readAtOffsets(readStart, readEnd, reqs, batch, foundChunks, wg)
 		batch = nil
 	}
-
 	return
 }
 

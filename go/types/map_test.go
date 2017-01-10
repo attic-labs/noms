@@ -6,6 +6,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"math/rand"
 	"sort"
 	"sync"
@@ -181,12 +182,22 @@ func newMapTestSuite(size uint, expectRefStr string, expectChunkCount int, expec
 			expectPrependChunkDiff: expectPrependChunkDiff,
 			expectAppendChunkDiff:  expectAppendChunkDiff,
 			validate: func(v2 Collection) bool {
+				if v2.Len() != uint64(elems.entries.Len()) {
+					fmt.Println("lengths not equal:", v2.Len(), elems.entries.Len())
+					return false
+				}
 				l2 := v2.(Map)
-				out := ValueSlice{}
-				l2.IterAll(func(key, value Value) {
-					out = append(out, key, value)
+				idx := uint64(0)
+				l2.Iter(func(key, value Value) (stop bool) {
+					entry := elems.entries[idx]
+					if !key.Equals(entry.key) || !value.Equals(entry.value) {
+						fmt.Printf("%s != %s or %s != %s", EncodedValue(key), EncodedValue(entry.key), EncodedValue(value), EncodedValue(entry.value))
+						stop = true
+					}
+					idx++
+					return
 				})
-				return ValueSlice(elems.FlattenAll()).Equals(out)
+				return idx == v2.Len()
 			},
 			prependOne: func() Collection {
 				dup := make([]mapEntry, length+1)

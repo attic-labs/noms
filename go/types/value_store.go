@@ -45,18 +45,24 @@ type ValueReadWriter interface {
 // - all Refs in v point to a Value that can be read from this ValueStore
 // - all Refs in v point to a Value of the correct Type
 type ValueStore struct {
-	bs           BatchStore
-	cacheMu      sync.RWMutex
-	hintCache    map[hash.Hash]chunkCacheEntry
-	pendingHints map[hash.Hash]chunkCacheEntry
-	pendingMu    sync.RWMutex
-	pendingPuts  map[hash.Hash]pendingChunk
-	valueCache   *sizecache.SizeCache
-	opcStore     opCacheStore
-	once         sync.Once
+	bs             BatchStore
+	cacheMu        sync.RWMutex
+	hintCache      map[hash.Hash]chunkCacheEntry
+	pendingHints   map[hash.Hash]chunkCacheEntry
+	pendingMu      sync.RWMutex
+	pendingPuts    map[hash.Hash]pendingChunk
+	pendingPutMax  uint64
+	pendingPutSize uint64
+	pendingParents map[hash.Hash]uint64 // chunk Hash -> ref height
+	valueCache     *sizecache.SizeCache
+	opcStore       opCacheStore
+	once           sync.Once
 }
 
-const defaultValueCacheSize = 1 << 25 // 32MB
+const (
+	defaultValueCacheSize = 1 << 25 // 32MB
+	defaultPendingPutMax  = 1 << 28 // 256MB
+)
 
 type chunkCacheEntry interface {
 	Present() bool
@@ -88,15 +94,22 @@ func NewValueStore(bs BatchStore) *ValueStore {
 }
 
 func NewValueStoreWithCache(bs BatchStore, cacheSize uint64) *ValueStore {
+	return newValueStoreWithCacheAndPending(bs, cacheSize, defaultPendingPutMax)
+}
+
+func newValueStoreWithCacheAndPending(bs BatchStore, cacheSize, pendingMax uint64) *ValueStore {
 	return &ValueStore{
-		bs:           bs,
-		cacheMu:      sync.RWMutex{},
-		hintCache:    map[hash.Hash]chunkCacheEntry{},
-		pendingHints: map[hash.Hash]chunkCacheEntry{},
-		pendingMu:    sync.RWMutex{},
-		pendingPuts:  map[hash.Hash]pendingChunk{},
-		valueCache:   sizecache.New(cacheSize),
-		once:         sync.Once{},
+		bs:             bs,
+		cacheMu:        sync.RWMutex{},
+		hintCache:      map[hash.Hash]chunkCacheEntry{},
+		pendingHints:   map[hash.Hash]chunkCacheEntry{},
+		pendingMu:      sync.RWMutex{},
+		pendingPuts:    map[hash.Hash]pendingChunk{},
+		pendingPutMax:  pendingMax,
+		pendingParents: map[hash.Hash]uint64{},
+
+		valueCache: sizecache.New(cacheSize),
+		once:       sync.Once{},
 	}
 }
 
@@ -229,35 +242,115 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 
 	// TODO: It _really_ feels like there should be some refactoring that allows us to only have to walk the refs of |v| once, but I'm hesitant to undertake that refactor right now.
 	hints := lvs.chunkHintsFromCache(v)
+	lvs.putGrandchildren(v, c, height, hints)
 
-	func() {
-		lvs.pendingMu.Lock()
-		defer lvs.pendingMu.Unlock()
-		lvs.pendingPuts[h] = pendingChunk{c, height, hints}
-		v.WalkRefs(func(reachable Ref) {
-			if pc, present := lvs.pendingPuts[reachable.TargetHash()]; present {
-				lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
-				delete(lvs.pendingPuts, reachable.TargetHash())
-			}
-		})
-	}()
-
-	lvs.setHintsForReachable(v, v.Hash(), true)
+	lvs.setHintsForReachable(v, h, true)
 	lvs.set(h, (*presentChunk)(v.Type()), false)
 	lvs.valueCache.Drop(h)
 	return r
 }
 
-func (lvs *ValueStore) Flush() {
+func (lvs *ValueStore) putGrandchildren(v Value, c chunks.Chunk, height uint64, hints Hints) {
+	lvs.pendingMu.Lock()
+	defer lvs.pendingMu.Unlock()
+	h := c.Hash()
+	d.Chk.NotZero(height)
+	lvs.pendingPuts[h] = pendingChunk{c, height, hints}
+	lvs.pendingPutSize += uint64(len(c.Data()))
+
+	putChildren := func(parent hash.Hash) (dataPut int) {
+		pc, present := lvs.pendingPuts[parent]
+		d.Chk.True(present)
+		v := DecodeValue(pc.c, lvs)
+		v.WalkRefs(func(grandchildRef Ref) {
+			if pc, present := lvs.pendingPuts[grandchildRef.TargetHash()]; present {
+				lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
+				dataPut += len(pc.c.Data())
+				delete(lvs.pendingPuts, grandchildRef.TargetHash())
+			}
+		})
+		return
+	}
+
+	if height > 1 {
+		v.WalkRefs(func(childRef Ref) {
+			childHash := childRef.TargetHash()
+			if _, present := lvs.pendingPuts[childHash]; present {
+				lvs.pendingParents[h] = height
+			} else {
+				// Shouldn't be able to be in pendingParents without being in pendingPuts
+				_, present := lvs.pendingParents[childHash]
+				d.Chk.False(present)
+			}
+
+			if _, present := lvs.pendingParents[childHash]; present {
+				lvs.pendingPutSize -= uint64(putChildren(childHash))
+				delete(lvs.pendingParents, childHash)
+			}
+		})
+	}
+
+	for lvs.pendingPutSize > lvs.pendingPutMax {
+		var tallest hash.Hash
+		var height uint64 = 0
+		for parent, ht := range lvs.pendingParents {
+			if ht > height {
+				tallest = parent
+				height = ht
+			}
+		}
+		if height == 0 { // This can happen if there are no pending parents
+			var pc pendingChunk
+			for tallest, pc = range lvs.pendingPuts {
+				// Any pendingPut is as good as another in this case, so take the first one
+				break
+			}
+			lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
+			lvs.pendingPutSize -= uint64(len(pc.c.Data()))
+			delete(lvs.pendingPuts, tallest)
+			continue
+		}
+
+		lvs.pendingPutSize -= uint64(putChildren(tallest))
+		delete(lvs.pendingParents, tallest)
+	}
+}
+
+func (lvs *ValueStore) Flush(root hash.Hash) {
 	func() {
 		lvs.pendingMu.Lock()
 		defer lvs.pendingMu.Unlock()
-		for _, pc := range lvs.pendingPuts {
-			lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
+
+		pc, present := lvs.pendingPuts[root]
+		if !present {
+			return
 		}
-		lvs.pendingPuts = map[hash.Hash]pendingChunk{}
+
+		put := func(h hash.Hash, pc pendingChunk) uint64 {
+			lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
+			delete(lvs.pendingPuts, h)
+			return uint64(len(pc.c.Data()))
+		}
+		v := DecodeValue(pc.c, lvs)
+		v.WalkRefs(func(reachable Ref) {
+			if pc, present := lvs.pendingPuts[reachable.TargetHash()]; present {
+				lvs.pendingPutSize -= put(reachable.TargetHash(), pc)
+			}
+		})
+		delete(lvs.pendingParents, root) // If not present, this is idempotent
+		lvs.pendingPutSize -= put(root, pc)
+
+		// Merge in pending hints
+		lvs.cacheMu.Lock()
+		defer lvs.cacheMu.Unlock()
+		for h, entry := range lvs.pendingHints {
+			if _, present := lvs.pendingPuts[h]; !present {
+				lvs.hintCache[h] = entry
+			} else {
+				delete(lvs.pendingHints, h)
+			}
+		}
 	}()
-	lvs.mergePendingHints()
 	lvs.bs.Flush()
 }
 
@@ -302,16 +395,6 @@ func (lvs *ValueStore) set(r hash.Hash, entry chunkCacheEntry, toPending bool) {
 	} else {
 		lvs.hintCache[r] = entry
 	}
-}
-
-func (lvs *ValueStore) mergePendingHints() {
-	lvs.cacheMu.Lock()
-	defer lvs.cacheMu.Unlock()
-
-	for h, entry := range lvs.pendingHints {
-		lvs.hintCache[h] = entry
-	}
-	lvs.pendingHints = map[hash.Hash]chunkCacheEntry{}
 }
 
 func (lvs *ValueStore) chunkHintsFromCache(v Value) Hints {
