@@ -235,18 +235,15 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 		lvs.pendingPuts[h] = pendingChunk{c, height, hints}
 		lvs.pendingPutSize += uint64(len(c.Data()))
 
-		if lvs.pendingPutSize > defaultPendingPutSize {
+		for lvs.pendingPutSize > defaultPendingPutSize {
 			sorted := make(pendingChunkByHeight, 0, len(lvs.pendingPuts))
 			for _, pc := range lvs.pendingPuts {
 				sorted = append(sorted, &pc)
 			}
 			sort.Sort(sorted)
 
-			tallest := sorted[0]
-			for lvs.pendingPutSize > defaultPendingPutSize {
-				flushFrom(tallest.c.Hash(), lvs.pendingPuts, lvs.bs, lvs)
-				tallest, sorted = sorted[0], sorted[1:]
-			}
+			dataPut := flushFrom(sorted[0].c.Hash(), lvs.pendingPuts, lvs.bs, lvs)
+			lvs.pendingPutSize -= uint64(dataPut)
 		}
 	}()
 
