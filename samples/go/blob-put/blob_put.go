@@ -7,11 +7,9 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
-
-	"runtime"
-
 	"io"
+	"os"
+	"runtime"
 
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
@@ -66,9 +64,9 @@ func main() {
 		r.Seek(int64(i)*chunkSize, 0)
 		limit := chunkSize
 		if i == len(readers)-1 {
-			limit += fileSize % chunkSize
+			limit += fileSize % chunkSize // adjust size of last slice to include the final bytes.
 		}
-		lr := io.LimitReader(r, limit) // lastCh
+		lr := io.LimitReader(r, limit)
 		readers[i] = lr
 	}
 
@@ -79,8 +77,6 @@ func main() {
 		return
 	}
 	defer db.Close()
-
-	profile.RegisterProfileFlags(flag.CommandLine)
 
 	blob := types.NewStreamingBlob(db, readers...)
 
