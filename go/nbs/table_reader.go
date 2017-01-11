@@ -224,7 +224,20 @@ func (hs offsetRecSlice) Len() int           { return len(hs) }
 func (hs offsetRecSlice) Less(i, j int) bool { return hs[i].offset < hs[j].offset }
 func (hs offsetRecSlice) Swap(i, j int)      { hs[i], hs[j] = hs[j], hs[i] }
 
+func ReadCount() int {
+	readMu.Lock()
+	defer readMu.Unlock()
+	return readCount
+}
+
+var readCount = 0
+var readMu = &sync.Mutex{}
+
 func (tr tableReader) readAtOffsets(readStart, readEnd uint64, reqs []getRecord, offsets offsetRecSlice, foundChunks chan *chunks.Chunk, wg *sync.WaitGroup) {
+	readMu.Lock()
+	readCount++
+	readMu.Unlock()
+
 	readLength := readEnd - readStart
 	buff := make([]byte, readLength)
 	n, err := tr.r.ReadAt(buff, int64(readStart))
