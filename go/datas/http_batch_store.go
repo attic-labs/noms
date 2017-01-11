@@ -163,7 +163,7 @@ func (bhcs *httpBatchStore) GetMany(hashes hash.HashSet, foundChunks chan *chunk
 	wg := &sync.WaitGroup{}
 	wg.Add(len(remaining))
 	bhcs.requestWg.Add(1)
-	bhcs.getQueue <- chunks.NewGetManyRequest(hashes, wg, foundChunks)
+	bhcs.getQueue <- chunks.NewGetManyRequest(remaining, wg, foundChunks)
 	wg.Wait()
 }
 
