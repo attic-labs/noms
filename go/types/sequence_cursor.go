@@ -205,7 +205,7 @@ type cursorIterCallback func(item interface{}) bool
 
 // iter iterates forward from the current position
 func (cur *sequenceCursor) iter(cb cursorIterCallback) {
-	if !cur.readAhead {
+	if cur.parent == nil || !cur.parent.readAhead {
 		for cur.valid() && !cb(cur.getItem(cur.idx)) {
 			cur.advance()
 		}
