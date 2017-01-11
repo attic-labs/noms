@@ -238,12 +238,15 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 		for lvs.pendingPutSize > defaultPendingPutSize {
 			sorted := make(pendingChunkByHeight, 0, len(lvs.pendingPuts))
 			for _, pc := range lvs.pendingPuts {
-				sorted = append(sorted, &pc)
+				sorted = append(sorted, pc)
 			}
-			sort.Sort(sorted)
 
-			dataPut := flushFrom(sorted[0].c.Hash(), lvs.pendingPuts, lvs.bs, lvs)
-			lvs.pendingPutSize -= uint64(dataPut)
+			sort.Sort(sorted)
+			// first, last := sorted[0].height, sorted[len(sorted)-1].height
+
+			dataPut := uint64(flushFrom(sorted[0].c.Hash(), lvs.pendingPuts, lvs.bs, lvs))
+			// fmt.Printf("Flushed %s, tallest %d shortest %d\n", humanize.IBytes(dataPut), first, last)
+			lvs.pendingPutSize -= dataPut
 		}
 	}()
 
@@ -253,11 +256,11 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 	return r
 }
 
-type pendingChunkByHeight []*pendingChunk
+type pendingChunkByHeight []pendingChunk
 
 func (pcbh pendingChunkByHeight) Len() int           { return len(pcbh) }
 func (pcbh pendingChunkByHeight) Swap(i, j int)      { pcbh[i], pcbh[j] = pcbh[j], pcbh[i] }
-func (pcbh pendingChunkByHeight) Less(i, j int) bool { return pcbh[i].height < pcbh[j].height }
+func (pcbh pendingChunkByHeight) Less(i, j int) bool { return pcbh[i].height > pcbh[j].height }
 
 type pendingFlush struct {
 	pendingChunk

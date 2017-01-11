@@ -7,7 +7,6 @@ package nbs
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"sort"
 	"sync"
@@ -293,7 +292,7 @@ func (tr tableReader) getMany(reqs []getRecord, foundChunks chan *chunks.Chunk, 
 		go tr.readAtOffsets(readStart, readEnd, reqs, batch, foundChunks, wg)
 		batch = nil
 	}
-	fmt.Printf("Getting %d chunks in %d reads\n", len(offsetRecords), count)
+	// fmt.Printf("Getting %d chunks in %d reads\n", len(offsetRecords), count)
 	return
 }
 
