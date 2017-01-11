@@ -160,6 +160,9 @@ func (bhcs *httpBatchStore) GetMany(hashes hash.HashSet, foundChunks chan *chunk
 		foundChunks <- c
 	}
 
+	if len(remaining) == 0 {
+		return
+	}
 	wg := &sync.WaitGroup{}
 	wg.Add(len(remaining))
 	bhcs.requestWg.Add(1)
