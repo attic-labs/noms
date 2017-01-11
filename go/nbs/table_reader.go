@@ -389,6 +389,7 @@ func canReadAhead(fRec offsetRec, fLength uint32, readStart, readEnd, blockSize 
 		return readEnd, true
 	}
 
+	// Is this right? This seems like it means that we're willing to keep reading ahead as long as the next chunk is < blockSize away from the end of the last chunk. That may be what we want, but then it's not really a "block size". It's more like...the amount of overhead we're willing to tolerate per chunk read.
 	if fRec.offset-readEnd > blockSize {
 		return readEnd, false
 	}
