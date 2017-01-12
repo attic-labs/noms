@@ -29,16 +29,16 @@ const maxRefCount = (1 << 12); // ~16MB of data
 
 interface ValueRec {
   v: Value;
-  cb: boolean;
+  needsCallback: boolean;
 }
 
 interface HashRec {
   h: Hash;
-  cb: boolean;
+  needsCallback: boolean;
 }
 
 export default async function walk(v: Value, vr: ValueReader, cb: WalkCallback): Promise<void> {
-  const values: ValueRec[] = [{v: v, cb: true}];
+  const values: ValueRec[] = [{v: v, needsCallback: true}];
   const refs: HashRec[] = [];
 
   const visited = Object.create(null);
@@ -49,13 +49,19 @@ export default async function walk(v: Value, vr: ValueReader, cb: WalkCallback):
     // Visit all values located *within* loaded chunks.
     while (values.length > 0) {
       const rec = values.pop();
-      if (rec.cb && await cb(rec.v)) {
-        continue;
+      if (rec.needsCallback) {
+        let skip = cb(rec.v);
+        if (skip && skip !== true) {
+          skip = await skip;
+        }
+        if (skip) {
+          continue;
+        }
       }
 
       v = rec.v;
       if (v instanceof Ref) {
-        refs.push({h: v.targetHash, cb: true});
+        refs.push({h: v.targetHash, needsCallback: true});
         continue;
       }
 
@@ -63,9 +69,9 @@ export default async function walk(v: Value, vr: ValueReader, cb: WalkCallback):
         v.sequence.items.forEach(mt => {
           if (mt.child) {
             // Eagerly visit uncommitted child sequences.
-            values.push({v: mt.child, cb: false});
+            values.push({v: mt.child, needsCallback: false});
           } else {
-            refs.push({h: mt.ref.targetHash, cb: false});
+            refs.push({h: mt.ref.targetHash, needsCallback: false});
           }
         });
         continue;
@@ -73,7 +79,7 @@ export default async function walk(v: Value, vr: ValueReader, cb: WalkCallback):
 
       if (v instanceof ValueBase) {
         await v.walkValues(vr, v => {
-          values.push({v: v, cb: true});
+          values.push({v: v, needsCallback: true});
           return;
         });
       }
@@ -89,11 +95,11 @@ export default async function walk(v: Value, vr: ValueReader, cb: WalkCallback):
 
       visited[hstr] = true;
       childValuesP.push(vr.readValue(rec.h));
-      childCB.push(rec.cb);
+      childCB.push(rec.needsCallback);
     }
 
     (await Promise.all(childValuesP)).forEach(
-        (child: Value, idx) => values.push({v: child, cb: childCB[idx]}));
+        (child: Value, idx) => values.push({v: child, needsCallback: childCB[idx]}));
 
     childValuesP.length = 0;
     childCB.length = 0;
