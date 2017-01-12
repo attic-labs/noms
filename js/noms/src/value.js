@@ -11,7 +11,7 @@ import type {Type} from './type.js';
 import type Ref from './ref.js';
 import type {ValueReader} from './value-store.js';
 
-export type ValueCallback = (v: Value) => ?void | Promise<?void>;
+export type ValueCallback = (v: Value) => void | Promise<void>;
 
 /**
  * ValueBase is the base class for non primitive Noms values.
