@@ -5,6 +5,7 @@
 package types
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -45,18 +46,20 @@ type ValueReadWriter interface {
 // - all Refs in v point to a Value that can be read from this ValueStore
 // - all Refs in v point to a Value of the correct Type
 type ValueStore struct {
-	bs           BatchStore
-	cacheMu      sync.RWMutex
-	hintCache    map[hash.Hash]chunkCacheEntry
-	pendingHints map[hash.Hash]chunkCacheEntry
-	pendingMu    sync.RWMutex
-	pendingPuts  map[hash.Hash]pendingChunk
-	valueCache   *sizecache.SizeCache
-	opcStore     opCacheStore
-	once         sync.Once
+	bs             BatchStore
+	cacheMu        sync.RWMutex
+	hintCache      map[hash.Hash]chunkCacheEntry
+	pendingHints   map[hash.Hash]chunkCacheEntry
+	pendingMu      sync.RWMutex
+	pendingPuts    map[hash.Hash]pendingChunk
+	pendingPutSize uint64
+	valueCache     *sizecache.SizeCache
+	opcStore       opCacheStore
+	once           sync.Once
 }
 
 const defaultValueCacheSize = 1 << 25 // 32MB
+const defaultPendingPutSize = 1 << 27 // 128MB
 
 type chunkCacheEntry interface {
 	Present() bool
@@ -234,12 +237,21 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 		lvs.pendingMu.Lock()
 		defer lvs.pendingMu.Unlock()
 		lvs.pendingPuts[h] = pendingChunk{c, height, hints}
-		v.WalkRefs(func(reachable Ref) {
-			if pc, present := lvs.pendingPuts[reachable.TargetHash()]; present {
-				lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
-				delete(lvs.pendingPuts, reachable.TargetHash())
+		lvs.pendingPutSize += uint64(len(c.Data()))
+
+		for lvs.pendingPutSize > defaultPendingPutSize {
+			sorted := make(pendingChunkByHeight, 0, len(lvs.pendingPuts))
+			for _, pc := range lvs.pendingPuts {
+				sorted = append(sorted, pc)
 			}
-		})
+
+			sort.Sort(sorted)
+			// first, last := sorted[0].height, sorted[len(sorted)-1].height
+
+			dataPut := uint64(flushFrom(sorted[0].c.Hash(), lvs.pendingPuts, lvs.bs, lvs))
+			// fmt.Printf("Flushed %s, tallest %d shortest %d\n", humanize.IBytes(dataPut), first, last)
+			lvs.pendingPutSize -= dataPut
+		}
 	}()
 
 	lvs.setHintsForReachable(v, v.Hash(), true)
@@ -248,14 +260,84 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 	return r
 }
 
-func (lvs *ValueStore) Flush() {
+type pendingChunkByHeight []pendingChunk
+
+func (pcbh pendingChunkByHeight) Len() int           { return len(pcbh) }
+func (pcbh pendingChunkByHeight) Swap(i, j int)      { pcbh[i], pcbh[j] = pcbh[j], pcbh[i] }
+func (pcbh pendingChunkByHeight) Less(i, j int) bool { return pcbh[i].height > pcbh[j].height }
+
+type pendingFlush struct {
+	pendingChunk
+	depth, order int
+}
+
+type pendingFlushByDepthOrder []pendingFlush
+
+func (pfdo pendingFlushByDepthOrder) Len() int      { return len(pfdo) }
+func (pfdo pendingFlushByDepthOrder) Swap(i, j int) { pfdo[i], pfdo[j] = pfdo[j], pfdo[i] }
+func (pfdo pendingFlushByDepthOrder) Less(i, j int) bool {
+	if pfdo[i].depth == pfdo[j].depth {
+		return pfdo[i].order < pfdo[j].order
+	}
+	return pfdo[i].depth > pfdo[j].depth
+}
+
+func flushFrom(root hash.Hash, pendingPuts map[hash.Hash]pendingChunk, bs BatchStore, vr ValueReader) (dataPut int) {
+	toFlush := getFlushOrder(root, pendingPuts, vr)
+	for _, pf := range toFlush {
+		h := pf.c.Hash()
+		bs.SchedulePut(pf.c, pf.height, pf.hints)
+		dataPut += len(pf.c.Data())
+		delete(pendingPuts, h)
+	}
+	return
+}
+
+func getFlushOrder(root hash.Hash, pendingPuts map[hash.Hash]pendingChunk, vr ValueReader) []pendingFlush {
+	toFlush := []pendingFlush{}
+
+	bfs := func(pc pendingChunk) {
+		frontier := []pendingChunk{pc}
+		visited := hash.HashSet{}
+		next := []pendingChunk{}
+
+		depth, i := 0, 0
+		for 0 < len(frontier) {
+			next = []pendingChunk{}
+			for _, pc := range frontier {
+				visited.Insert(pc.c.Hash())
+
+				toFlush = append(toFlush, pendingFlush{pc, depth, i})
+				i++
+
+				v := DecodeValue(pc.c, vr)
+				v.WalkRefs(func(reachable Ref) {
+					h := reachable.TargetHash()
+					if pc, present := pendingPuts[h]; present && !visited.Has(h) {
+						next = append(next, pc)
+					}
+				})
+			}
+
+			frontier = next
+			depth++
+		}
+	}
+
+	if pc, ok := pendingPuts[root]; ok {
+		bfs(pc)
+	}
+
+	sort.Sort(pendingFlushByDepthOrder(toFlush))
+	return toFlush
+}
+
+func (lvs *ValueStore) Flush(root hash.Hash) {
 	func() {
 		lvs.pendingMu.Lock()
 		defer lvs.pendingMu.Unlock()
-		for _, pc := range lvs.pendingPuts {
-			lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
-		}
-		lvs.pendingPuts = map[hash.Hash]pendingChunk{}
+		dataPut := flushFrom(root, lvs.pendingPuts, lvs.bs, lvs)
+		lvs.pendingPutSize -= uint64(dataPut)
 	}()
 	lvs.mergePendingHints()
 	lvs.bs.Flush()
@@ -305,13 +387,20 @@ func (lvs *ValueStore) set(r hash.Hash, entry chunkCacheEntry, toPending bool) {
 }
 
 func (lvs *ValueStore) mergePendingHints() {
+	lvs.pendingMu.Lock()
+	defer lvs.pendingMu.Unlock()
 	lvs.cacheMu.Lock()
 	defer lvs.cacheMu.Unlock()
 
+	newPendingHints := map[hash.Hash]chunkCacheEntry{}
 	for h, entry := range lvs.pendingHints {
-		lvs.hintCache[h] = entry
+		if _, present := lvs.pendingPuts[h]; !present {
+			lvs.hintCache[h] = entry
+		} else {
+			newPendingHints[h] = entry
+		}
 	}
-	lvs.pendingHints = map[hash.Hash]chunkCacheEntry{}
+	lvs.pendingHints = newPendingHints
 }
 
 func (lvs *ValueStore) chunkHintsFromCache(v Value) Hints {

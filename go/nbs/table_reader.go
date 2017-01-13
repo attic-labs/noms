@@ -260,11 +260,13 @@ func (tr tableReader) getMany(reqs []getRecord, foundChunks chan *chunks.Chunk, 
 	var batch offsetRecSlice
 	var readStart, readEnd uint64
 
+	count := 0
 	for i := 0; i < len(offsetRecords); {
 		rec := offsetRecords[i]
 		length := tr.lengths[rec.ordinal]
 
 		if batch == nil {
+			count++
 			batch = make(offsetRecSlice, 1)
 			batch[0] = offsetRecords[i]
 			readStart = rec.offset
@@ -290,7 +292,7 @@ func (tr tableReader) getMany(reqs []getRecord, foundChunks chan *chunks.Chunk, 
 		go tr.readAtOffsets(readStart, readEnd, reqs, batch, foundChunks, wg)
 		batch = nil
 	}
-
+	// fmt.Printf("Getting %d chunks in %d reads\n", len(offsetRecords), count)
 	return
 }
 
