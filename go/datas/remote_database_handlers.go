@@ -15,10 +15,13 @@ import (
 	"strings"
 	"time"
 
+	"sync"
+
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
+	"github.com/attic-labs/noms/go/nbs"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/golang/snappy"
@@ -35,7 +38,7 @@ const (
 	// servers must set in every request/response.
 	NomsVersionHeader = "x-noms-vers"
 	nomsBaseHTML      = "<html><head></head><body><p>Hi. This is a Noms HTTP server.</p><p>To learn more, visit <a href=\"https://github.com/attic-labs/noms\">our GitHub project</a>.</p></body></html>"
-	maxGetBatchSize   = 1 << 11 // Limit GetMany() to ~8MB of data
+	maxGetBatchSize   = 1 << 15 // Limit GetMany() to ~8MB of data
 )
 
 var (
@@ -245,16 +248,27 @@ func (wc wc) Close() error {
 	return nil
 }
 
+var rMu = &sync.Mutex{}
+var reqCount = 0
+var hashCount = 0
+var batchCount = 0
+
 func handleGetRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore) {
 	if req.Method != "POST" {
 		d.Panic("Expected post method.")
 	}
 
 	hashes := extractHashes(req)
+	time.Sleep(time.Millisecond)
 
 	w.Header().Add("Content-Type", "application/octet-stream")
 	writer := respWriter(req, w)
 	defer writer.Close()
+
+	rMu.Lock()
+	hashCount += len(hashes)
+	reqCount++
+	rMu.Unlock()
 
 	for len(hashes) > 0 {
 		batch := hashes
@@ -265,6 +279,9 @@ func handleGetRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs ch
 		}
 
 		chunkChan := make(chan *chunks.Chunk, maxGetBatchSize)
+		rMu.Lock()
+		batchCount++
+		rMu.Unlock()
 		go func() {
 			cs.GetMany(hashes.HashSet(), chunkChan)
 			close(chunkChan)
@@ -276,6 +293,10 @@ func handleGetRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs ch
 
 		hashes = hashes[len(batch):]
 	}
+
+	rMu.Lock()
+	fmt.Printf("%d reqs, %d hashes, %d batches, %d reads\n", reqCount, hashCount, batchCount, nbs.ReadCount())
+	rMu.Unlock()
 }
 
 func extractHashes(req *http.Request) hash.HashSlice {

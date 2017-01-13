@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	httpChunkSinkConcurrency = 6
+	httpChunkSinkConcurrency = 1
 	writeBufferSize          = 1 << 12 // 4K
 	readBufferSize           = 1 << 12 // 4K
 )
