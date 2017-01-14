@@ -85,15 +85,17 @@ func (suite *WalkAllTestSuite) TestWalkComposites() {
 
 func (suite *WalkAllTestSuite) TestWalkMultilevelList() {
 	count := 1 << 12
-	valueChan := make(chan Value, count)
+	nums := make([]Value, count)
 	for i := 0; i < count; i++ {
-		valueChan <- Number(i)
+		nums[i] = Number(i)
 	}
-	close(valueChan)
-
-	l := <-NewStreamingList(suite.vs, valueChan)
+	l := NewList(nums...)
 	suite.True(NewRef(l).Height() > 1)
 	suite.assertCallbackCount(l, count+1)
+
+	r := suite.vs.WriteValue(l)
+	outList := suite.vs.ReadValue(r.TargetHash())
+	suite.assertCallbackCount(outList, count+1)
 }
 
 func (suite *WalkAllTestSuite) TestWalkType() {

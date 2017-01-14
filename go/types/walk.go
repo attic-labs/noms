@@ -19,7 +19,6 @@ type valueRec struct {
 const maxRefCount = 1 << 12 // ~16MB of data
 
 // WalkValues recursively walks over all types. Values reachable from r and calls cb on them.
-// TODO: This will only work on graphs of data and are committed to |vr|.
 func WalkValues(target Value, vr ValueReader, cb SkipValueCallback) {
 	visited := hash.HashSet{}
 	refs := map[hash.Hash]bool{}
@@ -44,10 +43,15 @@ func WalkValues(target Value, vr ValueReader, cb SkipValueCallback) {
 				continue
 			}
 
-			if col, ok := v.(Collection); ok && !col.IsLeaf() {
-				col.WalkRefs(func(r Ref) {
-					refs[r.TargetHash()] = false
-				})
+			if col, ok := v.(Collection); ok && isMetaSequence(col.sequence()) {
+				ms := col.sequence().(metaSequence)
+				for _, mt := range ms.tuples {
+					if mt.child != nil {
+						values = append(values, valueRec{mt.child, false})
+					} else {
+						refs[mt.ref.TargetHash()] = false
+					}
+				}
 				continue
 			}
 
