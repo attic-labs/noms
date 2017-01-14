@@ -5,8 +5,10 @@
 package types
 
 import (
+	"bytes"
 	"testing"
 
+	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/testify/suite"
 )
 
@@ -21,10 +23,12 @@ func TestWalkAllTestSuite(t *testing.T) {
 type WalkAllTestSuite struct {
 	suite.Suite
 	vs *ValueStore
+	ts *chunks.TestStore
 }
 
 func (suite *WalkAllTestSuite) SetupTest() {
-	suite.vs = NewTestValueStore()
+	suite.ts = chunks.NewTestStore()
+	suite.vs = NewValueStore(NewBatchStoreAdaptor(suite.ts))
 }
 
 func (suite *WalkAllTestSuite) assertCallbackCount(v Value, expected int) {
@@ -48,11 +52,21 @@ func (suite *WalkAllTestSuite) assertVisitedOnce(root, v Value) {
 }
 
 func (suite *WalkAllTestSuite) TestWalkValuesDuplicates() {
-
 	dup := suite.NewList(Number(9), Number(10), Number(11), Number(12), Number(13))
 	l := suite.NewList(Number(8), dup, dup)
 
 	suite.assertCallbackCount(l, 11)
+}
+
+func (suite *WalkAllTestSuite) TestWalkAvoidBlobChunks() {
+	buff := randomBuff(16)
+	blob := NewBlob(bytes.NewReader(buff))
+	r := suite.vs.WriteValue(blob)
+	suite.True(r.Height() > 1)
+	outBlob := suite.vs.ReadValue(r.TargetHash()).(Blob)
+	suite.Equal(suite.ts.Reads, 0)
+	suite.assertCallbackCount(outBlob, 1)
+	suite.Equal(suite.ts.Reads, 0)
 }
 
 func (suite *WalkAllTestSuite) TestWalkPrimitives() {
