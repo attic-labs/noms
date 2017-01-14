@@ -19,6 +19,8 @@ import (
 type DateTime time.Time
 
 // DateTimeType is the Noms type used to represent date time objects in Noms.
+// The field secSinceEpoch may contain fractions in cases where seconds are
+// not sufficient.
 var DateTimeType = types.MakeStructTypeFromFields("DateTime", types.FieldMap{
 	"secSinceEpoch": types.NumberType,
 })
