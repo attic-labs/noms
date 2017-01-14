@@ -64,6 +64,7 @@ func (suite *WalkAllTestSuite) TestWalkAvoidBlobChunks() {
 	r := suite.vs.WriteValue(blob)
 	suite.True(r.Height() > 1)
 	outBlob := suite.vs.ReadValue(r.TargetHash()).(Blob)
+	suite.NotNil(suite.ts)
 	suite.Equal(suite.ts.Reads, 0)
 	suite.assertCallbackCount(outBlob, 1)
 	suite.Equal(suite.ts.Reads, 0)
@@ -241,7 +242,8 @@ type WalkTestSuite struct {
 }
 
 func (suite *WalkTestSuite) SetupTest() {
-	suite.vs = NewTestValueStore()
+	suite.ts = chunks.NewTestStore()
+	suite.vs = NewValueStore(NewBatchStoreAdaptor(suite.ts))
 	suite.shouldSeeItem = String("zzz")
 	suite.shouldSee = NewList(suite.shouldSeeItem)
 	suite.deadValue = Number(0xDEADBEEF)
