@@ -30,11 +30,15 @@ func WalkValues(target Value, vr ValueReader, cb SkipValueCallback) {
 			rec := values[len(values)-1]
 			values = values[:len(values)-1]
 
-			if rec.cb && cb(rec.v) {
+			v := rec.v
+			if rec.cb && cb(v) {
 				continue
 			}
 
-			v := rec.v
+			if _, ok := v.(Blob); ok {
+				continue // don't traverse into blob ptrees
+			}
+
 			if r, ok := v.(Ref); ok {
 				refs[r.TargetHash()] = true
 				continue
