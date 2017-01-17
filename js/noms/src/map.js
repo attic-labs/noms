@@ -141,11 +141,11 @@ export default class Map<K: Value, V: Value> extends
   }
 
   iterator(): AsyncIterator<MapEntry<K, V>> {
-    return new OrderedSequenceIterator(newCursorAt(this.sequence, null, false, false, true));
+    return new OrderedSequenceIterator(newCursorAt(this.sequence, null, false, false));
   }
 
   iteratorAt(k: K): AsyncIterator<MapEntry<K, V>> {
-    return new OrderedSequenceIterator(newCursorAtValue(this.sequence, k, false, false, true));
+    return new OrderedSequenceIterator(newCursorAtValue(this.sequence, k, false, false));
   }
 
   _splice(cursor: OrderedSequenceCursor<any, any>, insert: Array<MapEntry<K, V>>, remove: number)
@@ -172,7 +172,7 @@ export default class Map<K: Value, V: Value> extends
   }
 
   async delete(key: K): Promise<Map<K, V>> {
-    const cursor = await newCursorAtValue(this.sequence, key);
+    const cursor = await Value(this.sequence, key);
     if (cursor.valid && equals(cursor.getCurrentKey().value(), key)) {
       return this._splice(cursor, [], 1);
     }
