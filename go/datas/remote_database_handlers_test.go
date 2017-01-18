@@ -249,15 +249,38 @@ func TestHandleGetBlob(t *testing.T) {
 	assert := assert.New(t)
 
 	blobContents := "I am a blob"
-
 	cs := chunks.NewTestStore()
 	db := NewDatabase(cs)
+	ds := db.GetDataset("foo")
+
+	// Test missing h
+	w := httptest.NewRecorder()
+	HandleGetBlob(
+		w,
+		newRequest("GET", "", "/getBlob/", strings.NewReader(""), http.Header{}),
+		params{},
+		cs,
+	)
+	assert.Equal(http.StatusBadRequest, w.Code, "Handler error:\n%s", string(w.Body.Bytes()))
+
 	b := types.NewStreamingBlob(db, bytes.NewBuffer([]byte(blobContents)))
+
+	// Test non-present hash
+	w = httptest.NewRecorder()
+	HandleGetBlob(
+		w,
+		newRequest("GET", "", fmt.Sprintf("/getBlob/?h=%s", b.Hash().String()), strings.NewReader(""), http.Header{}),
+		params{},
+		cs,
+	)
+	assert.Equal(http.StatusBadRequest, w.Code, "Handler error:\n%s", string(w.Body.Bytes()))
+
 	r := db.WriteValue(b)
-	_, err := db.CommitValue(db.GetDataset("foo"), r)
+	ds, err := db.CommitValue(ds, r)
 	assert.NoError(err)
 
-	w := httptest.NewRecorder()
+	// Valid
+	w = httptest.NewRecorder()
 	HandleGetBlob(
 		w,
 		newRequest("GET", "", fmt.Sprintf("/getBlob/?h=%s", r.TargetHash().String()), strings.NewReader(""), http.Header{}),
@@ -269,6 +292,20 @@ func TestHandleGetBlob(t *testing.T) {
 		out, _ := ioutil.ReadAll(w.Body)
 		assert.Equal(string(out), blobContents)
 	}
+
+	// Test non-blob
+	r2 := db.WriteValue(types.Number(1))
+	ds, err = db.CommitValue(ds, r2)
+	assert.NoError(err)
+
+	w = httptest.NewRecorder()
+	HandleGetBlob(
+		w,
+		newRequest("GET", "", fmt.Sprintf("/getBlob/?h=%s", r2.TargetHash().String()), strings.NewReader(""), http.Header{}),
+		params{},
+		cs,
+	)
+	assert.Equal(http.StatusBadRequest, w.Code, "Handler error:\n%s", string(w.Body.Bytes()))
 }
 
 func TestHandleHasRefs(t *testing.T) {
