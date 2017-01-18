@@ -93,7 +93,7 @@ func createHandler(hndlr Handler, versionCheck bool) Handler {
 		w.Header().Set(NomsVersionHeader, constants.NomsVersion)
 
 		if versionCheck && req.Header.Get(NomsVersionHeader) != constants.NomsVersion {
-			verbose.Log("Returning version mismatch error")
+			verbose.Log("Returning version mismatch error. Server: %s, client: %s", constants.NomsVersion, req.Header.Get(NomsVersionHeader))
 			http.Error(
 				w,
 				fmt.Sprintf("Error: SDK version %s is incompatible with data of version %s", req.Header.Get(NomsVersionHeader), constants.NomsVersion),
@@ -380,14 +380,14 @@ func handleRootPost(w http.ResponseWriter, req *http.Request, ps URLParams, cs c
 		d.Panic("Can't set Root to a non-present Chunk")
 	}
 
-	// Ensure that proposed new Root is a Map and, if it has anything in it, that it's <String, <Ref<Commit>>
+	// Ensure that proposed new Root is a Map and, if it has anything in it, that it's <String, <Ref<Value>>
 	v := types.DecodeValue(c, nil)
 	if v.Type().Kind() != types.MapKind {
 		d.Panic("Root of a Database must be a Map")
 	}
 	m := v.(types.Map)
-	if !m.Empty() && !isMapOfStringToRefOfCommit(m) {
-		d.Panic("Root of a Database must be a Map<String, Ref<Commit>>, not %s", m.Type().Describe())
+	if !m.Empty() && !isMapOfStringToRefOfValue(m) {
+		d.Panic("Root of a Database must be a Map<String, Ref<Value>>, not %s", m.Type().Describe())
 	}
 
 	if !cs.UpdateRoot(current, last) {
@@ -405,20 +405,12 @@ func handleBaseGet(w http.ResponseWriter, req *http.Request, ps URLParams, rt ch
 	fmt.Fprintf(w, nomsBaseHTML)
 }
 
-func isMapOfStringToRefOfCommit(m types.Map) bool {
+func isMapOfStringToRefOfValue(m types.Map) bool {
 	mapTypes := m.Type().Desc.(types.CompoundDesc).ElemTypes
 	keyType, valType := mapTypes[0], mapTypes[1]
-	return keyType.Kind() == types.StringKind && (IsRefOfCommitType(valType) || isUnionOfRefOfCommitType(valType))
+	return keyType.Kind() == types.StringKind && isRefOfValueType(valType)
 }
 
-func isUnionOfRefOfCommitType(t *types.Type) bool {
-	if t.Kind() != types.UnionKind {
-		return false
-	}
-	for _, et := range t.Desc.(types.CompoundDesc).ElemTypes {
-		if !IsRefOfCommitType(et) {
-			return false
-		}
-	}
-	return true
+func isRefOfValueType(t *types.Type) bool {
+	return t.Kind() == types.RefKind && t.Desc.(types.CompoundDesc).ElemTypes[0].Kind() == types.ValueKind
 }

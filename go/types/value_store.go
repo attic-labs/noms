@@ -353,8 +353,8 @@ func (lvs *ValueStore) checkChunksInCache(v Value, readValues bool) Hints {
 		}
 
 		targetType := getTargetType(reachable)
-		if !entry.Type().Equals(targetType) {
-			d.Panic("Value to write contains ref %s, which points to a value of a different type: %+v != %+v", reachable.TargetHash(), entry.Type(), targetType)
+		if entry.Type().Kind() != ValueKind && targetType.Kind() != ValueKind && !entry.Type().Equals(targetType) {
+			d.Panic("Value to write contains ref %s, which points to a value with incompatible type: %s is not a subtype of %s", reachable.TargetHash(), targetType.Describe(), entry.Type().Describe())
 		}
 	}
 	v.WalkRefs(collectHints)

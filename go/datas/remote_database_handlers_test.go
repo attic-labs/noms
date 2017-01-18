@@ -386,7 +386,7 @@ func TestHandlePostRoot(t *testing.T) {
 	vs := types.NewValueStore(types.NewBatchStoreAdaptor(cs))
 
 	commit := NewCommit(types.String("head"), types.NewSet(), types.NewStruct("Meta", types.StructData{}))
-	newHead := types.NewMap(types.String("dataset1"), vs.WriteValue(commit))
+	newHead := types.NewMap(types.String("dataset1"), types.ToRefOfValue(vs.WriteValue(commit)))
 	chnx := []chunks.Chunk{
 		chunks.NewChunk([]byte("abc")),
 		types.EncodeValue(newHead, nil),
