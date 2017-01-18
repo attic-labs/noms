@@ -53,6 +53,11 @@ var (
 	// expects/honors, payload format, and responses.
 	HandleGetRefs = versionCheck(handleGetRefs)
 
+	// HandleGetBlob is a custom endpoint whose sole purpose is to directly fetch the *bytes*
+	// contained in a Blob value. It expects a single query param of `h` to be the ref of the Blob.
+	// TODO: Support retrieving blob contents via a path.
+	HandleGetBlob = handleGetBlob
+
 	// HandleWriteValue is meant to handle HTTP POST requests to the hasRefs/
 	// server endpoint. Given a sequence of Chunk hashes, the server check for
 	// their presence and return a list of true/false responses.
@@ -276,6 +281,30 @@ func handleGetRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs ch
 
 		hashes = hashes[len(batch):]
 	}
+}
+
+func handleGetBlob(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore) {
+	refStr := req.URL.Query().Get("h")
+	if refStr == "" {
+		d.Panic("Expected h param")
+	}
+
+	fmt.Println("Getting", refStr)
+	h := hash.Parse(refStr)
+	if (h == hash.Hash{}) {
+		d.Panic("h failed to parse")
+	}
+
+	vs := types.NewValueStore(types.NewBatchStoreAdaptor(cs))
+	v := vs.ReadValue(h)
+	b, ok := v.(types.Blob)
+	if !ok {
+		d.Panic("h is not a Blob")
+	}
+
+	w.Header().Add("Content-Type", "application/octet-stream")
+	w.Header().Add("Content-Length", fmt.Sprintf("%d", b.Len()))
+	b.Reader().Copy(w)
 }
 
 func extractHashes(req *http.Request) hash.HashSlice {

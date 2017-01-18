@@ -245,6 +245,32 @@ func TestHandleGetRefs(t *testing.T) {
 	}
 }
 
+func TestHandleGetBlob(t *testing.T) {
+	assert := assert.New(t)
+
+	blobContents := "I am a blob"
+
+	cs := chunks.NewTestStore()
+	db := NewDatabase(cs)
+	b := types.NewStreamingBlob(db, bytes.NewBuffer([]byte(blobContents)))
+	r := db.WriteValue(b)
+	_, err := db.CommitValue(db.GetDataset("foo"), r)
+	assert.NoError(err)
+
+	w := httptest.NewRecorder()
+	HandleGetBlob(
+		w,
+		newRequest("GET", "", fmt.Sprintf("/getBlob/?h=%s", r.TargetHash().String()), strings.NewReader(""), http.Header{}),
+		params{},
+		cs,
+	)
+
+	if assert.Equal(http.StatusOK, w.Code, "Handler error:\n%s", string(w.Body.Bytes())) {
+		out, _ := ioutil.ReadAll(w.Body)
+		assert.Equal(string(out), blobContents)
+	}
+}
+
 func TestHandleHasRefs(t *testing.T) {
 	assert := assert.New(t)
 	cs := chunks.NewTestStore()
