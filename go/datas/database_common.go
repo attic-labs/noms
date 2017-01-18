@@ -83,6 +83,7 @@ func (dbc *databaseCommon) doSetHead(ds Dataset, newHeadRef types.Ref) error {
 
 	currentRootHash, currentDatasets := dbc.getRootAndDatasets()
 	commitRef := dbc.WriteValue(commit) // will be orphaned if the tryUpdateRoot() below fails
+	commitRef = types.NewRefWithType(types.ValueType, commit)
 
 	currentDatasets = currentDatasets.Set(types.String(ds.ID()), commitRef)
 	return dbc.tryUpdateRoot(currentDatasets, currentRootHash)
@@ -111,6 +112,7 @@ func (dbc *databaseCommon) doCommit(datasetID string, commit types.Struct, merge
 	for err = ErrOptimisticLockFailed; err == ErrOptimisticLockFailed; {
 		currentRootHash, currentDatasets := dbc.getRootAndDatasets()
 		commitRef := dbc.WriteValue(commit) // will be orphaned if the tryUpdateRoot() below fails
+		commitRef = types.NewRefWithType(types.ValueType, commit)
 
 		// If there's nothing in the DB yet, skip all this logic.
 		if !currentRootHash.IsEmpty() {

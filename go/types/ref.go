@@ -5,7 +5,6 @@
 package types
 
 import (
-	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 )
 
@@ -17,13 +16,15 @@ type Ref struct {
 }
 
 func NewRef(v Value) Ref {
-	return Ref{v.Hash(), maxChunkHeight(v) + 1, MakeRefType(v.Type()), &hash.Hash{}}
+	return NewRefWithType(v.Type(), v)
+}
+
+func NewRefWithType(t *Type, v Value) Ref {
+	return Ref{v.Hash(), maxChunkHeight(v) + 1, MakeRefType(t), &hash.Hash{}}
 }
 
 // Constructs a Ref directly from struct properties. This should not be used outside decoding and testing within the types package.
 func constructRef(t *Type, target hash.Hash, height uint64) Ref {
-	d.PanicIfFalse(RefKind == t.Kind())
-	d.PanicIfFalse(ValueType != t.Desc.(CompoundDesc).ElemTypes[0])
 	return Ref{target, height, t, &hash.Hash{}}
 }
 
