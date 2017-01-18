@@ -17,7 +17,7 @@ import RefCountingBatchStore from './ref-counting-batch-store.js';
 
 // Cache of database URL -> Database object. It's reasonable for clients to
 // open a spec without worrying about whether the Database is already open.
-const batchStores: {[key: string]: RefCountingBatchStore} = {};
+const batchStores: {[key: string]: RefCountingBatchStore} = Object.create(null);
 
 // Override creation of batch stores for tests.
 type createBatchStoreFunc = () => BatchStore;
