@@ -44,40 +44,40 @@ var (
 	// ordered sequence of Chunks to be validated and stored on the server.
 	// TODO: Nice comment about what headers it expects/honors, payload
 	// format, and error responses.
-	HandleWriteValue = createHanlder(handleWriteValue, true)
+	HandleWriteValue = createHandler(handleWriteValue, true)
 
 	// HandleGetRefs is meant to handle HTTP POST requests to the getRefs/
 	// server endpoint. Given a sequence of Chunk hashes, the server will
 	// fetch and return them.
 	// TODO: Nice comment about what headers it
 	// expects/honors, payload format, and responses.
-	HandleGetRefs = createHanlder(handleGetRefs, true)
+	HandleGetRefs = createHandler(handleGetRefs, true)
 
 	// HandleGetBlob is a custom endpoint whose sole purpose is to directly
 	// fetch the *bytes* contained in a Blob value. It expects a single query
 	// param of `h` to be the ref of the Blob.
 	// TODO: Support retrieving blob contents via a path.
-	HandleGetBlob = createHanlder(handleGetBlob, false)
+	HandleGetBlob = createHandler(handleGetBlob, false)
 
 	// HandleWriteValue is meant to handle HTTP POST requests to the hasRefs/
 	// server endpoint. Given a sequence of Chunk hashes, the server check for
 	// their presence and return a list of true/false responses.
 	// TODO: Nice comment about what headers it expects/honors, payload
 	// format, and responses.
-	HandleHasRefs = createHanlder(handleHasRefs, true)
+	HandleHasRefs = createHandler(handleHasRefs, true)
 
 	// HandleRootGet is meant to handle HTTP GET requests to the root/ server
 	// endpoint. The server returns the hash of the Root as a string.
 	// TODO: Nice comment about what headers it expects/honors, payload
 	// format, and responses.
-	HandleRootGet = createHanlder(handleRootGet, true)
+	HandleRootGet = createHandler(handleRootGet, true)
 
 	// HandleWriteValue is meant to handle HTTP POST requests to the root/
 	// server endpoint. This is used to update the Root to point to a new
 	// Chunk.
 	// TODO: Nice comment about what headers it expects/honors, payload
 	// format, and error responses.
-	HandleRootPost = createHanlder(handleRootPost, true)
+	HandleRootPost = createHandler(handleRootPost, true)
 
 	// HandleBaseGet is meant to handle HTTP GET requests to the / server
 	// endpoint. This is used to give a friendly message to users.
@@ -88,7 +88,7 @@ var (
 	writeValueConcurrency = runtime.NumCPU()
 )
 
-func createHanlder(hndlr Handler, versionCheck bool) Handler {
+func createHandler(hndlr Handler, versionCheck bool) Handler {
 	return func(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore) {
 		w.Header().Set(NomsVersionHeader, constants.NomsVersion)
 
