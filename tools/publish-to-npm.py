@@ -39,7 +39,7 @@ def npm_publish():
     print '%s: Old version: %s, New version: %s' % (package_name, deployed_version, new_version)
     if new_version > deployed_version:
         subprocess.check_call(['npm', 'whoami'])
-        subprocess.check_call(['yarn', 'install'])
+        subprocess.check_call(['yarn'])
         subprocess.check_call(['yarn', 'publish'])
 
 if __name__ == '__main__':
