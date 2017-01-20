@@ -316,7 +316,7 @@ func (nbs *NomsBlockStore) AddHints(hints types.Hints) {
 
 func (nbs *NomsBlockStore) Flush() {
 	b := &backoff.Backoff{
-		Min:    50 * time.Millisecond,
+		Min:    128 * time.Microsecond,
 		Max:    10 * time.Second,
 		Factor: 2,
 		Jitter: true,
