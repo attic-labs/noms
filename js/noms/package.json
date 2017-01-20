@@ -7,8 +7,7 @@
   "main": "dist/commonjs/noms.js",
   "engines": {
     "node": ">=6.9",
-    "npm": ">=3",
-    "yarn": ">=0.19"
+    "npm": ">=3"
   },
   "dependencies": {
     "asmcrypto.js-sha512": "^0.0.1",
