@@ -5,6 +5,7 @@
 package types
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -132,6 +133,7 @@ func (lvs *ValueStore) ReadValue(h hash.Hash) Value {
 		lvs.pendingMu.RLock()
 		defer lvs.pendingMu.RUnlock()
 		if pc, ok := lvs.pendingPuts[h]; ok {
+			fmt.Println("Hello")
 			return pc.c
 		}
 		return chunks.EmptyChunk
@@ -250,6 +252,16 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 	return r
 }
 
+// bufferChunk enqueues c (which is the serialization of v) within this
+// ValueStore. Buffered chunks are flushed progressively to the underlying
+// BatchStore in a way which attempts to locate children and grandchildren
+// sequentially together. The following invariants are retained:
+//
+// 1. For any given chunk currently in the buffer, only direct children of the
+//    chunk may also be presently buffered (any grandchildren will have been
+//    flushed).
+// 2. The total data occupied by buffered chunks does not exceed
+//    lvs.pendingPutMax
 func (lvs *ValueStore) putGrandchildren(v Value, c chunks.Chunk, height uint64, hints Hints) {
 	lvs.pendingMu.Lock()
 	defer lvs.pendingMu.Unlock()
@@ -272,6 +284,7 @@ func (lvs *ValueStore) putGrandchildren(v Value, c chunks.Chunk, height uint64, 
 		return
 	}
 
+	// Enforce invariant (1)
 	if height > 1 {
 		v.WalkRefs(func(childRef Ref) {
 			childHash := childRef.TargetHash()
@@ -290,6 +303,7 @@ func (lvs *ValueStore) putGrandchildren(v Value, c chunks.Chunk, height uint64, 
 		})
 	}
 
+	// Enforce invariant (2)
 	for lvs.pendingPutSize > lvs.pendingPutMax {
 		var tallest hash.Hash
 		var height uint64 = 0
@@ -346,7 +360,6 @@ func (lvs *ValueStore) Flush(root hash.Hash) {
 		for h, entry := range lvs.pendingHints {
 			if _, present := lvs.pendingPuts[h]; !present {
 				lvs.hintCache[h] = entry
-			} else {
 				delete(lvs.pendingHints, h)
 			}
 		}
