@@ -93,7 +93,7 @@ func createHandler(hndlr Handler, versionCheck bool) Handler {
 		w.Header().Set(NomsVersionHeader, constants.NomsVersion)
 
 		if versionCheck && req.Header.Get(NomsVersionHeader) != constants.NomsVersion {
-			verbose.Log("Returning version mismatch error. Server: %s, client: %s", constants.NomsVersion, req.Header.Get(NomsVersionHeader))
+			verbose.Log("Returning version mismatch error")
 			http.Error(
 				w,
 				fmt.Sprintf("Error: SDK version %s is incompatible with data of version %s", req.Header.Get(NomsVersionHeader), constants.NomsVersion),
@@ -374,20 +374,31 @@ func handleRootPost(w http.ResponseWriter, req *http.Request, ps URLParams, cs c
 	}
 	current := hash.Parse(tokens[0])
 
+	vs := types.NewValueStore(types.NewBatchStoreAdaptor(cs))
+
 	// Ensure that proposed new Root is present in cs
-	c := cs.Get(current)
-	if c.IsEmpty() {
+	proposed := vs.ReadValue(current)
+	if proposed == nil {
 		d.Panic("Can't set Root to a non-present Chunk")
 	}
 
-	// Ensure that proposed new Root is a Map and, if it has anything in it, that it's <String, <Ref<Value>>
-	v := types.DecodeValue(c, nil)
-	if v.Type().Kind() != types.MapKind {
-		d.Panic("Root of a Database must be a Map")
+	// Even though the Root is actually a Map<String, Ref<Commit>>, its Noms Type is Map<String, Ref<Value>> in order to prevent the root chunk from getting bloated with type info. That means that the Value of the proposed new Root needs to be manually type-checked. The simplest way to do that would be to iterate over the whole thing and pull the target of each Ref from |cs|. That's a lot of reads, though, and it's more efficient to just read the Value indicated by |last|, diff the proposed new root against it, and validate whatever new entries appear.
+	datasets := types.NewMap()
+	if !last.IsEmpty() {
+		lastVal := vs.ReadValue(last)
+		if lastVal == nil {
+			d.Panic("Can't UpdateRoot from a non-present Chunk")
+		}
+
+		datasets = lastVal.(types.Map)
 	}
-	m := v.(types.Map)
-	if !m.Empty() && !isMapOfStringToRefOfValue(m) {
-		d.Panic("Root of a Database must be a Map<String, Ref<Value>>, not %s", m.Type().Describe())
+
+	// Ensure that proposed new Root is a Map and, if it has anything in it, that it's <String, <Ref<Commit>>
+
+	if m, ok := proposed.(types.Map); !ok {
+		d.Panic("Root of a Database must be a Map")
+	} else if !m.Empty() {
+		assertMapOfStringToRefOfCommit(m, datasets, vs)
 	}
 
 	if !cs.UpdateRoot(current, last) {
@@ -405,12 +416,27 @@ func handleBaseGet(w http.ResponseWriter, req *http.Request, ps URLParams, rt ch
 	fmt.Fprintf(w, nomsBaseHTML)
 }
 
-func isMapOfStringToRefOfValue(m types.Map) bool {
-	mapTypes := m.Type().Desc.(types.CompoundDesc).ElemTypes
-	keyType, valType := mapTypes[0], mapTypes[1]
-	return keyType.Kind() == types.StringKind && isRefOfValueType(valType)
-}
-
-func isRefOfValueType(t *types.Type) bool {
-	return t.Kind() == types.RefKind && t.Desc.(types.CompoundDesc).ElemTypes[0].Kind() == types.ValueKind
+func assertMapOfStringToRefOfCommit(proposed, datasets types.Map, vr types.ValueReader) {
+	stopChan := make(chan struct{})
+	defer close(stopChan)
+	changes := make(chan types.ValueChanged)
+	go func() {
+		defer close(changes)
+		proposed.Diff(datasets, changes, stopChan)
+	}()
+	for change := range changes {
+		switch change.ChangeType {
+		case types.DiffChangeAdded, types.DiffChangeModified:
+			// Since this is a Map Diff, change.V is the key at which a change was detected.
+			// Go get the Value there, which should be a Ref<Value>, deref it, and then ensure the target is a Commit.
+			val := proposed.Get(change.V)
+			ref, ok := val.(types.Ref)
+			if !ok {
+				d.Panic("Root of a Database must be a Map<String, Ref<Commit>>, but key %s maps to a %s", change.V.(types.String), val.Type().Describe())
+			}
+			if targetType := ref.TargetValue(vr).Type(); !IsCommitType(targetType) {
+				d.Panic("Root of a Database must be a Map<String, Ref<Commit>>, not the ref at key %s points to a %s", change.V.(types.String), targetType.Describe())
+			}
+		}
+	}
 }

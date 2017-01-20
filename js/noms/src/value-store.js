@@ -314,6 +314,9 @@ class HashCache {
         if (equals(targetType, valueType)) {
           continue;
         }
+        // BUG 3099 - TODO: if equals(entryType, valueType) but !equals(targetType, valueType),
+        // readValue(targetHash), check its type against targetType, and panic if there's a
+        // mismatch.
         const entryType = notNull(entry.type);
         if (equals(entryType, valueType)) {
           continue;

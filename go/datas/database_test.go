@@ -197,17 +197,20 @@ func (suite *DatabaseSuite) TestDatabaseCommit() {
 func (suite *DatabaseSuite) TestDatasetsMapType() {
 	dsID1, dsID2 := "ds1", "ds2"
 
+	datasets := suite.db.Datasets()
 	ds, err := suite.db.CommitValue(suite.db.GetDataset(dsID1), types.String("a"))
 	suite.NoError(err)
-	suite.True(isMapOfStringToRefOfValue(suite.db.Datasets()))
+	suite.NotPanics(func() { assertMapOfStringToRefOfCommit(suite.db.Datasets(), datasets, suite.db) })
 
+	datasets = suite.db.Datasets()
 	_, err = suite.db.CommitValue(suite.db.GetDataset(dsID2), types.Number(42))
 	suite.NoError(err)
-	suite.True(isMapOfStringToRefOfValue(suite.db.Datasets()))
+	suite.NotPanics(func() { assertMapOfStringToRefOfCommit(suite.db.Datasets(), datasets, suite.db) })
 
+	datasets = suite.db.Datasets()
 	_, err = suite.db.Delete(ds)
 	suite.NoError(err)
-	suite.True(isMapOfStringToRefOfValue(suite.db.Datasets()))
+	suite.NotPanics(func() { assertMapOfStringToRefOfCommit(suite.db.Datasets(), datasets, suite.db) })
 }
 
 func newOpts(parents ...types.Value) CommitOptions {
