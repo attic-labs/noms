@@ -8,6 +8,9 @@
   "engines": {
     "node": ">=6.9"
   },
+  "scripts": {
+    "test": "exit 0"
+  },
   "dependencies": {
     "babel-plugin-syntax-async-functions": "^6.13.0",
     "babel-plugin-transform-async-to-generator": "^6.16.0",

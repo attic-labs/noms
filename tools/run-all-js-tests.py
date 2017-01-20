@@ -22,6 +22,7 @@ def main():
 
     if name == 'package.json':
       with pushd(path):
+        print('Running tests in: %s' % path)
         subprocess.check_call(['yarn'])
         subprocess.check_call(['yarn', 'test'])
 
