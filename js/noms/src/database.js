@@ -17,6 +17,7 @@ import Commit, {isCommitType} from './commit.js';
 import type Struct from './struct.js';
 import {getTypeOfValue} from './type.js';
 import {makeRefOfValue} from './ref.js';
+import {invariant, notNull} from './assert.js';
 
 type CommitOptions = {
   parents?: ?Array<Ref<Commit<any>>>,
@@ -65,30 +66,22 @@ export default class Database {
    * id in the above Datasets Map.
    */
   getDataset(id: string): Dataset {
-    return new Dataset(this, id, this.datasets()
-      .then(sets => sets.get(id))
-      .then(valRef => {
-        if (valRef) {
-          return valRef.targetValue(this);
-        }
+    const getRef = async () => {
+      const sets = await this.datasets();
+      const valRef = await sets.get(id);
+      if (!valRef) {
         return null;
-      })
-      .then((v: ?Value) => {
-        if (v) {
-          if (isCommitType(getTypeOfValue(v))) {
-            // $FlowIssue: Can't make ValueBase into a Commit<*>
-            return (v: Commit<*>);
-          }
-          throw new Error('oy!');
-        }
+      }
+      const v = await notNull(valRef).targetValue(this);
+      if (!v) {
         return null;
-      })
-      .then((c: ?Commit<*>) => {
-        if (c) {
-          return new Ref(c);
-        }
-        return null;
-      }));
+      }
+      invariant(isCommitType(getTypeOfValue(v)), 'Head of dataset ' + id + ' is not a Ref<Commit>');
+      // $FlowIssue: Can't make Value into a Commit<*>
+      const c = (v: Commit<*>);
+      return new Ref(c);
+    };
+    return new Dataset(this, id, getRef());
   }
 
   // TODO: This should return Promise<Value | null>
@@ -157,7 +150,7 @@ export default class Database {
       if (!currentRootRef.isEmpty()) {
         const currentHeadRef = await currentDatasets.get(datasetId);
         if (currentHeadRef) {
-          // $FlowIssue: Can't make Value into a Commit<*>
+          // $FlowIssue: Can't make Value into a Commit<any>
           const currentHead: Commit<any> = await currentHeadRef.targetValue(this);
           const r = new Ref(currentHead);
           if (!await this._descendsFrom(commit, r)) {
