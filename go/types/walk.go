@@ -109,14 +109,14 @@ func mightContainStructs(t *Type) (mightHaveStructs bool) {
 	return
 }
 
-// Efficiently returns the set of |removed| (reachable from |last|, but not |current|) and |added|
-// (reachable from |current| but not |last|) types.Structs. Internally avoids visiting chunks which
-// are common to both value graphs.
+// WalkDifferentStructs Efficiently returns the set of |removed| (reachable from |last|, but not
+// |current|) and |added| (reachable from |current| but not |last|) types.Structs. Internally
+// avoids visiting chunks which are common to both value graphs.
 func WalkDifferentStructs(last, current Value, vr ValueReader) (added, removed map[hash.Hash]Struct) {
 	added, removed = map[hash.Hash]Struct{}, map[hash.Hash]Struct{}
 
 	oldRefs, currentRefs := RefByHeight{}, RefByHeight{}
-	oldValues, currentValues := []Value{}, []Value{}
+	oldValues, currentValues := ValueSlice{}, ValueSlice{}
 	if last != nil {
 		if current != nil && last.Equals(current) {
 			return // same values
@@ -128,7 +128,7 @@ func WalkDifferentStructs(last, current Value, vr ValueReader) (added, removed m
 		currentValues = append(currentValues, current)
 	}
 
-	walkLocalValues := func(values *[]Value, structs map[hash.Hash]Struct, refs *RefByHeight) {
+	walkLocalValues := func(values *ValueSlice, structs map[hash.Hash]Struct, refs *RefByHeight) {
 		for len(*values) > 0 {
 			v := (*values)[len(*values)-1]
 			*values = (*values)[:len(*values)-1]
@@ -166,6 +166,8 @@ func WalkDifferentStructs(last, current Value, vr ValueReader) (added, removed m
 				*values = append(*values, sv)
 			})
 		}
+
+		sort.Sort(refs)
 	}
 
 	for len(oldValues) > 0 || len(currentValues) > 0 || oldRefs.Len() > 0 || currentRefs.Len() > 0 {
@@ -176,9 +178,6 @@ func WalkDifferentStructs(last, current Value, vr ValueReader) (added, removed m
 		if len(oldRefs) == 0 && len(currentRefs) == 0 {
 			continue
 		}
-
-		sort.Sort(oldRefs)
-		sort.Sort(currentRefs)
 
 		oldRefsToLoad := hash.HashSet{}
 		currentRefsToLoad := hash.HashSet{}

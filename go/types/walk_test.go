@@ -336,15 +336,24 @@ func (suite *WalkDifferentStructsTestSuite) TestWalkStructsBasic() {
 	suite.AssertDiffs(l2, l1, []Value{s4}, []Value{s1, s3})
 
 	// Big, committed collections of structs
-	l1 = suite.vs.ReadValue(suite.vs.WriteValue(l1).TargetHash()).(List)
-	l2 = suite.vs.ReadValue(suite.vs.WriteValue(l2).TargetHash()).(List)
+	h1 := suite.vs.WriteValue(l1).TargetHash()
+	h2 := suite.vs.WriteValue(l2).TargetHash()
+	suite.vs.Flush(h1)
+	suite.vs.Flush(h2)
 
-	rc := suite.ts.Reads
+	// Use a fresh value store to avoid cached chunks
+	nvs := NewValueStore(NewBatchStoreAdaptor(suite.ts))
+
+	l1 = nvs.ReadValue(h1).(List)
+	l2 = nvs.ReadValue(h2).(List)
+
+	suite.ts.Reads = 0
 	suite.AssertDiffs(nil, l2, []Value{s1, s2, s3}, []Value{})
-	suite.Equal(1, suite.ts.Reads-rc) // Type information gets used to avoid loads
+	suite.Equal(1, suite.ts.Reads) // Type information gets used to avoid loads
 
+	suite.ts.Reads = 0
 	suite.AssertDiffs(l1, l2, []Value{s1, s3}, []Value{s4})
-	suite.Equal(2, suite.ts.Reads-rc) // Chunk diff gets used to avoid loading common subtrees
+	suite.Equal(1, suite.ts.Reads) // Chunk diff gets used to avoid loading common subtrees
 
 	// Structs inside structs whose fields will be simplified away.
 	s5 := NewStruct("s", StructData{
