@@ -190,8 +190,12 @@ func newMapTestSuite(size uint, expectRefStr string, expectChunkCount int, expec
 				idx := uint64(0)
 				l2.Iter(func(key, value Value) (stop bool) {
 					entry := elems.entries[idx]
-					if !key.Equals(entry.key) || !value.Equals(entry.value) {
-						fmt.Printf("%s != %s or %s != %s", EncodedValue(key), EncodedValue(entry.key), EncodedValue(value), EncodedValue(entry.value))
+					if !key.Equals(entry.key) {
+						fmt.Printf("%d: %s (%s)\n!=\n%s (%s)\n", idx, EncodedValueWithTags(key), key.Hash(), EncodedValueWithTags(entry.key), entry.key.Hash())
+						stop = true
+					}
+					if !value.Equals(entry.value) {
+						fmt.Printf("%s (%s) !=\n%s (%s)\n", EncodedValueWithTags(value), value.Hash(), EncodedValueWithTags(entry.value), entry.value.Hash())
 						stop = true
 					}
 					idx++

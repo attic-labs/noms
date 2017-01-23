@@ -5,7 +5,6 @@
 package types
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -129,11 +128,12 @@ func (lvs *ValueStore) ReadValue(h hash.Hash) Value {
 		return v.(Value)
 	}
 
+	stillPending := false
 	chunk := func() chunks.Chunk {
 		lvs.pendingMu.RLock()
 		defer lvs.pendingMu.RUnlock()
 		if pc, ok := lvs.pendingPuts[h]; ok {
-			fmt.Println("Hello")
+			stillPending = true
 			return pc.c
 		}
 		return chunks.EmptyChunk
@@ -148,20 +148,20 @@ func (lvs *ValueStore) ReadValue(h hash.Hash) Value {
 
 	v := DecodeValue(chunk, lvs)
 	lvs.valueCache.Add(h, uint64(len(chunk.Data())), v)
-	lvs.setHintsForReadValue(v, h)
+	lvs.setHintsForReadValue(v, h, stillPending)
 	return v
 }
 
-func (lvs *ValueStore) setHintsForReadValue(v Value, h hash.Hash) {
+func (lvs *ValueStore) setHintsForReadValue(v Value, h hash.Hash, toPending bool) {
 	var entry chunkCacheEntry = absentChunk{}
 	if v != nil {
-		lvs.setHintsForReachable(v, h, false)
+		lvs.setHintsForReachable(v, h, toPending)
 		// h is trivially a hint for v, so consider putting that in the hintCache. If we got to v by reading some higher-level chunk, this entry gets dropped on the floor because h already has a hint in the hintCache. If we later read some other chunk that references v, setHintsForReachable will overwrite this with a hint pointing to that chunk.
 		// If we don't do this, top-level Values that get read but not written -- such as the existing Head of a Database upon a Commit -- can be erroneously left out during a pull.
 		entry = hintedChunk{v.Type(), h}
 	}
 	if cur := lvs.check(h); cur == nil || cur.Hint().IsEmpty() {
-		lvs.set(h, entry, false)
+		lvs.set(h, entry, toPending)
 	}
 }
 
@@ -169,10 +169,10 @@ func (lvs *ValueStore) setHintsForReadValue(v Value, h hash.Hash) {
 // return, |foundValues| will have been fully sent all Values which have been
 // found. Any non-present Values will silently be ignored.
 func (lvs *ValueStore) ReadManyValues(hashes hash.HashSet, foundValues chan<- Value) {
-	decode := func(h hash.Hash, chunk *chunks.Chunk) Value {
+	decode := func(h hash.Hash, chunk *chunks.Chunk, toPending bool) Value {
 		v := DecodeValue(*chunk, lvs)
 		lvs.valueCache.Add(h, uint64(len(chunk.Data())), v)
-		lvs.setHintsForReadValue(v, h)
+		lvs.setHintsForReadValue(v, h, toPending)
 		return v
 	}
 
@@ -195,7 +195,7 @@ func (lvs *ValueStore) ReadManyValues(hashes hash.HashSet, foundValues chan<- Va
 			return chunks.EmptyChunk
 		}()
 		if !chunk.IsEmpty() {
-			foundValues <- decode(h, &chunk)
+			foundValues <- decode(h, &chunk, true)
 			continue
 		}
 
@@ -214,7 +214,7 @@ func (lvs *ValueStore) ReadManyValues(hashes hash.HashSet, foundValues chan<- Va
 	for c := range foundChunks {
 		h := c.Hash()
 		foundHashes[h] = struct{}{}
-		foundValues <- decode(h, c)
+		foundValues <- decode(h, c, false)
 	}
 
 	for h, _ := range foundHashes {
@@ -244,7 +244,7 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 
 	// TODO: It _really_ feels like there should be some refactoring that allows us to only have to walk the refs of |v| once, but I'm hesitant to undertake that refactor right now.
 	hints := lvs.chunkHintsFromCache(v)
-	lvs.putGrandchildren(v, c, height, hints)
+	lvs.bufferChunk(v, c, height, hints)
 
 	lvs.setHintsForReachable(v, h, true)
 	lvs.set(h, (*presentChunk)(v.Type()), false)
@@ -262,7 +262,7 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 //    flushed).
 // 2. The total data occupied by buffered chunks does not exceed
 //    lvs.pendingPutMax
-func (lvs *ValueStore) putGrandchildren(v Value, c chunks.Chunk, height uint64, hints Hints) {
+func (lvs *ValueStore) bufferChunk(v Value, c chunks.Chunk, height uint64, hints Hints) {
 	lvs.pendingMu.Lock()
 	defer lvs.pendingMu.Unlock()
 	h := c.Hash()

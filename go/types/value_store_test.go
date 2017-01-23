@@ -116,6 +116,31 @@ func TestCheckChunksInCachePostCommit(t *testing.T) {
 	})
 }
 
+func TestCheckChunksNotInCacheAfterReadingNovelValue(t *testing.T) {
+	assert := assert.New(t)
+	vs := NewTestValueStore()
+
+	l := NewList()
+	r := NewRef(l)
+	i := 0
+	for r.Height() == 1 {
+		l = l.Append(Number(i))
+		r = NewRef(l)
+		i++
+	}
+
+	h := vs.WriteValue(l).TargetHash()
+	// Hints for leaf sequences should be absent prior to ReadValue...
+	l.WalkRefs(func(ref Ref) {
+		assert.True(vs.check(ref.TargetHash()).Hint().IsEmpty())
+	})
+	vs.ReadValue(h)
+	// ...And remain absent!
+	l.WalkRefs(func(ref Ref) {
+		assert.False(vs.check(ref.TargetHash()).Hint() == l.Hash())
+	})
+}
+
 func TestCheckChunksInCacheRefValue(t *testing.T) {
 	assert := assert.New(t)
 	cs := chunks.NewTestStore()
@@ -132,7 +157,7 @@ func TestCheckChunksInCacheRefValue(t *testing.T) {
 
 	r = cvs.WriteValue(l)
 	rr := cvs.WriteValue(ToRefOfValue(r))
-	cvs.Flush()
+	cvs.Flush(rr.TargetHash())
 
 	cvs2 := newLocalValueStore(cs)
 	rv := cvs2.ReadValue(rr.TargetHash()).(Ref)
@@ -295,6 +320,7 @@ func TestHintsOnCache(t *testing.T) {
 		"b": cr2,
 	})
 	r := cvs.WriteValue(s1)
+	cvs.Flush(r.TargetHash())
 	v := cvs.ReadValue(r.TargetHash())
 
 	if assert.True(v.Equals(s1)) {
