@@ -6,127 +6,162 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"strings"
 	"sync"
 
+	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/nbs"
+	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/dustin/go-humanize"
 	flag "github.com/juju/gnuflag"
-)
-
-var (
-	dir    = flag.String("dir", "", "Write to an NBS store in the given directory")
-	table  = flag.String("table", "", "Write to an NBS store in AWS, using this table")
-	bucket = flag.String("bucket", "", "Write to an NBS store in AWS, using this bucket")
-	dbName = flag.String("db", "", "Write to an NBS store in AWS, using this db name")
 )
 
 const memTableSize = 128 * humanize.MiByte
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [options]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] <noms-path>\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 
 	profile.RegisterProfileFlags(flag.CommandLine)
 	flag.Parse(true)
 
-	if flag.NArg() != 0 {
+	if flag.NArg() != 1 {
 		flag.Usage()
 		return
 	}
+	path := flag.Arg(0)
+	parts := strings.SplitN(path, spec.Separator, 2) // db [, path]?
+
+	cfg := config.NewResolver()
+	cs, err := cfg.GetChunkStore(parts[0])
+	d.CheckErrorNoUsage(err)
 
 	var store *nbs.NomsBlockStore
-	if *dir != "" {
-		store = nbs.NewLocalStore(*dir, memTableSize)
-		*dbName = *dir
-	} else if *table != "" && *bucket != "" && *dbName != "" {
-		sess := session.Must(session.NewSession(aws.NewConfig().WithRegion("us-west-2")))
-		store = nbs.NewAWSStore(*table, *dbName, *bucket, sess, memTableSize)
-	} else {
-		log.Fatalf("Must set either --dir or ALL of --table, --bucket and --db\n")
+	var ok bool
+	if store, ok = cs.(*nbs.NomsBlockStore); !ok {
+		fmt.Fprintf(os.Stderr, "%s is only supported for NBS stores.\n", os.Args[0])
+		return
 	}
-
 	db := datas.NewDatabase(store)
 	defer db.Close()
+
+	var value types.Value
+	if len(parts) == 1 {
+		value = db.Datasets()
+	} else {
+		path, err := spec.NewAbsolutePath(parts[1])
+		d.CheckErrorNoUsage(err)
+		value = path.Resolve(db)
+		d.Chk.NotNil(value)
+	}
 
 	defer profile.MaybeStartProfile().Stop()
 
 	type record struct {
-		count, calc int
-		split       bool
+		count, allCalc, novelCalc, novel int
+		allSplit, novelSplit             bool
 	}
 
 	concurrency := 32
-	refs := make(chan types.Ref, concurrency)
+	childSets := make(chan types.RefSlice, concurrency)
 	numbers := make(chan record, concurrency)
 	wg := sync.WaitGroup{}
-	mu := sync.Mutex{}
-	visitedRefs := map[hash.Hash]bool{}
+	mu := sync.RWMutex{}
+	visitedNodes := hash.HashSet{}
 
 	for i := 0; i < concurrency; i++ {
 		go func() {
-			for ref := range refs {
-				mu.Lock()
-				visited := visitedRefs[ref.TargetHash()]
-				visitedRefs[ref.TargetHash()] = true
-				mu.Unlock()
+			for chirren := range childSets {
+				hashes, visitedHashes := hash.HashSlice{}, hash.HashSlice{}
+				for _, child := range chirren {
+					mu.Lock()
+					visited := visitedNodes.Has(child.TargetHash())
+					visitedNodes.Insert(child.TargetHash())
+					mu.Unlock()
 
-				if !visited {
-					v := ref.TargetValue(db)
-					d.Chk.NotNil(v)
+					childV := child.TargetValue(db)
+					d.Chk.NotNil(childV)
+					grandkids, grandkidHashes := getChildren(childV)
 
-					children := types.RefSlice{}
-					hashes := hash.HashSlice{}
-					v.WalkRefs(func(r types.Ref) {
-						hashes = append(hashes, r.TargetHash())
-						if r.Height() > 1 { // leaves are uninteresting, so skip them.
-							children = append(children, r)
-						}
-					})
+					hashes = append(hashes, grandkidHashes...)
+					if visited {
+						visitedHashes = append(visitedHashes, grandkidHashes...)
+					}
 
-					reads, split := store.CalcReads(hashes.HashSet(), 0)
-					numbers <- record{count: 1, calc: reads, split: split}
-
-					wg.Add(len(children))
-					go func() {
-						for _, r := range children {
-							refs <- r
-						}
-					}()
+					if num := len(grandkids); num > 0 {
+						wg.Add(num)
+						go func() {
+							childSets <- grandkids
+						}()
+					}
 				}
-				wg.Done()
+				if len(hashes) > 0 {
+					set := hashes.HashSet()
+					allReads, allSplit := store.CalcReads(set, 0)
+					for _, h := range visitedHashes {
+						set.Remove(h)
+					}
+					novelReads, novelSplit := store.CalcReads(set, 0)
+					numbers <- record{count: 1, allCalc: allReads, allSplit: allSplit, novelCalc: novelReads, novelSplit: novelSplit, novel: len(hashes)}
+				}
+				wg.Add(-len(chirren))
 			}
 		}()
 	}
 
-	wg.Add(1)
-	refs <- types.NewRef(db.Datasets())
+	chirren, hashes := getChildren(value)
+	wg.Add(len(chirren))
+	childSets <- chirren
+
 	go func() {
 		wg.Wait()
-		close(refs)
+		close(childSets)
 		close(numbers)
 	}()
 
-	count, calc, splits := 0, 0, 0
+	count := 1 // To account for reading children of |value|
+	calc, splits, novel := 0, 0, 0
+	calc, split := store.CalcReads(hashes.HashSet(), 0)
+	if split {
+		splits++
+	}
+	novelCalc, novelSplits := calc, splits
 	for rec := range numbers {
 		count += rec.count
-		calc += rec.calc
-		if rec.split {
+		calc += rec.allCalc
+		if rec.allSplit {
 			splits++
 		}
+		novelCalc += rec.novelCalc
+		if rec.novelSplit {
+			novelSplits++
+		}
+		novel += rec.novel
 	}
 
 	fmt.Println("calculated optimal Reads", count)
 	fmt.Printf("calculated actual Reads %d, including %d splits across tables\n", calc, splits)
-	fmt.Printf("Reading DB %s requires %.01fx optimal number of reads\n", *dbName, float64(calc)/float64(count))
+	fmt.Printf("Reading %s requires %.01fx optimal number of reads\n", path, float64(calc)/float64(count))
+	fmt.Println()
+	fmt.Println("visited novel nodes:", novel)
+	fmt.Printf("calculated novel Reads %d, including %d splits across tables\n", novelCalc, novelSplits)
+	fmt.Printf("Reading each chunk of %s once requires %.01fx optimal number of reads\n", path, float64(novelCalc)/float64(count))
+}
+
+func getChildren(v types.Value) (children types.RefSlice, hashes hash.HashSlice) {
+	v.WalkRefs(func(r types.Ref) {
+		hashes = append(hashes, r.TargetHash())
+		if r.Height() > 1 { // leaves are uninteresting, so skip them.
+			children = append(children, r)
+		}
+	})
+	return
 }
