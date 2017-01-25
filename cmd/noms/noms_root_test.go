@@ -7,7 +7,6 @@ package main
 import (
 	"testing"
 
-	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/clienttest"
@@ -24,20 +23,21 @@ type nomsRootTestSuite struct {
 
 func (s *nomsRootTestSuite) TestBasic() {
 	datasetName := "root-get"
-	str := spec.CreateValueSpecString("ldb", s.LdbDir, datasetName)
-	sp, err := spec.ForDataset(str)
+	dsSpec := spec.CreateValueSpecString("ldb", s.LdbDir, datasetName)
+	sp, err := spec.ForDataset(dsSpec)
 	s.NoError(err)
 	defer sp.Close()
 
 	ds := sp.GetDataset()
-	ds, _ = ds.Database().Commit(ds, types.String("hello!"), datas.CommitOptions{})
-	c1, _ := s.MustRun(main, []string{"root", spec.CreateDatabaseSpecString("ldb", s.LdbDir)})
+	dbSpecStr := spec.CreateDatabaseSpecString("ldb", s.LdbDir)
+	ds, _ = ds.Database().CommitValue(ds, types.String("hello!"))
+	c1, _ := s.MustRun(main, []string{"root", dbSpecStr})
 	s.Equal("gt8mq6r7hvccp98s2vpeu9v9ct4rhloc\n", c1)
 
-	ds, _ = ds.Database().Commit(ds, types.String("goodbye"), datas.CommitOptions{})
-	c2, _ := s.MustRun(main, []string{"root", spec.CreateDatabaseSpecString("ldb", s.LdbDir)})
+	ds, _ = ds.Database().CommitValue(ds, types.String("goodbye"))
+	c2, _ := s.MustRun(main, []string{"root", dbSpecStr})
 	s.Equal("8tj5ctfhbka8fag417huneepg5ji283u\n", c2)
 
-	// TODO: Would be good to test --update too, but requires changes to MustRun to allow input
-	// because of prompt :(.
+	// TODO: Would be good to test successful --update too, but requires changes to MustRun to allow
+	// input because of prompt :(.
 }

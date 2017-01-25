@@ -13,7 +13,9 @@ import (
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/hash"
+	"github.com/attic-labs/noms/go/types"
 	flag "github.com/juju/gnuflag"
 )
 
@@ -51,6 +53,21 @@ func runRoot(args []string) int {
 		return 0
 	}
 
+	if updateRoot[0] == '#' {
+		updateRoot = updateRoot[1:]
+	}
+	h, ok := hash.MaybeParse(updateRoot)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Invalid hash: %s\n", h.String())
+		return 1
+	}
+
+	db, err := cfg.GetDatabase(args[0])
+	d.CheckErrorNoUsage(err)
+	if !validate(db.ReadValue(h)) {
+		return 1
+	}
+
 	fmt.Println(`WARNING
 
 This operation replaces the entire database with the instance having the given
@@ -67,14 +84,6 @@ Continue?
 		return 0
 	}
 
-	if updateRoot[0] == '#' {
-		updateRoot = updateRoot[1:]
-	}
-	h, ok := hash.MaybeParse(updateRoot)
-	if !ok {
-		fmt.Fprintf(os.Stderr, "Error: Hash %s does not exist in database\n", h.String())
-		return 1
-	}
 	ok = rt.UpdateRoot(h, currRoot)
 	if !ok {
 		fmt.Fprintln(os.Stderr, "Optimistic concurrency failure")
@@ -83,4 +92,19 @@ Continue?
 
 	fmt.Printf("Success. Previous root was: %s\n", currRoot)
 	return 0
+}
+
+func validate(r types.Value) bool {
+	if !types.IsSubtype(types.MakeMapType(types.StringType, types.ValueType), r.Type()) {
+		fmt.Fprintf(os.Stderr, "Root of database must be Map<string, Value>, but you specified: %s\n", r.Type().Describe())
+		return false
+	}
+
+	return r.(types.Map).Any(func(k, v types.Value) bool {
+		if !datas.IsRefOfCommitType(v.Type()) {
+			fmt.Fprintf(os.Stderr, "Invalid root map. Value for key '%s' is not a ref of commit.", string(k.(types.String)))
+			return false
+		}
+		return true
+	})
 }
