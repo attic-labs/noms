@@ -7,7 +7,7 @@ package main
 import (
 	"testing"
 
-	"github.com/attic-labs/noms/go/chunks"
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/clienttest"
@@ -22,18 +22,22 @@ type nomsRootTestSuite struct {
 	clienttest.ClientTestSuite
 }
 
-func (s *nomsShowTestSuite) TestNomsRoot() {
+func (s *nomsRootTestSuite) TestBasic() {
 	datasetName := "root-get"
 	str := spec.CreateValueSpecString("ldb", s.LdbDir, datasetName)
 	sp, err := spec.ForDataset(str)
 	s.NoError(err)
 	defer sp.Close()
 
-	db := sp.GetDatabase()
-	r1 := db.WriteValue(types.String("test"))
-	res, _ := s.MustRun(main, []string{"show", "--raw", spec.CreateValueSpecString("ldb", s.LdbDir, "#"+r1.TargetHash().String())})
+	ds := sp.GetDataset()
+	ds, _ = ds.Database().Commit(ds, types.String("hello!"), datas.CommitOptions{})
+	c1, _ := s.MustRun(main, []string{"root", spec.CreateDatabaseSpecString("ldb", s.LdbDir)})
+	s.Equal("gt8mq6r7hvccp98s2vpeu9v9ct4rhloc\n", c1)
 
-	ch := chunks.NewChunk([]byte(res))
-	v := types.DecodeValue(ch, db)
-	s.True(v.Equals(types.String("test")))
+	ds, _ = ds.Database().Commit(ds, types.String("goodbye"), datas.CommitOptions{})
+	c2, _ := s.MustRun(main, []string{"root", spec.CreateDatabaseSpecString("ldb", s.LdbDir)})
+	s.Equal("8tj5ctfhbka8fag417huneepg5ji283u\n", c2)
+
+	// TODO: Would be good to test --update too, but requires changes to MustRun to allow input
+	// because of prompt :(.
 }

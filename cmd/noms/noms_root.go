@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 
+	"strings"
+
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
@@ -39,15 +41,14 @@ func runRoot(args []string) int {
 	}
 
 	cfg := config.NewResolver()
-	db, err := cfg.GetDatabase(args[0])
+	rt, err := cfg.GetRootTracker(args[0])
 	d.CheckErrorNoUsage(err)
-	defer db.Close()
 
-	currRoot := db.ValidatingBatchStore().Root()
+	currRoot := rt.Root()
 
 	if updateRoot == "" {
 		fmt.Println(currRoot)
-		return 1
+		return 0
 	}
 
 	fmt.Println(`WARNING
@@ -59,7 +60,12 @@ ANYTHING NOT SAVED WILL BE LOST
 
 Continue?
 `)
-	fmt.Scanln()
+	var input string
+	n, err := fmt.Scanln(&input)
+	d.CheckErrorNoUsage(err)
+	if n != 1 || strings.ToLower(input) != "y" {
+		return 0
+	}
 
 	if updateRoot[0] == '#' {
 		updateRoot = updateRoot[1:]
@@ -69,7 +75,7 @@ Continue?
 		fmt.Fprintf(os.Stderr, "Error: Hash %s does not exist in database\n", h.String())
 		return 1
 	}
-	ok = db.ValidatingBatchStore().UpdateRoot(h, currRoot)
+	ok = rt.UpdateRoot(h, currRoot)
 	if !ok {
 		fmt.Fprintln(os.Stderr, "Optimistic concurrency failure")
 		return 1

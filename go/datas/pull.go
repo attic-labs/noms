@@ -181,7 +181,7 @@ func Pull(srcDB, sinkDB Database, sourceRef, sinkHeadRef types.Ref, concurrency 
 			hints[hint] = struct{}{}
 		}
 	}
-	sinkDB.ValidatingBatchStore().AddHints(hints)
+	sinkDB.validatingBatchStore().AddHints(hints)
 }
 
 type traverseResult struct {
@@ -259,13 +259,13 @@ func getChunks(v types.Value) (chunks []types.Ref) {
 func traverseSource(srcRef types.Ref, srcDB, sinkDB Database, estimateBytesWritten bool) traverseSourceResult {
 	h := srcRef.TargetHash()
 	if !sinkDB.has(h) {
-		srcBS := srcDB.ValidatingBatchStore()
+		srcBS := srcDB.validatingBatchStore()
 		c := srcBS.Get(h)
 		v := types.DecodeValue(c, srcDB)
 		if v == nil {
 			d.Panic("Expected decoded chunk to be non-nil.")
 		}
-		sinkDB.ValidatingBatchStore().SchedulePut(c, srcRef.Height(), types.Hints{})
+		sinkDB.validatingBatchStore().SchedulePut(c, srcRef.Height(), types.Hints{})
 		bytesWritten := 0
 		if estimateBytesWritten {
 			// TODO: Probably better to hide this behind the BatchStore abstraction since

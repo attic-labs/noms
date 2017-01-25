@@ -85,7 +85,7 @@ func (suite *RemoteToRemoteSuite) SetupTest() {
 }
 
 func makeRemoteDb(cs chunks.ChunkStore) Database {
-	hbs := newHTTPBatchStoreForTest(cs)
+	hbs := NewHTTPBatchStoreForTest(cs)
 	return &RemoteDatabaseClient{newDatabaseCommon(newCachingChunkHaver(hbs), types.NewValueStore(hbs), hbs)}
 }
 
@@ -158,7 +158,7 @@ func (suite *PullSuite) TestPullEverything() {
 	suite.Equal(0, suite.sinkCS.Reads)
 	pt.Validate(suite)
 
-	suite.sink.ValidatingBatchStore().Flush()
+	suite.sink.validatingBatchStore().Flush()
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
 	suite.True(l.Equals(v.Get(ValueField)))
@@ -202,7 +202,7 @@ func (suite *PullSuite) TestPullMultiGeneration() {
 	suite.Equal(expectedReads, suite.sinkCS.Reads)
 	pt.Validate(suite)
 
-	suite.sink.ValidatingBatchStore().Flush()
+	suite.sink.validatingBatchStore().Flush()
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
 	suite.True(srcL.Equals(v.Get(ValueField)))
@@ -250,7 +250,7 @@ func (suite *PullSuite) TestPullDivergentHistory() {
 	suite.Equal(preReads, suite.sinkCS.Reads)
 	pt.Validate(suite)
 
-	suite.sink.ValidatingBatchStore().Flush()
+	suite.sink.validatingBatchStore().Flush()
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
 	suite.True(srcL.Equals(v.Get(ValueField)))
@@ -297,7 +297,7 @@ func (suite *PullSuite) TestPullUpdates() {
 	suite.Equal(expectedReads, suite.sinkCS.Reads)
 	pt.Validate(suite)
 
-	suite.sink.ValidatingBatchStore().Flush()
+	suite.sink.validatingBatchStore().Flush()
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
 	suite.True(srcL.Equals(v.Get(ValueField)))
