@@ -9,8 +9,6 @@ import (
 	"os"
 	"path"
 
-	"fmt"
-
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/util/exit"
 	"github.com/attic-labs/testify/suite"
@@ -64,7 +62,6 @@ func (suite *ClientTestSuite) MustRun(m func(), args []string) (stdout string, s
 // If m()  panics the panic is caught, and returned with recoveredError
 // If m() calls exit.Exit() m() will panic and return ExitError with recoveredError
 func (suite *ClientTestSuite) Run(m func(), args []string) (stdout string, stderr string, recoveredErr interface{}) {
-	fmt.Println("running", args)
 	origArgs := os.Args
 	origOut := os.Stdout
 	origErr := os.Stderr

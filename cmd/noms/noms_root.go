@@ -64,6 +64,7 @@ func runRoot(args []string) int {
 
 	db, err := cfg.GetDatabase(args[0])
 	d.CheckErrorNoUsage(err)
+	defer db.Close()
 	if !validate(db.ReadValue(h)) {
 		return 1
 	}
@@ -95,8 +96,9 @@ Continue?
 }
 
 func validate(r types.Value) bool {
-	if !types.IsSubtype(types.MakeMapType(types.StringType, types.ValueType), r.Type()) {
-		fmt.Fprintf(os.Stderr, "Root of database must be Map<string, Value>, but you specified: %s\n", r.Type().Describe())
+	rootType := types.MakeMapType(types.StringType, types.MakeRefType(types.ValueType))
+	if !types.IsSubtype(rootType, r.Type()) {
+		fmt.Fprintf(os.Stderr, "Root of database must be %s, but you specified: %s\n", rootType.Describe(), r.Type().Describe())
 		return false
 	}
 
