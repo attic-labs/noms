@@ -197,7 +197,6 @@ class SizeCache<T> {
     let entry = this._cache.get(key);
     if (entry) {
       this._cache.delete(key);
-      entry.size.then(() => this.expire());
     }
 
     entry = new CacheEntry(size, value);
