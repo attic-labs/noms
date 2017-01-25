@@ -64,29 +64,28 @@ export default class ValueStore {
       resolveSize = resolveFn;
     }));
 
-    const valueP = Promise.resolve().then(() => {
-      const pc = this._pendingPuts.get(hash.toString());
-      const chunkP = pc ? Promise.resolve(pc.c) : this._bs.get(hash);
-      return chunkP.then(chunk => {
-        resolveSize(chunk.data.byteLength);
+    const pc = this._pendingPuts.get(hash.toString());
+    const chunkP = pc ? Promise.resolve(pc.c) : this._bs.get(hash);
 
-        if (chunk.isEmpty()) {
-          this._knownHashes.addIfNotPresent(hash, new HashCacheEntry(false));
-          return null;
-        }
+    const valueP = chunkP.then(chunk => {
+      resolveSize(chunk.data.byteLength);
 
-        const v = decodeValue(chunk, this);
-        this._knownHashes.cacheChunks(v, hash, false);
-        // hash is trivially a hint for v, so consider putting that in the cache.
-        // If we got to v by reading some higher-level chunk, this entry gets dropped on
-        // the floor because r already has a hint in the cache. If we later read some other
-        // chunk that references v, cacheChunks will overwrite this with a hint pointing to that
-        // chunk. If we don't do this, top-level Values that get read but not written -- such as
-        // the existing Head of a Database upon a Commit -- can be erroneously left out during a
-        // pull.
-        this._knownHashes.addIfNotPresent(hash, new HashCacheEntry(true, getTypeOfValue(v), hash));
-        return v;
-      });
+      if (chunk.isEmpty()) {
+        this._knownHashes.addIfNotPresent(hash, new HashCacheEntry(false));
+        return null;
+      }
+
+      const v = decodeValue(chunk, this);
+      this._knownHashes.cacheChunks(v, hash, false);
+      // hash is trivially a hint for v, so consider putting that in the cache.
+      // If we got to v by reading some higher-level chunk, this entry gets dropped on
+      // the floor because r already has a hint in the cache. If we later read some other
+      // chunk that references v, cacheChunks will overwrite this with a hint pointing to that
+      // chunk. If we don't do this, top-level Values that get read but not written -- such as
+      // the existing Head of a Database upon a Commit -- can be erroneously left out during a
+      // pull.
+      this._knownHashes.addIfNotPresent(hash, new HashCacheEntry(true, getTypeOfValue(v), hash));
+      return v;
     });
 
     this._valueCache.add(hash, sizeP, valueP);
@@ -150,16 +149,15 @@ class PendingChunk {
 
 interface Cache<T> {  // eslint-disable-line no-undef
   entry(hash: Hash): ?CacheEntry<T>;  // eslint-disable-line no-undef
-  get(hash: Hash): ?T;  // eslint-disable-line no-undef
   add(hash: Hash, size: Promise<number>, value: T): void;  // eslint-disable-line no-undef
   drop(hash: Hash): void;  // eslint-disable-line no-undef
 }
 
 class CacheEntry<T> {
-  size: number;
+  size: Promise<number>;
   value: T;
 
-  constructor(size: number, value: T) {
+  constructor(size: Promise<number>, value: T) {
     this.size = size;
     this.value = value;
   }
@@ -175,14 +173,12 @@ class CacheEntry<T> {
  * in the iteration.
  */
 class SizeCache<T> {
-  _size: number;
   _maxSize: number;
   _cache: Map<string, CacheEntry<T>>;
 
   constructor(size: number) {
     this._maxSize = size;
     this._cache = new Map();
-    this._size = 0;
   }
 
   entry(hash: Hash): ?CacheEntry<any> {
@@ -196,37 +192,33 @@ class SizeCache<T> {
     return entry;
   }
 
-  get(hash: Hash): ?T {
-    const entry = this.entry(hash);
-    return entry ? entry.value : undefined;
-  }
-
   add(hash: Hash, size: Promise<number>, value: T): void {
     const key = hash.toString();
     let entry = this._cache.get(key);
     if (entry) {
       this._cache.delete(key);
-      this._size -= entry.size;
+      entry.size.then(() => this.expire());
     }
 
-    entry = new CacheEntry(0, value);
+    entry = new CacheEntry(size, value);
     this._cache.set(key, entry);
+    entry.size.then(() => this.expire());
+  }
 
-    size.then(resolvedSize => {
-      notNull(entry).size = resolvedSize;
-      this._size += resolvedSize;
+  expire() {
+    const keys = [];
+    const sizePs = [];
 
-      if (this._size > this._maxSize) {
-        for (const [key, {size}] of this._cache) {
-          if (this._size <= this._maxSize) {
-            break;
-          }
+    for (const [key, {size}] of this._cache) {
+      keys.push(key);
+      sizePs.push(size);
+    }
 
-          if (size > 0) {
-            this._cache.delete(key);
-            this._size -= size;
-          }
-        }
+    Promise.all(sizePs).then(sizes => {
+      let size = sizes.reduce((cum, v) => cum + v);
+      for (let i = 0; i < keys.length && size > this._maxSize; i++) {
+        size -= sizes[i];
+        this._cache.delete(keys[i]);
       }
     });
   }
@@ -236,15 +228,13 @@ class SizeCache<T> {
     const entry = this._cache.get(key);
     if (entry) {
       this._cache.delete(key);
-      this._size -= entry.size;
+      entry.size.then(() => this.expire());
     }
   }
 }
 
 class NoopCache<T> {
   entry(hash: Hash): ?CacheEntry<any> {}  // eslint-disable-line no-unused-vars
-
-  get(hash: Hash): ?T {}  // eslint-disable-line no-unused-vars
 
   add(hash: Hash, size: Promise<number>, value: T): void {}  // eslint-disable-line no-unused-vars
 
