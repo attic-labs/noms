@@ -114,8 +114,10 @@ export function deserializeChunks(buff: Uint8Array, offset: number = 0): Array<C
 
     invariant(offset + chunkLength <= totalLength, 'Invalid chunk buffer');
 
+    const bytesCopy = Bytes.slice(buff, offset, offset + chunkLength);
     offset += chunkLength;
-    chunks.push(new Chunk(Bytes.slice(buff, offset, offset + chunkLength), hash)); // copy bytes
+
+    chunks.push(new Chunk(bytesCopy, hash));
   }
 
   return chunks;
