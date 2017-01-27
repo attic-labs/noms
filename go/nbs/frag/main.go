@@ -74,7 +74,7 @@ func main() {
 	childSets := make(chan types.RefSlice, concurrency)
 	numbers := make(chan record, concurrency)
 	wg := sync.WaitGroup{}
-	mu := sync.RWMutex{}
+	mu := sync.Mutex{}
 	visitedNodes := hash.HashSet{}
 
 	for i := 0; i < concurrency; i++ {
