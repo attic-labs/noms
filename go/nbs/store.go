@@ -33,10 +33,20 @@ const (
 
 	defaultMemTableSize uint64 = (1 << 20) * 128 // 128MB
 	defaultAWSReadLimit        = 1024
+	maxTables                  = 128
+
+	defaultIndexCacheSize = (1 << 20) * 8 // 8MB
 
 	InsertOrder EnumerationOrder = iota
 	ReverseOrder
 )
+
+var (
+	indexCacheOnce   = sync.Once{}
+	globalIndexCache *indexCache
+)
+
+func makeGlobalIndexCache() { globalIndexCache = newIndexCache(defaultIndexCacheSize) }
 
 type NomsBlockStore struct {
 	mm          manifest
@@ -44,24 +54,25 @@ type NomsBlockStore struct {
 
 	mu     sync.RWMutex // protects the following state
 	mt     *memTable
-	mtSize uint64
 	tables tableSet
 	root   hash.Hash
 
-	putCount uint64
+	mtSize    uint64
+	maxTables int
+	putCount  uint64
 }
 
 type AWSStoreFactory struct {
 	sess          *session.Session
 	table, bucket string
-	indexCache    *s3IndexCache
+	indexCache    *indexCache
 	readRl        chan struct{}
 }
 
 func NewAWSStoreFactory(sess *session.Session, table, bucket string, indexCacheSize uint64) chunks.Factory {
-	var indexCache *s3IndexCache
+	var indexCache *indexCache
 	if indexCacheSize > 0 {
-		indexCache = newS3IndexCache(indexCacheSize)
+		indexCache = newIndexCache(indexCacheSize)
 	}
 	return &AWSStoreFactory{sess, table, bucket, indexCache, make(chan struct{}, defaultAWSReadLimit)}
 }
@@ -74,22 +85,24 @@ func (asf *AWSStoreFactory) Shutter() {
 }
 
 func NewAWSStore(table, ns, bucket string, sess *session.Session, memTableSize uint64) *NomsBlockStore {
-	return newAWSStore(table, ns, bucket, sess, memTableSize, nil, nil)
+	indexCacheOnce.Do(makeGlobalIndexCache)
+	return newAWSStore(table, ns, bucket, sess, memTableSize, globalIndexCache, make(chan struct{}, 32))
 }
 
-func newAWSStore(table, ns, bucket string, sess *session.Session, memTableSize uint64, indexCache *s3IndexCache, readRl chan struct{}) *NomsBlockStore {
+func newAWSStore(table, ns, bucket string, sess *session.Session, memTableSize uint64, indexCache *indexCache, readRl chan struct{}) *NomsBlockStore {
 	mm := newDynamoManifest(table, ns, dynamodb.New(sess))
 	ts := newS3TableSet(s3.New(sess), bucket, indexCache, readRl)
-	return newNomsBlockStore(mm, ts, memTableSize)
+	return newNomsBlockStore(mm, ts, memTableSize, maxTables)
 }
 
 func NewLocalStore(dir string, memTableSize uint64) *NomsBlockStore {
 	err := os.MkdirAll(dir, 0777)
 	d.PanicIfError(err)
-	return newNomsBlockStore(fileManifest{dir}, newFSTableSet(dir), memTableSize)
+	indexCacheOnce.Do(makeGlobalIndexCache)
+	return newNomsBlockStore(fileManifest{dir}, newFSTableSet(dir, globalIndexCache), memTableSize, maxTables)
 }
 
-func newNomsBlockStore(mm manifest, ts tableSet, memTableSize uint64) *NomsBlockStore {
+func newNomsBlockStore(mm manifest, ts tableSet, memTableSize uint64, maxTables int) *NomsBlockStore {
 	if memTableSize == 0 {
 		memTableSize = defaultMemTableSize
 	}
@@ -98,11 +111,12 @@ func newNomsBlockStore(mm manifest, ts tableSet, memTableSize uint64) *NomsBlock
 		tables:      ts,
 		nomsVersion: constants.NomsVersion,
 		mtSize:      memTableSize,
+		maxTables:   maxTables,
 	}
 
 	if exists, vers, root, tableSpecs := nbs.mm.ParseIfExists(nil); exists {
 		nbs.nomsVersion, nbs.root = vers, root
-		nbs.tables = nbs.tables.Union(tableSpecs)
+		nbs.tables, _ = nbs.tables.Merge(tableSpecs)
 	}
 
 	return nbs
@@ -290,13 +304,24 @@ func (nbs *NomsBlockStore) UpdateRoot(current, last hash.Hash) bool {
 		nbs.mt = nil
 	}
 
-	actual, tableNames := nbs.mm.Update(nbs.tables.ToSpecs(), nbs.root, current, nil)
+	candidate := nbs.tables
+	var compactees chunkSources
+	if candidate.Size() > nbs.maxTables {
+		candidate, compactees = candidate.Compact() // Compact() must only compact upstream tables
+	}
+
+	actual, tableNames := nbs.mm.Update(candidate.ToSpecs(), nbs.root, current, nil)
 
 	if current != actual {
+		// Optimistic lock failure. Don't want to close the compactees in this case, because we're going to start fresh with the new tables from upstream and re-calculate which tables to compact.
+		var dropped chunkSources
 		nbs.root = actual
-		nbs.tables = nbs.tables.Union(tableNames)
+		nbs.tables, dropped = candidate.Merge(tableNames)
+		dropped.close()
 		return false
 	}
+	nbs.tables = candidate.Flatten()
+	compactees.close()
 	nbs.nomsVersion, nbs.root = constants.NomsVersion, current
 	return true
 }
@@ -305,7 +330,10 @@ func (nbs *NomsBlockStore) Version() string {
 	return nbs.nomsVersion
 }
 
-func (nbs *NomsBlockStore) Close() (err error) {
+// Close will block and compact nbs.tables if it contains more entries than
+// nbs.maxTables. Blocking to do this kinda stinks, but building something
+// that does this reliably out of band is a bigger task.
+func (nbs *NomsBlockStore) Close() (err error) { /**/
 	nbs.mu.Lock()
 	defer nbs.mu.Unlock()
 	return nbs.tables.Close()

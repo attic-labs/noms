@@ -197,6 +197,35 @@ func (suite *BlockStoreSuite) TestChunkStoreFlushOptimisticLockFail() {
 	suite.True(suite.store.UpdateRoot(c2.Hash(), suite.store.Root()))
 }
 
+func (suite *BlockStoreSuite) TestCompactOnUpdateRoot() {
+	testMax := 5
+	mm := fileManifest{suite.dir}
+	smallTableStore := newNomsBlockStore(mm, newFSTableSet(suite.dir, nil), 2, testMax)
+	inputs := [][]byte{[]byte("ab"), []byte("cd"), []byte("ef"), []byte("gh"), []byte("ij"), []byte("kl")}
+	chunx := make([]chunks.Chunk, len(inputs))
+	for i, data := range inputs {
+		chunx[i] = chunks.NewChunk(data)
+	}
+
+	root := smallTableStore.Root()
+	suite.NoError(smallTableStore.PutMany(chunx[:testMax]))
+	suite.True(smallTableStore.UpdateRoot(chunx[0].Hash(), root)) // Commit write
+
+	exists, _, mRoot, specs := mm.ParseIfExists(nil)
+	suite.True(exists)
+	suite.Equal(chunx[0].Hash(), mRoot)
+	suite.Len(specs, testMax)
+
+	root = smallTableStore.Root()
+	suite.NoError(smallTableStore.PutMany(chunx[testMax:]))
+	suite.True(smallTableStore.UpdateRoot(chunx[testMax].Hash(), root)) // Should compact
+
+	exists, _, mRoot, specs = mm.ParseIfExists(nil)
+	suite.True(exists)
+	suite.Equal(chunx[testMax].Hash(), mRoot)
+	suite.Len(specs, testMax)
+}
+
 func assertInputInStore(input []byte, h hash.Hash, s chunks.ChunkStore, assert *assert.Assertions) {
 	c := s.Get(h)
 	assert.False(c.IsEmpty(), "Shouldn't get empty chunk for %s", h.String())
