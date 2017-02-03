@@ -142,9 +142,9 @@ func (crg chunkReaderGroup) count() (count uint32) {
 	return
 }
 
-func (crg chunkReaderGroup) data() (data uint64) {
+func (crg chunkReaderGroup) byteLen() (data uint64) {
 	for _, haver := range crg {
-		data += haver.data()
+		data += haver.byteLen()
 	}
 	return
 }

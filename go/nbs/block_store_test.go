@@ -198,9 +198,9 @@ func (suite *BlockStoreSuite) TestChunkStoreFlushOptimisticLockFail() {
 }
 
 func (suite *BlockStoreSuite) TestCompactOnUpdateRoot() {
-	testMax := 5
+	testMaxTables := 5
 	mm := fileManifest{suite.dir}
-	smallTableStore := newNomsBlockStore(mm, newFSTableSet(suite.dir, nil), 2, testMax)
+	smallTableStore := newNomsBlockStore(mm, newFSTableSet(suite.dir, nil), 2, testMaxTables)
 	inputs := [][]byte{[]byte("ab"), []byte("cd"), []byte("ef"), []byte("gh"), []byte("ij"), []byte("kl")}
 	chunx := make([]chunks.Chunk, len(inputs))
 	for i, data := range inputs {
@@ -208,22 +208,22 @@ func (suite *BlockStoreSuite) TestCompactOnUpdateRoot() {
 	}
 
 	root := smallTableStore.Root()
-	suite.NoError(smallTableStore.PutMany(chunx[:testMax]))
+	suite.NoError(smallTableStore.PutMany(chunx[:testMaxTables]))
 	suite.True(smallTableStore.UpdateRoot(chunx[0].Hash(), root)) // Commit write
 
 	exists, _, mRoot, specs := mm.ParseIfExists(nil)
 	suite.True(exists)
 	suite.Equal(chunx[0].Hash(), mRoot)
-	suite.Len(specs, testMax)
+	suite.Len(specs, testMaxTables)
 
 	root = smallTableStore.Root()
-	suite.NoError(smallTableStore.PutMany(chunx[testMax:]))
-	suite.True(smallTableStore.UpdateRoot(chunx[testMax].Hash(), root)) // Should compact
+	suite.NoError(smallTableStore.PutMany(chunx[testMaxTables:]))
+	suite.True(smallTableStore.UpdateRoot(chunx[testMaxTables].Hash(), root)) // Should compact
 
 	exists, _, mRoot, specs = mm.ParseIfExists(nil)
 	suite.True(exists)
-	suite.Equal(chunx[testMax].Hash(), mRoot)
-	suite.Len(specs, testMax)
+	suite.Equal(chunx[testMaxTables].Hash(), mRoot)
+	suite.Len(specs, testMaxTables)
 }
 
 func assertInputInStore(input []byte, h hash.Hash, s chunks.ChunkStore, assert *assert.Assertions) {

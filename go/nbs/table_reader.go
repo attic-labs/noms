@@ -19,7 +19,7 @@ import (
 
 type tableIndex struct {
 	chunkCount        uint32
-	totalData         uint64
+	totalPhysicalData uint64
 	prefixes, offsets []uint64
 	lengths, ordinals []uint32
 	suffixes          []byte
@@ -42,7 +42,7 @@ func parseTableIndex(buff []byte) tableIndex {
 
 	// total chunk data
 	pos -= uint64Size
-	totalData := binary.BigEndian.Uint64(buff[pos:])
+	totalPhysicalData := binary.BigEndian.Uint64(buff[pos:])
 
 	pos -= uint32Size
 	chunkCount := binary.BigEndian.Uint32(buff[pos:])
@@ -62,7 +62,7 @@ func parseTableIndex(buff []byte) tableIndex {
 	prefixes, ordinals := computePrefixes(chunkCount, buff[pos:pos+tuplesSize])
 
 	return tableIndex{
-		chunkCount, totalData,
+		chunkCount, totalPhysicalData,
 		prefixes, offsets,
 		lengths, ordinals,
 		suffixes,
@@ -188,8 +188,8 @@ func (tr tableReader) count() uint32 {
 	return tr.chunkCount
 }
 
-func (tr tableReader) data() uint64 {
-	return tr.totalData
+func (tr tableReader) byteLen() uint64 {
+	return tr.totalPhysicalData
 }
 
 // returns true iff |h| can be found in this table.

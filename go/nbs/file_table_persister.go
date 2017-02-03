@@ -20,10 +20,10 @@ type fsTablePersister struct {
 }
 
 func (ftp fsTablePersister) Compact(mt *memTable, haver chunkReader) chunkSource {
-	return ftp.toReader(mt.write(haver))
+	return ftp.persistTable(mt.write(haver))
 }
 
-func (ftp fsTablePersister) toReader(name addr, data []byte, chunkCount uint32) chunkSource {
+func (ftp fsTablePersister) persistTable(name addr, data []byte, chunkCount uint32) chunkSource {
 	if chunkCount == 0 {
 		return emptyChunkSource{}
 	}
@@ -42,7 +42,7 @@ func (ftp fsTablePersister) toReader(name addr, data []byte, chunkCount uint32) 
 func (ftp fsTablePersister) CompactAll(sources chunkSources) chunkSource {
 	rl := make(chan struct{}, 32)
 	defer close(rl)
-	return ftp.toReader(compactSourcesToBuffer(sources, rl))
+	return ftp.persistTable(compactSourcesToBuffer(sources, rl))
 }
 
 func (ftp fsTablePersister) Open(name addr, chunkCount uint32) chunkSource {

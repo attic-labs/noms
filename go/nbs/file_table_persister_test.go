@@ -77,3 +77,26 @@ func TestFSTablePersisterCompactAll(t *testing.T) {
 		assertChunksInReader(testChunks, tr, assert)
 	}
 }
+
+func TestFSTablePersisterCompactAllDups(t *testing.T) {
+	assert := assert.New(t)
+	assert.True(len(testChunks) > 1, "Whoops, this test isn't meaningful")
+	sources := make(chunkSources, len(testChunks))
+
+	for i := range testChunks {
+		sources[i] = bytesToChunkSource(testChunks...)
+	}
+
+	dir := makeTempDir(assert)
+	defer os.RemoveAll(dir)
+	fts := fsTablePersister{dir: dir}
+	src := fts.CompactAll(sources)
+
+	if assert.True(src.count() > 0) {
+		buff, err := ioutil.ReadFile(filepath.Join(dir, src.hash().String()))
+		assert.NoError(err)
+		tr := newTableReader(parseTableIndex(buff), bytes.NewReader(buff), fileBlockSize)
+		assertChunksInReader(testChunks, tr, assert)
+		assert.EqualValues(len(testChunks), tr.count())
+	}
+}

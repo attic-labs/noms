@@ -59,7 +59,7 @@ func compactSourcesToBuffer(sources chunkSources, rl chan struct{}) (name addr, 
 	totalData := uint64(0)
 	for _, src := range sources {
 		chunkCount += src.count()
-		totalData += src.data()
+		totalData += src.byteLen()
 	}
 	if chunkCount == 0 {
 		return
@@ -87,11 +87,15 @@ func compactSourcesToBuffer(sources chunkSources, rl chan struct{}) (name addr, 
 		wg.Wait()
 	}()
 
+	known := map[addr]struct{}{}
 	for chunks := range chunkChans {
 		for chunk := range chunks {
-			tw.addChunk(chunk.a, chunk.data)
+			if _, present := known[chunk.a]; !present {
+				tw.addChunk(chunk.a, chunk.data)
+				known[chunk.a] = struct{}{}
+			}
 		}
 	}
 	tableSize, name := tw.finish()
-	return name, buff[:tableSize], chunkCount
+	return name, buff[:tableSize], uint32(len(known))
 }

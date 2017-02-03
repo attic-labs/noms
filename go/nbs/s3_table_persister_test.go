@@ -36,7 +36,7 @@ func TestS3TablePersisterCompact(t *testing.T) {
 }
 
 func calcPartSize(rdr chunkReader, maxPartNum int) int {
-	return int(maxTableSize(uint64(rdr.count()), rdr.data())) / maxPartNum
+	return int(maxTableSize(uint64(rdr.count()), rdr.byteLen())) / maxPartNum
 }
 
 func TestS3TablePersisterCompactSinglePart(t *testing.T) {

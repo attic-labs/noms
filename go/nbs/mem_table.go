@@ -48,7 +48,7 @@ func (mt *memTable) count() uint32 {
 	return uint32(len(mt.order))
 }
 
-func (mt *memTable) data() uint64 {
+func (mt *memTable) byteLen() uint64 {
 	return mt.totalData
 }
 

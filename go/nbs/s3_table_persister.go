@@ -36,10 +36,10 @@ type s3UploadedPart struct {
 }
 
 func (s3p s3TablePersister) Compact(mt *memTable, haver chunkReader) chunkSource {
-	return s3p.toReader(mt.write(haver))
+	return s3p.persistTable(mt.write(haver))
 }
 
-func (s3p s3TablePersister) toReader(name addr, data []byte, chunkCount uint32) chunkSource {
+func (s3p s3TablePersister) persistTable(name addr, data []byte, chunkCount uint32) chunkSource {
 	if chunkCount > 0 {
 		t1 := time.Now()
 		result, err := s3p.s3.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
@@ -81,7 +81,7 @@ func (s3p s3TablePersister) toReader(name addr, data []byte, chunkCount uint32) 
 }
 
 func (s3p s3TablePersister) CompactAll(sources chunkSources) chunkSource {
-	return s3p.toReader(compactSourcesToBuffer(sources, s3p.readRl))
+	return s3p.persistTable(compactSourcesToBuffer(sources, s3p.readRl))
 }
 
 func (s3p s3TablePersister) uploadParts(data []byte, key, uploadID string) (*s3.CompletedMultipartUpload, error) {

@@ -205,7 +205,7 @@ type chunkReader interface {
 	get(h addr) []byte
 	getMany(reqs []getRecord, foundChunks chan *chunks.Chunk, wg *sync.WaitGroup) bool
 	count() uint32
-	data() uint64
+	byteLen() uint64
 	extract(order EnumerationOrder, chunks chan<- extractRecord)
 }
 

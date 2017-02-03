@@ -132,7 +132,7 @@ func TestTableSetCompact(t *testing.T) {
 	assert.NoError(compacted.close())
 
 	assert.Equal(4, ts.Size())
-	assert.Equal(bigTable.hash(), ts.upstream[0].hash())
+	assert.Contains(ts.upstream, bigTable)
 	assertChunksInReader(moreChunks, ts, assert)
 	assertChunksInReader(extraChunks, ts, assert)
 
@@ -167,7 +167,7 @@ func makeTempDir(assert *assert.Assertions) string {
 	return dir
 }
 
-func TestTableSetMerge(t *testing.T) {
+func TestTableSetRebase(t *testing.T) {
 	assert := assert.New(t)
 	dir := makeTempDir(assert)
 	defer os.RemoveAll(dir)
@@ -191,7 +191,7 @@ func TestTableSetMerge(t *testing.T) {
 	ts = ts.Flatten()
 	ts = insert(ts, []byte("novel"))
 
-	ts, dropped := ts.Merge(fullTS.ToSpecs())
+	ts, dropped := ts.Rebase(fullTS.ToSpecs())
 	assert.Len(dropped, 1)
 	assert.Equal(4, ts.Size())
 	dropped.close()

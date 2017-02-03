@@ -107,7 +107,7 @@ func (ts tableSet) calcReads(reqs []getRecord, blockSize uint64) (reads int, spl
 	return reads, split, remaining
 }
 
-func (ts tableSet) count() (count uint32) {
+func (ts tableSet) count() uint32 {
 	f := func(css chunkSources) (count uint32) {
 		for _, haver := range css {
 			count += haver.count()
@@ -117,10 +117,10 @@ func (ts tableSet) count() (count uint32) {
 	return f(ts.novel) + f(ts.upstream)
 }
 
-func (ts tableSet) data() (data uint64) {
+func (ts tableSet) byteLen() uint64 {
 	f := func(css chunkSources) (data uint64) {
 		for _, haver := range css {
-			data += haver.data()
+			data += haver.byteLen()
 		}
 		return
 	}
@@ -155,14 +155,11 @@ func (ts tableSet) Prepend(mt *memTable) tableSet {
 // close them if she so chooses.
 func (ts tableSet) Compact() (ns tableSet, compactees chunkSources) {
 	ns = tableSet{
-		novel:    make(chunkSources, len(ts.novel)),
-		upstream: make(chunkSources, len(ts.upstream), len(ts.upstream)+1),
-		p:        ts.p,
-		rl:       ts.rl,
+		novel: make(chunkSources, len(ts.novel)),
+		p:     ts.p,
+		rl:    ts.rl,
 	}
 	copy(ns.novel, ts.novel)
-	copy(ns.upstream, ts.upstream)
-	sort.Sort(chunkSourcesByDescendingCount(ns.upstream))
 
 	max := func(a, b int) int {
 		if a > b {
@@ -171,14 +168,16 @@ func (ts tableSet) Compact() (ns tableSet, compactees chunkSources) {
 		return b
 	}
 
-	partition := len(ns.upstream) - max(2, len(ns.upstream)/2)
-	ns.upstream = append(ns.upstream, ts.p.CompactAll(ns.upstream[partition:]))
-	// swap new table (last item) and the partition element
-	last := len(ns.upstream) - 1
-	ns.upstream[partition], ns.upstream[last] = ns.upstream[last], ns.upstream[partition]
+	sortedUpstream := make(chunkSources, len(ts.upstream))
+	copy(sortedUpstream, ts.upstream)
+	sort.Sort(chunkSourcesByDescendingCount(sortedUpstream))
 
-	// The new table is at partition, so make sure that's included in |ns|, as opposed to |compactees|
-	return tableSet{ts.novel, ns.upstream[:partition+1], ts.p, ts.rl}, ns.upstream[partition+1:]
+	partition := len(sortedUpstream) - max(2, len(sortedUpstream)/2)
+	toCompact := sortedUpstream[partition:]
+	compacted := ts.p.CompactAll(toCompact)
+	ns.upstream = append(chunkSources{compacted}, sortedUpstream[:partition]...)
+
+	return ns, toCompact
 }
 
 func (ts tableSet) extract(order EnumerationOrder, chunks chan<- extractRecord) {
@@ -213,11 +212,11 @@ func (ts tableSet) Flatten() (flattened tableSet) {
 	return
 }
 
-// Merge returns a new tableSet holding the novel tables managed by |ts| and
+// Rebase returns a new tableSet holding the novel tables managed by |ts| and
 // those specified by |specs|. Tables in |ts.upstream| that are not referenced
 // by |specs| are returned in |dropped| so that the caller can close() them
 // appropriately.
-func (ts tableSet) Merge(specs []tableSpec) (merged tableSet, dropped chunkSources) {
+func (ts tableSet) Rebase(specs []tableSpec) (merged tableSet, dropped chunkSources) {
 	merged = tableSet{
 		novel:    make(chunkSources, 0, len(ts.novel)),
 		upstream: make(chunkSources, 0, len(specs)),
@@ -227,7 +226,7 @@ func (ts tableSet) Merge(specs []tableSpec) (merged tableSet, dropped chunkSourc
 	dropped = make(chunkSources, len(ts.upstream))
 	copy(dropped, ts.upstream)
 
-	// Merge in all novel tables, dropping those that are actually empty (usually due to de-duping during table compaction)
+	// Rebase the novel tables, dropping those that are actually empty (usually due to de-duping during table compaction)
 	for _, t := range ts.novel {
 		if t.count() > 0 {
 			merged.novel = append(merged.novel, t)

@@ -116,7 +116,7 @@ func newNomsBlockStore(mm manifest, ts tableSet, memTableSize uint64, maxTables 
 
 	if exists, vers, root, tableSpecs := nbs.mm.ParseIfExists(nil); exists {
 		nbs.nomsVersion, nbs.root = vers, root
-		nbs.tables, _ = nbs.tables.Merge(tableSpecs)
+		nbs.tables, _ = nbs.tables.Rebase(tableSpecs)
 	}
 
 	return nbs
@@ -307,16 +307,17 @@ func (nbs *NomsBlockStore) UpdateRoot(current, last hash.Hash) bool {
 	candidate := nbs.tables
 	var compactees chunkSources
 	if candidate.Size() > nbs.maxTables {
-		candidate, compactees = candidate.Compact() // Compact() must only compact upstream tables
+		candidate, compactees = candidate.Compact() // Compact() must only compact upstream tables (BUG 3142)
 	}
 
 	actual, tableNames := nbs.mm.Update(candidate.ToSpecs(), nbs.root, current, nil)
 
 	if current != actual {
-		// Optimistic lock failure. Don't want to close the compactees in this case, because we're going to start fresh with the new tables from upstream and re-calculate which tables to compact.
+		// Optimistic lock failure. Since we're going to start fresh, re-opening all the new tables from upstream, and re-calculate which tables to compact, close all the compactees as well as the chunkSources that are dropped during Rebase().
+		compactees.close()
 		var dropped chunkSources
 		nbs.root = actual
-		nbs.tables, dropped = candidate.Merge(tableNames)
+		nbs.tables, dropped = candidate.Rebase(tableNames)
 		dropped.close()
 		return false
 	}
@@ -330,10 +331,7 @@ func (nbs *NomsBlockStore) Version() string {
 	return nbs.nomsVersion
 }
 
-// Close will block and compact nbs.tables if it contains more entries than
-// nbs.maxTables. Blocking to do this kinda stinks, but building something
-// that does this reliably out of band is a bigger task.
-func (nbs *NomsBlockStore) Close() (err error) { /**/
+func (nbs *NomsBlockStore) Close() (err error) {
 	nbs.mu.Lock()
 	defer nbs.mu.Unlock()
 	return nbs.tables.Close()
