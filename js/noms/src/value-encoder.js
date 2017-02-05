@@ -13,7 +13,7 @@ import Set, {SetLeafSequence} from './set.js';
 import Struct, {StructMirror} from './struct.js';
 import type Value from './value.js';
 import type {NomsKind} from './noms-kind.js';
-import type {NomsWriter} from './codec.js';
+import type {NomsWriter} from './noms-writer.js';
 import type {ValueWriter} from './value-store.js';
 import type {primitive} from './primitives.js';
 import {MetaTuple} from './meta-sequence.js';

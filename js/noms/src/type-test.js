@@ -22,7 +22,8 @@ import {
 import type {Type} from './type.js';
 import {suite, test} from 'mocha';
 import {equals} from './compare.js';
-import {encodeValue, decodeValue} from './codec.js';
+import encodeValue from './encode-value.js';
+import decodeValue from './decode-value.js';
 import {notNull} from './assert.js';
 
 suite('Type', () => {
