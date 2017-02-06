@@ -4,14 +4,13 @@
 
 // @flow
 
-import {suite, test, setup, teardown} from './jest.js';
+import jest, {suite, test, setup, teardown} from './jest.js';
 import {assert} from 'chai';
 import Hash from './hash.js';
 import {emptyHash} from './hash.js';
 import HttpBatchStore from './http-batch-store.js';
 import {invariant} from './assert.js';
 
-declare var jest;
 
 suite('HttpBatchStore', () => {
   setup(() => {
