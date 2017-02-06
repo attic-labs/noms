@@ -9,11 +9,13 @@ import {assert} from 'chai';
 import Hash from './hash.js';
 import {emptyHash} from './hash.js';
 import HttpBatchStore from './http-batch-store.js';
-import mock from 'mock-require';
+import {invariant} from './assert.js';
+
+declare var jest;
 
 suite('HttpBatchStore', () => {
   setup(() => {
-    mock('http', {
+    jest.mock('http', () => ({
       request(options, cb) {
         cb({statusCode: 409});
         return {
@@ -22,11 +24,11 @@ suite('HttpBatchStore', () => {
           setTimeout() {},
         };
       },
-    });
+    }));
   });
 
   teardown(() => {
-    mock.stopAll();
+    jest.resetModules();
   });
 
   test('endpoints', async () => {
@@ -58,11 +60,11 @@ suite('HttpBatchStore', () => {
   });
 
   test('updateRoot conflict', async () => {
-    mock.reRequire('./fetch.js');
-    const HttpBatchStore = mock.reRequire('./http-batch-store.js').default;
+    const HttpBatchStore = require('./http-batch-store.js').default;
     const store = new HttpBatchStore('http://nowhere.com');
 
-    assert.isFalse(
-      await store.updateRoot(Hash.parse('00001111000011110000111100001111'), emptyHash));
+    const h = Hash.parse('00001111000011110000111100001111');
+    invariant(h);
+    assert.isFalse(await store.updateRoot(h, emptyHash));
   });
 });
