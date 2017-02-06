@@ -17,6 +17,7 @@ import {notNull} from './assert.js';
 import {setEncodeValue} from './get-hash.js';
 import {setHash, ValueBase} from './value.js';
 import {BinaryReader, BinaryWriter} from './binary-rw.js';
+import {setDecodeValue} from './sequence.js';
 
 export function encodeValue(v: Value, vw: ?ValueWriter): Chunk {
   const w = new BinaryNomsWriter();
@@ -46,6 +47,8 @@ export function decodeValue(chunk: Chunk, vr: ValueReader): Value {
 
   return v;
 }
+
+setDecodeValue(decodeValue);
 
 function ensureTypeSerialization(t: Type<any>) {
   if (!t.serialization) {

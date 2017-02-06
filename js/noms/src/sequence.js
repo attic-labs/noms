@@ -9,12 +9,20 @@ import {invariant, notNull} from './assert.js';
 import {AsyncIterator} from './async-iterator.js';
 import type {AsyncIteratorResult} from './async-iterator.js';
 import Ref from './ref.js';
+import Chunk from './chunk.js';
 import type {Type} from './type.js';
 import {ValueBase} from './value.js';
 import type {EqualsFn} from './edit-distance.js';
 import type Value from './value.js'; // eslint-disable-line no-unused-vars
 import Hash from './hash.js';
 import {compare, equals} from './compare.js';
+
+type decodeFn = (chunk: Chunk, vr: ValueReader) => Value;
+let decodeValue: ?decodeFn = null;
+
+export function setDecodeValue(decode: decodeFn) {
+  decodeValue = decode;
+}
 
 // Sequence<T> is the base class of all prolly-tree nodes. It represents a sequence of "values"
 // which are grouped together and defined by the output of a rolling hash value as a result of
@@ -90,7 +98,7 @@ export class SequenceCursor<T, S: Sequence<any>> {
   sequence: S;
   idx: number;
   readAhead: boolean;
-  childSeqs: ?Array<Promise<?S>>;
+  childSeqs: ?Array<Promise<?Chunk>>;
 
   constructor(parent: ?SequenceCursor<any, any>, sequence: S, idx: number, readAhead: boolean) {
     this.parent = parent;
@@ -128,13 +136,21 @@ export class SequenceCursor<T, S: Sequence<any>> {
       if (!this.childSeqs) {
         const childSeqs = [];
         for (let i = this.idx; i < this.sequence.length; i++) {
-          childSeqs[i] = this.sequence.getChildSequence(i);
+          const mt = this.sequence.items[i];
+          if (!mt.child) {
+            // $FlowIssue: FU
+            childSeqs[i] = notNull(this.sequence.vr)._bs.get(mt.ref.targetHash);
+          }
         }
         this.childSeqs = childSeqs;
       }
 
       if (this.childSeqs[this.idx]) {
-        return this.childSeqs[this.idx]; // read ahead cache
+        return this.childSeqs[this.idx].then(chunk => {
+          const v = notNull(decodeValue)(notNull(chunk), notNull(this.sequence.vr));
+          // $FlowIssue: FU
+          return v.sequence; // read ahead cache
+        });
       }
     }
 
