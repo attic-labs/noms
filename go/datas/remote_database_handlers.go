@@ -19,6 +19,7 @@ import (
 	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
+	"github.com/attic-labs/noms/go/ngql"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/golang/snappy"
@@ -84,6 +85,8 @@ var (
 	// TODO: Nice comment about what headers it expects/honors, payload
 	// format, and error responses.
 	HandleBaseGet = handleBaseGet
+
+	HandleGraphQL = createHandler(handleGraphQL, false)
 
 	writeValueConcurrency = runtime.NumCPU()
 )
@@ -407,12 +410,52 @@ func handleRootPost(w http.ResponseWriter, req *http.Request, ps URLParams, cs c
 	}
 }
 
+func handleGraphQL(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore) {
+	if req.Method != "GET" {
+		d.Panic("Expected post method.")
+	}
+
+	params := req.URL.Query()
+
+	var rootValue types.Value
+
+	db := NewDatabase(cs)
+
+	dsTokens := params["ds"]
+	hTokens := params["h"]
+	if len(dsTokens) != 1 && len(hTokens) != 1 {
+		d.Panic("Must specific ds (dataset) or h (hash)")
+	}
+	if len(dsTokens) == 1 {
+		ds := dsTokens[0]
+		dataset := db.GetDataset(ds)
+		rootValue = dataset.Head()
+		d.PanicIfTrue(rootValue == nil)
+	} else {
+		h := hash.Parse(hTokens[0])
+		rootValue = db.ReadValue(h)
+		d.PanicIfTrue(rootValue == nil)
+	}
+
+	qTokens := params["query"]
+	if len(qTokens) != 1 {
+		d.Panic("Expected query")
+	}
+	query := qTokens[0]
+
+	w.Header().Add("Content-Type", "application/json")
+	writer := respWriter(req, w)
+	defer writer.Close()
+
+	ngql.Query(rootValue, query, db, writer)
+}
+
 func handleBaseGet(w http.ResponseWriter, req *http.Request, ps URLParams, rt chunks.ChunkStore) {
 	if req.Method != "GET" {
 		d.Panic("Expected get method.")
 	}
 
-	w.Header().Add("content-type", "text/html")
+	w.Header().Add("Content-Type", "text/html")
 	fmt.Fprintf(w, nomsBaseHTML)
 }
 
