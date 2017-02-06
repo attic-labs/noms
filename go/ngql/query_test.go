@@ -59,6 +59,7 @@ func (suite *QueryGraphQLSuite) TestStructBasic() {
 	suite.assertQueryResult(s1, "{value{a}}", `{"data":{"value":{"a":"aaa"}}}`)
 	suite.assertQueryResult(s1, "{value{a b}}", `{"data":{"value":{"a":"aaa","b":true}}}`)
 	suite.assertQueryResult(s1, "{value{a b c}}", `{"data":{"value":{"a":"aaa","b":true,"c":0.1}}}`)
+	suite.assertQueryResult(s1, "{value{a c}}", `{"data":{"value":{"a":"aaa","c":0.1}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestEmbeddedStruct() {
