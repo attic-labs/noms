@@ -4,7 +4,7 @@
 
 // @flow
 
-import {suite, test, setup, teardown} from 'mocha';
+import {suite, test, setup, teardown} from './jest.js';
 import {assert} from 'chai';
 import Hash from './hash.js';
 import {emptyHash} from './hash.js';

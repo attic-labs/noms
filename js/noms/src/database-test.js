@@ -4,7 +4,7 @@
 
 // @flow
 
-import {suite, test} from 'mocha';
+import {suite, test} from './jest.js';
 import makeRemoteBatchStoreFake from './remote-batch-store-fake.js';
 import {TestingDelegate} from './remote-batch-store-fake.js';
 import RemoteBatchStore from './remote-batch-store.js';
