@@ -8,7 +8,6 @@ import Chunk from './chunk.js';
 import ValueEncoder from './value-encoder.js';
 import type Value from './value.js';
 import type {ValueWriter} from './value-store.js';
-import {setEncodeValue} from './get-hash.js';
 import {setHash, ValueBase} from './value.js';
 import BinaryNomsWriter from './binary-noms-writer.js';
 
@@ -23,5 +22,3 @@ export default function encodeValue(v: Value, vw: ?ValueWriter): Chunk {
 
   return chunk;
 }
-
-setEncodeValue(encodeValue);
