@@ -7,7 +7,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import GraphiQL from 'graphiql';
-import fetch from 'isomorphic-fetch';
 
 window.onload = render;
 const server = 'http://localhost:8000';
