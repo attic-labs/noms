@@ -19,32 +19,28 @@ const (
 	atKey          = "at"
 	countKey       = "count"
 	keyKey         = "key"
-	queryKey       = "Query"
+	rootKey        = "Root"
+	sizeKey        = "size"
 	targetHashKey  = "targetHash"
 	targetValueKey = "targetValue"
-	valueKey       = "value"
-	vrKey          = "vr"
 	tmKey          = "tm"
+	valueKey       = "value"
+	valuesKey      = "values"
+	vrKey          = "vr"
 )
 
 func constructQueryType(rootValue types.Value, tm typeMap) *graphql.Object {
-	getValueField := func(root interface{}, fieldName string, ctx context.Context) types.Value {
-		m := root.(map[string]interface{})
-		v := m[fieldName]
-		return v.(types.Value)
-	}
-
 	rootTyp := rootValue.Type()
 	rootType := nomsTypeToGraphQLType(rootTyp, tm)
-	args, resolveFn := getArgsAndResolveFn(rootTyp.Kind(), getValueField)
 
 	return graphql.NewObject(graphql.ObjectConfig{
-		Name: queryKey,
+		Name: rootKey,
 		Fields: graphql.Fields{
 			valueKey: &graphql.Field{
-				Type:    rootType,
-				Args:    args,
-				Resolve: resolveFn,
+				Type: rootType,
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					return maybeGetScalar(rootValue), nil
+				},
 			},
 		}})
 }
@@ -61,10 +57,7 @@ func Query(rootValue types.Value, query string, vr types.ValueReader, w io.Write
 	r := graphql.Do(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
-		RootObject: map[string]interface{}{
-			valueKey: rootValue,
-		},
-		Context: ctx,
+		Context:       ctx,
 	})
 
 	rJSON, err := json.Marshal(r)

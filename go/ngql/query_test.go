@@ -79,18 +79,19 @@ func (suite *QueryGraphQLSuite) TestEmbeddedStruct() {
 func (suite *QueryGraphQLSuite) TestListBasic() {
 	list := types.NewList(types.String("foo"), types.String("bar"), types.String("baz"))
 
-	suite.assertQueryResult(list, "{value}", `{"data":{"value":["foo","bar","baz"]}}`)
-	suite.assertQueryResult(list, "{value(at:1,count:2)}", `{"data":{"value":["bar","baz"]}}`)
+	suite.assertQueryResult(list, "{value{values}}", `{"data":{"value":{"values":["foo","bar","baz"]}}}`)
+	suite.assertQueryResult(list, "{value{size}}", `{"data":{"value":{"size":3}}}`)
+	suite.assertQueryResult(list, "{value{values(at:1,count:2)}}", `{"data":{"value":{"values":["bar","baz"]}}}`)
 
 	list = types.NewList(types.Bool(true), types.Bool(false), types.Bool(false))
 
-	suite.assertQueryResult(list, "{value}", `{"data":{"value":[true,false,false]}}`)
-	suite.assertQueryResult(list, "{value(at:1,count:2)}", `{"data":{"value":[false,false]}}`)
+	suite.assertQueryResult(list, "{value{values}}", `{"data":{"value":{"values":[true,false,false]}}}`)
+	suite.assertQueryResult(list, "{value{values(at:1,count:2)}}", `{"data":{"value":{"values":[false,false]}}}`)
 
 	list = types.NewList(types.Number(1), types.Number(1.1), types.Number(-100))
 
-	suite.assertQueryResult(list, "{value}", `{"data":{"value":[1,1.1,-100]}}`)
-	suite.assertQueryResult(list, "{value(at:1,count:2)}", `{"data":{"value":[1.1,-100]}}`)
+	suite.assertQueryResult(list, "{value{values}}", `{"data":{"value":{"values":[1,1.1,-100]}}}`)
+	suite.assertQueryResult(list, "{value{values(at:1,count:2)}}", `{"data":{"value":{"values":[1.1,-100]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestListOfStruct() {
@@ -109,26 +110,27 @@ func (suite *QueryGraphQLSuite) TestListOfStruct() {
 		}),
 	)
 
-	suite.assertQueryResult(list, "{value{a b}}", `{"data":{"value":[{"a":28,"b":"foo"},{"a":-20.102,"b":"bar"},{"a":5,"b":"baz"}]}}`)
+	suite.assertQueryResult(list, "{value{values{a b}}}", `{"data":{"value":{"values":[{"a":28,"b":"foo"},{"a":-20.102,"b":"bar"},{"a":5,"b":"baz"}]}}}`)
 
-	suite.assertQueryResult(list, "{value{a}}", `{"data":{"value":[{"a":28},{"a":-20.102},{"a":5}]}}`)
+	suite.assertQueryResult(list, "{value{values{a}}}", `{"data":{"value":{"values":[{"a":28},{"a":-20.102},{"a":5}]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestSetBasic() {
 	set := types.NewSet(types.String("foo"), types.String("bar"), types.String("baz"))
 
-	suite.assertQueryResult(set, "{value}", `{"data":{"value":["bar","baz","foo"]}}`)
-	suite.assertQueryResult(set, "{value(count:2)}", `{"data":{"value":["bar","baz"]}}`)
+	suite.assertQueryResult(set, "{value{values}}", `{"data":{"value":{"values":["bar","baz","foo"]}}}`)
+	suite.assertQueryResult(set, "{value{size}}", `{"data":{"value":{"size":3}}}`)
+	suite.assertQueryResult(set, "{value{values(count:2)}}", `{"data":{"value":{"values":["bar","baz"]}}}`)
 
 	set = types.NewSet(types.Bool(true), types.Bool(false))
 
-	suite.assertQueryResult(set, "{value}", `{"data":{"value":[false,true]}}`)
-	suite.assertQueryResult(set, "{value(count:1)}", `{"data":{"value":[false]}}`)
+	suite.assertQueryResult(set, "{value{values}}", `{"data":{"value":{"values":[false,true]}}}`)
+	suite.assertQueryResult(set, "{value{values(count:1)}}", `{"data":{"value":{"values":[false]}}}`)
 
 	set = types.NewSet(types.Number(1), types.Number(1.1), types.Number(-100))
 
-	suite.assertQueryResult(set, "{value}", `{"data":{"value":[-100,1,1.1]}}`)
-	suite.assertQueryResult(set, "{value(count:2)}", `{"data":{"value":[-100,1]}}`)
+	suite.assertQueryResult(set, "{value{values}}", `{"data":{"value":{"values":[-100,1,1.1]}}}`)
+	suite.assertQueryResult(set, "{value{values(count:2)}}", `{"data":{"value":{"values":[-100,1]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestSetOfStruct() {
@@ -147,9 +149,8 @@ func (suite *QueryGraphQLSuite) TestSetOfStruct() {
 		}),
 	)
 
-	suite.assertQueryResult(set, "{value{a b}}", `{"data":{"value":[{"a":-20.102,"b":"bar"},{"a":5,"b":"baz"},{"a":28,"b":"foo"}]}}`)
-
-	suite.assertQueryResult(set, "{value{a}}", `{"data":{"value":[{"a":-20.102},{"a":5},{"a":28}]}}`)
+	suite.assertQueryResult(set, "{value{values{a b}}}", `{"data":{"value":{"values":[{"a":-20.102,"b":"bar"},{"a":5,"b":"baz"},{"a":28,"b":"foo"}]}}}`)
+	suite.assertQueryResult(set, "{value{values{a}}}", `{"data":{"value":{"values":[{"a":-20.102},{"a":5},{"a":28}]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestMapBasic() {
@@ -159,9 +160,10 @@ func (suite *QueryGraphQLSuite) TestMapBasic() {
 		types.String("baz"), types.Number(3),
 	)
 
-	suite.assertQueryResult(m, "{value{key value}}", `{"data":{"value":[{"key":"bar","value":2},{"key":"baz","value":3},{"key":"foo","value":1}]}}`)
-	suite.assertQueryResult(m, "{value(count:2){value}}", `{"data":{"value":[{"value":2},{"value":3}]}}`)
-	suite.assertQueryResult(m, "{value(count:3){key}}", `{"data":{"value":[{"key":"bar"},{"key":"baz"},{"key":"foo"}]}}`)
+	suite.assertQueryResult(m, "{value{values{key value}}}", `{"data":{"value":{"values":[{"key":"bar","value":2},{"key":"baz","value":3},{"key":"foo","value":1}]}}}`)
+	suite.assertQueryResult(m, "{value{size}}", `{"data":{"value":{"size":3}}}`)
+	suite.assertQueryResult(m, "{value{values(count:2){value}}}", `{"data":{"value":{"values":[{"value":2},{"value":3}]}}}`)
+	suite.assertQueryResult(m, "{value{values(count:3){key}}}", `{"data":{"value":{"values":[{"key":"bar"},{"key":"baz"},{"key":"foo"}]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestMapOfStruct() {
@@ -180,9 +182,9 @@ func (suite *QueryGraphQLSuite) TestMapOfStruct() {
 		}),
 	)
 
-	suite.assertQueryResult(m, "{value{key value{a}}}", `{"data":{"value":[{"key":"bar","value":{"a":-20.102}},{"key":"baz","value":{"a":5}},{"key":"foo","value":{"a":28}}]}}`)
-	suite.assertQueryResult(m, "{value(count:1){value{a b}}}", `{"data":{"value":[{"value":{"a":-20.102,"b":"bar"}}]}}`)
-	suite.assertQueryResult(m, "{value(count:3){key}}", `{"data":{"value":[{"key":"bar"},{"key":"baz"},{"key":"foo"}]}}`)
+	suite.assertQueryResult(m, "{value{values{key value{a}}}}", `{"data":{"value":{"values":[{"key":"bar","value":{"a":-20.102}},{"key":"baz","value":{"a":5}},{"key":"foo","value":{"a":28}}]}}}`)
+	suite.assertQueryResult(m, "{value{values(count:1){value{a b}}}}", `{"data":{"value":{"values":[{"value":{"a":-20.102,"b":"bar"}}]}}}`)
+	suite.assertQueryResult(m, "{value{values(count:3){key}}}", `{"data":{"value":{"values":[{"key":"bar"},{"key":"baz"},{"key":"foo"}]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestRef() {
@@ -202,8 +204,8 @@ func (suite *QueryGraphQLSuite) TestRef() {
 
 	r = suite.vs.WriteValue(types.NewList(types.String("foo"), types.String("bar"), types.String("baz")))
 
-	suite.assertQueryResult(r, "{value{targetValue}}", `{"data":{"value":{"targetValue":["foo","bar","baz"]}}}`)
-	suite.assertQueryResult(r, "{value{targetValue(at:1,count:2)}}", `{"data":{"value":{"targetValue":["bar","baz"]}}}`)
+	suite.assertQueryResult(r, "{value{targetValue{values}}}", `{"data":{"value":{"targetValue":{"values":["foo","bar","baz"]}}}}`)
+	suite.assertQueryResult(r, "{value{targetValue{values(at:1,count:2)}}}", `{"data":{"value":{"targetValue":{"values":["bar","baz"]}}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestListOfUnionOfStructs() {
@@ -220,7 +222,7 @@ func (suite *QueryGraphQLSuite) TestListOfUnionOfStructs() {
 		}),
 	)
 
-	suite.assertQueryResult(list, "{value{... on Foo{a b} ... on Bar{b} ... on Baz{c}}}", `{"data":{"value":[{"a":28,"b":"baz"},{"b":"bar"},{"c":true}]}}`)
+	suite.assertQueryResult(list, "{value{values{... on Foo{a b} ... on Bar{b} ... on Baz{c}}}}", `{"data":{"value":{"values":[{"a":28,"b":"baz"},{"b":"bar"},{"c":true}]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestCyclicStructs() {
@@ -242,5 +244,22 @@ func (suite *QueryGraphQLSuite) TestCyclicStructs() {
 		types.NewSet(types.NewStructWithType(typ, types.ValueSlice{types.String("bbb"), types.NewSet()})),
 	})
 
-	suite.assertQueryResult(s1, "{value{a b{a}}}", `{"data":{"value":{"a":"aaa","b":[{"a":"bbb"}]}}}`)
+	suite.assertQueryResult(s1, "{value{a b{values{a}}}}", `{"data":{"value":{"a":"aaa","b":{"values":[{"a":"bbb"}]}}}}`)
+}
+
+func (suite *QueryGraphQLSuite) TestNestedCollection() {
+	list := types.NewList(
+		types.NewSet(
+			types.NewMap(types.Number(10), types.String("foo")),
+			types.NewMap(types.Number(20), types.String("bar")),
+		),
+		types.NewSet(
+			types.NewMap(types.Number(30), types.String("baz")),
+			types.NewMap(types.Number(40), types.String("bat")),
+		),
+	)
+
+	suite.assertQueryResult(list, "{value{size}}", `{"data":{"value":{"size":2}}}`)
+	suite.assertQueryResult(list, "{value{values(count:1){size}}}", `{"data":{"value":{"values":[{"size":2}]}}}`)
+	suite.assertQueryResult(list, "{value{values(at:1,count:1){values(count:1){values{key value}}}}}", `{"data":{"value":{"values":[{"values":[{"values":[{"key":30,"value":"baz"}]}]}]}}}`)
 }
