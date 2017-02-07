@@ -30,8 +30,8 @@ const (
 )
 
 func constructQueryType(rootValue types.Value, tm typeMap) *graphql.Object {
-	rootTyp := rootValue.Type()
-	rootType := nomsTypeToGraphQLType(rootTyp, tm)
+	rootNomsType := rootValue.Type()
+	rootType := nomsTypeToGraphQLType(rootNomsType, tm)
 
 	return graphql.NewObject(graphql.ObjectConfig{
 		Name: rootKey,

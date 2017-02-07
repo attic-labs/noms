@@ -28,8 +28,8 @@ type getFieldFn func(v interface{}, fieldName string, ctx context.Context) types
 type getSubvaluesFn func(v types.Value, args map[string]interface{}) (interface{}, error)
 
 // Note: Always returns a graphql.NonNull() as the outer type.
-func nomsTypeToGraphQLType(t *types.Type, tm typeMap) graphql.Type {
-	gqlType, ok := tm[t.Hash()]
+func nomsTypeToGraphQLType(nomsType *types.Type, tm typeMap) graphql.Type {
+	gqlType, ok := tm[nomsType.Hash()]
 	if ok {
 		return gqlType
 	}
@@ -38,9 +38,9 @@ func nomsTypeToGraphQLType(t *types.Type, tm typeMap) graphql.Type {
 	// creating any subtypes. Since all noms-types are non-nullable, the graphql NonNull creates a
 	// handy piece of state for us to mutate once the subtype is fully created
 	newNonNull := &graphql.NonNull{}
-	tm[t.Hash()] = newNonNull
+	tm[nomsType.Hash()] = newNonNull
 
-	switch t.Kind() {
+	switch nomsType.Kind() {
 	case types.NumberKind:
 		newNonNull.OfType = graphql.Float
 
@@ -51,25 +51,25 @@ func nomsTypeToGraphQLType(t *types.Type, tm typeMap) graphql.Type {
 		newNonNull.OfType = graphql.Boolean
 
 	case types.StructKind:
-		newNonNull.OfType = structToGQLObject(t, tm)
+		newNonNull.OfType = structToGQLObject(nomsType, tm)
 
 	case types.ListKind, types.SetKind:
-		valueTyp := t.Desc.(types.CompoundDesc).ElemTypes[0]
-		newNonNull.OfType = collectionToGraphQLObject(t, nomsTypeToGraphQLType(valueTyp, tm), tm)
+		valueTyp := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
+		newNonNull.OfType = collectionToGraphQLObject(nomsType, nomsTypeToGraphQLType(valueTyp, tm), tm)
 
 	case types.MapKind:
-		keyTyp := t.Desc.(types.CompoundDesc).ElemTypes[0]
-		valueTyp := t.Desc.(types.CompoundDesc).ElemTypes[1]
-		newNonNull.OfType = collectionToGraphQLObject(t, mapEntryToGraphQLObject(keyTyp, valueTyp, tm), tm)
+		keyTyp := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
+		valueTyp := nomsType.Desc.(types.CompoundDesc).ElemTypes[1]
+		newNonNull.OfType = collectionToGraphQLObject(nomsType, mapEntryToGraphQLObject(keyTyp, valueTyp, tm), tm)
 
 	case types.RefKind:
-		newNonNull.OfType = refToGraphQLObject(t, tm)
+		newNonNull.OfType = refToGraphQLObject(nomsType, tm)
 
 	case types.UnionKind:
-		newNonNull.OfType = unionToGQLUnion(t, tm)
+		newNonNull.OfType = unionToGQLUnion(nomsType, tm)
 
 	case types.BlobKind, types.ValueKind, types.TypeKind:
-		panic(fmt.Sprintf("%d: type not impemented", t.Kind()))
+		panic(fmt.Sprintf("%d: type not impemented", nomsType.Kind()))
 
 	case types.CycleKind:
 		panic("not reached") // we should never attempt to create a schedule for any unresolved cycle
@@ -82,22 +82,21 @@ func nomsTypeToGraphQLType(t *types.Type, tm typeMap) graphql.Type {
 }
 
 // Creates a union of structs type.
-func unionToGQLUnion(typ *types.Type, tm typeMap) *graphql.Union {
-	unionTyps := typ.Desc.(types.CompoundDesc).ElemTypes
-	unionTypes := make([]*graphql.Object, len(unionTyps))
+func unionToGQLUnion(nomsType *types.Type, tm typeMap) *graphql.Union {
+	nomsMemberTypes := nomsType.Desc.(types.CompoundDesc).ElemTypes
+	memberTypes := make([]*graphql.Object, len(nomsMemberTypes))
 
-	for i, unionTyp := range unionTyps {
+	for i, unionTyp := range nomsMemberTypes {
 		if unionTyp.Kind() != types.StructKind {
 			panic("booh: grqphql-go only supports unions of structs")
 		}
 
-		unionType := nomsTypeToGraphQLType(unionTyp, tm).(*graphql.NonNull).OfType.(*graphql.Object)
-		unionTypes[i] = unionType
+		memberTypes[i] = nomsTypeToGraphQLType(unionTyp, tm).(*graphql.NonNull).OfType.(*graphql.Object)
 	}
 
 	return graphql.NewUnion(graphql.UnionConfig{
-		Name:  getTypeName(typ),
-		Types: unionTypes,
+		Name:  getTypeName(nomsType),
+		Types: memberTypes,
 		ResolveType: func(p graphql.ResolveTypeParams) *graphql.Object {
 			tm := p.Context.Value(tmKey).(typeMap)
 			typ := p.Value.(types.Value).Type()
@@ -107,8 +106,8 @@ func unionToGQLUnion(typ *types.Type, tm typeMap) *graphql.Union {
 	})
 }
 
-func structToGQLObject(typ *types.Type, tm typeMap) *graphql.Object {
-	structDesc := typ.Desc.(types.StructDesc)
+func structToGQLObject(nomsType *types.Type, tm typeMap) *graphql.Object {
+	structDesc := nomsType.Desc.(types.StructDesc)
 	fields := graphql.Fields{}
 
 	structDesc.IterFields(func(name string, fieldTyp *types.Type) {
@@ -124,7 +123,7 @@ func structToGQLObject(typ *types.Type, tm typeMap) *graphql.Object {
 	})
 
 	return graphql.NewObject(graphql.ObjectConfig{
-		Name:   getTypeName(typ),
+		Name:   getTypeName(nomsType),
 		Fields: fields,
 	})
 }
@@ -241,12 +240,12 @@ type mapEntry struct {
 //	 key: <KeyType>!
 //	 value: <ValueType>!
 // }
-func mapEntryToGraphQLObject(keyTyp, valueTyp *types.Type, tm typeMap) *graphql.Object {
-	keyType := nomsTypeToGraphQLType(keyTyp, tm)
-	valueType := nomsTypeToGraphQLType(valueTyp, tm)
+func mapEntryToGraphQLObject(nomsKeyType, nomsValueType *types.Type, tm typeMap) *graphql.Object {
+	keyType := nomsTypeToGraphQLType(nomsKeyType, tm)
+	valueType := nomsTypeToGraphQLType(nomsValueType, tm)
 
 	return graphql.NewObject(graphql.ObjectConfig{
-		Name: fmt.Sprintf("%s%sEntry", getTypeName(keyTyp), getTypeName(valueTyp)),
+		Name: fmt.Sprintf("%s%sEntry", getTypeName(nomsKeyType), getTypeName(nomsValueType)),
 		Fields: graphql.Fields{
 			keyKey: &graphql.Field{
 				Type: keyType,
@@ -265,8 +264,8 @@ func mapEntryToGraphQLObject(keyTyp, valueTyp *types.Type, tm typeMap) *graphql.
 		}})
 }
 
-func getTypeName(typ *types.Type) string {
-	switch typ.Kind() {
+func getTypeName(nomsType *types.Type) string {
+	switch nomsType.Kind() {
 	case types.BoolKind:
 		return "Boolean"
 
@@ -280,24 +279,24 @@ func getTypeName(typ *types.Type) string {
 		return "Value"
 
 	case types.ListKind:
-		return fmt.Sprintf("%sList", getTypeName(typ.Desc.(types.CompoundDesc).ElemTypes[0]))
+		return fmt.Sprintf("%sList", getTypeName(nomsType.Desc.(types.CompoundDesc).ElemTypes[0]))
 
 	case types.MapKind:
-		kn := getTypeName(typ.Desc.(types.CompoundDesc).ElemTypes[0])
-		vn := getTypeName(typ.Desc.(types.CompoundDesc).ElemTypes[0])
+		kn := getTypeName(nomsType.Desc.(types.CompoundDesc).ElemTypes[0])
+		vn := getTypeName(nomsType.Desc.(types.CompoundDesc).ElemTypes[0])
 		return fmt.Sprintf("%sTo%sMap", kn, vn)
 
 	case types.RefKind:
-		return fmt.Sprintf("%sRef", getTypeName(typ.Desc.(types.CompoundDesc).ElemTypes[0]))
+		return fmt.Sprintf("%sRef", getTypeName(nomsType.Desc.(types.CompoundDesc).ElemTypes[0]))
 
 	case types.SetKind:
-		return fmt.Sprintf("%sSet", getTypeName(typ.Desc.(types.CompoundDesc).ElemTypes[0]))
+		return fmt.Sprintf("%sSet", getTypeName(nomsType.Desc.(types.CompoundDesc).ElemTypes[0]))
 
 	case types.StructKind:
-		return fmt.Sprintf("%sStruct", typ.Desc.(types.StructDesc).Name)
+		return fmt.Sprintf("%sStruct", nomsType.Desc.(types.StructDesc).Name)
 
 	case types.UnionKind:
-		unionTyps := typ.Desc.(types.CompoundDesc).ElemTypes
+		unionTyps := nomsType.Desc.(types.CompoundDesc).ElemTypes
 		names := make([]string, len(unionTyps))
 		for i, unionTyp := range unionTyps {
 			names[i] = getTypeName(unionTyp)
@@ -309,11 +308,11 @@ func getTypeName(typ *types.Type) string {
 	}
 }
 
-func collectionToGraphQLObject(typ *types.Type, listType graphql.Type, tm typeMap) *graphql.Object {
+func collectionToGraphQLObject(nomsType *types.Type, listType graphql.Type, tm typeMap) *graphql.Object {
 	var args graphql.FieldConfigArgument
 	var getSubvalues getSubvaluesFn
 
-	switch typ.Kind() {
+	switch nomsType.Kind() {
 	case types.ListKind:
 		args = listArgs
 		getSubvalues = getListValues
@@ -328,7 +327,7 @@ func collectionToGraphQLObject(typ *types.Type, listType graphql.Type, tm typeMa
 	}
 
 	return graphql.NewObject(graphql.ObjectConfig{
-		Name: getTypeName(typ),
+		Name: getTypeName(nomsType),
 		Fields: graphql.Fields{
 			sizeKey: &graphql.Field{
 				Type: graphql.Float,
@@ -355,12 +354,12 @@ func collectionToGraphQLObject(typ *types.Type, listType graphql.Type, tm typeMa
 //	 targetHash: String!
 //	 targetValue: <ValueType>!
 // }
-func refToGraphQLObject(typ *types.Type, tm typeMap) *graphql.Object {
-	targetTyp := typ.Desc.(types.CompoundDesc).ElemTypes[0]
-	targetType := nomsTypeToGraphQLType(targetTyp, tm)
+func refToGraphQLObject(nomsType *types.Type, tm typeMap) *graphql.Object {
+	nomsTargetType := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
+	targetType := nomsTypeToGraphQLType(nomsTargetType, tm)
 
 	return graphql.NewObject(graphql.ObjectConfig{
-		Name: getTypeName(typ),
+		Name: getTypeName(nomsType),
 		Fields: graphql.Fields{
 			targetHashKey: &graphql.Field{
 				Type: graphql.String,
