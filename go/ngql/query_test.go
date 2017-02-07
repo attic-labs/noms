@@ -222,7 +222,7 @@ func (suite *QueryGraphQLSuite) TestListOfUnionOfStructs() {
 		}),
 	)
 
-	suite.assertQueryResult(list, "{value{values{... on Foo{a b} ... on Bar{b} ... on Baz{c}}}}", `{"data":{"value":{"values":[{"a":28,"b":"baz"},{"b":"bar"},{"c":true}]}}}`)
+	suite.assertQueryResult(list, "{value{values{... on FooStruct{a b} ... on BarStruct{b} ... on BazStruct{c}}}}", `{"data":{"value":{"values":[{"a":28,"b":"baz"},{"b":"bar"},{"c":true}]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestCyclicStructs() {

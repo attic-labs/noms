@@ -294,7 +294,7 @@ func getTypeName(typ *types.Type) string {
 		return fmt.Sprintf("%sSet", getTypeName(typ.Desc.(types.CompoundDesc).ElemTypes[0]))
 
 	case types.StructKind:
-		return typ.Desc.(types.StructDesc).Name
+		return fmt.Sprintf("%sStruct", typ.Desc.(types.StructDesc).Name)
 
 	case types.UnionKind:
 		unionTyps := typ.Desc.(types.CompoundDesc).ElemTypes
