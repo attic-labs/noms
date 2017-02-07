@@ -84,7 +84,8 @@ func nomsTypeToGraphQLType(nomsType *types.Type, tm typeMap) graphql.Type {
 		newNonNull.OfType = unionToGQLUnion(nomsType, tm)
 
 	case types.BlobKind, types.ValueKind, types.TypeKind:
-		panic(fmt.Sprintf("%d: type not impemented", nomsType.Kind()))
+		// TODO: https://github.com/attic-labs/noms/issues/3155
+		newNonNull.OfType = graphql.String
 
 	case types.CycleKind:
 		panic("not reached") // we should never attempt to create a schedule for any unresolved cycle
@@ -294,6 +295,9 @@ func getTypeName(nomsType *types.Type) string {
 	case types.StringKind:
 		return "String"
 
+	case types.BlobKind:
+		return "Blob"
+
 	case types.ValueKind:
 		return "Value"
 
@@ -425,6 +429,9 @@ func maybeGetScalar(v types.Value) interface{} {
 		return float64(v.(types.Number))
 	case types.String:
 		return string(v.(types.String))
+	case *types.Type, types.Blob:
+		// TODO: https://github.com/attic-labs/noms/issues/3155
+		return v.Hash()
 	}
 
 	return v

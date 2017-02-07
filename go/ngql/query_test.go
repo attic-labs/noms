@@ -275,3 +275,12 @@ func (suite *QueryGraphQLSuite) TestNestedCollection() {
 	suite.assertQueryResult(list, "{root{elements(count:1){size}}}", `{"data":{"root":{"elements":[{"size":2}]}}}`)
 	suite.assertQueryResult(list, "{root{elements(at:1,count:1){elements(count:1){elements{key value}}}}}", `{"data":{"root":{"elements":[{"elements":[{"elements":[{"key":30,"value":"baz"}]}]}]}}}`)
 }
+
+func (suite *QueryGraphQLSuite) TestLoFi() {
+	b := types.NewBlob(bytes.NewBufferString("I am a blob"))
+
+	suite.assertQueryResult(b, "{root}", `{"data":{"root":"h6jkv35uum62a7ovu14uvmhaf0sojgh6"}}`)
+
+	t := types.StringType
+	suite.assertQueryResult(t, "{root}", `{"data":{"root":"pej65tf21rubhu9cb0oi5gqrkgf26aql"}}`)
+}
