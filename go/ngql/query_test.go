@@ -237,6 +237,22 @@ func (suite *QueryGraphQLSuite) TestListOfUnionOfStructs() {
 	suite.assertQueryResult(list, "{root{elements{... on FooStruct{a b} ... on BarStruct{b} ... on BazStruct{c}}}}", `{"data":{"root":{"elements":[{"a":28,"b":"baz"},{"b":"bar"},{"c":true}]}}}`)
 }
 
+func (suite *QueryGraphQLSuite) TestListOfUnionOfStructsConflictingFieldTypes() {
+	list := types.NewList(
+		types.NewStruct("Foo", types.StructData{
+			"a": types.Number(28),
+		}),
+		types.NewStruct("Bar", types.StructData{
+			"a": types.String("bar"),
+		}),
+		types.NewStruct("Baz", types.StructData{
+			"a": types.Bool(true),
+		}),
+	)
+
+	suite.assertQueryResult(list, "{root{elements{... on FooStruct{a} ... on BarStruct{b: a} ... on BazStruct{c: a}}}}", `{"data":{"root":{"elements":[{"a":28},{"b":"bar"},{"c":true}]}}}`)
+}
+
 func (suite *QueryGraphQLSuite) TestCyclicStructs() {
 	typ := types.MakeStructTypeFromFields("A", types.FieldMap{
 		"a": types.StringType,
