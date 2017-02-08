@@ -173,7 +173,14 @@ func unionToGQLUnion(nomsType *types.Type, tm *typeMap) *graphql.Union {
 
 func structToGQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
 	structDesc := nomsType.Desc.(types.StructDesc)
-	fields := graphql.Fields{}
+	fields := graphql.Fields{
+		"hash": &graphql.Field{
+			Type: graphql.NewNonNull(graphql.String),
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				return p.Source.(types.Struct).Hash().String(), nil
+			},
+		},
+	}
 
 	structDesc.IterFields(func(name string, nomsFieldType *types.Type) {
 		fieldType := nomsTypeToGraphQLType(nomsFieldType, false, tm)
@@ -449,7 +456,7 @@ func refToGraphQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
 		Name: getTypeName(nomsType),
 		Fields: graphql.Fields{
 			targetHashKey: &graphql.Field{
-				Type: graphql.String,
+				Type: graphql.NewNonNull(graphql.String),
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					r := p.Source.(types.Ref)
 					return maybeGetScalar(types.String(r.TargetHash().String())), nil

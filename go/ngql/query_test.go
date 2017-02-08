@@ -62,6 +62,12 @@ func (suite *QueryGraphQLSuite) TestStructBasic() {
 	suite.assertQueryResult(s1, "{root{a c}}", `{"data":{"root":{"a":"aaa","c":0.1}}}`)
 }
 
+func (suite *QueryGraphQLSuite) TestEmptyStruct() {
+	s1 := types.NewStruct("", types.StructData{})
+
+	suite.assertQueryResult(s1, "{root{hash}}", `{"data":{"root":{"hash":"c66c33bb6na2m5mk0bek7eqqrl2t7gmv"}}}`)
+}
+
 func (suite *QueryGraphQLSuite) TestEmbeddedStruct() {
 	s1 := types.NewStruct("Foo", types.StructData{
 		"a": types.String("aaa"),
