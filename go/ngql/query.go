@@ -20,6 +20,7 @@ const (
 	countKey       = "count"
 	keyKey         = "key"
 	rootQueryKey   = "Root"
+	scalarValue    = "scalarValue"
 	sizeKey        = "size"
 	targetHashKey  = "targetHash"
 	targetValueKey = "targetValue"

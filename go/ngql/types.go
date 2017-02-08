@@ -107,11 +107,7 @@ func unionToGQLUnion(nomsType *types.Type, tm typeMap) *graphql.Union {
 	memberTypes := make([]*graphql.Object, len(nomsMemberTypes))
 
 	for i, nomsUnionType := range nomsMemberTypes {
-		if nomsUnionType.Kind() != types.StructKind {
-			panic("booh: grqphql-go only supports unions of structs")
-		}
-
-		memberTypes[i] = nomsTypeToGraphQLType(nomsUnionType, tm).(*graphql.NonNull).OfType.(*graphql.Object)
+		memberTypes[i] = maybeScalarToValue(nomsUnionType, tm).(*graphql.NonNull).OfType.(*graphql.Object)
 	}
 
 	return graphql.NewUnion(graphql.UnionConfig{
@@ -419,6 +415,27 @@ func refToGraphQLObject(nomsType *types.Type, tm typeMap) *graphql.Object {
 				},
 			},
 		}})
+}
+
+func maybeScalarToValue(nomsType *types.Type, tm typeMap) graphql.Type {
+	scalarType := nomsTypeToGraphQLType(nomsType, tm)
+
+	switch nomsType.Kind() {
+	case types.BoolKind, types.NumberKind, types.StringKind:
+	default:
+		return scalarType
+	}
+
+	return graphql.NewNonNull(graphql.NewObject(graphql.ObjectConfig{
+		Name: fmt.Sprintf("%sValue", getTypeName(nomsType)),
+		Fields: graphql.Fields{
+			scalarValue: &graphql.Field{
+				Type: scalarType,
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					return maybeGetScalar(p.Source.(types.Value)), nil
+				},
+			},
+		}}))
 }
 
 func maybeGetScalar(v types.Value) interface{} {
