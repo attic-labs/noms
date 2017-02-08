@@ -260,7 +260,7 @@ func (suite *QueryGraphQLSuite) TestListOfUnionOfScalars() {
 		types.Bool(true),
 	)
 
-	suite.assertQueryResult(list, "{root{elements{... on BooleanValue{scalarValue} ... on StringValue{stringValue: scalarValue} ... on NumberValue{numberValue: scalarValue}}}}", `{"data":{"root":{"elements":[{"scalarValue":28},{"stringValue":"bar"},{"booleanValue":true}]}}}`)
+	suite.assertQueryResult(list, "{root{elements{... on BooleanValue{b: scalarValue} ... on StringValue{s: scalarValue} ... on NumberValue{n: scalarValue}}}}", `{"data":{"root":{"elements":[{"n":28},{"s":"bar"},{"b":true}]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestCyclicStructs() {

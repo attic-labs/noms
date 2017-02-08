@@ -31,9 +31,9 @@ const (
 	vrKey          = "vr"
 )
 
-func constructQueryType(rootValue types.Value, tm typeMap) *graphql.Object {
+func constructQueryType(rootValue types.Value, tm *typeMap) *graphql.Object {
 	rootNomsType := rootValue.Type()
-	rootType := nomsTypeToGraphQLType(rootNomsType, tm)
+	rootType := nomsTypeToGraphQLType(rootNomsType, false, tm)
 
 	return graphql.NewObject(graphql.ObjectConfig{
 		Name: rootQueryKey,
