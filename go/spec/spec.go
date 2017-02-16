@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/nbs"
 	"github.com/attic-labs/noms/go/types"
@@ -242,16 +241,11 @@ func (sp Spec) Pin() (Spec, bool) {
 		return Spec{}, false
 	}
 
-	spec := sp.Protocol + sp.DatabaseName + Separator + "#" + commit.Hash().String()
-	if sp.Path.Path != nil {
-		spec += sp.Path.Path.String()
-	}
+	r := sp
+	r.Path.Hash = commit.Hash()
+	r.Path.Dataset = ""
 
-	pinned, err := ForPathOpts(spec, sp.Options)
-	d.PanicIfError(err)
-	*pinned.db = *sp.db
-
-	return pinned, true
+	return r, true
 }
 
 func (sp Spec) Close() error {
