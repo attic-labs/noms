@@ -230,6 +230,9 @@ func (sp Spec) Pin() (Spec, bool) {
 	}
 
 	spec := sp.Protocol + sp.DatabaseName + Separator + "#" + commit.Hash().String()
+	if !sp.Path.IsEmpty() && sp.Path.PathFromCommit {
+		spec += ".value"
+	}
 	if sp.Path.Path != nil {
 		spec += sp.Path.Path.String()
 	}
