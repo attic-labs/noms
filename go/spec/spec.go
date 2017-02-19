@@ -7,6 +7,7 @@
 package spec
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -32,13 +33,8 @@ type SpecOptions struct {
 	Authorization string
 }
 
-// Spec describes a Database, Dataset, or a path to a Value. They should be
-// constructed by parsing strings, either through ForDatabase, ForDataset, or
-// ForPath (or their Opts variations).
+// Spec locates a Noms database, dataset, or value globally.
 type Spec struct {
-	// Spec is the spec string this was parsed into.
-	Spec string
-
 	// Protocol is one of "mem", "ldb", "http", or "https".
 	Protocol string
 
@@ -49,9 +45,6 @@ type Spec struct {
 	// Options are the SpecOptions that the Spec was constructed with.
 	Options SpecOptions
 
-	// DatasetName is empty unless the spec was created with ForDataset.
-	DatasetName string
-
 	// Path is nil unless the spec was created with ForPath.
 	Path AbsolutePath
 
@@ -59,14 +52,13 @@ type Spec struct {
 	db *datas.Database
 }
 
-func newSpec(spec string, dbSpec string, opts SpecOptions) (Spec, error) {
+func newSpec(dbSpec string, opts SpecOptions) (Spec, error) {
 	protocol, dbName, err := parseDatabaseSpec(dbSpec)
 	if err != nil {
 		return Spec{}, err
 	}
 
 	return Spec{
-		Spec:         spec,
 		Protocol:     protocol,
 		DatabaseName: dbName,
 		Options:      opts,
@@ -81,7 +73,7 @@ func ForDatabase(spec string) (Spec, error) {
 
 // ForDatabaseOpts parses a spec for a Database.
 func ForDatabaseOpts(spec string, opts SpecOptions) (Spec, error) {
-	return newSpec(spec, spec, opts)
+	return newSpec(spec, opts)
 }
 
 // ForDataset parses a spec for a Dataset.
@@ -91,21 +83,27 @@ func ForDataset(spec string) (Spec, error) {
 
 // ForDatasetOpts parses a spec for a Dataset.
 func ForDatasetOpts(spec string, opts SpecOptions) (Spec, error) {
-	dbSpec, dsName, err := splitDatabaseSpec(spec)
+	dbSpec, pathStr, err := splitDatabaseSpec(spec)
+
+	sp, err := newSpec(dbSpec, opts)
 	if err != nil {
 		return Spec{}, err
 	}
 
-	if !datasetRe.MatchString(dsName) {
-		return Spec{}, fmt.Errorf("Dataset %s must match %s", dsName, datasetRe.String())
-	}
-
-	sp, err := newSpec(spec, dbSpec, opts)
+	path, err := NewAbsolutePath(pathStr)
 	if err != nil {
 		return Spec{}, err
 	}
 
-	sp.DatasetName = dsName
+	if path.Dataset == "" {
+		return Spec{}, errors.New("dataset name required for dataset spec")
+	}
+
+	if !sp.Path.Path.IsEmpty() {
+		return Spec{}, errors.New("path is not allowed for dataset spec")
+	}
+
+	sp.Path = path
 	return sp, nil
 }
 
@@ -121,18 +119,33 @@ func ForPathOpts(spec string, opts SpecOptions) (Spec, error) {
 		return Spec{}, err
 	}
 
-	path, err := NewAbsolutePath(pathStr)
-	if err != nil {
-		return Spec{}, err
+	var path AbsolutePath
+	if pathStr != "" {
+		path, err = NewAbsolutePath(pathStr)
+		if err != nil {
+			return Spec{}, err
+		}
 	}
 
-	sp, err := newSpec(spec, dbSpec, opts)
+	sp, err := newSpec(dbSpec, opts)
 	if err != nil {
 		return Spec{}, err
 	}
 
 	sp.Path = path
 	return sp, nil
+}
+
+func (sp Spec) String() string {
+	s := sp.Protocol
+	if s != "mem" {
+		s += ":" + sp.DatabaseName
+	}
+	p := sp.Path.String()
+	if p != "" {
+		s += Separator + p
+	}
+	return s
 }
 
 // GetDatabase returns the Database instance that this Spec's DatabaseName
@@ -178,8 +191,8 @@ func parseAWSSpec(awsURL string) chunks.ChunkStore {
 // new up-to-date Dataset will returned on the next call to GetDataset.  If
 // this is not a Dataset spec, returns nil.
 func (sp Spec) GetDataset() (ds datas.Dataset) {
-	if sp.DatasetName != "" {
-		ds = sp.GetDatabase().GetDataset(sp.DatasetName)
+	if sp.Path.Dataset != "" {
+		ds = sp.GetDatabase().GetDataset(sp.Path.Dataset)
 	}
 	return
 }
