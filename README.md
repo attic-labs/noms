@@ -1,36 +1,36 @@
 <img src='doc/nommy_cropped_smaller.png' width='350' title='Nommy, the snacky otter'>
 <br>
-[Command-Line Tour](doc/cli-tour.md)&nbsp; | &nbsp;[Go SDK Tour](doc/go-tour.md)&nbsp; | &nbsp;[JavaScript SDK Tour](doc/js-tour.md)&nbsp; | &nbsp;[Documentation](doc/index.md)&nbsp; | &nbsp;[Project Status](#status)&nbsp; | &nbsp;[Download](https://s3-us-west-2.amazonaws.com/downloadstable.noms.io/index.html?prefix=jobs/NomsBuildGoBinaries-v7/)
+[Command-Line Tour](doc/cli-tour.md)&nbsp; | &nbsp;[Go SDK Tour](doc/go-tour.md)&nbsp; | &nbsp;[Documentation](doc/index.md)&nbsp; | &nbsp;[Project Status](#status)&nbsp; | &nbsp;[Download](https://s3-us-west-2.amazonaws.com/downloadstable.noms.io/index.html?prefix=jobs/NomsBuildGoBinaries-v7/)
 <br><br>
 [![Build Status](http://jenkins3.noms.io/buildStatus/icon?job=NomsMasterBuilder)](http://jenkins3.noms.io/job/NomsMasterBuilder/)
 [![codecov](https://codecov.io/gh/attic-labs/noms/branch/master/graph/badge.svg)](https://codecov.io/gh/attic-labs/noms)
 [![GoDoc](https://godoc.org/github.com/attic-labs/noms?status.svg)](https://godoc.org/github.com/attic-labs/noms)
 [![Slack](http://slack.noms.io/badge.svg)](http://slack.noms.io)
 
-*Noms* is a decentralized database based on ideas from Git.
+*Noms* is a decentralized database philosophically descendant from the Git version control system.
 
-This repository contains two reference implementations of the database—one in Go, and one in JavaScript. It also includes a number of tools and sample applications.
+Like Git, Noms is:
+
+* *Versioned:* By default, all previous versions of the database are retained. You can trivially audit how the database evolved to its current version, easily and efficiently compare any two versions, or even rewind and branch from any previous version.
+* *Synchronizable:* Noms databases can evolve disconnected from each other for any amount of time, then later reconcile their changes efficiently and correctly.
+
+Unlike Git, Noms is a database, so it:
+
+* Primarily stores structured data, not files and directories (see: the Noms type system)
+* Scales well to large amounts of data and concurrent clients (see: benchmarks)
+* Supports atomic transactions (when run in AWS, Noms is "effectively CA")
+* Supports efficient indexes (see: Noms prolly-trees)
+* Featuers a flexible query model (see: GraphQL)
+
+Finally, because Noms is content-addressed, it yields what we find to be a very pleasant programming model. Working with Noms is _declarative_. You don't INSERT new data, UPDATE existing data, or REMOVE old data. You simply _declare_ what the data ought to be right now. Noms transparently figures out how to translate that into writes and deletes.
 
 <br>
 
-## About Noms
-
-Noms is different from other databases. It is:
-
-* *Content-addressed*. If you have some data you want to put into Noms, you don't have to worry about whether it already exists. Duplicate data is automatically ignored. There is no update, only insert.
-
-* *Append-only*. When you commit data to Noms, you aren't overwriting anything. Instead you're adding to a historical record. By default, data is never removed from Noms. You can see the entire history of the database, diff any two commits, or rewind to any previous point in time.
-
-* *Typed*. Every value, dataset, and version of a database has a *type*, which is generated automatically as you add data. You can write code against the type of a Noms database, confident that you've handled all the cases you need to.
-
-* *Decentralized*. If I give you a copy of my database, you and I can modify our copies disconnected from each other, and come back together and merge our changes efficiently and correctly days, weeks, or years later.
-
-<br/>
 ## Install Noms
 
 Noms is supported on Mac OS X and Linux. While Windows isn't officially supported, you can compile a Windows build from source, and it usually works.
 
-1. [Download the latest  build](https://s3-us-west-2.amazonaws.com/downloadstable.noms.io/index.html?prefix=jobs/NomsBuildGoBinaries-v7/)
+1. [Download the latest build](https://s3-us-west-2.amazonaws.com/downloadstable.noms.io/index.html?prefix=jobs/NomsBuildGoBinaries-v7/)
 
   The build contains the Noms command-line and some utility tools. You can use `tar -ztvf noms-*.tar.gz` to view the contents of the tar.
 
