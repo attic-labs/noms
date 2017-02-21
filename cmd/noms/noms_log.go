@@ -9,9 +9,10 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"strings"
 
-	"os"
+	"sync"
 
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/config"
@@ -68,17 +69,17 @@ func runLog(args []string) int {
 	resolved := cfg.ResolvePathSpec(args[0])
 	sp, err := spec.ForPath(resolved)
 	d.CheckErrorNoUsage(err)
+	defer sp.Close()
+
 	pinned, ok := sp.Pin()
 	if !ok {
 		fmt.Fprintf(os.Stderr, "Cannot resolve spec: %s\n", args[0])
 		return 1
 	}
+	defer pinned.Close()
 	database := pinned.GetDatabase()
-	defer database.Close()
 
 	absPath := pinned.Path
-	d.Chk.NotEmpty(absPath.Hash) // because we pinned it
-
 	path := absPath.Path
 	if len(path) == 0 {
 		path = types.MustParsePath(".value")
@@ -315,8 +316,16 @@ func writeDiffLines(node LogNode, path types.Path, db datas.Database, maxLines, 
 	}
 
 	parentCommit := parent.(types.Ref).TargetValue(db).(types.Struct)
-	old := path.Resolve(parentCommit)
-	neu := path.Resolve(node.commit)
+	var old, neu types.Value
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	resolve := func(commit types.Value, dest *types.Value) {
+		*dest = path.Resolve(commit)
+		wg.Done()
+	}
+	go resolve(parentCommit, &old)
+	go resolve(node.commit, &neu)
+	wg.Wait()
 
 	// TODO: It would be better to treat this as an add or remove, but that requires generalization
 	// of some of the code in PrintDiff() because it cannot tolerate nil parameters.
