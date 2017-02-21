@@ -275,6 +275,7 @@ func TestForDataset(t *testing.T) {
 		"nbs:",
 		"nbs:hello",
 		"aws://t:b/db",
+		"mem::foo.value",
 	}
 
 	for _, spec := range badSpecs {

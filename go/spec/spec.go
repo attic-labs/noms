@@ -98,7 +98,7 @@ func ForDatasetOpts(spec string, opts SpecOptions) (Spec, error) {
 		return Spec{}, errors.New("dataset name required for dataset spec")
 	}
 
-	if !sp.Path.Path.IsEmpty() {
+	if !path.Path.IsEmpty() {
 		return Spec{}, errors.New("path is not allowed for dataset spec")
 	}
 

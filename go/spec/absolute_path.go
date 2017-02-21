@@ -24,12 +24,15 @@ var datasetCapturePrefixRe = regexp.MustCompile("^(" + datas.DatasetRe.String() 
 // For more on paths, absolute paths, and specs, see:
 // https://github.com/attic-labs/noms/blob/master/doc/spelling.md.
 type AbsolutePath struct {
-	// The dataset this AbsolutePath is rooted at. Only one of Dataset and Hash should be set.
+	// Dataset is the dataset this AbsolutePath is rooted at. Only one of
+	// Dataset and Hash should be set.
 	Dataset string
-	// The hash this AbsolutePath is rooted at. Only one of Dataset and Hash should be set.
+	// Hash is the hash this AbsolutePath is rooted at. Only one of Dataset and
+	// Hash should be set.
 	Hash hash.Hash
-	// The relative path from Dataset or Hash. This can be empty. In that case, the AbsolutePath
-	// describes the value at either Dataset or Hash.
+	// Path is the relative path from Dataset or Hash. This can be empty. In
+	// that case, the AbsolutePath describes the value at either Dataset or
+	// Hash.
 	Path types.Path
 }
 
