@@ -49,6 +49,30 @@ func (s *nomsLogTestSuite) TestNomsLog() {
 	testCommitInResults(s, sp.String(), 2)
 }
 
+func (s *nomsLogTestSuite) TestNomsLogPath() {
+	sp, err := spec.ForPath(spec.CreateValueSpecString("nbs", s.DBDir, "dsTest.value.bar"))
+	s.NoError(err)
+	defer sp.Close()
+
+	db := sp.GetDatabase()
+	ds := sp.GetDataset()
+	for i := 0; i < 3; i++ {
+		data := types.NewStruct("", types.StructData{
+			"bar": types.Number(i),
+		})
+		ds, err = db.CommitValue(ds, data)
+		s.NoError(err)
+	}
+
+	stdout, stderr := s.MustRun(main, []string{"log", "--show-value", sp.String()})
+	s.Empty(stderr)
+	test.EqualsIgnoreHashes(s.T(), pathValue, stdout)
+
+	stdout, stderr = s.MustRun(main, []string{"log", sp.String()})
+	s.Empty(stderr)
+	test.EqualsIgnoreHashes(s.T(), pathDiff, stdout)
+}
+
 func addCommit(ds datas.Dataset, v string) (datas.Dataset, error) {
 	return ds.Database().CommitValue(ds, types.String(v))
 }
@@ -338,4 +362,8 @@ const (
 
 	metaRes1 = "p7jmuh67vhfccnqk1bilnlovnms1m67o\nParent: f8gjiv5974ojir9tnrl2k393o4s1tf0r\n-   \"1\"\n+   \"2\"\n\nf8gjiv5974ojir9tnrl2k393o4s1tf0r\nParent:          None\nLongNameForTest: \"Yoo\"\nTest2:           \"Hoo\"\n\n"
 	metaRes2 = "p7jmuh67vhfccnqk1bilnlovnms1m67o (Parent: f8gjiv5974ojir9tnrl2k393o4s1tf0r)\nf8gjiv5974ojir9tnrl2k393o4s1tf0r (Parent: None)\n"
+
+	pathValue = "oki4cv7vkh743rccese3r3omf6l6mao4\nParent: lca4vejkm0iqsk7ok5322pt61u4otn6q\n2\n\nlca4vejkm0iqsk7ok5322pt61u4otn6q\nParent: u42pi8ukgkvpoi6n7d46cklske41oguf\n1\n\nu42pi8ukgkvpoi6n7d46cklske41oguf\nParent: hgmlqmsnrb3sp9jqc6mas8kusa1trrs2\n0\n\nhgmlqmsnrb3sp9jqc6mas8kusa1trrs2\nParent: hffiuecdpoq622tamm3nvungeca99ohl\n<nil>\nhffiuecdpoq622tamm3nvungeca99ohl\nParent: None\n<nil>\n"
+
+	pathDiff = "oki4cv7vkh743rccese3r3omf6l6mao4\nParent: lca4vejkm0iqsk7ok5322pt61u4otn6q\n-   1\n+   2\n\nlca4vejkm0iqsk7ok5322pt61u4otn6q\nParent: u42pi8ukgkvpoi6n7d46cklske41oguf\n-   0\n+   1\n\nu42pi8ukgkvpoi6n7d46cklske41oguf\nParent: hgmlqmsnrb3sp9jqc6mas8kusa1trrs2\nold (#hgmlqmsnrb3sp9jqc6mas8kusa1trrs2.value.bar) not found\n\nhgmlqmsnrb3sp9jqc6mas8kusa1trrs2\nParent: hffiuecdpoq622tamm3nvungeca99ohl\nnew (#hgmlqmsnrb3sp9jqc6mas8kusa1trrs2.value.bar) not found\nold (#hffiuecdpoq622tamm3nvungeca99ohl.value.bar) not found\n\nhffiuecdpoq622tamm3nvungeca99ohl\nParent: None\n\n"
 )
