@@ -359,3 +359,44 @@ func (suite *QueryGraphQLSuite) TestError() {
 	suite.Equal(buff.String(), `{"data":null,"errors":[{"message":"Some error string","locations":null}]}
 `)
 }
+
+func (suite *QueryGraphQLSuite) TestCustomSchema() {
+	val := types.NewStruct("Value", types.StructData{
+		"x": types.Number(42),
+		"s": types.String("hi"),
+	})
+	commit := makeCommit(val, types.EmptyStruct)
+	suite.assertQueryResult(commit, "{root{value{x}}}", `{"data":{"root":{"value":{"x":42}}}}`)
+	suite.assertQueryResult(commit, "{root{value{s}}}", `{"data":{"root":{"value":{"s":"hi"}}}}`)
+
+	schema := types.MakeStructTypeFromFields("Commit", types.FieldMap{
+		"value": types.MakeStructTypeFromFields("Value", types.FieldMap{
+			"x": types.NumberType,
+			"s": types.StringType,
+		}),
+		"meta": types.MakeStructTypeFromFields("Meta", types.FieldMap{
+			"schema": types.TypeType,
+		}),
+	})
+
+	commit = makeCommit(val, makeMetaStructWithSchema(schema))
+	suite.assertQueryResult(commit, "{root{value{x}}}", `{"data":{"root":{"value":{"x":42}}}}`)
+	suite.assertQueryResult(commit, "{root{value{s}}}", `{"data":{"root":{"value":{"s":"hi"}}}}`)
+
+	// no s field. Gets caught in validation
+	schema = types.MakeStructTypeFromFields("Commit", types.FieldMap{
+		"value": types.MakeStructTypeFromFields("Value", types.FieldMap{
+			"x": types.NumberType,
+		}),
+		"meta": types.MakeStructTypeFromFields("Meta", types.FieldMap{
+			"schema": types.TypeType,
+		}),
+	})
+
+	commit = makeCommit(val, makeMetaStructWithSchema(schema))
+	suite.assertQueryResult(commit, "{root{value{x}}}", `{"data":{"root":{"value":{"x":42}}}}`)
+
+	// Should give an error message because we didn't declare s in the schema.
+	suite.assertQueryResult(commit, "{root{value{s}}}",
+		`{"data":null,"errors":[{"message":"Cannot query field \"s\" on type \"Value_bls16s\".","locations":[{"line":1,"column":13}]}]}`)
+}
