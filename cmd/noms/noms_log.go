@@ -12,8 +12,6 @@ import (
 	"os"
 	"strings"
 
-	"sync"
-
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
@@ -21,6 +19,7 @@ import (
 	"github.com/attic-labs/noms/go/diff"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
+	"github.com/attic-labs/noms/go/util/functions"
 	"github.com/attic-labs/noms/go/util/outputpager"
 	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/attic-labs/noms/go/util/writers"
@@ -317,15 +316,10 @@ func writeDiffLines(node LogNode, path types.Path, db datas.Database, maxLines, 
 
 	parentCommit := parent.(types.Ref).TargetValue(db).(types.Struct)
 	var old, neu types.Value
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	resolve := func(commit types.Value, dest *types.Value) {
-		*dest = path.Resolve(commit)
-		wg.Done()
-	}
-	go resolve(parentCommit, &old)
-	go resolve(node.commit, &neu)
-	wg.Wait()
+	functions.All(
+		func() { old = path.Resolve(parentCommit) },
+		func() { neu = path.Resolve(node.commit) },
+	)
 
 	// TODO: It would be better to treat this as an add or remove, but that requires generalization
 	// of some of the code in PrintDiff() because it cannot tolerate nil parameters.
