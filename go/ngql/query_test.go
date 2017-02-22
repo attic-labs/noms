@@ -383,10 +383,10 @@ func (suite *QueryGraphQLSuite) TestCustomSchema() {
 	suite.assertQueryResult(commit, "{root{value{x}}}", `{"data":{"root":{"value":{"x":42}}}}`)
 	suite.assertQueryResult(commit, "{root{value{s}}}", `{"data":{"root":{"value":{"s":"hi"}}}}`)
 
-	// no s field. Gets caught in validation
 	schema = types.MakeStructTypeFromFields("Commit", types.FieldMap{
 		"value": types.MakeStructTypeFromFields("Value", types.FieldMap{
 			"x": types.NumberType,
+			"b": types.BoolType,
 		}),
 		"meta": types.MakeStructTypeFromFields("Meta", types.FieldMap{
 			"schema": types.TypeType,
@@ -396,7 +396,9 @@ func (suite *QueryGraphQLSuite) TestCustomSchema() {
 	commit = makeCommit(val, makeMetaStructWithSchema(schema))
 	suite.assertQueryResult(commit, "{root{value{x}}}", `{"data":{"root":{"value":{"x":42}}}}`)
 
-	// Should give an error message because we didn't declare s in the schema.
-	suite.assertQueryResult(commit, "{root{value{s}}}",
-		`{"data":null,"errors":[{"message":"Cannot query field \"s\" on type \"Value_bls16s\".","locations":[{"line":1,"column":13}]}]}`)
+	// s is not part of the schema but is part of the data.
+	suite.assertQueryResult(commit, "{root{value{s}}}", `{"data":{"root":{"value":{}}}}`)
+	// b is not part of the schema nor the data.
+	suite.assertQueryResult(commit, "{root{value{b}}}",
+		`{"data":null,"errors":[{"message":"\r                        \r\tError Trace:\t\n\r\tError:\t\tStruct has no field \"b\"\n\r","locations":[{"line":1,"column":13}]}]}`)
 }

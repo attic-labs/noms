@@ -13,7 +13,7 @@ import (
 
 func makeMetaStructWithSchema(schema types.Value) types.Struct {
 	return types.NewStruct("Meta", types.StructData{
-		SchemaField: schema,
+		schemaField: schema,
 	})
 }
 
