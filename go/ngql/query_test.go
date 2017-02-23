@@ -401,3 +401,54 @@ func (suite *QueryGraphQLSuite) TestCustomSchema() {
 	// b is part of the schema but not part of the data.
 	suite.assertQueryResult(commit, "{root{value{b}}}", `{"data":{"root":{"value":{"b":null}}}}`)
 }
+
+func (suite *QueryGraphQLSuite) TestCustomSchemaWithOn() {
+	val := types.NewList(types.Number(1))
+	commit := makeCommit(val, types.EmptyStruct)
+	suite.assertQueryResult(commit, "{root{value{elements}}}", `{"data":{"root":{"value":{"elements":[1]}}}}`)
+
+	schema := types.MakeStructTypeFromFields("Commit", types.FieldMap{
+		"value": types.MakeListType(types.NumberType),
+		"meta": types.MakeStructTypeFromFields("Meta", types.FieldMap{
+			"schema": types.TypeType,
+		}),
+	})
+
+	commit = makeCommit(val, makeMetaStructWithSchema(schema))
+	suite.assertQueryResult(commit, "{root{value{elements}}}", `{"data":{"root":{"value":{"elements":[1]}}}}`)
+	suite.assertQueryResult(commit, `{
+                root {
+                        value {
+                                ... on NonExistingType {
+                                        elements
+                                }
+                                ... on NumberList {
+                                        elements
+                                }
+                        }
+                }
+        }`, `{"data":{"root":{"value":{"elements":[1]}}}}`)
+	suite.assertQueryResult(commit, `{
+                root {
+                        value {
+                                ... on NonExistingType {
+                                        elements
+                                }
+                                ... on NonExistingType2 {
+                                        elements
+                                }
+                        }
+                }
+        }`, `{"data":{"root":{"value":{}}}}`)
+
+	schema = types.MakeStructTypeFromFields("Commit", types.FieldMap{
+		"value": types.MakeListType(types.MakeUnionType()),
+		"meta": types.MakeStructTypeFromFields("Meta", types.FieldMap{
+			"schema": types.TypeType,
+		}),
+	})
+
+	commit = makeCommit(val, makeMetaStructWithSchema(schema))
+	suite.assertQueryResult(commit, "{root{value{elements}}}", `{"data":{"root":{"value":{}}}}`)
+
+}

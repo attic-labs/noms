@@ -203,6 +203,7 @@ func structToGQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
 			structDesc.IterFields(func(name string, nomsFieldType *types.Type) {
 				fieldType := nomsTypeToGraphQLType(nomsFieldType, false, tm)
 
+				// Unwrap NonNull...
 				if nonNull, ok := fieldType.(*graphql.NonNull); ok {
 					fieldType = nonNull.OfType
 				}
