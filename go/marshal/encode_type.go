@@ -1,4 +1,4 @@
-// Copyright 2016 Attic Labs, Inc. All rights reserved.
+// Copyright 2017 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -14,7 +14,13 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
-// MarshalType ...
+// MarshalType computes a Noms type from a Go type
+//
+// The rules for MarshalType is the same as for Marshal, except for omitempty
+// is ignored since that cannot be determined statically.
+//
+// If a Go struct contains a noms tag with original an error is returned since
+// the Noms type depends on the original Noms value which is not available.
 func MarshalType(v interface{}) (nt *types.Type, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -29,7 +35,7 @@ func MarshalType(v interface{}) (nt *types.Type, err error) {
 		}
 	}()
 	rv := reflect.ValueOf(v)
-	nt = nomsType(rv.Type(), nil, nomsTags{}, nomsTypeOptions{
+	nt = encodeType(rv.Type(), nil, nomsTags{}, encodeTypeOptions{
 		IgnoreOmitempty: true,
 	})
 
@@ -40,7 +46,8 @@ func MarshalType(v interface{}) (nt *types.Type, err error) {
 	return
 }
 
-// MustMarshalType ...
+// MustMarshalType computes a Noms type from a Go type or panics if there is an
+// error.
 func MustMarshalType(v interface{}) *types.Type {
 	t, err := MarshalType(v)
 	d.Chk.NoError(err)
@@ -49,11 +56,11 @@ func MustMarshalType(v interface{}) *types.Type {
 
 var typeOfTypesType = reflect.TypeOf((*types.Type)(nil))
 
-type nomsTypeOptions struct {
+type encodeTypeOptions struct {
 	IgnoreOmitempty bool
 }
 
-func nomsType(t reflect.Type, parentStructTypes []reflect.Type, tags nomsTags, options nomsTypeOptions) *types.Type {
+func encodeType(t reflect.Type, parentStructTypes []reflect.Type, tags nomsTags, options encodeTypeOptions) *types.Type {
 	if t.Implements(marshalerInterface) {
 		// There is no way to determine the noms type now, it can be different each
 		// time MarshalNoms is called. This is handled further up the stack.
@@ -88,14 +95,14 @@ func nomsType(t reflect.Type, parentStructTypes []reflect.Type, tags nomsTags, o
 	case reflect.String:
 		return types.StringType
 	case reflect.Struct:
-		return structNomsType(t, parentStructTypes, options)
+		return structEncodeType(t, parentStructTypes, options)
 	case reflect.Array, reflect.Slice:
-		elemType := nomsType(t.Elem(), parentStructTypes, nomsTags{}, options)
+		elemType := encodeType(t.Elem(), parentStructTypes, nomsTags{}, options)
 		if elemType != nil {
 			return types.MakeListType(elemType)
 		}
 	case reflect.Map:
-		keyType := nomsType(t.Key(), parentStructTypes, nomsTags{}, options)
+		keyType := encodeType(t.Key(), parentStructTypes, nomsTags{}, options)
 		if keyType == nil {
 			break
 		}
@@ -104,7 +111,7 @@ func nomsType(t reflect.Type, parentStructTypes []reflect.Type, tags nomsTags, o
 			return types.MakeSetType(keyType)
 		}
 
-		valueType := nomsType(t.Elem(), parentStructTypes, nomsTags{}, options)
+		valueType := encodeType(t.Elem(), parentStructTypes, nomsTags{}, options)
 		if valueType != nil {
 			return types.MakeMapType(keyType, valueType)
 		}
@@ -114,12 +121,12 @@ func nomsType(t reflect.Type, parentStructTypes []reflect.Type, tags nomsTags, o
 	return nil
 }
 
-// structNomsType returns the Noms types.Type if it can be determined from the
+// structEncodeType returns the Noms types.Type if it can be determined from the
 // reflect.Type. In some cases we cannot determine the type by only looking at
-// the type but we also need to look at the value. In this cases this returns
+// the type but we also need to look at the value. In these cases this returns
 // nil and we have to wait until we have a value to be able to determine the
 // type.
-func structNomsType(t reflect.Type, parentStructTypes []reflect.Type, options nomsTypeOptions) *types.Type {
+func structEncodeType(t reflect.Type, parentStructTypes []reflect.Type, options encodeTypeOptions) *types.Type {
 	for i, pst := range parentStructTypes {
 		if pst == t {
 			return types.MakeCycleType(uint32(i))

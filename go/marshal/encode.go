@@ -109,8 +109,8 @@ func Marshal(v interface{}) (nomsValue types.Value, err error) {
 	return
 }
 
-// MustMarshals a Go value to a Noms value using the same rules as Marshal(). Panics
-// on failure.
+// MustMarshal marshals a Go value to a Noms value using the same rules as
+// Marshal(). Panics on failure.
 func MustMarshal(v interface{}) types.Value {
 	r, err := Marshal(v)
 	d.Chk.NoError(err)
@@ -264,7 +264,7 @@ func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc
 	}
 
 	parentStructTypes = append(parentStructTypes, t)
-	fields, structType, originalFieldIndex := typeFields(t, parentStructTypes, nomsTypeOptions{})
+	fields, structType, originalFieldIndex := typeFields(t, parentStructTypes, encodeTypeOptions{})
 	if structType != nil {
 		e = func(v reflect.Value) types.Value {
 			values := make([]types.Value, len(fields))
@@ -417,7 +417,7 @@ func validateField(f reflect.StructField, t reflect.Type) {
 	}
 }
 
-func typeFields(t reflect.Type, parentStructTypes []reflect.Type, options nomsTypeOptions) (fields fieldSlice, structType *types.Type, originalFieldIndex []int) {
+func typeFields(t reflect.Type, parentStructTypes []reflect.Type, options encodeTypeOptions) (fields fieldSlice, structType *types.Type, originalFieldIndex []int) {
 	canComputeStructType := true
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
@@ -433,7 +433,7 @@ func typeFields(t reflect.Type, parentStructTypes []reflect.Type, options nomsTy
 		}
 
 		validateField(f, t)
-		nt := nomsType(f.Type, parentStructTypes, tags, options)
+		nt := encodeType(f.Type, parentStructTypes, tags, options)
 		if nt == nil {
 			canComputeStructType = false
 		}
