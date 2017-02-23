@@ -2,7 +2,7 @@ package types
 
 import "github.com/attic-labs/noms/go/d"
 
-// makeSupertype returns a type that is a supertype of all the input types but is much
+// makeSimplifiedType returns a type that is a supertype of all the input types but is much
 // smaller and less complex than a straight union of all those types would be.
 //
 // The resulting type is guaranteed to:
@@ -32,7 +32,7 @@ import "github.com/attic-labs/noms/go/d"
 //
 // Anytime any of the above cases generates a union as output, the same process
 // is applied to that union recursively.
-func makeSupertype(in ...*Type) *Type {
+func makeSimplifiedType(in ...*Type) *Type {
 	ts := make(typeset, len(in))
 	for _, t := range in {
 		// De-cycle so that we handle cycles explicitly below. Otherwise, we would implicitly crawl
@@ -45,9 +45,9 @@ func makeSupertype(in ...*Type) *Type {
 	return makeSimplifiedTypeImpl(ts, false)
 }
 
-// makeMergedType returns a the type that results from merging all input types.
+// makeSimplifiedType2 returns a type that results from merging all input types.
 //
-// The result is similar makeSuperType with one exception:
+// The result is similar makeSimplifiedType with one exception:
 //
 // Each matching Struct found in the input will be merged into a single struct containing all fields
 // found in the input structs.
@@ -56,7 +56,7 @@ func makeSupertype(in ...*Type) *Type {
 //     {struct{foo:number,bar:string}, struct{bar:blob, baz:bool}} ->
 //       struct{foo:number, bar:string|blob, baz:bool}
 //
-func makeMergedType(in ...*Type) *Type {
+func makeSimplifedType2(in ...*Type) *Type {
 	ts := make(typeset, len(in))
 	for _, t := range in {
 		// De-cycle so that we handle cycles explicitly below. Otherwise, we would implicitly crawl

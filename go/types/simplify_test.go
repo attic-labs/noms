@@ -297,7 +297,7 @@ func TestMakeSimplifiedUnion(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		act := makeSupertype(c.in...)
+		act := makeSimplifiedType(c.in...)
 		assert.True(t, c.out.Equals(act), "Test case as position %d - got %s, expected %s", i, act.Describe(), c.out.Describe())
 	}
 }
@@ -344,7 +344,7 @@ func TestMakeMergedType(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		act := makeMergedType(c.in...)
+		act := makeSimplifedType2(c.in...)
 		assert.True(t, c.out.Equals(act), "Test case as position %d - got %s, expected %s", i, act.Describe(), c.out.Describe())
 	}
 }

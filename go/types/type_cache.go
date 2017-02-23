@@ -534,11 +534,11 @@ func MakeStructType(name string, fieldNames []string, fieldTypes []*Type) *Type 
 }
 
 func MakeUnionType(elemTypes ...*Type) *Type {
-	return makeSupertype(elemTypes...)
+	return makeSimplifiedType(elemTypes...)
 }
 
-func MakeMergedType(elemTypes ...*Type) *Type {
-	return makeMergedType(elemTypes...)
+func MakeUnionType2(elemTypes ...*Type) *Type {
+	return makeSimplifedType2(elemTypes...)
 }
 
 func MakeCycleType(level uint32) *Type {
