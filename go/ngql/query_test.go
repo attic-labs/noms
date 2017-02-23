@@ -398,7 +398,6 @@ func (suite *QueryGraphQLSuite) TestCustomSchema() {
 
 	// s is not part of the schema but is part of the data.
 	suite.assertQueryResult(commit, "{root{value{s}}}", `{"data":{"root":{"value":{}}}}`)
-	// b is not part of the schema nor the data.
-	suite.assertQueryResult(commit, "{root{value{b}}}",
-		`{"data":null,"errors":[{"message":"\r                        \r\tError Trace:\t\n\r\tError:\t\tStruct has no field \"b\"\n\r","locations":[{"line":1,"column":13}]}]}`)
+	// b is part of the schema but not part of the data.
+	suite.assertQueryResult(commit, "{root{value{b}}}", `{"data":{"root":{"value":{"b":null}}}}`)
 }
