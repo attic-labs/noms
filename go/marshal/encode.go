@@ -438,7 +438,7 @@ func typeFields(t reflect.Type, parentStructTypes []reflect.Type, options encode
 			canComputeStructType = false
 		}
 
-		if tags.omitEmpty && !options.IgnoreOmitempty {
+		if tags.omitEmpty && !options.IgnoreOmitEmpty {
 			canComputeStructType = false
 		}
 

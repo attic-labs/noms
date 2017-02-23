@@ -36,7 +36,7 @@ func MarshalType(v interface{}) (nt *types.Type, err error) {
 	}()
 	rv := reflect.ValueOf(v)
 	nt = encodeType(rv.Type(), nil, nomsTags{}, encodeTypeOptions{
-		IgnoreOmitempty: true,
+		IgnoreOmitEmpty: true,
 	})
 
 	if nt == nil {
@@ -50,20 +50,21 @@ func MarshalType(v interface{}) (nt *types.Type, err error) {
 // error.
 func MustMarshalType(v interface{}) *types.Type {
 	t, err := MarshalType(v)
-	d.Chk.NoError(err)
+	d.PanicIfError(err)
 	return t
 }
 
 var typeOfTypesType = reflect.TypeOf((*types.Type)(nil))
 
 type encodeTypeOptions struct {
-	IgnoreOmitempty bool
+	IgnoreOmitEmpty bool
 }
 
 func encodeType(t reflect.Type, parentStructTypes []reflect.Type, tags nomsTags, options encodeTypeOptions) *types.Type {
 	if t.Implements(marshalerInterface) {
-		// There is no way to determine the noms type now, it can be different each
-		// time MarshalNoms is called. This is handled further up the stack.
+		// There is no way to determine the noms type now. For Marshal it can be
+		// different each time MarshalNoms is called. This is handled further up the
+		// stack.
 		return nil
 	}
 

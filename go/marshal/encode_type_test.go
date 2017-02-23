@@ -124,6 +124,14 @@ func TestMarshalTypeEncodeNonExportedField(t *testing.T) {
 	assertMarshalTypeErrorMessage(t, TestStruct{1}, "Non exported fields are not supported, type: marshal.TestStruct")
 }
 
+func TestMarshalTypeEncodeNomsTypeWithTypeParameters(t *testing.T) {
+
+	assertMarshalTypeErrorMessage(t, types.NewList(), "Type is not supported, type: types.List")
+	assertMarshalTypeErrorMessage(t, types.NewSet(), "Type is not supported, type: types.Set")
+	assertMarshalTypeErrorMessage(t, types.NewMap(), "Type is not supported, type: types.Map")
+	assertMarshalTypeErrorMessage(t, types.NewRef(types.NewSet()), "Type is not supported, type: types.Ref")
+}
+
 func TestMarshalTypeEncodeTaggingSkip(t *testing.T) {
 	assert := assert.New(t)
 
