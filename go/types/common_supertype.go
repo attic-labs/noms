@@ -2,7 +2,9 @@ package types
 
 import "github.com/attic-labs/noms/go/d"
 
-// TypesIntersect returns true if types |a| and |b| have common elements.
+// ContainCommonSupertype returns true if it's possible to synthesize
+// a non-trivial (i.e. not empty) supertype from types |a| and |b|.
+//
 // It is useful for determining whether a subset of values can be extracted
 // from one object to produce another object.
 //
@@ -16,12 +18,12 @@ import "github.com/attic-labs/noms/go/d"
 //      - if both are refs, sets or lists, return true iff the element type intersects
 //      - if both are maps, return true iff they have a key with the same type and value types that intersect
 //      - else return true
-func TypesIntersect(a, b *Type) bool {
+func ContainCommonSupertype(a, b *Type) bool {
 	// Avoid cycles internally.
-	return typesIntersectImpl(ToUnresolvedType(a), ToUnresolvedType(b))
+	return containCommonSupertypeImpl(ToUnresolvedType(a), ToUnresolvedType(b))
 }
 
-func typesIntersectImpl(a, b *Type) bool {
+func containCommonSupertypeImpl(a, b *Type) bool {
 	if a.Kind() == ValueKind || b.Kind() == ValueKind {
 		return true
 	}
@@ -50,7 +52,7 @@ func unionsIntersect(a, b *Type) bool {
 	aTypes, bTypes := typeList(a), typeList(b)
 	for _, t := range aTypes {
 		for _, u := range bTypes {
-			if typesIntersectImpl(t, u) {
+			if containCommonSupertypeImpl(t, u) {
 				return true
 			}
 		}
@@ -68,7 +70,7 @@ func typeList(t *Type) typeSlice {
 
 func containersIntersect(kind NomsKind, a, b *Type) bool {
 	d.Chk.True(kind == a.Desc.Kind() && kind == b.Desc.Kind())
-	return typesIntersectImpl(a.Desc.(CompoundDesc).ElemTypes[0], b.Desc.(CompoundDesc).ElemTypes[0])
+	return containCommonSupertypeImpl(a.Desc.(CompoundDesc).ElemTypes[0], b.Desc.(CompoundDesc).ElemTypes[0])
 }
 
 func mapsIntersect(a, b *Type) bool {
@@ -92,7 +94,7 @@ func mapsIntersect(a, b *Type) bool {
 	if !hasCommonType(aDesc.ElemTypes[0], bDesc.ElemTypes[0]) {
 		return false
 	}
-	return typesIntersectImpl(aDesc.ElemTypes[1], bDesc.ElemTypes[1])
+	return containCommonSupertypeImpl(aDesc.ElemTypes[1], bDesc.ElemTypes[1])
 }
 
 func structsIntersect(a, b *Type) bool {
@@ -109,7 +111,7 @@ func structsIntersect(a, b *Type) bool {
 			i++
 		} else if bName < aName {
 			j++
-		} else if !typesIntersectImpl(aDesc.fields[i].t, bDesc.fields[j].t) {
+		} else if !containCommonSupertypeImpl(aDesc.fields[i].t, bDesc.fields[j].t) {
 			i++
 			j++
 		} else {
