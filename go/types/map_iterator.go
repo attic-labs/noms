@@ -19,7 +19,7 @@ type MapIterator struct {
 // was created. If there are no more entries, Next() returns nils.
 func (mi *MapIterator) Next() (k, v Value) {
 	if mi.cursor == nil {
-		d.Panic("Cannot use a nil ListIterator")
+		d.Panic("Cannot use a nil MapIterator")
 	}
 	if mi.cursor.valid() {
 		entry := mi.cursor.current().(mapEntry)

@@ -32,48 +32,42 @@ type SetIterator interface {
 }
 
 type setIterator struct {
-	s      Set
-	cursor *sequenceCursor
+	s            Set
+	cursor       *sequenceCursor
+	currentValue Value
 }
 
 func (si *setIterator) Next() Value {
 	if si.cursor == nil {
-		si.cursor = newCursorAt(si.s.seq, emptyKey, false, false, false)
-	} else {
-		si.cursor.advance()
+		d.Panic("Cannot use a nil SetIterator")
 	}
 	if si.cursor.valid() {
-		return si.cursor.current().(Value)
+		si.currentValue = si.cursor.current().(Value)
+		si.cursor.advance()
+	} else {
+		si.currentValue = nil
 	}
-	return nil
+	return si.currentValue
 }
 
 func (si *setIterator) SkipTo(v Value) Value {
 	d.Chk.NotNil(v, "setIterator.SkipTo() called with nil value")
-	first := false
-	if si.cursor == nil {
-		first = true
-		si.cursor, _ = si.s.getCursorAtValue(v, false)
-	}
-
-	if !si.cursor.valid() {
-		return nil
-	}
-
-	curValue := si.cursor.current().(Value)
-	if first {
-		return curValue
-	}
-
-	if compareValue(v, curValue) <= 0 {
-		return si.Next()
-	}
-
-	si.cursor, _ = si.s.getCursorAtValue(v, false)
 	if si.cursor.valid() {
-		return si.cursor.current().(Value)
+		if compareValue(v, si.currentValue) <= 0 {
+			return si.Next()
+		}
+
+		si.cursor, _ = si.s.getCursorAtValue(v, false)
+		if si.cursor.valid() {
+			si.currentValue = si.cursor.current().(Value)
+			si.cursor.advance()
+		} else {
+			si.currentValue = nil
+		}
+	} else {
+		si.currentValue = nil
 	}
-	return nil
+	return si.currentValue
 }
 
 // iterState contains iterator and it's current value
