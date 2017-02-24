@@ -10,10 +10,10 @@ import (
 
 	"strings"
 
+	"github.com/attic-labs/graphql"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/graphql"
 )
 
 type typeMap map[typeMapKey]graphql.Type
@@ -257,63 +257,80 @@ func getListValues(v types.Value, args map[string]interface{}) (interface{}, err
 }
 
 var setArgs = graphql.FieldConfigArgument{
+	atKey:    &graphql.ArgumentConfig{Type: graphql.Int},
 	countKey: &graphql.ArgumentConfig{Type: graphql.Int},
 }
 
 func getSetValues(v types.Value, args map[string]interface{}) (interface{}, error) {
 	s := v.(types.Set)
-
+	idx := uint64(0)
 	count := s.Len()
+	if at, ok := args[atKey].(int); ok {
+		idx = uint64(at)
+	}
 	if c, ok := args[countKey].(int); ok {
 		count = uint64(c)
 	}
 
 	// Clamp ranges
+	if idx < 0 {
+		idx = 0
+	}
+	if idx > s.Len() {
+		idx = s.Len()
+	}
 	if count < 0 {
 		count = 0
 	}
-	if count > s.Len() {
-		count = s.Len()
+	if idx+count > s.Len() {
+		count = s.Len() - idx
 	}
 
 	values := make([]interface{}, count)
-	i := uint64(0)
-	s.Iter(func(v types.Value) bool {
-		values[i] = maybeGetScalar(v)
-		i++
-		return i >= count
-	})
+	iter := s.IteratorAt(idx)
+	for i := uint64(0); i < count; i++ {
+		values[i] = maybeGetScalar(iter.Next())
+	}
 
 	return values, nil
 }
 
 var mapArgs = graphql.FieldConfigArgument{
+	atKey:    &graphql.ArgumentConfig{Type: graphql.Int},
 	countKey: &graphql.ArgumentConfig{Type: graphql.Int},
 }
 
 func getMapValues(v types.Value, args map[string]interface{}) (interface{}, error) {
 	m := v.(types.Map)
-
+	idx := uint64(0)
 	count := m.Len()
+	if at, ok := args[atKey].(int); ok {
+		idx = uint64(at)
+	}
 	if c, ok := args[countKey].(int); ok {
 		count = uint64(c)
 	}
 
 	// Clamp ranges
+	if idx < 0 {
+		idx = 0
+	}
+	if idx > m.Len() {
+		idx = m.Len()
+	}
 	if count < 0 {
 		count = 0
 	}
-	if count > m.Len() {
-		count = m.Len()
+	if idx+count > m.Len() {
+		count = m.Len() - idx
 	}
 
 	values := make([]mapEntry, count)
-	i := uint64(0)
-	m.Iter(func(k, v types.Value) bool {
+	iter := m.IteratorAt(idx)
+	for i := uint64(0); i < count; i++ {
+		k, v := iter.Next()
 		values[i] = mapEntry{k, v}
-		i++
-		return i >= count
-	})
+	}
 
 	return values, nil
 }
