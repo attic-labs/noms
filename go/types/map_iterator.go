@@ -10,9 +10,9 @@ import (
 
 // MapIterator can efficiently iterate through a Noms Map.
 type MapIterator struct {
-	cursor    *sequenceCursor
-	LastKey   Value
-	LastValue Value
+	cursor       *sequenceCursor
+	CurrentKey   Value
+	CurrentValue Value
 }
 
 // Next returns the subsequent entries from the Map, starting with the entry at which the iterator
@@ -23,10 +23,10 @@ func (mi *MapIterator) Next() (k, v Value) {
 	}
 	if mi.cursor.valid() {
 		entry := mi.cursor.current().(mapEntry)
-		mi.LastKey, mi.LastValue = entry.key, entry.value
+		mi.CurrentKey, mi.CurrentValue = entry.key, entry.value
 		mi.cursor.advance()
 	} else {
-		mi.LastKey, mi.LastValue = nil, nil
+		mi.CurrentKey, mi.CurrentValue = nil, nil
 	}
-	return mi.LastKey, mi.LastValue
+	return mi.CurrentKey, mi.CurrentValue
 }
