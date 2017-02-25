@@ -222,34 +222,40 @@ var listArgs = graphql.FieldConfigArgument{
 	countKey: &graphql.ArgumentConfig{Type: graphql.Int},
 }
 
-func getListValues(v types.Value, args map[string]interface{}) (interface{}, error) {
-	l := v.(types.List)
-	idx := uint64(0)
-	count := l.Len()
+func getBounds(l uint64, args map[string]interface{}) (uint64, uint64, bool) {
+	len := int64(l)
+	idx := int64(0)
+	count := int64(len)
 	if at, ok := args[atKey].(int); ok {
-		idx = uint64(at)
+		idx = int64(at)
 	}
 	if c, ok := args[countKey].(int); ok {
-		count = uint64(c)
+		count = int64(c)
 	}
 
 	// Clamp ranges
+	if count <= 0 || idx >= len {
+		return 0, 0, true
+	}
 	if idx < 0 {
 		idx = 0
 	}
-	if idx > l.Len() {
-		idx = l.Len()
+	if idx+count > len {
+		count = len - idx
 	}
-	if count < 0 {
-		count = 0
-	}
-	if idx+count > l.Len() {
-		count = l.Len() - idx
+	return uint64(idx), uint64(count), false
+}
+
+func getListValues(v types.Value, args map[string]interface{}) (interface{}, error) {
+	l := v.(types.List)
+	idx, count, empty := getBounds(l.Len(), args)
+	if empty {
+		return ([]interface{})(nil), nil
 	}
 
 	values := make([]interface{}, count)
-	iter := l.IteratorAt(idx)
-	for i := uint64(0); i < count; i++ {
+	iter := l.IteratorAt(uint64(idx))
+	for i := uint64(0); i < uint64(count); i++ {
 		values[i] = maybeGetScalar(iter.Next())
 	}
 
@@ -262,33 +268,16 @@ var setArgs = graphql.FieldConfigArgument{
 }
 
 func getSetValues(v types.Value, args map[string]interface{}) (interface{}, error) {
+	// TODO: Refactor to share code between the collections.
 	s := v.(types.Set)
-	idx := uint64(0)
-	count := s.Len()
-	if at, ok := args[atKey].(int); ok {
-		idx = uint64(at)
-	}
-	if c, ok := args[countKey].(int); ok {
-		count = uint64(c)
-	}
-
-	// Clamp ranges
-	if idx < 0 {
-		idx = 0
-	}
-	if idx > s.Len() {
-		idx = s.Len()
-	}
-	if count < 0 {
-		count = 0
-	}
-	if idx+count > s.Len() {
-		count = s.Len() - idx
+	idx, count, empty := getBounds(s.Len(), args)
+	if empty {
+		return ([]interface{})(nil), nil
 	}
 
 	values := make([]interface{}, count)
-	iter := s.IteratorAt(idx)
-	for i := uint64(0); i < count; i++ {
+	iter := s.IteratorAt(uint64(idx))
+	for i := uint64(0); i < uint64(count); i++ {
 		values[i] = maybeGetScalar(iter.Next())
 	}
 
@@ -301,33 +290,16 @@ var mapArgs = graphql.FieldConfigArgument{
 }
 
 func getMapValues(v types.Value, args map[string]interface{}) (interface{}, error) {
+	// TODO: Refactor to share code between the collections.
 	m := v.(types.Map)
-	idx := uint64(0)
-	count := m.Len()
-	if at, ok := args[atKey].(int); ok {
-		idx = uint64(at)
-	}
-	if c, ok := args[countKey].(int); ok {
-		count = uint64(c)
-	}
-
-	// Clamp ranges
-	if idx < 0 {
-		idx = 0
-	}
-	if idx > m.Len() {
-		idx = m.Len()
-	}
-	if count < 0 {
-		count = 0
-	}
-	if idx+count > m.Len() {
-		count = m.Len() - idx
+	idx, count, empty := getBounds(m.Len(), args)
+	if empty {
+		return ([]interface{})(nil), nil
 	}
 
 	values := make([]mapEntry, count)
-	iter := m.IteratorAt(idx)
-	for i := uint64(0); i < count; i++ {
+	iter := m.IteratorAt(uint64(idx))
+	for i := uint64(0); i < uint64(count); i++ {
 		k, v := iter.Next()
 		values[i] = mapEntry{k, v}
 	}

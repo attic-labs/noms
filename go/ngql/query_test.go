@@ -104,6 +104,12 @@ func (suite *QueryGraphQLSuite) TestListBasic() {
 
 	suite.assertQueryResult(list, "{root{elements}}", `{"data":{"root":{"elements":[1,1.1,-100]}}}`)
 	suite.assertQueryResult(list, "{root{elements(at:1,count:2)}}", `{"data":{"root":{"elements":[1.1,-100]}}}`)
+
+	list = types.NewList(types.String("a"), types.String("b"), types.String("c"))
+	suite.assertQueryResult(list, "{root{elements(at:4)}}", `{"data":{"root":{"elements":[]}}}`)
+	suite.assertQueryResult(list, "{root{elements(count:0)}}", `{"data":{"root":{"elements":[]}}}`)
+	suite.assertQueryResult(list, "{root{elements(count:10)}}", `{"data":{"root":{"elements":["a","b","c"]}}}`)
+	suite.assertQueryResult(list, "{root{elements(at:-1)}}", `{"data":{"root":{"elements":["a","b","c"]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestListOfStruct() {
@@ -153,6 +159,7 @@ func (suite *QueryGraphQLSuite) TestSetBasic() {
 	suite.assertQueryResult(set, "{root{elements(count:2)}}", `{"data":{"root":{"elements":["a","b"]}}}`)
 
 	suite.assertQueryResult(set, "{root{elements(at:0,count:2)}}", `{"data":{"root":{"elements":["a","b"]}}}`)
+	suite.assertQueryResult(set, "{root{elements(at:-1,count:2)}}", `{"data":{"root":{"elements":["a","b"]}}}`)
 	suite.assertQueryResult(set, "{root{elements(at:1,count:2)}}", `{"data":{"root":{"elements":["b","c"]}}}`)
 	suite.assertQueryResult(set, "{root{elements(at:2)}}", `{"data":{"root":{"elements":["c","d"]}}}`)
 	suite.assertQueryResult(set, "{root{elements(at:2,count:1)}}", `{"data":{"root":{"elements":["c"]}}}`)
@@ -198,12 +205,16 @@ func (suite *QueryGraphQLSuite) TestMapBasic() {
 	suite.assertQueryResult(m, "{root{elements(count:0){value}}}", `{"data":{"root":{"elements":[]}}}`)
 	suite.assertQueryResult(m, "{root{elements(count:2){value}}}", `{"data":{"root":{"elements":[{"value":1},{"value":2}]}}}`)
 	suite.assertQueryResult(m, "{root{elements(count:3){key}}}", `{"data":{"root":{"elements":[{"key":"a"},{"key":"b"},{"key":"c"}]}}}`)
+	suite.assertQueryResult(m, "{root{elements(count: -1){key}}}", `{"data":{"root":{"elements":[]}}}`)
+	suite.assertQueryResult(m, "{root{elements(count:5){value}}}", `{"data":{"root":{"elements":[{"value":1},{"value":2},{"value":3},{"value":4}]}}}`)
 
+	suite.assertQueryResult(m, "{root{elements(at:-1,count:2){value}}}", `{"data":{"root":{"elements":[{"value":1},{"value":2}]}}}`)
 	suite.assertQueryResult(m, "{root{elements(at:0,count:2){value}}}", `{"data":{"root":{"elements":[{"value":1},{"value":2}]}}}`)
 	suite.assertQueryResult(m, "{root{elements(at:1,count:2){value}}}", `{"data":{"root":{"elements":[{"value":2},{"value":3}]}}}`)
 	suite.assertQueryResult(m, "{root{elements(at:2){value}}}", `{"data":{"root":{"elements":[{"value":3},{"value":4}]}}}`)
 	suite.assertQueryResult(m, "{root{elements(at:2,count:1){value}}}", `{"data":{"root":{"elements":[{"value":3}]}}}`)
 	suite.assertQueryResult(m, "{root{elements(at:2,count:0){value}}}", `{"data":{"root":{"elements":[]}}}`)
+	suite.assertQueryResult(m, "{root{elements(at:5){value}}}", `{"data":{"root":{"elements":[]}}}`)
 	suite.assertQueryResult(m, "{root{elements(at:2,count:10){value}}}", `{"data":{"root":{"elements":[{"value":3},{"value":4}]}}}`)
 }
 
