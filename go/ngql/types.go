@@ -254,8 +254,8 @@ func getListValues(v types.Value, args map[string]interface{}) (interface{}, err
 	}
 
 	values := make([]interface{}, count)
-	iter := l.IteratorAt(uint64(idx))
-	for i := uint64(0); i < uint64(count); i++ {
+	iter := l.IteratorAt(idx)
+	for i := uint64(0); i < count; i++ {
 		values[i] = maybeGetScalar(iter.Next())
 	}
 
@@ -276,8 +276,8 @@ func getSetValues(v types.Value, args map[string]interface{}) (interface{}, erro
 	}
 
 	values := make([]interface{}, count)
-	iter := s.IteratorAt(uint64(idx))
-	for i := uint64(0); i < uint64(count); i++ {
+	iter := s.IteratorAt(idx)
+	for i := uint64(0); i < count; i++ {
 		values[i] = maybeGetScalar(iter.Next())
 	}
 
@@ -298,8 +298,8 @@ func getMapValues(v types.Value, args map[string]interface{}) (interface{}, erro
 	}
 
 	values := make([]mapEntry, count)
-	iter := m.IteratorAt(uint64(idx))
-	for i := uint64(0); i < uint64(count); i++ {
+	iter := m.IteratorAt(idx)
+	for i := uint64(0); i < count; i++ {
 		k, v := iter.Next()
 		values[i] = mapEntry{k, v}
 	}
