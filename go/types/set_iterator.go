@@ -38,9 +38,6 @@ type setIterator struct {
 }
 
 func (si *setIterator) Next() Value {
-	if si.cursor == nil {
-		d.Panic("Cannot use a nil SetIterator")
-	}
 	if si.cursor.valid() {
 		si.currentValue = si.cursor.current().(Value)
 		si.cursor.advance()
@@ -51,13 +48,13 @@ func (si *setIterator) Next() Value {
 }
 
 func (si *setIterator) SkipTo(v Value) Value {
-	d.Chk.NotNil(v, "setIterator.SkipTo() called with nil value")
+	d.PanicIfTrue(v == nil)
 	if si.cursor.valid() {
 		if compareValue(v, si.currentValue) <= 0 {
 			return si.Next()
 		}
 
-		si.cursor, _ = si.s.getCursorAtValue(v, false)
+		si.cursor, _ = si.s.getCursorAtValue(v, true)
 		if si.cursor.valid() {
 			si.currentValue = si.cursor.current().(Value)
 			si.cursor.advance()
@@ -103,8 +100,8 @@ type UnionIterator struct {
 
 // NewUnionIterator creates a union iterator from two other SetIterators.
 func NewUnionIterator(iterA, iterB SetIterator) SetIterator {
-	d.Chk.NotNil(iterA)
-	d.Chk.NotNil(iterB)
+	d.PanicIfTrue(iterA == nil)
+	d.PanicIfTrue(iterB == nil)
 	a := iterState{i: iterA, v: iterA.Next()}
 	b := iterState{i: iterB, v: iterB.Next()}
 	return &UnionIterator{aState: a, bState: b}
@@ -124,7 +121,7 @@ func (u *UnionIterator) Next() Value {
 }
 
 func (u *UnionIterator) SkipTo(v Value) Value {
-	d.Chk.NotNil(v)
+	d.PanicIfTrue(v == nil)
 	didAdvance := false
 	if compareValue(u.aState.v, v) < 0 {
 		didAdvance = true
@@ -158,8 +155,8 @@ type IntersectionIterator struct {
 
 // NewIntersectionIterator creates a intersect iterator from two other SetIterators.
 func NewIntersectionIterator(iterA, iterB SetIterator) SetIterator {
-	d.Chk.NotNil(iterA)
-	d.Chk.NotNil(iterB)
+	d.PanicIfTrue(iterA == nil)
+	d.PanicIfTrue(iterB == nil)
 	a := iterState{i: iterA, v: iterA.Next()}
 	b := iterState{i: iterB, v: iterB.Next()}
 	return &IntersectionIterator{aState: a, bState: b}
@@ -184,7 +181,7 @@ func (i *IntersectionIterator) Next() Value {
 }
 
 func (i *IntersectionIterator) SkipTo(v Value) Value {
-	d.Chk.NotNil(v)
+	d.PanicIfTrue(v == nil)
 	if compareValue(v, i.aState.v) >= 0 {
 		i.aState.SkipTo(v)
 	}

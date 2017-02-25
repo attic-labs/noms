@@ -222,14 +222,14 @@ func (s Set) Iterator() SetIterator {
 
 func (s Set) IteratorAt(idx uint64) SetIterator {
 	return &setIterator{
-		cursor: newCursorAtIndex(s.seq, idx, false),
+		cursor: newCursorAtIndex(s.seq, idx, true),
 		s:      s,
 	}
 }
 
 func (s Set) IteratorFrom(val Value) SetIterator {
 	return &setIterator{
-		cursor: newCursorAtValue(s.seq, val, false, false, false),
+		cursor: newCursorAtValue(s.seq, val, false, false, true),
 		s:      s,
 	}
 }
