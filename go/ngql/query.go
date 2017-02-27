@@ -32,8 +32,12 @@ const (
 )
 
 func constructQueryType(rootValue types.Value, tm *typeMap) *graphql.Object {
-	rootNomsType := rootValue.Type()
-	rootType := nomsTypeToGraphQLType(rootNomsType, false, tm)
+	nomsSchema := getCommitSchema(rootValue)
+	if nomsSchema == nil {
+		nomsSchema = rootValue.Type()
+	}
+
+	rootType := nomsTypeToGraphQLType(nomsSchema, false, tm)
 
 	return graphql.NewObject(graphql.ObjectConfig{
 		Name: rootQueryKey,
