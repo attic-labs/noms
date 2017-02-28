@@ -411,9 +411,9 @@ func (suite *QueryGraphQLSuite) TestMapArgs() {
 		`{"data":{"root":{"elements":[{"key":"e","value":3}]}}}`)
 	suite.assertQueryResult(m, `{root{elements(key:"g"){value}}}`,
 		`{"data":{"root":{"elements":[{"value":4}]}}}`)
-	// "f" -> starts at "g"
+	// "f", no count/through so asking for exact match
 	suite.assertQueryResult(m, `{root{elements(key:"f"){value}}}`,
-		`{"data":{"root":{"elements":[{"value":4}]}}}`)
+		`{"data":{"root":{"elements":[]}}}`)
 	// "x" is larger than end
 	suite.assertQueryResult(m, `{root{elements(key:"x"){value}}}`,
 		`{"data":{"root":{"elements":[]}}}`)
@@ -508,11 +508,14 @@ func (suite *QueryGraphQLSuite) TestSetArgs() {
 		`{"data":{"root":{"elements":["e"]}}}`)
 	suite.assertQueryResult(s, `{root{elements(key:"g")}}`,
 		`{"data":{"root":{"elements":["g"]}}}`)
-	// "f" -> starts at "g"
+	// "f", no count/through so asking for exact match
 	suite.assertQueryResult(s, `{root{elements(key:"f")}}`,
-		`{"data":{"root":{"elements":["g"]}}}`)
+		`{"data":{"root":{"elements":[]}}}`)
 	// "x" is larger than end
 	suite.assertQueryResult(s, `{root{elements(key:"x")}}`,
+		`{"data":{"root":{"elements":[]}}}`)
+	// exact match
+	suite.assertQueryResult(s, `{root{elements(key:"0")}}`,
 		`{"data":{"root":{"elements":[]}}}`)
 
 	// key & at
@@ -529,8 +532,6 @@ func (suite *QueryGraphQLSuite) TestSetArgs() {
 		`{"data":{"root":{"elements":[]}}}`)
 	suite.assertQueryResult(s, `{root{elements(key:"e", count: 5)}}`,
 		`{"data":{"root":{"elements":["e","g"]}}}`)
-	suite.assertQueryResult(s, `{root{elements(key:"0")}}`,
-		`{"data":{"root":{"elements":["a"]}}}`)
 
 	// through
 	suite.assertQueryResult(s, `{root{elements(through:"c")}}`,

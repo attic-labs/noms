@@ -266,7 +266,7 @@ func getListValues(v types.Value, args map[string]interface{}) (interface{}, err
 func getSetValues(v types.Value, args map[string]interface{}) (interface{}, error) {
 	s := v.(types.Set)
 
-	iter, nomsThrough, count, err := getCollectionArgs(s.Type(), s.Len(), args, iteratorFactory{
+	iter, nomsKey, nomsThrough, count, singleExactMatch, err := getCollectionArgs(s.Type(), s.Len(), args, iteratorFactory{
 		IteratorFrom: func(from types.Value) interface{} {
 			return s.IteratorFrom(from)
 		},
@@ -287,6 +287,12 @@ func getSetValues(v types.Value, args map[string]interface{}) (interface{}, erro
 	for i := uint64(0); i < count; i++ {
 		v := setIter.Next()
 		if v == nil {
+			break
+		}
+		if singleExactMatch {
+			if nomsKey.Equals(v) {
+				values = append(values, maybeGetScalar(v))
+			}
 			break
 		}
 
@@ -324,11 +330,10 @@ func getArgValue(arg interface{}, nomsType *types.Type) (types.Value, error) {
 	return nil, fmt.Errorf("%s is not a subtype of %s", nomsVal.Type().Describe(), nomsType.Describe())
 }
 
-func getCollectionArgs(typ *types.Type, len uint64, args map[string]interface{}, factory iteratorFactory) (iter interface{}, nomsThrough types.Value, count uint64, err error) {
+func getCollectionArgs(typ *types.Type, len uint64, args map[string]interface{}, factory iteratorFactory) (iter interface{}, nomsKey, nomsThrough types.Value, count uint64, singleExactMatch bool, err error) {
 	nomsKeyType := typ.Desc.(types.CompoundDesc).ElemTypes[0]
 
 	if key, ok := args[keyKey]; ok {
-		var nomsKey types.Value
 		nomsKey, err = getArgValue(key, nomsKeyType)
 		if err != nil {
 			return
@@ -361,18 +366,14 @@ func getCollectionArgs(typ *types.Type, len uint64, args map[string]interface{},
 		return
 	}
 
-	count = getCountArg(len, args)
-	if count == 0 {
-		return
-	}
-
+	count, singleExactMatch = getCountArg(len, args)
 	return
 }
 
 func getMapValues(v types.Value, args map[string]interface{}) (interface{}, error) {
 	m := v.(types.Map)
 
-	iter, nomsThrough, count, err := getCollectionArgs(m.Type(), m.Len(), args, iteratorFactory{
+	iter, nomsKey, nomsThrough, count, singleExactMatch, err := getCollectionArgs(m.Type(), m.Len(), args, iteratorFactory{
 		IteratorFrom: func(from types.Value) interface{} {
 			return m.IteratorFrom(from)
 		},
@@ -396,6 +397,13 @@ func getMapValues(v types.Value, args map[string]interface{}) (interface{}, erro
 			break
 		}
 
+		if singleExactMatch {
+			if nomsKey.Equals(k) {
+				values = append(values, mapEntry{k, v})
+			}
+			break
+		}
+
 		if nomsThrough != nil {
 			if !nomsThrough.Less(k) {
 				values = append(values, mapEntry{k, v})
@@ -410,22 +418,22 @@ func getMapValues(v types.Value, args map[string]interface{}) (interface{}, erro
 	return values, nil
 }
 
-func getCountArg(count uint64, args map[string]interface{}) uint64 {
+func getCountArg(count uint64, args map[string]interface{}) (c uint64, singleExactMatch bool) {
 	if c, ok := args[countKey]; ok {
 		c := c.(int)
 		if c <= 0 {
-			return 0
+			return 0, false
 		}
-		count = uint64(c)
-	} else {
-		// If we have key and no count/through we use count 1
-		_, hasKey := args[keyKey]
-		_, hasThrough := args[throughKey]
-		if hasKey && !hasThrough {
-			count = uint64(1)
-		}
+		return uint64(c), false
 	}
-	return count
+	// If we have key and no count/through we use count 1
+	_, hasKey := args[keyKey]
+	_, hasThrough := args[throughKey]
+	if hasKey && !hasThrough {
+		return uint64(1), true
+	}
+
+	return count, false
 }
 
 func getThroughArg(nomsKeyType *types.Type, args map[string]interface{}) (types.Value, error) {
