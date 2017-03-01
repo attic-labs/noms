@@ -6,6 +6,7 @@ package ngql
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -32,7 +33,16 @@ func (suite *QueryGraphQLSuite) SetupTest() {
 func (suite *QueryGraphQLSuite) assertQueryResult(v types.Value, q, expect string) {
 	buff := &bytes.Buffer{}
 	Query(v, q, suite.vs, buff)
-	suite.Equal(expect+"\n", string(buff.Bytes()))
+
+	var expectedValue interface{}
+	err := json.Unmarshal([]byte(expect), &expectedValue)
+	suite.NoError(err, "Expected value is not valid JSON")
+
+	var actualValue interface{}
+	err = json.Unmarshal(buff.Bytes(), &actualValue)
+	suite.NoError(err)
+
+	suite.Equal(expectedValue, actualValue)
 }
 
 func (suite *QueryGraphQLSuite) TestScalars() {
