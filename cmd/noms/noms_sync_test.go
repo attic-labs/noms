@@ -26,7 +26,6 @@ type nomsSyncTestSuite struct {
 }
 
 func (s *nomsSyncTestSuite) TestSyncValidation() {
-	os.Mkdir(s.DBDir, 0777)
 	sourceDB := datas.NewDatabase(nbs.NewLocalStore(s.DBDir, clienttest.DefaultMemTableSize))
 	source1 := sourceDB.GetDataset("src")
 	source1, err := sourceDB.CommitValue(source1, types.Number(42))
@@ -50,7 +49,6 @@ func (s *nomsSyncTestSuite) TestSync() {
 	db2dir := path.Join(s.TempDir, "db2")
 	defer s.NoError(os.RemoveAll(db2dir))
 
-	os.Mkdir(s.DBDir, 0777)
 	sourceDB := datas.NewDatabase(nbs.NewLocalStore(s.DBDir, clienttest.DefaultMemTableSize))
 	source1 := sourceDB.GetDataset("src")
 	source1, err := sourceDB.CommitValue(source1, types.Number(42))
@@ -65,7 +63,6 @@ func (s *nomsSyncTestSuite) TestSync() {
 	sout, _ := s.MustRun(main, []string{"sync", sourceSpec, sinkDatasetSpec})
 
 	s.Regexp("Created", sout)
-	os.Mkdir(db2dir, 0777)
 	db := datas.NewDatabase(nbs.NewLocalStore(db2dir, clienttest.DefaultMemTableSize))
 	dest := db.GetDataset("dest")
 	s.True(types.Number(42).Equals(dest.HeadValue()))
@@ -75,7 +72,6 @@ func (s *nomsSyncTestSuite) TestSync() {
 	sout, _ = s.MustRun(main, []string{"sync", sourceDataset, sinkDatasetSpec})
 	s.Regexp("Synced", sout)
 
-	os.Mkdir(db2dir, 0777)
 	db = datas.NewDatabase(nbs.NewLocalStore(db2dir, clienttest.DefaultMemTableSize))
 	dest = db.GetDataset("dest")
 	s.True(types.Number(43).Equals(dest.HeadValue()))
@@ -89,7 +85,6 @@ func (s *nomsSyncTestSuite) TestSync_Issue2598() {
 	db2dir := path.Join(s.TempDir, "db2")
 	defer s.NoError(os.RemoveAll(db2dir))
 
-	os.Mkdir(s.DBDir, 0777)
 	sourceDB := datas.NewDatabase(nbs.NewLocalStore(s.DBDir, clienttest.DefaultMemTableSize))
 	// Create dataset "src1", which has a lineage of two commits.
 	source1 := sourceDB.GetDataset("src1")
@@ -110,7 +105,6 @@ func (s *nomsSyncTestSuite) TestSync_Issue2598() {
 	sinkDatasetSpec := spec.CreateValueSpecString("nbs", db2dir, "dest")
 	sout, _ := s.MustRun(main, []string{"sync", sourceDataset, sinkDatasetSpec})
 
-	os.Mkdir(db2dir, 0777)
 	db := datas.NewDatabase(nbs.NewLocalStore(db2dir, clienttest.DefaultMemTableSize))
 	dest := db.GetDataset("dest")
 	s.True(types.Number(43).Equals(dest.HeadValue()))
@@ -121,7 +115,6 @@ func (s *nomsSyncTestSuite) TestSync_Issue2598() {
 	sinkDatasetSpec2 := spec.CreateValueSpecString("nbs", db2dir, "dest2")
 	sout, _ = s.MustRun(main, []string{"sync", sourceDataset2, sinkDatasetSpec2})
 
-	os.Mkdir(db2dir, 0777)
 	db = datas.NewDatabase(nbs.NewLocalStore(db2dir, clienttest.DefaultMemTableSize))
 	dest = db.GetDataset("dest2")
 	s.True(types.Number(1).Equals(dest.HeadValue()))

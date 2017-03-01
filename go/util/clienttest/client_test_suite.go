@@ -43,6 +43,9 @@ func (suite *ClientTestSuite) SetupSuite() {
 	suite.out = stdOutput
 	suite.err = errOutput
 	exit.Exit = mockExit
+
+	os.Mkdir(suite.DBDir, 0777)
+	os.Mkdir(path.Join(suite.TempDir, "db2"), 0777)
 }
 
 func (suite *ClientTestSuite) TearDownSuite() {
