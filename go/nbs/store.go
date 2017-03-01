@@ -95,9 +95,7 @@ type LocalStoreFactory struct {
 
 func CheckDir(dir string) error {
 	stat, err := os.Stat(dir)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("Directory does not exist: %s", dir)
-	} else if err != nil {
+	if err != nil {
 		return err
 	}
 	if !stat.IsDir() {

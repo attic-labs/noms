@@ -6,7 +6,6 @@ package main
 
 import (
 	"testing"
-	"os"
 
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/nbs"
@@ -26,25 +25,21 @@ type nomsDsTestSuite struct {
 
 func (s *nomsDsTestSuite) TestEmptyNomsDs() {
 	dir := s.DBDir
-	dbName := dir+"/name"
 
-	os.MkdirAll(dbName, 0777)
-	cs := nbs.NewLocalStore(dbName, clienttest.DefaultMemTableSize)
+	cs := nbs.NewLocalStore(dir, clienttest.DefaultMemTableSize)
 	ds := datas.NewDatabase(cs)
 
 	ds.Close()
 
-	dbSpec := spec.CreateDatabaseSpecString("nbs", dbName)
+	dbSpec := spec.CreateDatabaseSpecString("nbs", dir)
 	rtnVal, _ := s.MustRun(main, []string{"ds", dbSpec})
 	s.Equal("", rtnVal)
 }
 
 func (s *nomsDsTestSuite) TestNomsDs() {
 	dir := s.DBDir
-	dbName := dir+"/name"
 
-	os.MkdirAll(dbName, 0777)
-	cs := nbs.NewLocalStore(dbName, clienttest.DefaultMemTableSize)
+	cs := nbs.NewLocalStore(dir, clienttest.DefaultMemTableSize)
 	db := datas.NewDatabase(cs)
 
 	id := "testdataset"
@@ -60,9 +55,9 @@ func (s *nomsDsTestSuite) TestNomsDs() {
 	err = db.Close()
 	s.NoError(err)
 
-	dbSpec := spec.CreateDatabaseSpecString("nbs", dbName)
-	datasetName := spec.CreateValueSpecString("nbs", dbName, id)
-	dataset2Name := spec.CreateValueSpecString("nbs", dbName, id2)
+	dbSpec := spec.CreateDatabaseSpecString("nbs", dir)
+	datasetName := spec.CreateValueSpecString("nbs", dir, id)
+	dataset2Name := spec.CreateValueSpecString("nbs", dir, id2)
 
 	// both datasets show up
 	rtnVal, _ := s.MustRun(main, []string{"ds", dbSpec})
