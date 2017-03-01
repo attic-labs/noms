@@ -126,7 +126,6 @@ func (s *nomsSyncTestSuite) TestSync_Issue2598() {
 
 func (s *nomsSyncTestSuite) TestRewind() {
 	var err error
-	os.Mkdir(s.DBDir, 0777)
 	sourceDB := datas.NewDatabase(nbs.NewLocalStore(s.DBDir, clienttest.DefaultMemTableSize))
 	src := sourceDB.GetDataset("foo")
 	src, err = sourceDB.CommitValue(src, types.Number(42))
