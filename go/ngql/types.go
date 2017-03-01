@@ -348,20 +348,24 @@ type nomsCollection interface {
 
 func getCollectionArgs(col nomsCollection, args map[string]interface{}, factory iteratorFactory) (iter interface{}, nomsKey, nomsThrough types.Value, count uint64, singleExactMatch bool, err error) {
 	typ := col.Type()
-	len := col.Len()
+	length := col.Len()
 	nomsKeyType := typ.Desc.(types.CompoundDesc).ElemTypes[0]
 
 	if keys, ok := args[keysKey]; ok {
-		var nomsValue types.Value
-		nomsValue, err = getArgValue(keys, types.MakeListType(nomsKeyType))
-		if err != nil {
-			return
+		slice := keys.([]interface{})
+		nomsKeys := make(types.ValueSlice, len(slice))
+		for i, v := range slice {
+			var nomsValue types.Value
+			nomsValue, err = getArgValue(v, nomsKeyType)
+			if err != nil {
+				return
+			}
+			nomsKeys[i] = nomsValue
 		}
-		nomsList := nomsValue.(types.List)
-		count = nomsList.Len()
+		count = uint64(len(slice))
 		iter = &mapIteratorForKeys{
-			m:      col.(types.Map),
-			listIt: nomsList.Iterator(),
+			m:    col.(types.Map),
+			keys: nomsKeys,
 		}
 		return
 
@@ -377,7 +381,7 @@ func getCollectionArgs(col nomsCollection, args map[string]interface{}, factory 
 		idx := at.(int)
 		if idx < 0 {
 			idx = 0
-		} else if uint64(idx) > len {
+		} else if uint64(idx) > length {
 			// count is already 0
 			return
 		}
@@ -386,7 +390,6 @@ func getCollectionArgs(col nomsCollection, args map[string]interface{}, factory 
 		iter = factory.IteratorAt(0)
 	}
 
-	// iter, err = getIterator(len, nomsKeyType, args, factory)
 	if err != nil {
 		return
 	}
@@ -400,7 +403,7 @@ func getCollectionArgs(col nomsCollection, args map[string]interface{}, factory 
 		return
 	}
 
-	count, singleExactMatch = getCountArg(len, args)
+	count, singleExactMatch = getCountArg(length, args)
 	return
 }
 
@@ -707,12 +710,17 @@ func maybeGetScalar(v types.Value) interface{} {
 }
 
 type mapIteratorForKeys struct {
-	m      types.Map
-	listIt types.ListIterator
+	m    types.Map
+	keys types.ValueSlice
+	idx  int
 }
 
 func (it *mapIteratorForKeys) Next() (k, v types.Value) {
-	k = it.listIt.Next()
+	if it.idx >= len(it.keys) {
+		return
+	}
+	k = it.keys[it.idx]
+	it.idx++
 	if k != nil {
 		v = it.m.Get(k)
 	}

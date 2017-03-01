@@ -35,6 +35,10 @@ func TestGetArgValue(tt *testing.T) {
 	assert.NoError(err)
 	assert.Equal(b, types.Bool(false))
 
+	ls, err := getArgValue([]interface{}{float64(0), float64(1)}, types.MakeListType(types.NumberType))
+	assert.NoError(err)
+	assert.True(ls.Equals(types.NewList(types.Number(0), types.Number(1))))
+
 	type S struct {
 		X float64
 	}
