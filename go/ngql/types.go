@@ -13,6 +13,7 @@ import (
 	"github.com/attic-labs/graphql"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
+	"github.com/attic-labs/noms/go/marshal"
 	"github.com/attic-labs/noms/go/types"
 )
 
@@ -310,37 +311,6 @@ func getSetValues(v types.Value, args map[string]interface{}) (interface{}, erro
 	return values, nil
 }
 
-func getArgValue(arg interface{}, nomsType *types.Type) (types.Value, error) {
-	var nomsVal types.Value
-	switch arg := arg.(type) {
-	case bool:
-		nomsVal = types.Bool(arg)
-	case float64:
-		nomsVal = types.Number(arg)
-	case string:
-		nomsVal = types.String(arg)
-	case []interface{}:
-		elemType := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
-		vs := make(types.ValueSlice, len(arg))
-		for i, v := range arg {
-			var err error
-			vs[i], err = getArgValue(v, elemType)
-			if err != nil {
-				return nil, err
-			}
-		}
-		nomsVal = types.NewList(vs...)
-	default:
-		return nil, fmt.Errorf("Unsupported type in GraphQL argument, %T, %s", arg, nomsType.Describe())
-	}
-
-	if types.IsSubtype(nomsType, nomsVal.Type()) {
-		return nomsVal, nil
-	}
-
-	return nil, fmt.Errorf("%s is not a subtype of %s", nomsVal.Type().Describe(), nomsType.Describe())
-}
-
 type nomsCollection interface {
 	types.Value
 	Len() uint64
@@ -356,7 +326,7 @@ func getCollectionArgs(col nomsCollection, args map[string]interface{}, factory 
 		nomsKeys := make(types.ValueSlice, len(slice))
 		for i, v := range slice {
 			var nomsValue types.Value
-			nomsValue, err = getArgValue(v, nomsKeyType)
+			nomsValue, err = marshal.Marshal(v)
 			if err != nil {
 				return
 			}
@@ -372,7 +342,7 @@ func getCollectionArgs(col nomsCollection, args map[string]interface{}, factory 
 	}
 
 	if key, ok := args[keyKey]; ok {
-		nomsKey, err = getArgValue(key, nomsKeyType)
+		nomsKey, err = marshal.Marshal(key)
 		if err != nil {
 			return
 		}
@@ -477,7 +447,7 @@ func getThroughArg(nomsKeyType *types.Type, args map[string]interface{}) (types.
 	var nomsThrough types.Value
 	if through, ok := args[throughKey]; ok {
 		var err error
-		nomsThrough, err = getArgValue(through, nomsKeyType)
+		nomsThrough, err = marshal.Marshal(through)
 		if err != nil {
 			return nil, err
 		}
