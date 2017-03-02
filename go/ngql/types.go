@@ -690,9 +690,7 @@ func (it *mapIteratorForKeys) Next() (k, v types.Value) {
 		return
 	}
 	k = it.keys[it.idx]
+	v = it.m.Get(k)
 	it.idx++
-	if k != nil {
-		v = it.m.Get(k)
-	}
 	return
 }
