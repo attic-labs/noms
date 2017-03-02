@@ -103,13 +103,7 @@ func nomsTypeToGraphQLType(nomsType *types.Type, boxedIfScalar bool, tm *typeMap
 		gqlType = structToGQLObject(nomsType, tm)
 
 	case types.ListKind, types.SetKind:
-		nomsValueType := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
-		var valueType graphql.Type
-		if !isEmptyNomsUnion(nomsValueType) {
-			valueType = nomsTypeToGraphQLType(nomsValueType, false, tm)
-		}
-
-		gqlType = collectionToGraphQLObject(nomsType, valueType, unpackNonNullType(valueType), tm)
+		gqlType = listAndSetToGraphQLObject(nomsType, tm)
 
 	case types.MapKind:
 		gqlType = mapToGraphQLObject(nomsType, tm)
@@ -367,7 +361,7 @@ func getCollectionArgs(col types.Collection, args map[string]interface{}, factor
 
 type mapAppender func(slice []interface{}, k, v types.Value) []interface{}
 
-func getMapElements(v types.Value, args map[string]interface{}, append mapAppender) (interface{}, error) {
+func getMapElements(v types.Value, args map[string]interface{}, app mapAppender) (interface{}, error) {
 	m := v.(types.Map)
 
 	iter, nomsKey, nomsThrough, count, singleExactMatch, err := getCollectionArgs(m, args, iteratorFactory{
@@ -396,19 +390,19 @@ func getMapElements(v types.Value, args map[string]interface{}, append mapAppend
 
 		if singleExactMatch {
 			if nomsKey.Equals(k) {
-				values = append(values, k, v)
+				values = app(values, k, v)
 			}
 			break
 		}
 
 		if nomsThrough != nil {
 			if !nomsThrough.Less(k) {
-				values = append(values, k, v)
+				values = app(values, k, v)
 			} else {
 				break
 			}
 		} else {
-			values = append(values, k, v)
+			values = app(values, k, v)
 		}
 	}
 
@@ -565,7 +559,14 @@ func argsWithSize() graphql.Fields {
 	}
 }
 
-func collectionToGraphQLObject(nomsType *types.Type, listType, keyType graphql.Type, tm *typeMap) *graphql.Object {
+func listAndSetToGraphQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
+	nomsValueType := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
+	var listType, valueType graphql.Type
+	if !isEmptyNomsUnion(nomsValueType) {
+		listType = nomsTypeToGraphQLType(nomsValueType, false, tm)
+		valueType = unpackNonNullType(listType)
+	}
+
 	return graphql.NewObject(graphql.ObjectConfig{
 		Name: getTypeName(nomsType),
 		Fields: graphql.FieldsThunk(func() graphql.Fields {
@@ -585,15 +586,15 @@ func collectionToGraphQLObject(nomsType *types.Type, listType, keyType graphql.T
 						atKey:    &graphql.ArgumentConfig{Type: graphql.Int},
 						countKey: &graphql.ArgumentConfig{Type: graphql.Int},
 					}
-					if graphql.IsInputType(keyType) {
+					if graphql.IsInputType(valueType) {
 						// TODO: Should compute an graphql.InputObject from the noms type. graphql.InputObject is different from graphql.Object
 						// See graphql.IsInputType vs graphql.IsOutputType
-						args[keyKey] = &graphql.ArgumentConfig{Type: keyType}
-						args[throughKey] = &graphql.ArgumentConfig{Type: keyType}
+						args[keyKey] = &graphql.ArgumentConfig{Type: valueType}
+						args[throughKey] = &graphql.ArgumentConfig{Type: valueType}
 					}
 					getSubvalues = getSetElements
 				}
-				fields[elementsKey] = &graphql.Field{
+				valuesField := &graphql.Field{
 					Type: graphql.NewList(listType),
 					Args: args,
 					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
@@ -601,6 +602,8 @@ func collectionToGraphQLObject(nomsType *types.Type, listType, keyType graphql.T
 						return getSubvalues(c, p.Args)
 					},
 				}
+				fields[valuesKey] = valuesField
+				fields[elementsKey] = valuesField
 			}
 
 			return fields
@@ -634,7 +637,7 @@ func mapToGraphQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
 					args[throughKey] = &graphql.ArgumentConfig{Type: nullableKeyType}
 				}
 
-				fields[elementsKey] = &graphql.Field{
+				entriesField := &graphql.Field{
 					Type: graphql.NewList(entryType),
 					Args: args,
 					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
@@ -642,6 +645,9 @@ func mapToGraphQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
 						return getMapElements(c, p.Args, mapAppendEntry)
 					},
 				}
+				fields[entriesKey] = entriesField
+				fields[elementsKey] = entriesField
+
 				fields[keysKey] = &graphql.Field{
 					Type: graphql.NewList(keyType),
 					Args: args,

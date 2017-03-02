@@ -19,6 +19,7 @@ const (
 	atKey          = "at"
 	countKey       = "count"
 	elementsKey    = "elements"
+	entriesKey     = "entries"
 	keyKey         = "key"
 	keysKey        = "keys"
 	rootKey        = "root"
