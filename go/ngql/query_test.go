@@ -605,3 +605,159 @@ func (suite *QueryGraphQLSuite) TestSetArgs() {
 	suite.assertQueryResult(s, `{root{elements(key:"c",count:2,through:"g")}}`,
 		`{"data":{"root":{"elements":["c","e"]}}}`)
 }
+
+func (suite *QueryGraphQLSuite) TestMapValues() {
+	m := types.NewMap(
+		types.String("a"), types.Number(1),
+		types.String("c"), types.Number(2),
+		types.String("e"), types.Number(3),
+		types.String("g"), types.Number(4),
+	)
+
+	suite.assertQueryResult(m, "{root{values}}", `{"data":{"root":{"values":[1,2,3,4]}}}`)
+
+	// count
+	suite.assertQueryResult(m, "{root{values(count:0)}}", `{"data":{"root":{"values":[]}}}`)
+	suite.assertQueryResult(m, "{root{values(count:2)}}", `{"data":{"root":{"values":[1,2]}}}`)
+	suite.assertQueryResult(m, "{root{values(count:3)}}", `{"data":{"root":{"values":[1,2,3]}}}`)
+	suite.assertQueryResult(m, "{root{values(count: -1)}}", `{"data":{"root":{"values":[]}}}`)
+	suite.assertQueryResult(m, "{root{values(count:5)}}", `{"data":{"root":{"values":[1,2,3,4]}}}`)
+
+	// at
+	suite.assertQueryResult(m, "{root{values(at:0)}}", `{"data":{"root":{"values":[1,2,3,4]}}}`)
+	suite.assertQueryResult(m, "{root{values(at:-1)}}", `{"data":{"root":{"values":[1,2,3,4]}}}`)
+	suite.assertQueryResult(m, "{root{values(at:2)}}", `{"data":{"root":{"values":[3,4]}}}`)
+	suite.assertQueryResult(m, "{root{values(at:5)}}", `{"data":{"root":{"values":[]}}}`)
+
+	// at & count
+	suite.assertQueryResult(m, "{root{values(at:0,count:2)}}", `{"data":{"root":{"values":[1,2]}}}`)
+	suite.assertQueryResult(m, "{root{values(at:-1,count:2)}}", `{"data":{"root":{"values":[1,2]}}}`)
+	suite.assertQueryResult(m, "{root{values(at:1,count:2)}}", `{"data":{"root":{"values":[2,3]}}}`)
+	suite.assertQueryResult(m, "{root{values(at:2,count:1)}}", `{"data":{"root":{"values":[3]}}}`)
+	suite.assertQueryResult(m, "{root{values(at:2,count:0)}}", `{"data":{"root":{"values":[]}}}`)
+	suite.assertQueryResult(m, "{root{values(at:2,count:10)}}", `{"data":{"root":{"values":[3,4]}}}`)
+
+	// key
+	suite.assertQueryResult(m, `{root{values(key:"e")}}`, `{"data":{"root":{"values":[3]}}}`)
+	suite.assertQueryResult(m, `{root{values(key:"g")}}`, `{"data":{"root":{"values":[4]}}}`)
+	// "f", no count/through so asking for exact match
+	suite.assertQueryResult(m, `{root{values(key:"f")}}`, `{"data":{"root":{"values":[]}}}`)
+	// "x" is larger than end
+	suite.assertQueryResult(m, `{root{values(key:"x")}}`, `{"data":{"root":{"values":[]}}}`)
+
+	// key & at
+	// at is ignored when key is present
+	suite.assertQueryResult(m, `{root{values(key:"e",at:2)}}`, `{"data":{"root":{"values":[3]}}}`)
+
+	// key & count
+	suite.assertQueryResult(m, `{root{values(key:"c",count:2)}}`, `{"data":{"root":{"values":[2,3]}}}`)
+	suite.assertQueryResult(m, `{root{values(key:"c",count:0)}}`, `{"data":{"root":{"values":[]}}}`)
+	suite.assertQueryResult(m, `{root{values(key:"c",count:-1)}}`, `{"data":{"root":{"values":[]}}}`)
+	suite.assertQueryResult(m, `{root{values(key:"e",count:5)}}`, `{"data":{"root":{"values":[3,4]}}}`)
+
+	// through
+	suite.assertQueryResult(m, `{root{values(through:"c")}}`, `{"data":{"root":{"values":[1,2]}}}`)
+	suite.assertQueryResult(m, `{root{values(through:"b")}}`, `{"data":{"root":{"values":[1]}}}`)
+	suite.assertQueryResult(m, `{root{values(through:"0")}}`, `{"data":{"root":{"values":[]}}}`)
+
+	// key & through
+	suite.assertQueryResult(m, `{root{values(key:"c", through:"c")}}`, `{"data":{"root":{"values":[2]}}}`)
+	suite.assertQueryResult(m, `{root{values(key:"c",through:"e")}}`, `{"data":{"root":{"values":[2,3]}}}`)
+
+	// through & count
+	suite.assertQueryResult(m, `{root{values(through:"c",count:1)}}`, `{"data":{"root":{"values":[1]}}}`)
+	suite.assertQueryResult(m, `{root{values(through:"b",count:0)}}`, `{"data":{"root":{"values":[]}}}`)
+	suite.assertQueryResult(m, `{root{values(through:"0",count:10)}}`, `{"data":{"root":{"values":[]}}}`)
+
+	// at & through
+	suite.assertQueryResult(m, `{root{values(at:0,through:"a")}}`, `{"data":{"root":{"values":[1]}}}`)
+	suite.assertQueryResult(m, `{root{values(at:1,through:"e")}}`, `{"data":{"root":{"values":[2,3]}}}`)
+
+	// at & count & through
+	suite.assertQueryResult(m, `{root{values(at:0,count:2,through:"a")}}`, `{"data":{"root":{"values":[1]}}}`)
+	suite.assertQueryResult(m, `{root{values(at:0,count:2,through:"e")}}`, `{"data":{"root":{"values":[1,2]}}}`)
+
+	// key & count & through
+	suite.assertQueryResult(m, `{root{values(key:"c",count:2,through:"c")}}`,
+		`{"data":{"root":{"values":[2]}}}`)
+	suite.assertQueryResult(m, `{root{values(key:"c",count:2,through:"g")}}`,
+		`{"data":{"root":{"values":[2,3]}}}`)
+}
+
+func (suite *QueryGraphQLSuite) TestMapKeys() {
+	m := types.NewMap(
+		types.String("a"), types.Number(1),
+		types.String("c"), types.Number(2),
+		types.String("e"), types.Number(3),
+		types.String("g"), types.Number(4),
+	)
+
+	suite.assertQueryResult(m, "{root{keys}}", `{"data":{"root":{"keys":["a","c","e","g"]}}}`)
+
+	// count
+	suite.assertQueryResult(m, "{root{keys(count:0)}}", `{"data":{"root":{"keys":[]}}}`)
+	suite.assertQueryResult(m, "{root{keys(count:2)}}", `{"data":{"root":{"keys":["a","c"]}}}`)
+	suite.assertQueryResult(m, "{root{keys(count:3)}}", `{"data":{"root":{"keys":["a","c","e"]}}}`)
+	suite.assertQueryResult(m, "{root{keys(count: -1)}}", `{"data":{"root":{"keys":[]}}}`)
+	suite.assertQueryResult(m, "{root{keys(count:5)}}", `{"data":{"root":{"keys":["a","c","e","g"]}}}`)
+
+	// at
+	suite.assertQueryResult(m, "{root{keys(at:0)}}", `{"data":{"root":{"keys":["a","c","e","g"]}}}`)
+	suite.assertQueryResult(m, "{root{keys(at:-1)}}", `{"data":{"root":{"keys":["a","c","e","g"]}}}`)
+	suite.assertQueryResult(m, "{root{keys(at:2)}}", `{"data":{"root":{"keys":["e","g"]}}}`)
+	suite.assertQueryResult(m, "{root{keys(at:5)}}", `{"data":{"root":{"keys":[]}}}`)
+
+	// at & count
+	suite.assertQueryResult(m, "{root{keys(at:0,count:2)}}", `{"data":{"root":{"keys":["a","c"]}}}`)
+	suite.assertQueryResult(m, "{root{keys(at:-1,count:2)}}", `{"data":{"root":{"keys":["a","c"]}}}`)
+	suite.assertQueryResult(m, "{root{keys(at:1,count:2)}}", `{"data":{"root":{"keys":["c","e"]}}}`)
+	suite.assertQueryResult(m, "{root{keys(at:2,count:1)}}", `{"data":{"root":{"keys":["e"]}}}`)
+	suite.assertQueryResult(m, "{root{keys(at:2,count:0)}}", `{"data":{"root":{"keys":[]}}}`)
+	suite.assertQueryResult(m, "{root{keys(at:2,count:10)}}", `{"data":{"root":{"keys":["e","g"]}}}`)
+
+	// key
+	suite.assertQueryResult(m, `{root{keys(key:"e")}}`, `{"data":{"root":{"keys":["e"]}}}`)
+	suite.assertQueryResult(m, `{root{keys(key:"g")}}`, `{"data":{"root":{"keys":["g"]}}}`)
+	// "f", no count/through so asking for exact match
+	suite.assertQueryResult(m, `{root{keys(key:"f")}}`, `{"data":{"root":{"keys":[]}}}`)
+	// "x" is larger than end
+	suite.assertQueryResult(m, `{root{keys(key:"x")}}`, `{"data":{"root":{"keys":[]}}}`)
+
+	// key & at
+	// at is ignored when key is present
+	suite.assertQueryResult(m, `{root{keys(key:"e",at:2)}}`, `{"data":{"root":{"keys":["e"]}}}`)
+
+	// key & count
+	suite.assertQueryResult(m, `{root{keys(key:"c",count:2)}}`, `{"data":{"root":{"keys":["c","e"]}}}`)
+	suite.assertQueryResult(m, `{root{keys(key:"c",count:0)}}`, `{"data":{"root":{"keys":[]}}}`)
+	suite.assertQueryResult(m, `{root{keys(key:"c",count:-1)}}`, `{"data":{"root":{"keys":[]}}}`)
+	suite.assertQueryResult(m, `{root{keys(key:"e",count:5)}}`, `{"data":{"root":{"keys":["e","g"]}}}`)
+
+	// through
+	suite.assertQueryResult(m, `{root{keys(through:"c")}}`, `{"data":{"root":{"keys":["a","c"]}}}`)
+	suite.assertQueryResult(m, `{root{keys(through:"b")}}`, `{"data":{"root":{"keys":["a"]}}}`)
+	suite.assertQueryResult(m, `{root{keys(through:"0")}}`, `{"data":{"root":{"keys":[]}}}`)
+
+	// key & through
+	suite.assertQueryResult(m, `{root{keys(key:"c", through:"c")}}`, `{"data":{"root":{"keys":["c"]}}}`)
+	suite.assertQueryResult(m, `{root{keys(key:"c",through:"e")}}`, `{"data":{"root":{"keys":["c","e"]}}}`)
+
+	// through & count
+	suite.assertQueryResult(m, `{root{keys(through:"c",count:1)}}`, `{"data":{"root":{"keys":["a"]}}}`)
+	suite.assertQueryResult(m, `{root{keys(through:"b",count:0)}}`, `{"data":{"root":{"keys":[]}}}`)
+	suite.assertQueryResult(m, `{root{keys(through:"0",count:10)}}`, `{"data":{"root":{"keys":[]}}}`)
+
+	// at & through
+	suite.assertQueryResult(m, `{root{keys(at:0,through:"a")}}`, `{"data":{"root":{"keys":["a"]}}}`)
+	suite.assertQueryResult(m, `{root{keys(at:1,through:"e")}}`, `{"data":{"root":{"keys":["c","e"]}}}`)
+
+	// at & count & through
+	suite.assertQueryResult(m, `{root{keys(at:0,count:2,through:"a")}}`, `{"data":{"root":{"keys":["a"]}}}`)
+	suite.assertQueryResult(m, `{root{keys(at:0,count:2,through:"e")}}`, `{"data":{"root":{"keys":["a","c"]}}}`)
+
+	// key & count & through
+	suite.assertQueryResult(m, `{root{keys(key:"c",count:2,through:"c")}}`,
+		`{"data":{"root":{"keys":["c"]}}}`)
+	suite.assertQueryResult(m, `{root{keys(key:"c",count:2,through:"g")}}`,
+		`{"data":{"root":{"keys":["c","e"]}}}`)
+}

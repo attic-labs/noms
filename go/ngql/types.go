@@ -112,14 +112,7 @@ func nomsTypeToGraphQLType(nomsType *types.Type, boxedIfScalar bool, tm *typeMap
 		gqlType = collectionToGraphQLObject(nomsType, valueType, unpackNonNullType(valueType), tm)
 
 	case types.MapKind:
-		nomsKeyType := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
-		nomsValueType := nomsType.Desc.(types.CompoundDesc).ElemTypes[1]
-		var entryType, keyType graphql.Type
-		if !isEmptyNomsUnion(nomsKeyType) && !isEmptyNomsUnion(nomsValueType) {
-			entryType, keyType = mapEntryToGraphQLObject(nomsKeyType, nomsValueType, tm)
-		}
-
-		gqlType = collectionToGraphQLObject(nomsType, entryType, unpackNonNullType(keyType), tm)
+		gqlType = mapToGraphQLObject(nomsType, tm)
 
 	case types.RefKind:
 		gqlType = refToGraphQLObject(nomsType, tm)
@@ -230,7 +223,7 @@ var listArgs = graphql.FieldConfigArgument{
 	countKey: &graphql.ArgumentConfig{Type: graphql.Int},
 }
 
-func getListValues(v types.Value, args map[string]interface{}) (interface{}, error) {
+func getListElements(v types.Value, args map[string]interface{}) (interface{}, error) {
 	l := v.(types.List)
 	idx := 0
 	count := int(l.Len())
@@ -264,7 +257,7 @@ func getListValues(v types.Value, args map[string]interface{}) (interface{}, err
 	return values, nil
 }
 
-func getSetValues(v types.Value, args map[string]interface{}) (interface{}, error) {
+func getSetElements(v types.Value, args map[string]interface{}) (interface{}, error) {
 	s := v.(types.Set)
 
 	iter, nomsKey, nomsThrough, count, singleExactMatch, err := getCollectionArgs(s, args, iteratorFactory{
@@ -311,12 +304,7 @@ func getSetValues(v types.Value, args map[string]interface{}) (interface{}, erro
 	return values, nil
 }
 
-type nomsCollection interface {
-	types.Value
-	Len() uint64
-}
-
-func getCollectionArgs(col nomsCollection, args map[string]interface{}, factory iteratorFactory) (iter interface{}, nomsKey, nomsThrough types.Value, count uint64, singleExactMatch bool, err error) {
+func getCollectionArgs(col types.Collection, args map[string]interface{}, factory iteratorFactory) (iter interface{}, nomsKey, nomsThrough types.Value, count uint64, singleExactMatch bool, err error) {
 	typ := col.Type()
 	length := col.Len()
 	nomsKeyType := typ.Desc.(types.CompoundDesc).ElemTypes[0]
@@ -377,7 +365,9 @@ func getCollectionArgs(col nomsCollection, args map[string]interface{}, factory 
 	return
 }
 
-func getMapValues(v types.Value, args map[string]interface{}) (interface{}, error) {
+type mapAppender func(slice []interface{}, k, v types.Value) []interface{}
+
+func getMapElements(v types.Value, args map[string]interface{}, append mapAppender) (interface{}, error) {
 	m := v.(types.Map)
 
 	iter, nomsKey, nomsThrough, count, singleExactMatch, err := getCollectionArgs(m, args, iteratorFactory{
@@ -397,7 +387,7 @@ func getMapValues(v types.Value, args map[string]interface{}) (interface{}, erro
 	}
 
 	mapIter := iter.(types.MapIterator)
-	values := make([]mapEntry, 0, count)
+	values := make([]interface{}, 0, count)
 	for i := uint64(0); i < count; i++ {
 		k, v := mapIter.Next()
 		if k == nil {
@@ -406,19 +396,19 @@ func getMapValues(v types.Value, args map[string]interface{}) (interface{}, erro
 
 		if singleExactMatch {
 			if nomsKey.Equals(k) {
-				values = append(values, mapEntry{k, v})
+				values = append(values, k, v)
 			}
 			break
 		}
 
 		if nomsThrough != nil {
 			if !nomsThrough.Less(k) {
-				values = append(values, mapEntry{k, v})
+				values = append(values, k, v)
 			} else {
 				break
 			}
 		} else {
-			values = append(values, mapEntry{k, v})
+			values = append(values, k, v)
 		}
 	}
 
@@ -471,12 +461,10 @@ type mapEntry struct {
 //	 key: <KeyType>!
 //	 value: <ValueType>!
 // }
-func mapEntryToGraphQLObject(nomsKeyType, nomsValueType *types.Type, tm *typeMap) (*graphql.Object, graphql.Type) {
-	keyType := nomsTypeToGraphQLType(nomsKeyType, false, tm)
-	return graphql.NewObject(graphql.ObjectConfig{
+func mapEntryToGraphQLObject(keyType, valueType graphql.Type, nomsKeyType, nomsValueType *types.Type, tm *typeMap) graphql.Type {
+	return graphql.NewNonNull(graphql.NewObject(graphql.ObjectConfig{
 		Name: fmt.Sprintf("%s%sEntry", getTypeName(nomsKeyType), getTypeName(nomsValueType)),
 		Fields: graphql.FieldsThunk(func() graphql.Fields {
-			valueType := nomsTypeToGraphQLType(nomsValueType, false, tm)
 			return graphql.Fields{
 				keyKey: &graphql.Field{
 					Type: keyType,
@@ -494,7 +482,7 @@ func mapEntryToGraphQLObject(nomsKeyType, nomsValueType *types.Type, tm *typeMap
 				},
 			}
 		}),
-	}), keyType
+	}))
 }
 
 func getTypeName(nomsType *types.Type) string {
@@ -565,19 +553,23 @@ func getTypeName(nomsType *types.Type) string {
 	}
 }
 
+func argsWithSize() graphql.Fields {
+	return graphql.Fields{
+		sizeKey: &graphql.Field{
+			Type: graphql.Float,
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				c := p.Source.(types.Collection)
+				return maybeGetScalar(types.Number(c.Len())), nil
+			},
+		},
+	}
+}
+
 func collectionToGraphQLObject(nomsType *types.Type, listType, keyType graphql.Type, tm *typeMap) *graphql.Object {
 	return graphql.NewObject(graphql.ObjectConfig{
 		Name: getTypeName(nomsType),
 		Fields: graphql.FieldsThunk(func() graphql.Fields {
-			fields := graphql.Fields{
-				sizeKey: &graphql.Field{
-					Type: graphql.Float,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-						c := p.Source.(types.Collection)
-						return maybeGetScalar(types.Number(c.Len())), nil
-					},
-				},
-			}
+			fields := argsWithSize()
 
 			if listType != nil {
 				var args graphql.FieldConfigArgument
@@ -586,7 +578,7 @@ func collectionToGraphQLObject(nomsType *types.Type, listType, keyType graphql.T
 				switch nomsType.Kind() {
 				case types.ListKind:
 					args = listArgs
-					getSubvalues = getListValues
+					getSubvalues = getListElements
 
 				case types.SetKind:
 					args = graphql.FieldConfigArgument{
@@ -599,21 +591,8 @@ func collectionToGraphQLObject(nomsType *types.Type, listType, keyType graphql.T
 						args[keyKey] = &graphql.ArgumentConfig{Type: keyType}
 						args[throughKey] = &graphql.ArgumentConfig{Type: keyType}
 					}
-					getSubvalues = getSetValues
-
-				case types.MapKind:
-					args = graphql.FieldConfigArgument{
-						atKey:    &graphql.ArgumentConfig{Type: graphql.Int},
-						countKey: &graphql.ArgumentConfig{Type: graphql.Int},
-					}
-					if graphql.IsInputType(keyType) {
-						args[keyKey] = &graphql.ArgumentConfig{Type: keyType}
-						args[keysKey] = &graphql.ArgumentConfig{Type: graphql.NewList(keyType)}
-						args[throughKey] = &graphql.ArgumentConfig{Type: keyType}
-					}
-					getSubvalues = getMapValues
+					getSubvalues = getSetElements
 				}
-
 				fields[elementsKey] = &graphql.Field{
 					Type: graphql.NewList(listType),
 					Args: args,
@@ -627,6 +606,75 @@ func collectionToGraphQLObject(nomsType *types.Type, listType, keyType graphql.T
 			return fields
 		}),
 	})
+}
+
+func mapToGraphQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
+	return graphql.NewObject(graphql.ObjectConfig{
+		Name: getTypeName(nomsType),
+		Fields: graphql.FieldsThunk(func() graphql.Fields {
+			nomsKeyType := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
+			nomsValueType := nomsType.Desc.(types.CompoundDesc).ElemTypes[1]
+			isEmptyMap := isEmptyNomsUnion(nomsKeyType) || isEmptyNomsUnion(nomsValueType)
+
+			fields := argsWithSize()
+
+			if !isEmptyMap {
+				keyType := nomsTypeToGraphQLType(nomsKeyType, false, tm)
+				nullableKeyType := unpackNonNullType(keyType)
+				valueType := nomsTypeToGraphQLType(nomsValueType, false, tm)
+				entryType := mapEntryToGraphQLObject(keyType, valueType, nomsKeyType, nomsValueType, tm)
+
+				args := graphql.FieldConfigArgument{
+					atKey:    &graphql.ArgumentConfig{Type: graphql.Int},
+					countKey: &graphql.ArgumentConfig{Type: graphql.Int},
+				}
+				if graphql.IsInputType(keyType) {
+					args[keyKey] = &graphql.ArgumentConfig{Type: nullableKeyType}
+					args[keysKey] = &graphql.ArgumentConfig{Type: graphql.NewList(keyType)}
+					args[throughKey] = &graphql.ArgumentConfig{Type: nullableKeyType}
+				}
+
+				fields[elementsKey] = &graphql.Field{
+					Type: graphql.NewList(entryType),
+					Args: args,
+					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+						c := p.Source.(types.Collection)
+						return getMapElements(c, p.Args, mapAppendEntry)
+					},
+				}
+				fields[keysKey] = &graphql.Field{
+					Type: graphql.NewList(keyType),
+					Args: args,
+					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+						c := p.Source.(types.Collection)
+						return getMapElements(c, p.Args, mapAppendKey)
+					},
+				}
+				fields[valuesKey] = &graphql.Field{
+					Type: graphql.NewList(valueType),
+					Args: args,
+					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+						c := p.Source.(types.Collection)
+						return getMapElements(c, p.Args, mapAppendValue)
+					},
+				}
+			}
+
+			return fields
+		}),
+	})
+}
+
+func mapAppendKey(slice []interface{}, k, v types.Value) []interface{} {
+	return append(slice, maybeGetScalar(k))
+}
+
+func mapAppendValue(slice []interface{}, k, v types.Value) []interface{} {
+	return append(slice, maybeGetScalar(v))
+}
+
+func mapAppendEntry(slice []interface{}, k, v types.Value) []interface{} {
+	return append(slice, mapEntry{k, v})
 }
 
 // Refs are represented as structs:

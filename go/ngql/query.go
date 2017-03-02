@@ -30,6 +30,7 @@ const (
 	throughKey     = "through"
 	tmKey          = "tm"
 	valueKey       = "value"
+	valuesKey      = "values"
 	vrKey          = "vr"
 )
 
