@@ -348,7 +348,7 @@ func getCollectionArgs(col types.Collection, args map[string]interface{}, factor
 		}
 		iter = factory.IteratorAt(uint64(idx))
 	} else if count == 1 && !singleExactMatch {
-		// no  key, no at, no through, but a count:1
+		// no key, no at, no through, but a count:1
 		iter = factory.First()
 	} else {
 		iter = factory.IteratorAt(0)
