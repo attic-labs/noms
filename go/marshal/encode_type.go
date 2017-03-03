@@ -8,6 +8,7 @@
 package marshal
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/attic-labs/noms/go/d"
@@ -54,13 +55,36 @@ func MustMarshalType(v interface{}) *types.Type {
 	return t
 }
 
+// TypeMarshaler is an interface types can implement to provide their own
+// encoding of type.
+type TypeMarshaler interface {
+	// MarshalNomsType returns the Noms Type encoding of a type, or an error.
+	// nil is not a valid return val - if both val and err are nil, MarshalType
+	// will panic.
+	MarshalNomsType() (t *types.Type, err error)
+}
+
 var typeOfTypesType = reflect.TypeOf((*types.Type)(nil))
+var typeMarshalerInterface = reflect.TypeOf((*TypeMarshaler)(nil)).Elem()
 
 type encodeTypeOptions struct {
 	IgnoreOmitEmpty bool
 }
 
 func encodeType(t reflect.Type, parentStructTypes []reflect.Type, tags nomsTags, options encodeTypeOptions) *types.Type {
+	if t.Implements(typeMarshalerInterface) {
+		v := reflect.New(t)
+		typ, err := v.Interface().(TypeMarshaler).MarshalNomsType()
+		if err != nil {
+			panic(&marshalNomsError{err})
+		}
+		if typ == nil {
+			panic(fmt.Errorf("nil result from %s.MarshalNomsType", t.String()))
+		}
+		return typ
+
+	}
+
 	if t.Implements(marshalerInterface) {
 		// There is no way to determine the noms type now. For Marshal it can be
 		// different each time MarshalNoms is called. This is handled further up the

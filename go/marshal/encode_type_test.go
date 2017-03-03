@@ -5,6 +5,7 @@
 package marshal
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -382,4 +383,103 @@ func TestMarshalTypeNomsTypes(t *testing.T) {
 			"type":   types.TypeType,
 		}),
 	))
+}
+
+func (t primitiveType) MarshalNomsType() (*types.Type, error) {
+	return types.NumberType, nil
+}
+
+func TestTypeMarshalerPrimitiveType(t *testing.T) {
+	assert := assert.New(t)
+
+	var u primitiveType
+	typ := MustMarshalType(u)
+	assert.Equal(types.NumberType, typ)
+}
+
+func (u primitiveSliceType) MarshalNomsType() (*types.Type, error) {
+	return types.StringType, nil
+}
+
+func TestTypeMarshalerPrimitiveSliceType(t *testing.T) {
+	assert := assert.New(t)
+
+	var u primitiveSliceType
+	typ := MustMarshalType(u)
+	assert.Equal(types.StringType, typ)
+}
+
+func (u primitiveMapType) MarshalNomsType() (*types.Type, error) {
+	return types.MakeSetType(types.StringType), nil
+}
+
+func TestTypeMarshalerPrimitiveMapType(t *testing.T) {
+	assert := assert.New(t)
+
+	var u primitiveMapType
+	typ := MustMarshalType(u)
+	assert.Equal(types.MakeSetType(types.StringType), typ)
+}
+
+func (u primitiveStructType) MarshalNomsType() (*types.Type, error) {
+	return types.NumberType, nil
+}
+
+func TestTypeMarshalerPrimitiveStructType(t *testing.T) {
+	assert := assert.New(t)
+
+	var u primitiveStructType
+	typ := MustMarshalType(u)
+	assert.Equal(types.NumberType, typ)
+}
+
+func (u builtinType) MarshalNomsType() (*types.Type, error) {
+	return types.StringType, nil
+}
+
+func TestTypeMarshalerBuiltinType(t *testing.T) {
+	assert := assert.New(t)
+
+	var u builtinType
+	typ := MustMarshalType(u)
+	assert.Equal(types.StringType, typ)
+}
+
+func (u wrappedMarshalerType) MarshalNomsType() (*types.Type, error) {
+	return types.NumberType, nil
+}
+
+func TestTypeMarshalerWrapperMarshalerType(t *testing.T) {
+	assert := assert.New(t)
+
+	var u wrappedMarshalerType
+	typ := MustMarshalType(u)
+	assert.Equal(types.NumberType, typ)
+}
+
+func (u returnsMarshalerError) MarshalNomsType() (*types.Type, error) {
+	return nil, errors.New("expected error")
+}
+
+func (u returnsMarshalerNil) MarshalNomsType() (*types.Type, error) {
+	return nil, nil
+}
+
+func (u panicsMarshaler) MarshalNomsType() (*types.Type, error) {
+	panic("panic")
+}
+
+func TestTypeMarshalerErrors(t *testing.T) {
+	assert := assert.New(t)
+
+	expErr := errors.New("expected error")
+	var m1 returnsMarshalerError
+	_, actErr := MarshalType(m1)
+	assert.Equal(expErr, actErr)
+
+	var m2 returnsMarshalerNil
+	assert.Panics(func() { MarshalType(m2) })
+
+	var m3 panicsMarshaler
+	assert.Panics(func() { MarshalType(m3) })
 }
