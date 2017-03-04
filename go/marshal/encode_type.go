@@ -86,14 +86,14 @@ func encodeType(t reflect.Type, parentStructTypes []reflect.Type, tags nomsTags,
 	}
 
 	if t.Implements(marshalerInterface) {
+		// There is no way to determine the noms type now. For Marshal it can be
+		// different each time MarshalNoms is called and is handled further up the
+		// stack.
 		if options.ReportErrors {
 			err := fmt.Errorf("Cannot marshal type which implements %s, perhaps implement %s for %s", marshalerInterface, typeMarshalerInterface, t)
 			panic(&marshalNomsError{err})
 		}
 
-		// There is no way to determine the noms type now. For Marshal it can be
-		// different each time MarshalNoms is called. This is handled further up the
-		// stack.
 		return nil
 	}
 
