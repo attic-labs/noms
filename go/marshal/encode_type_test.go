@@ -107,7 +107,7 @@ func assertMarshalTypeErrorMessage(t *testing.T, v interface{}, expectedMessage 
 func TestMarshalTypeInvalidTypes(t *testing.T) {
 	assertMarshalTypeErrorMessage(t, make(chan int), "Type is not supported, type: chan int")
 	l := types.NewList()
-	assertMarshalTypeErrorMessage(t, l, "Type is not supported, type: types.List")
+	assertMarshalTypeErrorMessage(t, l, "Cannot marshal type types.List, it requires type parameters")
 }
 
 func TestMarshalTypeEmbeddedStruct(t *testing.T) {
@@ -127,10 +127,10 @@ func TestMarshalTypeEncodeNonExportedField(t *testing.T) {
 
 func TestMarshalTypeEncodeNomsTypeWithTypeParameters(t *testing.T) {
 
-	assertMarshalTypeErrorMessage(t, types.NewList(), "Type is not supported, type: types.List")
-	assertMarshalTypeErrorMessage(t, types.NewSet(), "Type is not supported, type: types.Set")
-	assertMarshalTypeErrorMessage(t, types.NewMap(), "Type is not supported, type: types.Map")
-	assertMarshalTypeErrorMessage(t, types.NewRef(types.NewSet()), "Type is not supported, type: types.Ref")
+	assertMarshalTypeErrorMessage(t, types.NewList(), "Cannot marshal type types.List, it requires type parameters")
+	assertMarshalTypeErrorMessage(t, types.NewSet(), "Cannot marshal type types.Set, it requires type parameters")
+	assertMarshalTypeErrorMessage(t, types.NewMap(), "Cannot marshal type types.Map, it requires type parameters")
+	assertMarshalTypeErrorMessage(t, types.NewRef(types.NewSet()), "Cannot marshal type types.Ref, it requires type parameters")
 }
 
 func TestMarshalTypeEncodeTaggingSkip(t *testing.T) {
@@ -421,16 +421,13 @@ func TestTypeMarshalerPrimitiveMapType(t *testing.T) {
 	assert.Equal(types.MakeSetType(types.StringType), typ)
 }
 
-func (u primitiveStructType) MarshalNomsType() (*types.Type, error) {
-	return types.NumberType, nil
-}
-
-func TestTypeMarshalerPrimitiveStructType(t *testing.T) {
+func TestTypeMarshalerPrimitiveStructTypeNoMarshalNomsType(t *testing.T) {
 	assert := assert.New(t)
 
 	var u primitiveStructType
-	typ := MustMarshalType(u)
-	assert.Equal(types.NumberType, typ)
+	_, err := MarshalType(u)
+	assert.Error(err)
+	assert.Equal("Cannot marshal type which implements marshal.Marshaler, perhaps implement marshal.TypeMarshaler for marshal.primitiveStructType", err.Error())
 }
 
 func (u builtinType) MarshalNomsType() (*types.Type, error) {
