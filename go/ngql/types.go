@@ -196,13 +196,15 @@ func structToGQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
 			}
 
 			structDesc.IterFields(func(name string, nomsFieldType *types.Type) {
-				fieldType := NomsTypeToGraphQLType(nomsFieldType, false, tm)
+				fieldType := unpackNonNullType(NomsTypeToGraphQLType(nomsFieldType, false, tm))
 
 				fields[name] = &graphql.Field{
 					Type: fieldType,
 					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-						field := p.Source.(types.Struct).Get(p.Info.FieldName)
-						return MaybeGetScalar(field), nil
+						if field, ok := p.Source.(types.Struct).MaybeGet(p.Info.FieldName); ok {
+							return MaybeGetScalar(field), nil
+						}
+						return nil, nil
 					},
 				}
 			})
