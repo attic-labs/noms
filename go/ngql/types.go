@@ -22,11 +22,19 @@ type typeMap map[typeMapKey]graphql.Type
 type typeMapKey struct {
 	h             hash.Hash
 	boxedIfScalar bool
+	typeMode      graphQLTypeMode
 }
 
 func NewTypeMap() *typeMap {
 	return &typeMap{}
 }
+
+type graphQLTypeMode bool
+
+const (
+	inputMode  = graphQLTypeMode(true)
+	outputMode = graphQLTypeMode(false)
+)
 
 // In terms of resolving a graph of data, there are three types of value:
 // scalars, lists and maps. During resolution, we are converting some noms
@@ -72,7 +80,7 @@ func isScalar(nomsType *types.Type) bool {
 // NomsTypeToGraphQLType creates a GraphQL type from a Noms type that knows how
 // to resolve the Noms values.
 func NomsTypeToGraphQLType(nomsType *types.Type, boxedIfScalar bool, tm *typeMap) graphql.Type {
-	key := typeMapKey{nomsType.Hash(), boxedIfScalar && isScalar(nomsType)}
+	key := typeMapKey{nomsType.Hash(), boxedIfScalar && isScalar(nomsType), outputMode}
 	gqlType, ok := (*tm)[key]
 	if ok {
 		return gqlType
@@ -120,7 +128,57 @@ func NomsTypeToGraphQLType(nomsType *types.Type, boxedIfScalar bool, tm *typeMap
 		gqlType = graphql.String
 
 	case types.CycleKind:
-		panic("not reached") // we should never attempt to create a schedule for any unresolved cycle
+		panic("not reached") // we should never attempt to create a schema for any unresolved cycle
+
+	default:
+		panic("not reached")
+	}
+
+	(*tm)[key] = gqlType
+	return gqlType
+}
+
+// NomsTypeToGraphQLInputType creates a GraphQL input type from a Noms type.
+// Input types may not be unions or cyclic structs. If we encounter those
+// this returns nil.
+func NomsTypeToGraphQLInputType(nomsType *types.Type, tm *typeMap) graphql.Type {
+	key := typeMapKey{nomsType.Hash(), false, inputMode}
+	gqlType, ok := (*tm)[key]
+	if ok {
+		return gqlType
+	}
+
+	switch nomsType.Kind() {
+	case types.NumberKind:
+		gqlType = graphql.Float
+
+	case types.StringKind:
+		gqlType = graphql.String
+
+	case types.BoolKind:
+		gqlType = graphql.Boolean
+
+	case types.StructKind:
+		gqlType = structToGQLInputObject(nomsType, tm)
+
+	case types.ListKind, types.SetKind:
+		gqlType = listAndSetToGraphQLInputObject(nomsType, tm)
+
+	case types.MapKind:
+		gqlType = mapToGraphQLInputObject(nomsType, tm)
+
+	case types.RefKind:
+		gqlType = graphql.String
+
+	case types.UnionKind:
+		gqlType = nil
+
+	case types.BlobKind, types.ValueKind, types.TypeKind:
+		// TODO: https://github.com/attic-labs/noms/issues/3155
+		gqlType = graphql.String
+
+	case types.CycleKind:
+		panic("not reached") // we should never attempt to create a schema for any unresolved cycle
 
 	default:
 		panic("not reached")
@@ -166,7 +224,7 @@ func unionToGQLUnion(nomsType *types.Type, tm *typeMap) *graphql.Union {
 					isScalar = true
 				}
 			}
-			key := typeMapKey{nomsType.Hash(), isScalar}
+			key := typeMapKey{nomsType.Hash(), isScalar, false}
 			memberType := (*tm)[key]
 			// Member types cannot be non-null and must be struct (graphl.Object)
 			return memberType.(*graphql.Object)
@@ -199,6 +257,62 @@ func structToGQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
 						}
 						return nil, nil
 					},
+				}
+			})
+
+			return fields
+		}),
+	})
+}
+
+func listAndSetToGraphQLInputObject(nomsType *types.Type, tm *typeMap) graphql.Input {
+	nomsValueType := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
+	if nomsValueType.Equals(types.MakeUnionType()) {
+		return nil
+	}
+	elemType := NomsTypeToGraphQLInputType(nomsValueType, tm)
+	if elemType == nil {
+		return nil
+	}
+	return graphql.NewList(elemType)
+}
+
+func mapToGraphQLInputObject(nomsType *types.Type, tm *typeMap) graphql.Input {
+	nomsKeyType := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
+	nomsValueType := nomsType.Desc.(types.CompoundDesc).ElemTypes[1]
+
+	if nomsKeyType.Equals(types.MakeUnionType()) || nomsValueType.Equals(types.MakeUnionType()) {
+		return nil
+	}
+
+	keyType := NomsTypeToGraphQLInputType(nomsKeyType, tm)
+	valueType := NomsTypeToGraphQLInputType(nomsValueType, tm)
+	if keyType == nil || valueType == nil {
+		return nil
+	}
+
+	entryType := mapEntryToGraphQLInputObject(keyType, valueType, nomsKeyType, nomsValueType, tm)
+	return graphql.NewList(entryType)
+}
+
+func structToGQLInputObject(nomsType *types.Type, tm *typeMap) graphql.Input {
+	// GraphQL input types cannot contain cycles.
+	unresolved := types.ToUnresolvedType(nomsType)
+	if unresolved.HasUnresolvedCycle() {
+		return nil
+	}
+
+	return graphql.NewInputObject(graphql.InputObjectConfig{
+		Name: getTypeName(nomsType) + "Input",
+		Fields: graphql.InputObjectConfigFieldMapThunk(func() graphql.InputObjectConfigFieldMap {
+			structDesc := nomsType.Desc.(types.StructDesc)
+			fields := make(graphql.InputObjectConfigFieldMap, structDesc.Len())
+
+			structDesc.IterFields(func(name string, nomsFieldType *types.Type) {
+				fieldType := NomsTypeToGraphQLInputType(nomsFieldType, tm)
+				d.PanicIfTrue(fieldType == nil)
+				fields[name] = &graphql.InputObjectFieldConfig{
+					Type: fieldType,
 				}
 			})
 
@@ -476,6 +590,22 @@ func mapEntryToGraphQLObject(keyType, valueType graphql.Type, nomsKeyType, nomsV
 	}))
 }
 
+func mapEntryToGraphQLInputObject(keyType, valueType graphql.Input, nomsKeyType, nomsValueType *types.Type, tm *typeMap) graphql.Input {
+	return graphql.NewInputObject(graphql.InputObjectConfig{
+		Name: fmt.Sprintf("%s%sEntryInput", getTypeName(nomsKeyType), getTypeName(nomsValueType)),
+		Fields: graphql.InputObjectConfigFieldMapThunk(func() graphql.InputObjectConfigFieldMap {
+			return graphql.InputObjectConfigFieldMap{
+				keyKey: &graphql.InputObjectFieldConfig{
+					Type: keyType,
+				},
+				valueKey: &graphql.InputObjectFieldConfig{
+					Type: valueType,
+				},
+			}
+		}),
+	})
+}
+
 func getTypeName(nomsType *types.Type) string {
 	switch nomsType.Kind() {
 	case types.BoolKind:
@@ -559,8 +689,10 @@ func argsWithSize() graphql.Fields {
 func listAndSetToGraphQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
 	nomsValueType := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
 	var listType, valueType graphql.Type
+	var keyInputType graphql.Input
 	if !isEmptyNomsUnion(nomsValueType) {
 		valueType = NomsTypeToGraphQLType(nomsValueType, false, tm)
+		keyInputType = NomsTypeToGraphQLInputType(nomsValueType, tm)
 		listType = graphql.NewNonNull(valueType)
 	}
 
@@ -583,11 +715,9 @@ func listAndSetToGraphQLObject(nomsType *types.Type, tm *typeMap) *graphql.Objec
 						atKey:    &graphql.ArgumentConfig{Type: graphql.Int},
 						countKey: &graphql.ArgumentConfig{Type: graphql.Int},
 					}
-					if graphql.IsInputType(valueType) {
-						// TODO: Should compute an graphql.InputObject from the noms type. graphql.InputObject is different from graphql.Object
-						// See graphql.IsInputType vs graphql.IsOutputType
-						args[keyKey] = &graphql.ArgumentConfig{Type: valueType}
-						args[throughKey] = &graphql.ArgumentConfig{Type: valueType}
+					if keyInputType != nil {
+						args[keyKey] = &graphql.ArgumentConfig{Type: keyInputType}
+						args[throughKey] = &graphql.ArgumentConfig{Type: keyInputType}
 					}
 					getSubvalues = getSetElements
 				}

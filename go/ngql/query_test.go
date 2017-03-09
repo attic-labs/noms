@@ -834,3 +834,105 @@ func (suite *QueryGraphQLSuite) TestStructWithMissingField() {
 
 	suite.Equal(map[string]interface{}{"root": map[string]interface{}{"n": float64(42), "s": nil}}, r.Data)
 }
+
+func (suite *QueryGraphQLSuite) TestMutationScalarArgs() {
+	test := func(query, expected string, nomsType *types.Type) {
+		tm := NewTypeMap()
+		inType := NomsTypeToGraphQLInputType(nomsType, tm)
+		outType := NomsTypeToGraphQLType(nomsType, false, tm)
+		suite.assertMutationTypes(query, expected, tm, inType, outType, func(p graphql.ResolveParams) (interface{}, error) {
+			return p.Args["new"], nil
+		})
+	}
+
+	test(`mutation {test(new: 123)}`, `{"data": {"test": 123}}`, types.NumberType)
+	test(`mutation {test(new: 0)}`, `{"data": {"test": 0}}`, types.NumberType)
+
+	test(`mutation {test(new: "hi")}`, `{"data": {"test": "hi"}}`, types.StringType)
+	test(`mutation {test(new: "")}`, `{"data": {"test": ""}}`, types.StringType)
+
+	test(`mutation {test(new: true)}`, `{"data": {"test": true}}`, types.BoolType)
+	test(`mutation {test(new: false)}`, `{"data": {"test": false}}`, types.BoolType)
+}
+
+func (suite *QueryGraphQLSuite) TestMutationWeirdosArgs() {
+	test := func(query, expected string, nomsType *types.Type) {
+		tm := NewTypeMap()
+		inType := NomsTypeToGraphQLInputType(nomsType, tm)
+		outType := graphql.String
+		suite.assertMutationTypes(query, expected, tm, inType, outType, func(p graphql.ResolveParams) (interface{}, error) {
+			return p.Args["new"], nil
+		})
+	}
+
+	test(`mutation {test(new: "#abc")}`, `{"data": {"test": "#abc"}}`, types.MakeRefType(types.NumberType))
+	test(`mutation {test(new: "0123456789")}`, `{"data": {"test": "0123456789"}}`, types.BlobType)
+}
+
+func (suite *QueryGraphQLSuite) assertMutationTypes(query, expected string, tm *typeMap, inType graphql.Input, outType graphql.Type, resolver graphql.FieldResolveFn) {
+	buf := &bytes.Buffer{}
+	root := types.Number(0)
+	schemaConfig := graphql.SchemaConfig{
+		Mutation: graphql.NewObject(graphql.ObjectConfig{
+			Name: "Mutation",
+			Fields: graphql.Fields{
+				"test": &graphql.Field{
+					Type: outType,
+					Args: graphql.FieldConfigArgument{
+						"new": &graphql.ArgumentConfig{
+							Type: inType,
+						},
+					},
+					Resolve: resolver,
+				},
+			},
+		}),
+	}
+	queryWithSchemaConfig(root, query, schemaConfig, suite.vs, tm, buf)
+	suite.JSONEq(expected+"\n", string(buf.Bytes()))
+}
+
+func (suite *QueryGraphQLSuite) TestMutationCollectionArgs() {
+	test := func(query, expected string, expectedArg interface{}, nomsType *types.Type) {
+		tm := NewTypeMap()
+		inType := NomsTypeToGraphQLInputType(nomsType, tm)
+		outType := graphql.Boolean
+		suite.assertMutationTypes(query, expected, tm, inType, outType, func(p graphql.ResolveParams) (interface{}, error) {
+			suite.Equal(expectedArg, p.Args["new"])
+			return true, nil
+		})
+	}
+
+	test(`mutation {test(new: [0, 1, 2, 3])}`, `{"data": {"test": true}}`, []interface{}{float64(0), float64(1), float64(2), float64(3)}, types.MakeListType(types.NumberType))
+	test(`mutation {test(new: [])}`, `{"data": {"test": true}}`, []interface{}{}, types.MakeListType(types.NumberType))
+
+	test(`mutation {test(new: [0, 1, 2, 3])}`, `{"data": {"test": true}}`, []interface{}{float64(0), float64(1), float64(2), float64(3)}, types.MakeSetType(types.NumberType))
+	test(`mutation {test(new: [])}`, `{"data": {"test": true}}`, []interface{}{}, types.MakeSetType(types.NumberType))
+
+	test(`mutation {
+                test(new: [
+                        {
+                                key: 1,
+                                value: "a"
+                        }, {
+                                key: 2,
+                                value: "b"
+                        }
+                ])
+        }`, `{"data": {"test": true}}`, []interface{}{
+		map[string]interface{}{"key": float64(1), "value": "a"},
+		map[string]interface{}{"key": float64(2), "value": "b"},
+	}, types.MakeMapType(types.NumberType, types.StringType))
+	test(`mutation {test(new: [])}`, `{"data": {"test": true}}`, []interface{}{}, types.MakeMapType(types.NumberType, types.StringType))
+
+	st := types.MakeStructTypeFromFields("N", types.FieldMap{
+		"f": types.NumberType,
+		"b": types.BoolType,
+		"s": types.StringType,
+	})
+	test(`mutation {test(new: {
+                f: 42,
+                b: true,
+                s: "hi"
+        })}`, `{"data": {"test": true}}`, map[string]interface{}{"b": true, "f": float64(42), "s": "hi"}, st)
+}
