@@ -6,6 +6,7 @@ package ngql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"strings"
@@ -148,14 +149,15 @@ func NomsTypeToGraphQLType(nomsType *types.Type, boxedIfScalar bool, tm *typeMap
 
 // NomsTypeToGraphQLInputType creates a GraphQL input type from a Noms type.
 // Input types may not be unions or cyclic structs. If we encounter those
-// this returns nil.
-func NomsTypeToGraphQLInputType(nomsType *types.Type, tm *typeMap) graphql.Type {
+// this returns an error.
+func NomsTypeToGraphQLInputType(nomsType *types.Type, tm *typeMap) (graphql.Type, error) {
 	key := typeMapKey{nomsType.Hash(), false, inputMode}
 	gqlType, ok := (*tm)[key]
 	if ok {
-		return gqlType
+		return gqlType, nil
 	}
 
+	var err error
 	switch nomsType.Kind() {
 	case types.NumberKind:
 		gqlType = graphql.Float
@@ -167,33 +169,37 @@ func NomsTypeToGraphQLInputType(nomsType *types.Type, tm *typeMap) graphql.Type 
 		gqlType = graphql.Boolean
 
 	case types.StructKind:
-		gqlType = structToGQLInputObject(nomsType, tm)
+		gqlType, err = structToGQLInputObject(nomsType, tm)
 
 	case types.ListKind, types.SetKind:
-		gqlType = listAndSetToGraphQLInputObject(nomsType, tm)
+		gqlType, err = listAndSetToGraphQLInputObject(nomsType, tm)
 
 	case types.MapKind:
-		gqlType = mapToGraphQLInputObject(nomsType, tm)
+		gqlType, err = mapToGraphQLInputObject(nomsType, tm)
 
 	case types.RefKind:
 		gqlType = graphql.String
 
 	case types.UnionKind:
-		gqlType = nil
+		return nil, errors.New("GraphQL input type cannot contain unions")
 
 	case types.BlobKind, types.ValueKind, types.TypeKind:
 		// TODO: https://github.com/attic-labs/noms/issues/3155
 		gqlType = graphql.String
 
 	case types.CycleKind:
-		panic("not reached") // we should never attempt to create a schema for any unresolved cycle
+		return nil, errors.New("GraphQL input type cannot contain cycles")
 
 	default:
 		panic("not reached")
 	}
 
+	if err != nil {
+		return nil, err
+	}
+
 	(*tm)[key] = gqlType
-	return gqlType
+	return gqlType, nil
 }
 
 func isEmptyNomsUnion(nomsType *types.Type) bool {
@@ -273,52 +279,53 @@ func structToGQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
 	})
 }
 
-func listAndSetToGraphQLInputObject(nomsType *types.Type, tm *typeMap) graphql.Input {
+func listAndSetToGraphQLInputObject(nomsType *types.Type, tm *typeMap) (graphql.Input, error) {
 	nomsValueType := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
-	if nomsValueType.Equals(types.MakeUnionType()) {
-		return nil
+	elemType, err := NomsTypeToGraphQLInputType(nomsValueType, tm)
+	if err != nil {
+		return nil, err
 	}
-	elemType := NomsTypeToGraphQLInputType(nomsValueType, tm)
-	if elemType == nil {
-		return nil
-	}
-	return graphql.NewList(graphql.NewNonNull(elemType))
+	return graphql.NewList(graphql.NewNonNull(elemType)), nil
 }
 
-func mapToGraphQLInputObject(nomsType *types.Type, tm *typeMap) graphql.Input {
+func mapToGraphQLInputObject(nomsType *types.Type, tm *typeMap) (graphql.Input, error) {
 	nomsKeyType := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
 	nomsValueType := nomsType.Desc.(types.CompoundDesc).ElemTypes[1]
 
-	if nomsKeyType.Equals(types.MakeUnionType()) || nomsValueType.Equals(types.MakeUnionType()) {
-		return nil
+	keyType, err := NomsTypeToGraphQLInputType(nomsKeyType, tm)
+	if err != nil {
+		return nil, err
 	}
-
-	keyType := NomsTypeToGraphQLInputType(nomsKeyType, tm)
-	valueType := NomsTypeToGraphQLInputType(nomsValueType, tm)
-	if keyType == nil || valueType == nil {
-		return nil
+	valueType, err := NomsTypeToGraphQLInputType(nomsValueType, tm)
+	if err != nil {
+		return nil, err
 	}
 
 	entryType := mapEntryToGraphQLInputObject(keyType, valueType, nomsKeyType, nomsValueType, tm)
-	return graphql.NewList(entryType)
+	return graphql.NewList(entryType), nil
 }
 
-func structToGQLInputObject(nomsType *types.Type, tm *typeMap) graphql.Input {
-	// GraphQL input types cannot contain cycles.
+func structToGQLInputObject(nomsType *types.Type, tm *typeMap) (graphql.Input, error) {
+	// Replace pointer cycles with Cycle types. These gets flagged as
+	// errors in NomsTypeToGraphQLInputType.
 	unresolved := types.ToUnresolvedType(nomsType)
-	if unresolved.HasUnresolvedCycle() {
-		return nil
-	}
 
-	return graphql.NewInputObject(graphql.InputObjectConfig{
+	var err error
+	rv := graphql.NewInputObject(graphql.InputObjectConfig{
 		Name: getTypeName(nomsType) + "Input",
 		Fields: graphql.InputObjectConfigFieldMapThunk(func() graphql.InputObjectConfigFieldMap {
-			structDesc := nomsType.Desc.(types.StructDesc)
+			structDesc := unresolved.Desc.(types.StructDesc)
 			fields := make(graphql.InputObjectConfigFieldMap, structDesc.Len())
 
 			structDesc.IterFields(func(name string, nomsFieldType *types.Type) {
-				fieldType := NomsTypeToGraphQLInputType(nomsFieldType, tm)
-				d.PanicIfTrue(fieldType == nil)
+				if err != nil {
+					return
+				}
+				var fieldType graphql.Input
+				fieldType, err = NomsTypeToGraphQLInputType(nomsFieldType, tm)
+				if err != nil {
+					return
+				}
 				fields[name] = &graphql.InputObjectFieldConfig{
 					Type: fieldType,
 				}
@@ -327,6 +334,10 @@ func structToGQLInputObject(nomsType *types.Type, tm *typeMap) graphql.Input {
 			return fields
 		}),
 	})
+	if err != nil {
+		return nil, err
+	}
+	return rv, nil
 }
 
 var listArgs = graphql.FieldConfigArgument{
@@ -584,10 +595,10 @@ func mapEntryToGraphQLInputObject(keyType, valueType graphql.Input, nomsKeyType,
 		Fields: graphql.InputObjectConfigFieldMapThunk(func() graphql.InputObjectConfigFieldMap {
 			return graphql.InputObjectConfigFieldMap{
 				keyKey: &graphql.InputObjectFieldConfig{
-					Type: keyType,
+					Type: graphql.NewNonNull(keyType),
 				},
 				valueKey: &graphql.InputObjectFieldConfig{
-					Type: valueType,
+					Type: graphql.NewNonNull(valueType),
 				},
 			}
 		}),
@@ -678,9 +689,10 @@ func listAndSetToGraphQLObject(nomsType *types.Type, tm *typeMap) *graphql.Objec
 	nomsValueType := nomsType.Desc.(types.CompoundDesc).ElemTypes[0]
 	var listType, valueType graphql.Type
 	var keyInputType graphql.Input
+	var keyInputError error
 	if !isEmptyNomsUnion(nomsValueType) {
 		valueType = NomsTypeToGraphQLType(nomsValueType, false, tm)
-		keyInputType = NomsTypeToGraphQLInputType(nomsValueType, tm)
+		keyInputType, keyInputError = NomsTypeToGraphQLInputType(nomsValueType, tm)
 		listType = graphql.NewNonNull(valueType)
 	}
 
@@ -703,7 +715,7 @@ func listAndSetToGraphQLObject(nomsType *types.Type, tm *typeMap) *graphql.Objec
 						atKey:    &graphql.ArgumentConfig{Type: graphql.Int},
 						countKey: &graphql.ArgumentConfig{Type: graphql.Int},
 					}
-					if keyInputType != nil {
+					if keyInputError == nil {
 						args[keyKey] = &graphql.ArgumentConfig{Type: keyInputType}
 						args[throughKey] = &graphql.ArgumentConfig{Type: keyInputType}
 					}
@@ -738,7 +750,7 @@ func mapToGraphQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
 
 			if !isEmptyMap {
 				keyType := NomsTypeToGraphQLType(nomsKeyType, false, tm)
-				keyInputType := NomsTypeToGraphQLInputType(nomsKeyType, tm)
+				keyInputType, keyInputError := NomsTypeToGraphQLInputType(nomsKeyType, tm)
 				valueType := NomsTypeToGraphQLType(nomsValueType, false, tm)
 				entryType := mapEntryToGraphQLObject(graphql.NewNonNull(keyType), valueType, nomsKeyType, nomsValueType, tm)
 
@@ -746,7 +758,7 @@ func mapToGraphQLObject(nomsType *types.Type, tm *typeMap) *graphql.Object {
 					atKey:    &graphql.ArgumentConfig{Type: graphql.Int},
 					countKey: &graphql.ArgumentConfig{Type: graphql.Int},
 				}
-				if keyInputType != nil {
+				if keyInputError == nil {
 					args[keyKey] = &graphql.ArgumentConfig{Type: keyInputType}
 					args[keysKey] = &graphql.ArgumentConfig{Type: graphql.NewList(graphql.NewNonNull(keyInputType))}
 					args[throughKey] = &graphql.ArgumentConfig{Type: keyInputType}
@@ -854,7 +866,7 @@ func argToNomsValue(arg interface{}, nomsType *types.Type) types.Value {
 		return types.Bool(arg.(bool))
 	case types.NumberKind:
 		if i, ok := arg.(int); ok {
-			return types.Number(float64(i))
+			return types.Number(i)
 		}
 		return types.Number(arg.(float64))
 	case types.StringKind:

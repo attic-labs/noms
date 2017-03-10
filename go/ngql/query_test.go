@@ -13,7 +13,6 @@ import (
 	"github.com/attic-labs/graphql"
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/testify/assert"
 	"github.com/attic-labs/testify/suite"
 )
 
@@ -839,7 +838,8 @@ func (suite *QueryGraphQLSuite) TestStructWithMissingField() {
 func (suite *QueryGraphQLSuite) TestMutationScalarArgs() {
 	test := func(query, expected string, nomsType *types.Type) {
 		tm := NewTypeMap()
-		inType := NomsTypeToGraphQLInputType(nomsType, tm)
+		inType, err := NomsTypeToGraphQLInputType(nomsType, tm)
+		suite.NoError(err)
 		outType := NomsTypeToGraphQLType(nomsType, false, tm)
 		suite.assertMutationTypes(query, expected, tm, inType, outType, func(p graphql.ResolveParams) (interface{}, error) {
 			return p.Args["new"], nil
@@ -859,7 +859,8 @@ func (suite *QueryGraphQLSuite) TestMutationScalarArgs() {
 func (suite *QueryGraphQLSuite) TestMutationWeirdosArgs() {
 	test := func(query, expected string, nomsType *types.Type) {
 		tm := NewTypeMap()
-		inType := NomsTypeToGraphQLInputType(nomsType, tm)
+		inType, err := NomsTypeToGraphQLInputType(nomsType, tm)
+		suite.NoError(err)
 		outType := graphql.String
 		suite.assertMutationTypes(query, expected, tm, inType, outType, func(p graphql.ResolveParams) (interface{}, error) {
 			return p.Args["new"], nil
@@ -896,7 +897,8 @@ func (suite *QueryGraphQLSuite) assertMutationTypes(query, expected string, tm *
 func (suite *QueryGraphQLSuite) TestMutationCollectionArgs() {
 	test := func(query, expected string, expectedArg interface{}, nomsType *types.Type) {
 		tm := NewTypeMap()
-		inType := NomsTypeToGraphQLInputType(nomsType, tm)
+		inType, err := NomsTypeToGraphQLInputType(nomsType, tm)
+		suite.NoError(err)
 		outType := graphql.Boolean
 		suite.assertMutationTypes(query, expected, tm, inType, outType, func(p graphql.ResolveParams) (interface{}, error) {
 			suite.Equal(expectedArg, p.Args["new"])
@@ -1032,11 +1034,9 @@ func (suite *QueryGraphQLSuite) TestSetWithComplexKeys() {
 		`{"data":{"root":{"values":[{"n": "a"}, {"n": "c"}, {"n": "e"}]}}}`)
 }
 
-func TestArgToNomsValue(t *testing.T) {
-	assert := assert.New(t)
-
+func (suite *QueryGraphQLSuite) TestArgToNomsValue() {
 	test := func(expected types.Value, val interface{}) {
-		assert.Equal(expected, argToNomsValue(val, expected.Type()))
+		suite.Equal(expected, argToNomsValue(val, expected.Type()))
 	}
 
 	test(types.Number(42), int(42))
@@ -1087,4 +1087,30 @@ func TestArgToNomsValue(t *testing.T) {
 		map[string]interface{}{"a": float64(1)},
 		map[string]interface{}{"a": float64(2)},
 	})
+}
+
+func (suite *QueryGraphQLSuite) TestErrorsInInputType() {
+	ut := types.MakeUnionType(types.BoolType, types.NumberType)
+
+	test := func(t *types.Type) {
+		tm := NewTypeMap()
+		_, err := NomsTypeToGraphQLInputType(t, tm)
+		suite.Error(err)
+	}
+
+	test(ut)
+	test(types.MakeListType(ut))
+	test(types.MakeSetType(ut))
+	test(types.MakeMapType(ut, types.BoolType))
+	test(types.MakeMapType(types.BoolType, ut))
+	test(types.MakeMapType(ut, ut))
+	test(types.MakeStructTypeFromFields("", types.FieldMap{"u": ut}))
+
+	test(types.MakeStructTypeFromFields("", types.FieldMap{
+		"l": types.MakeListType(types.MakeCycleType(0)),
+	}))
+	test(types.MakeStructTypeFromFields("", types.FieldMap{
+		"n": types.NumberType,
+		"l": types.MakeListType(types.MakeCycleType(0)),
+	}))
 }
