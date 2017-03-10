@@ -76,7 +76,6 @@ func queryWithSchemaConfig(rootValue types.Value, query string, schemaConfig gra
 
 	err := json.NewEncoder(w).Encode(r)
 	d.PanicIfError(err)
-
 }
 
 // Error writes an error as a GraphQL error to a writer.
