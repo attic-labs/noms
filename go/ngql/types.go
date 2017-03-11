@@ -871,6 +871,8 @@ func MaybeGetScalar(v types.Value) interface{} {
 	return v
 }
 
+// InputToNomsValue converts a GraphQL input value (as used in arguments and
+// variables) to a Noms value.
 func InputToNomsValue(arg interface{}, nomsType *types.Type) types.Value {
 	switch nomsType.Kind() {
 	case types.BoolKind:
