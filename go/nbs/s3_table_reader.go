@@ -7,6 +7,8 @@ package nbs
 import (
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/aws/aws-sdk-go/aws"
@@ -48,7 +50,12 @@ func newS3TableReader(s3 s3svc, bucket string, h addr, chunkCount uint32, indexC
 		size := indexSize(chunkCount) + footerSize
 		buff := make([]byte, size)
 
-		n, err := source.readRange(buff, fmt.Sprintf("%s=-%d", s3RangePrefix, size))
+		rngHdr := fmt.Sprintf("%s=-%d", s3RangePrefix, size)
+		n, err := source.readRange(buff, rngHdr)
+		for rErr, ok := err.(readError); ok; rErr, ok = err.(readError) {
+			fmt.Fprintln(os.Stderr, "Transient read error:", rErr)
+			n, err = source.readRange(buff, rngHdr)
+		}
 		d.PanicIfError(err)
 		d.PanicIfFalse(size == uint64(n))
 		index = parseTableIndex(buff)
@@ -77,6 +84,8 @@ func (s3tr *s3TableReader) ReadAt(p []byte, off int64) (n int, err error) {
 	return s3tr.readRange(p, rangeHeader)
 }
 
+type readError error
+
 func (s3tr *s3TableReader) readRange(p []byte, rangeHeader string) (n int, err error) {
 	if s3tr.readRl != nil {
 		s3tr.readRl <- struct{}{}
@@ -91,8 +100,13 @@ func (s3tr *s3TableReader) readRange(p []byte, rangeHeader string) (n int, err e
 		Range:  aws.String(rangeHeader),
 	}
 	// TODO: go back to just calling GetObject once BUG 3255 is fixed
+	// TODO: take out this running of
+	ss := newBg("/usr/sbin/ss", "-ntp")
+	shouldLog := make(chan struct{})
+	defer close(shouldLog)
 	result, reqID, reqID2, err := func() (*s3.GetObjectOutput, string, string, error) {
 		if impl, ok := s3tr.s3.(*s3.S3); ok {
+			ss.Run(shouldLog, "Couldn't run ss to record network connections:")
 			req, result := impl.GetObjectRequest(input)
 			err := req.Send()
 			return result, req.RequestID, req.HTTPResponse.Header.Get("x-amz-id-2"), err
@@ -106,8 +120,29 @@ func (s3tr *s3TableReader) readRange(p []byte, rangeHeader string) (n int, err e
 	n, err = io.ReadFull(result.Body, p)
 
 	if err != nil {
-		d.Chk.Fail("Failed ranged read from S3\n", "req %s\nreq %s\n%s\nerror: %v", reqID, reqID2, input.GoString(), err)
+		err = readError(fmt.Errorf("Failed ranged read from S3\nreqID   %s\nexReqID %s\n%s\nerror: %v", reqID, reqID2, input.GoString(), err))
+		shouldLog <- struct{}{}
 	}
 
 	return n, err
+}
+
+type bgCmd struct {
+	cmd *exec.Cmd
+}
+
+func newBg(path string, args ...string) *bgCmd {
+	cmd := exec.Command(path, args...)
+	return &bgCmd{cmd}
+}
+
+func (w *bgCmd) Run(shouldLog <-chan struct{}, msg string) {
+	out, err := w.cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, msg, err)
+		return
+	}
+	if _, log := <-shouldLog; log {
+		fmt.Fprintln(os.Stderr, out)
+	}
 }
