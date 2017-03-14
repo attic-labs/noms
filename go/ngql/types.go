@@ -19,14 +19,14 @@ import (
 // TypeConverter provides functions to convert between Noms types and GraphQL
 // types.
 type TypeConverter struct {
-	tm       *TypeMap
+	tm       TypeMap
 	NameFunc NameFunc
 }
 
 // NewTypeConverter creates a new TypeConverter.
 func NewTypeConverter() *TypeConverter {
 	return &TypeConverter{
-		NewTypeMap(),
+		TypeMap{},
 		DefaultNameFunc,
 	}
 }
@@ -60,7 +60,7 @@ func (tc *TypeConverter) NomsTypeToGraphQLInputType(nomsType *types.Type) (graph
 type TypeMap map[typeMapKey]graphql.Type
 
 type typeMapKey struct {
-	name          string // name must be unique anyway...
+	name          string
 	boxedIfScalar bool
 }
 
@@ -130,14 +130,14 @@ func isScalar(nomsType *types.Type) bool {
 // NomsTypeToGraphQLType creates a GraphQL type from a Noms type that knows how
 // to resolve the Noms values.
 func NomsTypeToGraphQLType(nomsType *types.Type, boxedIfScalar bool, tm *TypeMap) graphql.Type {
-	tc := &TypeConverter{tm, DefaultNameFunc}
+	tc := TypeConverter{*tm, DefaultNameFunc}
 	return tc.nomsTypeToGraphQLType(nomsType, boxedIfScalar)
 }
 
 func (tc *TypeConverter) nomsTypeToGraphQLType(nomsType *types.Type, boxedIfScalar bool) graphql.Type {
 	name := tc.getTypeName(nomsType)
 	key := typeMapKey{name, boxedIfScalar && isScalar(nomsType)}
-	gqlType, ok := (*tc.tm)[key]
+	gqlType, ok := tc.tm[key]
 	if ok {
 		return gqlType
 	}
@@ -190,7 +190,7 @@ func (tc *TypeConverter) nomsTypeToGraphQLType(nomsType *types.Type, boxedIfScal
 		panic("not reached")
 	}
 
-	(*tc.tm)[key] = gqlType
+	tc.tm[key] = gqlType
 	return gqlType
 }
 
@@ -198,14 +198,14 @@ func (tc *TypeConverter) nomsTypeToGraphQLType(nomsType *types.Type, boxedIfScal
 // Input types may not be unions or cyclic structs. If we encounter those
 // this returns an error.
 func NomsTypeToGraphQLInputType(nomsType *types.Type, tm *TypeMap) (graphql.Input, error) {
-	tc := &TypeConverter{tm, DefaultNameFunc}
+	tc := TypeConverter{*tm, DefaultNameFunc}
 	return tc.nomsTypeToGraphQLInputType(nomsType)
 }
 
 func (tc *TypeConverter) nomsTypeToGraphQLInputType(nomsType *types.Type) (graphql.Input, error) {
 	name := tc.getInputTypeName(nomsType)
 	key := typeMapKey{name, false}
-	gqlType, ok := (*tc.tm)[key]
+	gqlType, ok := tc.tm[key]
 	if ok {
 		return gqlType, nil
 	}
@@ -251,7 +251,7 @@ func (tc *TypeConverter) nomsTypeToGraphQLInputType(nomsType *types.Type) (graph
 		return nil, err
 	}
 
-	(*tc.tm)[key] = gqlType
+	tc.tm[key] = gqlType
 	return gqlType, nil
 }
 
@@ -292,7 +292,7 @@ func (tc *TypeConverter) unionToGQLUnion(nomsType *types.Type) *graphql.Union {
 			}
 			name := tc.getTypeName(nomsType)
 			key := typeMapKey{name, isScalar}
-			memberType := (*tc.tm)[key]
+			memberType := tc.tm[key]
 			// Union member types must be graphql.Object.
 			return memberType.(*graphql.Object)
 		},

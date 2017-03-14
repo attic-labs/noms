@@ -37,7 +37,7 @@ const (
 // NewRootQueryObject creates a "root" query object that can be used to
 // traverse the value tree of rootValue.
 func NewRootQueryObject(rootValue types.Value, tm *TypeMap) *graphql.Object {
-	tc := &TypeConverter{tm, DefaultNameFunc}
+	tc := TypeConverter{*tm, DefaultNameFunc}
 	return tc.NewRootQueryObject(rootValue)
 }
 
