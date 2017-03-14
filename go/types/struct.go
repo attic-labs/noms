@@ -49,6 +49,9 @@ func NewStructWithType(t *Type, data ValueSlice) Struct {
 	desc := t.Desc.(StructDesc)
 	d.PanicIfFalse(len(data) == len(desc.fields))
 	for i, field := range desc.fields {
+		if field.optional {
+			d.Panic("Struct values cannot have optional fields (only struct types can)")
+		}
 		v := data[i]
 		assertSubtype(field.t, v)
 	}

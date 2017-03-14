@@ -276,11 +276,11 @@ func TestMapSuite4K(t *testing.T) {
 }
 
 func TestMapSuite1KStructs(t *testing.T) {
-	suite.Run(t, newMapTestSuite(10, "20b1927mnjqa0aqsn4lf5rv80rdnebru", 3, 2, 2, newNumberStruct))
+	suite.Run(t, newMapTestSuite(10, "dpn6490q0cutprqiagtsqfetb3poeqqv", 2, 2, 2, newNumberStruct))
 }
 
 func TestMapSuite4KStructs(t *testing.T) {
-	suite.Run(t, newMapTestSuite(12, "q2kgo4jonhgfeoblvlovh2eo7kqjel54", 7, 2, 2, newNumberStruct))
+	suite.Run(t, newMapTestSuite(12, "nqo71g6qe6atgce8ii34mjin1o13fem8", 8, 2, 2, newNumberStruct))
 }
 
 func newNumber(i int) Value {
@@ -1118,7 +1118,7 @@ func TestMapRefOfStructFirstNNumbers(t *testing.T) {
 	}
 
 	m := NewMap(kvs...)
-	assert.Equal("g49bom2pq40n2v927846vpmc3injuf5a", m.Hash().String())
+	assert.Equal("alms3ajecv9ofgqbuug40jfnfsscjlc1", m.Hash().String())
 	// height + 1 because the leaves are Ref values (with height 1).
 	assert.Equal(deriveCollectionHeight(m)+1, getRefHeightOfCollection(m))
 }

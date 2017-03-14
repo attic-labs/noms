@@ -201,5 +201,6 @@ func (w *valueEncoder) writeStructType(t *Type, parentStructTypes []*Type) {
 	for _, field := range desc.fields {
 		w.writeString(field.name)
 		w.writeType(field.t, parentStructTypes)
+		w.writeBool(field.optional)
 	}
 }

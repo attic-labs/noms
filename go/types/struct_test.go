@@ -224,3 +224,14 @@ func TestCycles(t *testing.T) {
 	rootInode := NewStruct("Inode", StructData{"contents": rootDir})
 	NewStructWithType(fsType, ValueSlice{rootInode})
 }
+
+func TestStructValueMayNotHaveOptionalFields(t *testing.T) {
+	assert := assert.New(t)
+
+	typ := MakeStructType2("Opt", StructFieldTypes{
+		{"x", NumberType, true},
+	})
+	assert.Panics(func() {
+		NewStructWithType(typ, ValueSlice{Number(42)})
+	})
+}

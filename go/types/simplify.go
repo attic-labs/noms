@@ -215,7 +215,10 @@ func simplifyStructs(expectedName string, ts typeset, merge bool) *Type {
 			first = false
 		} else {
 			for n, ts := range commonFields {
-				t := desc.Field(n)
+				t, optional := desc.Field(n)
+				if optional {
+					panic("TODO")
+				}
 				if t != nil {
 					ts.Add(t)
 				} else {

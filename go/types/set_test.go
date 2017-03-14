@@ -203,11 +203,11 @@ func TestSetSuite4K(t *testing.T) {
 }
 
 func TestSetSuite1KStructs(t *testing.T) {
-	suite.Run(t, newSetTestSuite(10, "901lc62988o1epbj29811f5f0u06ep8g", 0, 0, 0, newNumberStruct))
+	suite.Run(t, newSetTestSuite(10, "8rsfsthga429ncs7qjc1r5tam1bj1sge", 0, 0, 0, newNumberStruct))
 }
 
 func TestSetSuite4KStructs(t *testing.T) {
-	suite.Run(t, newSetTestSuite(12, "410of8pb7ib5rms4b611490brueqcc7c", 4, 2, 2, newNumberStruct))
+	suite.Run(t, newSetTestSuite(12, "p0cqm7agi822essojds6hmknabu5ir8o", 2, 2, 2, newNumberStruct))
 }
 
 func getTestNativeOrderSet(scale int) testSet {
@@ -863,7 +863,7 @@ func TestSetRefOfStructFirstNNumbers(t *testing.T) {
 
 	nums := generateNumbersAsRefOfStructs(testSetSize)
 	s := NewSet(nums...)
-	assert.Equal("n9thkv66vt7c35khatmdr84rhk8ip9tv", s.Hash().String())
+	assert.Equal("aghihsmuq8og4a8u1lt900eq4k9j8j4e", s.Hash().String())
 	// height + 1 because the leaves are Ref values (with height 1).
 	assert.Equal(deriveCollectionHeight(s)+1, getRefHeightOfCollection(s))
 }

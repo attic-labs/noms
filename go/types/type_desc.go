@@ -69,8 +69,9 @@ func (c CompoundDesc) HasUnresolvedCycle(visited []*Type) bool {
 type TypeMap map[string]*Type
 
 type field struct {
-	name string
-	t    *Type
+	name     string
+	t        *Type
+	optional bool
 }
 
 type fieldSlice []field
@@ -98,18 +99,18 @@ func (s StructDesc) HasUnresolvedCycle(visited []*Type) bool {
 	return false
 }
 
-func (s StructDesc) IterFields(cb func(name string, t *Type)) {
+func (s StructDesc) IterFields(cb func(name string, t *Type, optional bool)) {
 	for _, field := range s.fields {
-		cb(field.name, field.t)
+		cb(field.name, field.t, field.optional)
 	}
 }
 
-func (s StructDesc) Field(name string) *Type {
+func (s StructDesc) Field(name string) (typ *Type, optional bool) {
 	f, i := s.findField(name)
 	if i == -1 {
-		return nil
+		return nil, false
 	}
-	return f.t
+	return f.t, f.optional
 }
 
 func (s StructDesc) findField(name string) (*field, int) {

@@ -76,7 +76,7 @@ func (tc *TypeCache) getCompoundType(kind NomsKind, elemTypes ...*Type) *Type {
 	return trie.t
 }
 
-func (tc *TypeCache) makeStructTypeQuickly(name string, fieldNames []string, fieldTypes []*Type, checkKind checkKindType) *Type {
+func (tc *TypeCache) makeStructTypeQuickly(name string, fieldNames []string, fieldTypes []*Type, optionals []bool, checkKind checkKindType) *Type {
 	trie := tc.trieRoots[StructKind].Traverse(tc.identTable.GetId(name))
 	for i, fn := range fieldNames {
 		ft := fieldTypes[i]
@@ -87,7 +87,7 @@ func (tc *TypeCache) makeStructTypeQuickly(name string, fieldNames []string, fie
 	if trie.t == nil {
 		fs := make(fieldSlice, len(fieldNames))
 		for i, fn := range fieldNames {
-			fs[i] = field{fn, fieldTypes[i]}
+			fs[i] = field{fn, fieldTypes[i], optionals[i]}
 			i++
 		}
 
@@ -106,13 +106,16 @@ func (tc *TypeCache) makeStructTypeQuickly(name string, fieldNames []string, fie
 	return trie.t
 }
 
-func (tc *TypeCache) makeStructType(name string, fieldNames []string, fieldTypes []*Type) *Type {
+func (tc *TypeCache) makeStructType(name string, fieldNames []string, fieldTypes []*Type, optionals []bool) *Type {
 	if len(fieldNames) != len(fieldTypes) {
 		d.Panic("len(fieldNames) != len(fieldTypes)")
 	}
+	if len(fieldNames) != len(optionals) {
+		d.Panic("len(fieldNames) != len(optionals)")
+	}
 	verifyStructName(name)
 	verifyFieldNames(fieldNames)
-	return tc.makeStructTypeQuickly(name, fieldNames, fieldTypes, checkKindNormalize)
+	return tc.makeStructTypeQuickly(name, fieldNames, fieldTypes, optionals, checkKindNormalize)
 }
 
 func indexOfType(t *Type, tl []*Type) (uint32, bool) {
@@ -386,8 +389,9 @@ func MakeMapType(keyType, valType *Type) *Type {
 }
 
 type fieldSorter struct {
-	names []string
-	types []*Type
+	names     []string
+	types     []*Type
+	optionals []bool
 }
 
 func (fs *fieldSorter) Len() int {
@@ -397,6 +401,7 @@ func (fs *fieldSorter) Len() int {
 func (fs *fieldSorter) Swap(i, j int) {
 	fs.names[i], fs.names[j] = fs.names[j], fs.names[i]
 	fs.types[i], fs.types[j] = fs.types[j], fs.types[i]
+	fs.optionals[i], fs.optionals[j] = fs.optionals[j], fs.optionals[i]
 }
 
 func (fs *fieldSorter) Less(i, j int) bool {
@@ -409,11 +414,12 @@ func MakeStructTypeFromFields(name string, fields FieldMap) *Type {
 	// I'm the computer
 	names := make([]string, 0, len(fields))
 	types := make([]*Type, 0, len(fields))
+	optionals := make([]bool, len(fields)) // all required
 	for k, v := range fields {
 		names = append(names, k)
 		types = append(types, v)
 	}
-	fs := fieldSorter{names, types}
+	fs := fieldSorter{names, types, optionals}
 	sort.Sort(&fs)
 	return MakeStructType(name, names, types)
 }
@@ -421,7 +427,42 @@ func MakeStructTypeFromFields(name string, fields FieldMap) *Type {
 func MakeStructType(name string, fieldNames []string, fieldTypes []*Type) *Type {
 	staticTypeCache.Lock()
 	defer staticTypeCache.Unlock()
-	return staticTypeCache.makeStructType(name, fieldNames, fieldTypes)
+	optionals := make([]bool, len(fieldNames))
+	return staticTypeCache.makeStructType(name, fieldNames, fieldTypes, optionals)
+}
+
+type StructField struct {
+	Name     string
+	Type     *Type
+	Optional bool
+}
+
+type StructFieldTypes []StructField
+
+func MakeStructType2(name string, fields StructFieldTypes) *Type {
+	staticTypeCache.Lock()
+	defer staticTypeCache.Unlock()
+
+	names := make([]string, len(fields))
+	types := make([]*Type, len(fields))
+	optionals := make([]bool, len(fields))
+	for i, field := range fields {
+		names[i] = field.Name
+		types[i] = field.Type
+		optionals[i] = field.Optional
+	}
+
+	fs := fieldSorter{names, types, optionals}
+	sort.Sort(&fs)
+
+	return staticTypeCache.makeStructType(name, names, types, optionals)
+}
+
+func x() {
+	MakeStructType2("", []StructField{
+		{"x", NumberType, false},
+		{Name: "y", Type: StringType},
+	})
 }
 
 func MakeUnionType(elemTypes ...*Type) *Type {

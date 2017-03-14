@@ -167,7 +167,7 @@ func TestUnionWithCycles(tt *testing.T) {
 		),
 	})
 
-	t1 := inodeType.Desc.(StructDesc).Field("contents")
+	t1, _ := inodeType.Desc.(StructDesc).Field("contents")
 	t2 := DecodeValue(EncodeValue(t1, nil), nil)
 
 	assert.True(tt, t1.Equals(t2))

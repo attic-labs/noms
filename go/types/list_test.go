@@ -672,7 +672,7 @@ func TestListRefOfStructFirstNNumbers(t *testing.T) {
 
 	nums := generateNumbersAsRefOfStructs(testListSize)
 	s := NewList(nums...)
-	assert.Equal("6l8ivdkncvks19rsmtempkoklc3s1n2q", s.Hash().String())
+	assert.Equal("rf430ib43i82ppu0ucqardrej8jsqiba", s.Hash().String())
 }
 
 func TestListModifyAfterRead(t *testing.T) {

@@ -195,6 +195,13 @@ func (r *valueDecoder) readStruct(t *Type) Value {
 	return Struct{values, t, &hash.Hash{}}
 }
 
+func boolToUint32(b bool) uint32 {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 func (r *valueDecoder) readCachedStructType() *Type {
 	trie := r.tc.trieRoots[StructKind].Traverse(r.readIdent(r.tc))
 	count := r.readUint32()
@@ -202,6 +209,7 @@ func (r *valueDecoder) readCachedStructType() *Type {
 	for i := uint32(0); i < count; i++ {
 		trie = trie.Traverse(r.readIdent(r.tc))
 		trie = trie.Traverse(r.readType().id)
+		trie = trie.Traverse(boolToUint32(r.readBool()))
 	}
 
 	return trie.t
@@ -223,12 +231,14 @@ func (r *valueDecoder) readStructType() *Type {
 
 	fieldNames := make([]string, count)
 	fieldTypes := make([]*Type, count)
+	optionals := make([]bool, count)
 	for i := uint32(0); i < count; i++ {
 		fieldNames[i] = r.readString()
 		fieldTypes[i] = r.readType()
+		optionals[i] = r.readBool()
 	}
 
-	return r.tc.makeStructTypeQuickly(name, fieldNames, fieldTypes, checkKindNoValidate)
+	return r.tc.makeStructTypeQuickly(name, fieldNames, fieldTypes, optionals, checkKindNoValidate)
 }
 
 func (r *valueDecoder) readUnionType() *Type {

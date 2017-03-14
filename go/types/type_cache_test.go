@@ -238,7 +238,8 @@ func TestMakeStructTypeFromFields(t *testing.T) {
 	assert.Equal("Thing", desc.Name)
 	assert.Equal(3, desc.Len())
 	for k, v := range fields {
-		f := desc.Field(k)
+		f, optional := desc.Field(k)
+		assert.False(optional)
 		assert.True(v == f)
 	}
 }
