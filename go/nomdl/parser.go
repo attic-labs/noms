@@ -29,9 +29,9 @@ type ParserOptions struct {
 func New(r io.Reader, options ParserOptions) *Parser {
 	s := scanner.Scanner{}
 	s.Filename = options.Filename
-	s.Mode = scanner.ScanIdents | scanner.ScanFloats | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
+	s.Mode = scanner.ScanIdents | scanner.ScanComments | scanner.SkipComments
 	s.Init(r)
-	lex := new(&s)
+	lex := newLexer(&s)
 	return &Parser{lex}
 }
 
@@ -90,7 +90,11 @@ func (p *Parser) ensureAtEnd() {
 //   `Set` `<` Type? `>`
 //
 // StructType :
-//   `struct` StructName? `{` StructField? | (StructField `,`)* `}`
+//   `struct` StructName? `{` StructFields? `}`
+//
+// StructFields :
+//   StructField
+//   StructField `,` (StructField `,`)*
 //
 // StructName :
 //   Ident
@@ -104,11 +108,18 @@ func (p *Parser) ensureAtEnd() {
 func (p *Parser) parseType() *types.Type {
 	t := p.parseTypeWithoutUnion()
 	tok := p.lex.peek()
-	if tok.Type != '|' {
+	if tok != '|' {
 		return t
 	}
 	unionTypes := []*types.Type{t}
-	for p.lex.eatIf('|') {
+
+	for {
+		tok = p.lex.peek()
+		if tok == '|' {
+			p.lex.next()
+		} else {
+			break
+		}
 		unionTypes = append(unionTypes, p.parseTypeWithoutUnion())
 	}
 	return types.MakeUnionType(unionTypes...)
@@ -116,11 +127,9 @@ func (p *Parser) parseType() *types.Type {
 
 func (p *Parser) parseTypeWithoutUnion() *types.Type {
 	tok := p.lex.next()
-	switch tok.Type {
-	case '(':
-		panic("not implemented")
+	switch tok {
 	case scanner.Ident:
-		switch tok.Text {
+		switch p.lex.tokenText() {
 		case "Bool":
 			return types.BoolType
 		case "Blob":
@@ -157,32 +166,29 @@ func (p *Parser) parseTypeWithoutUnion() *types.Type {
 func (p *Parser) parseStructType() *types.Type {
 	tok := p.lex.next()
 	name := ""
-	if tok.Type == scanner.Ident {
-		name = tok.Text
+	if tok == scanner.Ident {
+		name = p.lex.tokenText()
 		p.lex.eat('{')
 	} else {
 		p.lex.check('{', tok)
 	}
 	fields := types.FieldMap{}
-	for {
-		tok := p.lex.next()
-		if tok.Type == '}' {
-			break
-		}
-		if tok.Type == scanner.Ident {
-			fieldName := tok.Text
-			p.lex.eat(':')
-			typ := p.parseType()
-			fields[fieldName] = typ
 
-			if p.lex.eatIf('}') {
-				break
-			}
-			p.lex.eat(',')
-		} else {
-			p.lex.tokenMismatch('}', tok)
+	for p.lex.peek() != '}' {
+		p.lex.eat(scanner.Ident)
+
+		fieldName := p.lex.tokenText()
+		p.lex.eat(':')
+		typ := p.parseType()
+		fields[fieldName] = typ
+
+		if p.lex.eatIf(',') {
+			continue
 		}
+
+		break
 	}
+	p.lex.eat('}')
 	return types.MakeStructTypeFromFields(name, fields)
 }
 
@@ -199,7 +205,7 @@ func (p *Parser) parseSingleElemType(allowEmptyUnion bool) *types.Type {
 func (p *Parser) parseCycleType() *types.Type {
 	p.lex.eat('<')
 	tok := p.lex.eat(scanner.Int)
-	s, err := strconv.ParseUint(tok.Text, 10, 32)
+	s, err := strconv.ParseUint(p.lex.tokenText(), 10, 32)
 	if err != nil {
 		p.lex.unexpectedToken(tok)
 		return nil
@@ -211,6 +217,7 @@ func (p *Parser) parseCycleType() *types.Type {
 func (p *Parser) parseMapType() *types.Type {
 	var keyType, valueType *types.Type
 	p.lex.eat('<')
+
 	if p.lex.eatIf('>') {
 		keyType = types.MakeUnionType()
 		valueType = keyType

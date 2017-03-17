@@ -9,43 +9,49 @@ import (
 	"text/scanner"
 )
 
-type token struct {
-	Pos  scanner.Position
-	Type rune
-	Text string
-}
-
-func (t token) String() string {
-	return t.Text
-}
-
 type lexer struct {
 	scanner   *scanner.Scanner
-	nextToken token
+	peekToken rune
 }
 
-func new(s *scanner.Scanner) *lexer {
-	rv := &lexer{scanner: s}
-	rv.next()
-	return rv
+func newLexer(s *scanner.Scanner) *lexer {
+	return &lexer{scanner: s}
 }
 
-func (lex *lexer) next() token {
-	nextToken := lex.nextToken
-	r := lex.scanner.Scan()
-	lex.nextToken = token{
-		Pos:  lex.scanner.Pos(),
-		Text: lex.scanner.TokenText(),
-		Type: r,
+func (lex *lexer) next() rune {
+	if lex.peekToken != 0 {
+		tok := lex.peekToken
+		lex.peekToken = 0
+		return tok
 	}
-	return nextToken
+
+	return lex.scanner.Scan()
 }
 
-func (lex *lexer) peek() token {
-	return lex.nextToken
+func (lex *lexer) peek() rune {
+	if lex.peekToken != 0 {
+		return lex.peekToken
+	}
+	tok := lex.scanner.Scan()
+	lex.peekToken = tok
+	return tok
 }
 
-func (lex *lexer) eat(expected rune) token {
+func (lex *lexer) pos() scanner.Position {
+	if lex.peekToken != 0 {
+		panic("Cannot use pos after peek")
+	}
+	return lex.scanner.Pos()
+}
+
+func (lex *lexer) tokenText() string {
+	if lex.peekToken != 0 {
+		panic("Cannot use tokenText after peek")
+	}
+	return lex.scanner.TokenText()
+}
+
+func (lex *lexer) eat(expected rune) rune {
 	tok := lex.next()
 	lex.check(expected, tok)
 	return tok
@@ -53,25 +59,25 @@ func (lex *lexer) eat(expected rune) token {
 
 func (lex *lexer) eatIf(expected rune) bool {
 	tok := lex.peek()
-	if tok.Type == expected {
+	if tok == expected {
 		lex.next()
 		return true
 	}
 	return false
 }
 
-func (lex *lexer) check(expected rune, actual token) {
-	if actual.Type != expected {
+func (lex *lexer) check(expected, actual rune) {
+	if actual != expected {
 		lex.tokenMismatch(expected, actual)
 	}
 }
 
-func (lex *lexer) tokenMismatch(expected rune, actual token) {
-	raiseSyntaxError(fmt.Sprintf("Unexpected token %s, expected %s", scanner.TokenString(actual.Type), scanner.TokenString(expected)), actual.Pos)
+func (lex *lexer) tokenMismatch(expected, actual rune) {
+	raiseSyntaxError(fmt.Sprintf("Unexpected token %s, expected %s", scanner.TokenString(actual), scanner.TokenString(expected)), lex.pos())
 }
 
-func (lex *lexer) unexpectedToken(tok token) {
-	raiseSyntaxError(fmt.Sprintf("Unexpected token %s", scanner.TokenString(tok.Type)), tok.Pos)
+func (lex *lexer) unexpectedToken(actual rune) {
+	raiseSyntaxError(fmt.Sprintf("Unexpected token %s", scanner.TokenString(actual)), lex.pos())
 }
 
 func raiseSyntaxError(msg string, pos scanner.Position) {

@@ -9,142 +9,177 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/testify/suite"
+	"github.com/attic-labs/testify/assert"
 )
 
-type ParserSuite struct {
-	suite.Suite
-}
-
-func TestParser(t *testing.T) {
-	suite.Run(t, &ParserSuite{})
-}
-
-func (suite *ParserSuite) initParser(src string) *Parser {
-	return New(strings.NewReader(src), ParserOptions{
-		Filename: "example",
+func assertParseType(t *testing.T, code string, expected *types.Type) {
+	t.Run(code, func(t *testing.T) {
+		actual, err := ParseType(code)
+		assert.NoError(t, err)
+		assert.True(t, expected.Equals(actual), "Expected: %s, Actual: %s", expected.Describe(), actual.Describe())
 	})
 }
 
-func (suite *ParserSuite) assertParseType(code string, expected *types.Type) {
-	actual, err := ParseType(code)
-	suite.NoError(err)
-	suite.True(expected.Equals(actual), "Expected: %s, Actual: %s", expected.Describe(), actual.Describe())
-}
-
-func (suite *ParserSuite) assertParseError(code, msg string) {
-	p := New(strings.NewReader(code), ParserOptions{
-		Filename: "example",
+func assertParseError(t *testing.T, code, msg string) {
+	t.Run(code, func(t *testing.T) {
+		p := New(strings.NewReader(code), ParserOptions{
+			Filename: "example",
+		})
+		err := catchSyntaxError(func() {
+			typ := p.parseType()
+			assert.Nil(t, typ)
+		})
+		if assert.Error(t, err) {
+			assert.Equal(t, msg, err.Error())
+		}
 	})
-	err := catchSyntaxError(func() {
-		t := p.parseType()
-		suite.Nil(t)
-	})
-	suite.Error(err)
-	suite.Equal(msg, err.Error())
 }
 
-func (suite *ParserSuite) TestSimpleTypes() {
-	suite.assertParseType("Blob", types.BlobType)
-	suite.assertParseType("Bool", types.BoolType)
-	suite.assertParseType("Number", types.NumberType)
-	suite.assertParseType("String", types.StringType)
-	suite.assertParseType("Value", types.ValueType)
-	suite.assertParseType("Type", types.TypeType)
+func TestSimpleTypes(t *testing.T) {
+	assertParseType(t, "Blob", types.BlobType)
+	assertParseType(t, "Bool", types.BoolType)
+	assertParseType(t, "Number", types.NumberType)
+	assertParseType(t, "String", types.StringType)
+	assertParseType(t, "Value", types.ValueType)
+	assertParseType(t, "Type", types.TypeType)
 }
 
-func (suite *ParserSuite) TestWhitespace() {
+func TestWhitespace(t *testing.T) {
 	for _, r := range " \t\n\r" {
-		suite.assertParseType(string(r)+"Blob", types.BlobType)
-		suite.assertParseType("Blob"+string(r), types.BlobType)
+		assertParseType(t, string(r)+"Blob", types.BlobType)
+		assertParseType(t, "Blob"+string(r), types.BlobType)
 	}
 }
 
-func (suite *ParserSuite) TestComments() {
-	suite.assertParseType("/* */Blob", types.BlobType)
-	suite.assertParseType("Blob/* */", types.BlobType)
-	suite.assertParseType("Blob//", types.BlobType)
-	suite.assertParseType("//\nBlob", types.BlobType)
+func TestComments(t *testing.T) {
+	assertParseType(t, "/* */Blob", types.BlobType)
+	assertParseType(t, "Blob/* */", types.BlobType)
+	assertParseType(t, "Blob//", types.BlobType)
+	assertParseType(t, "//\nBlob", types.BlobType)
 }
 
-func (suite *ParserSuite) TestCompoundTypes() {
-	suite.assertParseType("List<>", types.MakeListType(types.MakeUnionType()))
-	suite.assertParseType("List<Bool>", types.MakeListType(types.BoolType))
-	suite.assertParseError("List<Bool, Number>", `Unexpected token ",", expected ">", example:1:11`)
+func TestCompoundTypes(t *testing.T) {
+	assertParseType(t, "List<>", types.MakeListType(types.MakeUnionType()))
+	assertParseType(t, "List<Bool>", types.MakeListType(types.BoolType))
+	assertParseError(t, "List<Bool, Number>", `Unexpected token ",", expected ">", example:1:11`)
+	assertParseError(t, "List<Bool", `Unexpected token EOF, expected ">", example:1:10`)
+	assertParseError(t, "List<", `Unexpected token EOF, example:1:6`)
+	assertParseError(t, "List", `Unexpected token EOF, expected "<", example:1:5`)
 
-	suite.assertParseType("Set<>", types.MakeSetType(types.MakeUnionType()))
-	suite.assertParseType("Set<Bool>", types.MakeSetType(types.BoolType))
-	suite.assertParseError("Set<Bool, Number>", `Unexpected token ",", expected ">", example:1:10`)
+	assertParseType(t, "Set<>", types.MakeSetType(types.MakeUnionType()))
+	assertParseType(t, "Set<Bool>", types.MakeSetType(types.BoolType))
+	assertParseError(t, "Set<Bool, Number>", `Unexpected token ",", expected ">", example:1:10`)
+	assertParseError(t, "Set<Bool", `Unexpected token EOF, expected ">", example:1:9`)
+	assertParseError(t, "Set<", `Unexpected token EOF, example:1:5`)
+	assertParseError(t, "Set", `Unexpected token EOF, expected "<", example:1:4`)
 
-	suite.assertParseError("Ref<>", `Unexpected token ">", example:1:6`)
-	suite.assertParseType("Ref<Bool>", types.MakeRefType(types.BoolType))
-	suite.assertParseError("Ref<Number, Bool>", `Unexpected token ",", expected ">", example:1:12`)
+	assertParseError(t, "Ref<>", `Unexpected token ">", example:1:6`)
+	assertParseType(t, "Ref<Bool>", types.MakeRefType(types.BoolType))
+	assertParseError(t, "Ref<Number, Bool>", `Unexpected token ",", expected ">", example:1:12`)
+	assertParseError(t, "Ref<Number", `Unexpected token EOF, expected ">", example:1:11`)
+	assertParseError(t, "Ref<", `Unexpected token EOF, example:1:5`)
+	assertParseError(t, "Ref", `Unexpected token EOF, expected "<", example:1:4`)
 
-	suite.assertParseType("Cycle<42>", types.MakeCycleType(42))
-	suite.assertParseError("Cycle<-123>", `Unexpected token "-", expected Int, example:1:8`)
-	suite.assertParseError("Cycle<12.3>", `Unexpected token Float, expected Int, example:1:11`)
+	assertParseType(t, "Cycle<42>", types.MakeCycleType(42))
+	assertParseError(t, "Cycle<-123>", `Unexpected token "-", expected Int, example:1:8`)
+	assertParseError(t, "Cycle<12.3>", `Unexpected token Float, expected Int, example:1:11`)
+	assertParseError(t, "Cycle<>", `Unexpected token ">", expected Int, example:1:8`)
+	assertParseError(t, "Cycle<", `Unexpected token EOF, expected Int, example:1:7`)
+	assertParseError(t, "Cycle", `Unexpected token EOF, expected "<", example:1:6`)
 
-	suite.assertParseType("Map<>", types.MakeMapType(types.MakeUnionType(), types.MakeUnionType()))
-	suite.assertParseType("Map<Bool, String>", types.MakeMapType(types.BoolType, types.StringType))
-	suite.assertParseError("Map<Bool,>", `Unexpected token ">", example:1:11`)
-	suite.assertParseError("Map<,Bool>", `Unexpected token ",", example:1:6`)
-	suite.assertParseError("Map<,>", `Unexpected token ",", example:1:6`)
+	assertParseType(t, "Map<>", types.MakeMapType(types.MakeUnionType(), types.MakeUnionType()))
+	assertParseType(t, "Map<Bool, String>", types.MakeMapType(types.BoolType, types.StringType))
+	assertParseError(t, "Map<Bool,>", `Unexpected token ">", example:1:11`)
+	assertParseError(t, "Map<,Bool>", `Unexpected token ",", example:1:6`)
+	assertParseError(t, "Map<,>", `Unexpected token ",", example:1:6`)
+	assertParseError(t, "Map<Bool,Bool", `Unexpected token EOF, expected ">", example:1:14`)
+	assertParseError(t, "Map<Bool,", `Unexpected token EOF, example:1:10`)
+	assertParseError(t, "Map<Bool", `Unexpected token EOF, expected ",", example:1:9`)
+	assertParseError(t, "Map<", `Unexpected token EOF, example:1:5`)
+	assertParseError(t, "Map", `Unexpected token EOF, expected "<", example:1:4`)
 }
 
-func (suite *ParserSuite) TestStructTypes() {
-	suite.assertParseType("struct {}", types.MakeStructTypeFromFields("", types.FieldMap{}))
-	suite.assertParseType("struct S {}", types.MakeStructTypeFromFields("S", types.FieldMap{}))
+func TestStructTypes(t *testing.T) {
+	assertParseType(t, "struct {}", types.MakeStructTypeFromFields("", types.FieldMap{}))
+	assertParseType(t, "struct S {}", types.MakeStructTypeFromFields("S", types.FieldMap{}))
 
-	suite.assertParseType(`struct S {
+	assertParseType(t, `struct S {
                 x: Number
-                }`, types.MakeStructTypeFromFields("S", types.FieldMap{
-		"x": types.NumberType,
-	}))
-
-	suite.assertParseType(`struct S {
-                x: Number,
         }`, types.MakeStructTypeFromFields("S", types.FieldMap{
 		"x": types.NumberType,
 	}))
 
-	suite.assertParseType(`struct S {
-                x: Number,
-                y: String
-        }`, types.MakeStructTypeFromFields("S", types.FieldMap{
+	assertParseType(t, `struct S {
+	        x: Number,
+	}`, types.MakeStructTypeFromFields("S", types.FieldMap{
+		"x": types.NumberType,
+	}))
+
+	assertParseType(t, `struct S {
+	        x: Number,
+	        y: String
+	}`, types.MakeStructTypeFromFields("S", types.FieldMap{
 		"x": types.NumberType,
 		"y": types.StringType,
 	}))
 
-	suite.assertParseType(`struct S {
-                x: Number,
-                y: String,
-        }`, types.MakeStructTypeFromFields("S", types.FieldMap{
+	assertParseType(t, `struct S {
+	        x: Number,
+	        y: String,
+	}`, types.MakeStructTypeFromFields("S", types.FieldMap{
 		"x": types.NumberType,
 		"y": types.StringType,
 	}))
 
-	suite.assertParseError(`struct S {
-                x: Number
-                y: String
-        }`, `Unexpected token Ident, expected ",", example:3:18`)
+	assertParseType(t, `struct S {
+	        x: Number,
+	        y: struct {
+	                z: String,
+	        },
+	}`, types.MakeStructTypeFromFields("S", types.FieldMap{
+		"x": types.NumberType,
+		"y": types.MakeStructTypeFromFields("", types.FieldMap{
+			"z": types.StringType,
+		}),
+	}))
+
+	assertParseError(t, `struct S {
+	        x: Number
+	        y: String
+	}`, `Unexpected token Ident, expected "}", example:3:11`)
+
+	assertParseError(t, `struct S {,}`, `Unexpected token ",", expected Ident, example:1:12`)
+	assertParseError(t, `struct S {`, `Unexpected token EOF, expected Ident, example:1:11`)
+	assertParseError(t, `struct S { x }`, `Unexpected token "}", expected ":", example:1:15`)
+	assertParseError(t, `struct S { x`, `Unexpected token EOF, expected ":", example:1:13`)
+	assertParseError(t, `struct S { x: }`, `Unexpected token "}", example:1:16`)
+	assertParseError(t, `struct S { x: `, `Unexpected token EOF, example:1:15`)
+	assertParseError(t, `struct S { x: Bool`, `Unexpected token EOF, expected "}", example:1:19`)
+	assertParseError(t, `struct S { x: Bool,`, `Unexpected token EOF, expected Ident, example:1:20`)
+	assertParseError(t, `struct S { x: Bool,,`, `Unexpected token ",", expected Ident, example:1:21`)
+
+	assertParseError(t, `struct S {`, `Unexpected token EOF, expected Ident, example:1:11`)
+	assertParseError(t, `struct S `, `Unexpected token EOF, expected "{", example:1:10`)
+	assertParseError(t, `struct {`, `Unexpected token EOF, expected Ident, example:1:9`)
+	assertParseError(t, `struct`, `Unexpected token EOF, expected "{", example:1:7`)
 }
 
-func (suite *ParserSuite) TestUnionTypes() {
-	suite.assertParseType("Blob | Bool", types.MakeUnionType(types.BlobType, types.BoolType))
-	suite.assertParseType("Bool | Number | String", types.MakeUnionType(types.BoolType, types.NumberType, types.StringType))
-	suite.assertParseType("List<Bool | Number>", types.MakeListType(types.MakeUnionType(types.BoolType, types.NumberType)))
-	suite.assertParseType("Map<Bool | Number, Bool | Number>",
+func TestUnionTypes(t *testing.T) {
+	assertParseType(t, "Blob | Bool", types.MakeUnionType(types.BlobType, types.BoolType))
+	assertParseType(t, "Bool | Number | String", types.MakeUnionType(types.BoolType, types.NumberType, types.StringType))
+	assertParseType(t, "List<Bool | Number>", types.MakeListType(types.MakeUnionType(types.BoolType, types.NumberType)))
+	assertParseType(t, "Map<Bool | Number, Bool | Number>",
 		types.MakeMapType(
 			types.MakeUnionType(types.BoolType, types.NumberType),
 			types.MakeUnionType(types.BoolType, types.NumberType),
 		),
 	)
-	suite.assertParseType(`struct S {
+	assertParseType(t, `struct S {
                 x: Number | Bool
                 }`, types.MakeStructTypeFromFields("S", types.FieldMap{
 		"x": types.MakeUnionType(types.BoolType, types.NumberType),
 	}))
-	suite.assertParseType(`struct S {
+	assertParseType(t, `struct S {
                 x: Number | Bool,
                 y: String
         }`, types.MakeStructTypeFromFields("S", types.FieldMap{
@@ -152,6 +187,9 @@ func (suite *ParserSuite) TestUnionTypes() {
 		"y": types.StringType,
 	}))
 
-	suite.assertParseError("Bool |", "Unexpected token EOF, example:1:7")
-	suite.assertParseError("Bool | Number |", "Unexpected token EOF, example:1:16")
+	assertParseError(t, "Bool |", "Unexpected token EOF, example:1:7")
+	assertParseError(t, "Bool | Number |", "Unexpected token EOF, example:1:16")
+	assertParseError(t, "Bool | | ", `Unexpected token "|", example:1:9`)
+	assertParseError(t, "", `Unexpected token EOF, example:1:1`)
+
 }
