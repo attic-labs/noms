@@ -118,7 +118,9 @@ func (s3tr *s3TableReader) readRange(p []byte, rangeHeader string) (n int, err e
 			Jitter: true,
 		}
 		for ; isConnReset(err); n, err = read() {
-			time.Sleep(b.Duration())
+			dur := b.Duration()
+			fmt.Fprintf(os.Stderr, "Retrying S3 read in %s\n", dur.String())
+			time.Sleep(dur)
 		}
 	}
 	return
