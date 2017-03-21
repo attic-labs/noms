@@ -20,9 +20,8 @@ import (
 // The rules for MarshalType is the same as for Marshal, except for omitempty
 // is ignored since that cannot be determined statically.
 //
-// If a Go struct contains a noms tag with original an error the field is
-// skipped since the Noms type depends on the original Noms value which is not
-// available.
+// If a Go struct contains a noms tag with original the field is skipped since
+// the Noms type depends on the original Noms value which is not available.
 func MarshalType(v interface{}) (nt *types.Type, err error) {
 	defer func() {
 		if r := recover(); r != nil {
