@@ -14,10 +14,6 @@ type lexer struct {
 	peekToken rune
 }
 
-func newLexer(s *scanner.Scanner) *lexer {
-	return &lexer{scanner: s}
-}
-
 func (lex *lexer) next() rune {
 	if lex.peekToken != 0 {
 		tok := lex.peekToken

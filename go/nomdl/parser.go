@@ -31,8 +31,8 @@ func New(r io.Reader, options ParserOptions) *Parser {
 	s.Filename = options.Filename
 	s.Mode = scanner.ScanIdents | scanner.ScanComments | scanner.SkipComments
 	s.Init(r)
-	lex := newLexer(&s)
-	return &Parser{lex}
+	lex := lexer{scanner: &s}
+	return &Parser{&lex}
 }
 
 // ParseType parses a string describing a Noms type.
