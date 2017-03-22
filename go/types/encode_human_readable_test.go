@@ -425,7 +425,7 @@ func TestEncodedValueMaxLines(t *testing.T) {
 }
 
 func TestWriteHumanReadableStructOptionalFields(t *testing.T) {
-	typ := MakeStructType2("S1", StructFieldTypes{
+	typ := MakeStructType2("S1", StructFields{
 		{"a", BoolType, false},
 		{"b", BoolType, true},
 	})

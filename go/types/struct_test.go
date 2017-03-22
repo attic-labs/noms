@@ -228,7 +228,7 @@ func TestCycles(t *testing.T) {
 func TestStructValueMayNotHaveOptionalFields(t *testing.T) {
 	assert := assert.New(t)
 
-	typ := MakeStructType2("Opt", StructFieldTypes{
+	typ := MakeStructType2("Opt", StructFields{
 		{"x", NumberType, true},
 	})
 	assert.Panics(func() {

@@ -441,9 +441,9 @@ type StructField struct {
 	Optional bool
 }
 
-type StructFieldTypes []StructField
+type StructFields []StructField
 
-func MakeStructType2(name string, fields StructFieldTypes) *Type {
+func MakeStructType2(name string, fields StructFields) *Type {
 	staticTypeCache.Lock()
 	defer staticTypeCache.Unlock()
 
@@ -462,19 +462,8 @@ func MakeStructType2(name string, fields StructFieldTypes) *Type {
 	return staticTypeCache.makeStructType(name, names, types, optionals)
 }
 
-func x() {
-	MakeStructType2("", []StructField{
-		{"x", NumberType, false},
-		{Name: "y", Type: StringType},
-	})
-}
-
 func MakeUnionType(elemTypes ...*Type) *Type {
 	return makeSimplifiedType(elemTypes...)
-}
-
-func MakeUnionType2(elemTypes ...*Type) *Type {
-	return makeSimplifedType2(elemTypes...)
 }
 
 func MakeCycleType(level uint32) *Type {
