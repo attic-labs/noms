@@ -172,7 +172,7 @@ func simplifyMaps(ts typeset) *Type {
 }
 
 func simplifyStructs(expectedName string, ts typeset) *Type {
-	// We gather all the field, type into commonFields. If the number of
+	// We gather all the fields/types into commonFields. If the number of
 	// times a field name is present is less that then number of types we
 	// are simplifying then the field must be optional.
 	// If we see an optional field we do not increment the count for it and
@@ -204,14 +204,14 @@ func simplifyStructs(expectedName string, ts typeset) *Type {
 	}
 
 	count := len(ts)
-	fm := make([]StructField, 0, len(ts))
-	for n, fti := range commonFields {
-		fm = append(fm, StructField{
-			Name:     n,
+	fields := make(structFields, 0, count)
+	for name, fti := range commonFields {
+		fields = append(fields, StructField{
+			Name:     name,
 			Type:     makeSimplifiedTypeImpl(fti.typeset),
 			Optional: fti.count < count,
 		})
 	}
 
-	return MakeStructType2(expectedName, fm...)
+	return MakeStructType2(expectedName, fields...)
 }

@@ -76,26 +76,16 @@ func (tc *TypeCache) getCompoundType(kind NomsKind, elemTypes ...*Type) *Type {
 	return trie.t
 }
 
-func (tc *TypeCache) makeStructTypeQuickly(name string, fieldNames []string, fieldTypes []*Type, optionals []bool, checkKind checkKindType) *Type {
+func (tc *TypeCache) makeStructTypeQuickly(name string, fields structFields, checkKind checkKindType) *Type {
 	trie := tc.trieRoots[StructKind].Traverse(tc.identTable.GetId(name))
-	for i, fn := range fieldNames {
-		ft := fieldTypes[i]
-		fieldOpt := uint32(0)
-		if optionals[i] {
-			fieldOpt = uint32(1)
-		}
-		trie = trie.Traverse(tc.identTable.GetId(fn))
-		trie = trie.Traverse(ft.id)
-		trie = trie.Traverse(fieldOpt)
+	for _, field := range fields {
+		trie = trie.Traverse(tc.identTable.GetId(field.Name))
+		trie = trie.Traverse(field.Type.id)
+		trie = trie.Traverse(boolToUint32(field.Optional))
 	}
 
 	if trie.t == nil {
-		fs := make(fieldSlice, len(fieldNames))
-		for i, fn := range fieldNames {
-			fs[i] = field{fn, fieldTypes[i], optionals[i]}
-		}
-
-		t := newType(StructDesc{name, fs}, 0)
+		t := newType(StructDesc{name, fields}, 0)
 		if t.HasUnresolvedCycle() {
 			t, _ = toUnresolvedType(t, tc, -1, nil)
 			resolveStructCycles(t, nil)
@@ -110,16 +100,10 @@ func (tc *TypeCache) makeStructTypeQuickly(name string, fieldNames []string, fie
 	return trie.t
 }
 
-func (tc *TypeCache) makeStructType(name string, fieldNames []string, fieldTypes []*Type, optionals []bool) *Type {
-	if len(fieldNames) != len(fieldTypes) {
-		d.Panic("len(fieldNames) != len(fieldTypes)")
-	}
-	if len(fieldNames) != len(optionals) {
-		d.Panic("len(fieldNames) != len(optionals)")
-	}
+func (tc *TypeCache) makeStructType(name string, fields structFields) *Type {
 	verifyStructName(name)
-	verifyFieldNames(fieldNames)
-	return tc.makeStructTypeQuickly(name, fieldNames, fieldTypes, optionals, checkKindNormalize)
+	verifyFields(fields)
+	return tc.makeStructTypeQuickly(name, fields, checkKindNormalize)
 }
 
 func indexOfType(t *Type, tl []*Type) (uint32, bool) {
@@ -155,12 +139,12 @@ func toUnresolvedType(t *Type, tc *TypeCache, level int, parentStructTypes []*Ty
 
 		return newType(CompoundDesc{t.Kind(), ts}, tc.nextTypeId()), true
 	case StructDesc:
-		fs := make(fieldSlice, len(desc.fields))
+		fs := make(structFields, len(desc.fields))
 		didChange := false
 		for i, f := range desc.fields {
-			fs[i].name = f.name
-			st, changed := toUnresolvedType(f.t, tc, level+1, append(parentStructTypes, t))
-			fs[i].t = st
+			fs[i].Name = f.Name
+			st, changed := toUnresolvedType(f.Type, tc, level+1, append(parentStructTypes, t))
+			fs[i].Type = st
 			didChange = didChange || changed
 		}
 
@@ -193,7 +177,7 @@ func resolveStructCycles(t *Type, parentStructTypes []*Type) *Type {
 
 	case StructDesc:
 		for i, f := range desc.fields {
-			desc.fields[i].t = resolveStructCycles(f.t, append(parentStructTypes, t))
+			desc.fields[i].Type = resolveStructCycles(f.Type, append(parentStructTypes, t))
 		}
 
 	case CycleDesc:
@@ -294,7 +278,7 @@ func walkType(t *Type, parentStructTypes []*Type, cb func(*Type, []*Type)) {
 		}
 	case StructDesc:
 		for _, f := range desc.fields {
-			walkType(f.t, append(parentStructTypes, t), cb)
+			walkType(f.Type, append(parentStructTypes, t), cb)
 		}
 	}
 }
@@ -322,7 +306,7 @@ func checkForUnresolvedCycles(t, root *Type, parentStructTypes []*Type) {
 
 		parentStructTypes = append(parentStructTypes, t)
 		for _, field := range desc.(StructDesc).fields {
-			checkForUnresolvedCycles(field.t, root, parentStructTypes)
+			checkForUnresolvedCycles(field.Type, root, parentStructTypes)
 		}
 	}
 }
@@ -431,15 +415,28 @@ func MakeStructTypeFromFields(name string, fields FieldMap) *Type {
 func MakeStructType(name string, fieldNames []string, fieldTypes []*Type) *Type {
 	staticTypeCache.Lock()
 	defer staticTypeCache.Unlock()
-	optionals := make([]bool, len(fieldNames))
-	return staticTypeCache.makeStructType(name, fieldNames, fieldTypes, optionals)
+	if len(fieldNames) != len(fieldTypes) {
+		d.Panic("len(fieldNames) != len(fieldTypes)")
+	}
+	fields := make(structFields, len(fieldNames))
+	for i, name := range fieldNames {
+		fields[i] = StructField{name, fieldTypes[i], false}
+	}
+	return staticTypeCache.makeStructType(name, fields)
 }
 
+// StructField describes a field in a struct type.
 type StructField struct {
 	Name     string
 	Type     *Type
 	Optional bool
 }
+
+type structFields []StructField
+
+func (s structFields) Len() int           { return len(s) }
+func (s structFields) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s structFields) Less(i, j int) bool { return s[i].Name < s[j].Name }
 
 func MakeStructType2(name string, fields ...StructField) *Type {
 	staticTypeCache.Lock()
@@ -454,10 +451,10 @@ func MakeStructType2(name string, fields ...StructField) *Type {
 		optionals[i] = field.Optional
 	}
 
-	fs := fieldSorter{names, types, optionals}
+	fs := structFields(fields)
 	sort.Sort(&fs)
 
-	return staticTypeCache.makeStructType(name, names, types, optionals)
+	return staticTypeCache.makeStructType(name, fs)
 }
 
 func MakeUnionType(elemTypes ...*Type) *Type {

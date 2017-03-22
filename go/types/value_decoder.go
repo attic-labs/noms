@@ -229,16 +229,16 @@ func (r *valueDecoder) readStructType() *Type {
 	name := r.readString()
 	count := r.readUint32()
 
-	fieldNames := make([]string, count)
-	fieldTypes := make([]*Type, count)
-	optionals := make([]bool, count)
+	fields := make(structFields, count)
 	for i := uint32(0); i < count; i++ {
-		fieldNames[i] = r.readString()
-		fieldTypes[i] = r.readType()
-		optionals[i] = r.readBool()
+		fields[i] = StructField{
+			r.readString(),
+			r.readType(),
+			r.readBool(),
+		}
 	}
 
-	return r.tc.makeStructTypeQuickly(name, fieldNames, fieldTypes, optionals, checkKindNoValidate)
+	return r.tc.makeStructTypeQuickly(name, fields, checkKindNoValidate)
 }
 
 func (r *valueDecoder) readUnionType() *Type {

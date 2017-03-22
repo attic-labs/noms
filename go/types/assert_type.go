@@ -78,30 +78,30 @@ func isSubtype(requiredType, concreteType *Type, parentStructTypes []*Type) bool
 		for _, requiredField := range requiredDesc.fields {
 			for {
 				if j >= concreteDesc.Len() {
-					if requiredField.optional {
+					if requiredField.Optional {
 						continue outer
 					}
 					return false
 				}
 				concreteField := concreteDesc.fields[j]
 
-				if concreteField.name == requiredField.name {
-					if requiredField.optional {
+				if concreteField.Name == requiredField.Name {
+					if requiredField.Optional {
 						break
 					}
-					if concreteField.optional {
+					if concreteField.Optional {
 						return false
 					}
 					break
 				}
-				if requiredField.optional && concreteField.name > requiredField.name {
+				if requiredField.Optional && concreteField.Name > requiredField.Name {
 					continue outer
 				}
 				j++
 			}
 
 			concreteField := concreteDesc.fields[j]
-			if !isSubtype(requiredField.t, concreteField.t, append(parentStructTypes, requiredType)) {
+			if !isSubtype(requiredField.Type, concreteField.Type, append(parentStructTypes, requiredType)) {
 				return false
 			}
 		}

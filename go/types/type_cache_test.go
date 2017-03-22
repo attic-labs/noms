@@ -110,14 +110,14 @@ func TestTypeCacheCyclicStruct(t *testing.T) {
 		[]string{"foo"},
 		[]*Type{MakeRefType(MakeCycleType(0))},
 	)
-	assert.True(st == st.Desc.(StructDesc).fields[0].t.Desc.(CompoundDesc).ElemTypes[0])
+	assert.True(st == st.Desc.(StructDesc).fields[0].Type.Desc.(CompoundDesc).ElemTypes[0])
 	assert.False(st.HasUnresolvedCycle())
 
 	st2 := MakeStructType("Foo",
 		[]string{"foo"},
 		[]*Type{MakeRefType(MakeCycleType(0))},
 	)
-	assert.True(st2 == st2.Desc.(StructDesc).fields[0].t.Desc.(CompoundDesc).ElemTypes[0])
+	assert.True(st2 == st2.Desc.(StructDesc).fields[0].Type.Desc.(CompoundDesc).ElemTypes[0])
 	assert.True(st == st2)
 }
 
@@ -137,7 +137,7 @@ func TestTypeCacheCyclicStruct2(t *testing.T) {
 	)
 	assert.True(st.HasUnresolvedCycle())
 	// foo ref is cyclic
-	assert.True(st == st.Desc.(StructDesc).fields[1].t)
+	assert.True(st == st.Desc.(StructDesc).fields[1].Type)
 
 	// Bar {
 	//   baz: Cycle<1>
@@ -155,9 +155,9 @@ func TestTypeCacheCyclicStruct2(t *testing.T) {
 	)
 	assert.True(st2.HasUnresolvedCycle())
 	// foo ref is cyclic
-	assert.True(st2.Desc.(StructDesc).fields[1].t == st2.Desc.(StructDesc).fields[1].t.Desc.(StructDesc).fields[1].t)
+	assert.True(st2.Desc.(StructDesc).fields[1].Type == st2.Desc.(StructDesc).fields[1].Type.Desc.(StructDesc).fields[1].Type)
 	// bar ref is cyclic
-	assert.True(st2 == st2.Desc.(StructDesc).fields[1].t.Desc.(StructDesc).fields[0].t)
+	assert.True(st2 == st2.Desc.(StructDesc).fields[1].Type.Desc.(StructDesc).fields[0].Type)
 
 	// Baz {
 	//   bar: Bar {
@@ -179,13 +179,13 @@ func TestTypeCacheCyclicStruct2(t *testing.T) {
 	assert.False(st3.HasUnresolvedCycle())
 
 	// foo ref is cyclic
-	assert.True(st3.Desc.(StructDesc).fields[0].t.Desc.(StructDesc).fields[1].t == st3.Desc.(StructDesc).fields[0].t.Desc.(StructDesc).fields[1].t.Desc.(StructDesc).fields[1].t)
+	assert.True(st3.Desc.(StructDesc).fields[0].Type.Desc.(StructDesc).fields[1].Type == st3.Desc.(StructDesc).fields[0].Type.Desc.(StructDesc).fields[1].Type.Desc.(StructDesc).fields[1].Type)
 	// bar ref is cyclic
-	assert.True(st3.Desc.(StructDesc).fields[0].t == st3.Desc.(StructDesc).fields[0].t.Desc.(StructDesc).fields[0].t.Desc.(StructDesc).fields[0].t)
+	assert.True(st3.Desc.(StructDesc).fields[0].Type == st3.Desc.(StructDesc).fields[0].Type.Desc.(StructDesc).fields[0].Type.Desc.(StructDesc).fields[0].Type)
 	// baz second-level ref is cyclic
-	assert.True(st3 == st3.Desc.(StructDesc).fields[0].t.Desc.(StructDesc).fields[0].t)
+	assert.True(st3 == st3.Desc.(StructDesc).fields[0].Type.Desc.(StructDesc).fields[0].Type)
 	// baz top-level ref is cyclic
-	assert.True(st3 == st3.Desc.(StructDesc).fields[1].t)
+	assert.True(st3 == st3.Desc.(StructDesc).fields[1].Type)
 }
 
 func TestTypeCacheCyclicUnions(t *testing.T) {
@@ -199,9 +199,9 @@ func TestTypeCacheCyclicUnions(t *testing.T) {
 
 	assert.True(ut.Desc.(CompoundDesc).ElemTypes[6].Kind() == CycleKind)
 	// That the Struct / Cycle landed in index 5 was found empirically.
-	assert.Equal(st, st.Desc.(StructDesc).fields[0].t.Desc.(CompoundDesc).ElemTypes[5])
+	assert.Equal(st, st.Desc.(StructDesc).fields[0].Type.Desc.(CompoundDesc).ElemTypes[5])
 	// ut contains an explicit Cycle type; noms must not surrepticiously change existing types so we can be sure that the Union within st is different in that the cycle has been resolved.
-	assert.False(ut == st.Desc.(StructDesc).fields[0].t)
+	assert.False(ut == st.Desc.(StructDesc).fields[0].Type)
 
 	// Note that the union in this second case is created with a different ordering of its type arguments.
 	ut2 := MakeUnionType(NumberType, StringType, BoolType, BlobType, ValueType, TypeType, MakeCycleType(0))
@@ -210,8 +210,8 @@ func TestTypeCacheCyclicUnions(t *testing.T) {
 		[]*Type{ut2},
 	)
 	assert.True(ut2.Desc.(CompoundDesc).ElemTypes[6].Kind() == CycleKind)
-	assert.True(st2 == st2.Desc.(StructDesc).fields[0].t.Desc.(CompoundDesc).ElemTypes[5])
-	assert.False(ut2 == st2.Desc.(StructDesc).fields[0].t)
+	assert.True(st2 == st2.Desc.(StructDesc).fields[0].Type.Desc.(CompoundDesc).ElemTypes[5])
+	assert.False(ut2 == st2.Desc.(StructDesc).fields[0].Type)
 
 	assert.True(ut == ut2)
 	assert.True(st == st2)
@@ -223,7 +223,7 @@ func TestNonNormalizedCycles(t *testing.T) {
 	t1 := MakeStructType("A",
 		[]string{"a"},
 		[]*Type{MakeStructType("A", []string{"a"}, []*Type{MakeCycleType(1)})})
-	t2 := t1.Desc.(StructDesc).fields[0].t
+	t2 := t1.Desc.(StructDesc).fields[0].Type
 	assert.True(t1.Equals(t2))
 }
 

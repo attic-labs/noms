@@ -339,8 +339,7 @@ func TestRecursiveStruct(t *testing.T) {
   },
 })`, a)
 
-	f, _ := a.Desc.(StructDesc).findField("d")
-	d := f.t
+	d, _ := a.Desc.(StructDesc).Field("d")
 
 	assertWriteHRSEqual(t, `struct D {
   e: Cycle<0>,
