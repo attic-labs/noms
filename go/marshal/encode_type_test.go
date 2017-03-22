@@ -183,8 +183,8 @@ func TestMarshalTypeOmitEmpty(t *testing.T) {
 	var s S
 	typ, err := MarshalType(s)
 	assert.NoError(err)
-	assert.True(types.MakeStructTypeFromFields("S", types.FieldMap{
-		"string": types.StringType,
+	assert.True(types.MakeStructType2("S", types.StructFields{
+		types.StructField{"string", types.StringType, true},
 	}).Equals(typ))
 }
 
@@ -320,10 +320,10 @@ func TestMarshalTypeSetWithTags(t *testing.T) {
 	var s S
 	typ, err := MarshalType(s)
 	assert.NoError(err)
-	assert.True(types.MakeStructTypeFromFields("S", types.FieldMap{
-		"foo": types.MakeSetType(types.NumberType),
-		"b":   types.MakeSetType(types.NumberType),
-		"bar": types.MakeSetType(types.NumberType),
+	assert.True(types.MakeStructType2("S", types.StructFields{
+		types.StructField{"foo", types.MakeSetType(types.NumberType), false},
+		types.StructField{"b", types.MakeSetType(types.NumberType), true},
+		types.StructField{"bar", types.MakeSetType(types.NumberType), true},
 	}).Equals(typ))
 }
 
@@ -363,8 +363,8 @@ func TestMarshalTypeOriginal(t *testing.T) {
 	var s S
 	typ, err := MarshalType(s)
 	assert.NoError(err)
-	assert.True(types.MakeStructTypeFromFields("S", types.FieldMap{
-		"foo": types.NumberType,
+	assert.True(types.MakeStructType2("S", types.StructFields{
+		types.StructField{"foo", types.NumberType, true},
 	}).Equals(typ))
 }
 

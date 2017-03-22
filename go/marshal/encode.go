@@ -339,6 +339,7 @@ type field struct {
 	index     int
 	nomsType  *types.Type
 	omitEmpty bool
+	optional  bool
 }
 
 type fieldSlice []field
@@ -447,18 +448,23 @@ func typeFields(t reflect.Type, parentStructTypes []reflect.Type, options encode
 			index:     i,
 			nomsType:  nt,
 			omitEmpty: tags.omitEmpty,
+			optional:  tags.omitEmpty,
 		})
 
 	}
 	sort.Sort(fields)
 	if canComputeStructType {
-		fieldNames := make([]string, len(fields))
-		fieldTypes := make([]*types.Type, len(fields))
+		structFields := make(types.StructFields, len(fields))
+		// fieldNames := make([]string, len(fields))
+		// fieldTypes := make([]*types.Type, len(fields))
 		for i, fs := range fields {
-			fieldNames[i] = fs.name
-			fieldTypes[i] = fs.nomsType
+			structFields[i] = types.StructField{
+				Name:     fs.name,
+				Type:     fs.nomsType,
+				Optional: fs.optional,
+			}
 		}
-		structType = types.MakeStructType(strings.Title(t.Name()), fieldNames, fieldTypes)
+		structType = types.MakeStructType2(strings.Title(t.Name()), structFields)
 	}
 	return
 }
