@@ -6,6 +6,7 @@ package types
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/attic-labs/testify/assert"
@@ -383,4 +384,70 @@ func TestIsSubtypeCompoundUnion(tt *testing.T) {
 	ct2 := MakeListType(MakeUnionType(st1, st2, NumberType))
 	assert.False(tt, IsSubtype(rt, ct2))
 	assert.False(tt, IsSubtype(ct2, rt))
+}
+
+func TestIsSubtypeOptionalFields(tt *testing.T) {
+	assert := assert.New(tt)
+
+	makeType := func(s string) *Type {
+		if s == "" {
+			return MakeStructType2("", nil)
+		}
+
+		fs := strings.Split(s, " ")
+		fields := make(StructFieldTypes, len(fs))
+		for i, f := range fs {
+			optional := false
+			if f[len(f)-1:] == "?" {
+				f = f[:len(f)-1]
+				optional = true
+			}
+			fields[i] = StructField{f, BoolType, optional}
+		}
+		return MakeStructType2("", fields)
+	}
+
+	test := func(t1s, t2s string, exp1, exp2 bool) {
+		t1 := makeType(t1s)
+		t2 := makeType(t2s)
+		assert.Equal(exp1, IsSubtype(t1, t2))
+		assert.Equal(exp2, IsSubtype(t2, t1))
+		assert.False(t1.Equals(t2))
+	}
+
+	test("n?", "n", true, false)
+	test("", "n", true, false)
+	test("", "n?", true, true)
+
+	test("a b?", "a", true, true)
+	test("a b?", "a b", true, false)
+	test("a b? c", "a b c", true, false)
+	test("b? c", "a b c", true, false)
+	test("b? c", "b c", true, false)
+
+	test("a c e", "a b c d e", true, false)
+	test("a c e?", "a b c d e", true, false)
+	test("a c? e", "a b c d e", true, false)
+	test("a c? e?", "a b c d e", true, false)
+	test("a? c e", "a b c d e", true, false)
+	test("a? c e?", "a b c d e", true, false)
+	test("a? c? e", "a b c d e", true, false)
+	test("a? c? e?", "a b c d e", true, false)
+
+	test("a c e?", "a b c d", true, false)
+	test("a c? e", "a b d e", true, false)
+	test("a c? e?", "a b d", true, false)
+	test("a? c e", "b c d e", true, false)
+	test("a? c e?", "b c d", true, false)
+	test("a? c? e", "b d e", true, false)
+	test("a? c? e?", "b d", true, false)
+
+	t1 := MakeStructType2("", StructFieldTypes{
+		{"a", BoolType, true},
+	})
+	t2 := MakeStructType2("", StructFieldTypes{
+		{"a", NumberType, true},
+	})
+	assert.False(IsSubtype(t1, t2))
+	assert.False(IsSubtype(t2, t1))
 }

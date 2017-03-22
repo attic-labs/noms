@@ -80,15 +80,19 @@ func (tc *TypeCache) makeStructTypeQuickly(name string, fieldNames []string, fie
 	trie := tc.trieRoots[StructKind].Traverse(tc.identTable.GetId(name))
 	for i, fn := range fieldNames {
 		ft := fieldTypes[i]
+		fieldOpt := uint32(0)
+		if optionals[i] {
+			fieldOpt = uint32(1)
+		}
 		trie = trie.Traverse(tc.identTable.GetId(fn))
 		trie = trie.Traverse(ft.id)
+		trie = trie.Traverse(fieldOpt)
 	}
 
 	if trie.t == nil {
 		fs := make(fieldSlice, len(fieldNames))
 		for i, fn := range fieldNames {
 			fs[i] = field{fn, fieldTypes[i], optionals[i]}
-			i++
 		}
 
 		t := newType(StructDesc{name, fs}, 0)
