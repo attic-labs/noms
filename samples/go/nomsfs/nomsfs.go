@@ -110,8 +110,9 @@ func init() {
 	})
 
 	// Root around for some useful types.
-	attrType = inodeType.Desc.(types.StructDesc).Field("attr")
-	for _, elemType := range inodeType.Desc.(types.StructDesc).Field("contents").Desc.(types.CompoundDesc).ElemTypes {
+	attrType, _ = inodeType.Desc.(types.StructDesc).Field("attr")
+	contentsType, _ := inodeType.Desc.(types.StructDesc).Field("contents")
+	for _, elemType := range contentsType.Desc.(types.CompoundDesc).ElemTypes {
 		switch elemType.Desc.(types.StructDesc).Name {
 		case "Directory":
 			directoryType = elemType
