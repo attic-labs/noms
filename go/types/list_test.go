@@ -1123,3 +1123,22 @@ func TestListConcatDifferentTypes(t *testing.T) {
 	concat := NewList(fst...).Concat(NewList(snd...))
 	assert.True(NewList(whole...).Equals(concat))
 }
+
+func TestListWithStructShouldHaveOptionalFields(t *testing.T) {
+	assert := assert.New(t)
+	list := NewList(
+		NewStruct("Foo", StructData{
+			"a": Number(1),
+		}),
+		NewStruct("Foo", StructData{
+			"a": Number(2),
+			"b": String("bar"),
+		}),
+	)
+	assert.True(
+		MakeListType(MakeStructType2("Foo", StructFields{
+			{"a", NumberType, false},
+			{"b", StringType, true},
+		}),
+		).Equals(list.Type()))
+}

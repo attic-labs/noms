@@ -138,6 +138,29 @@ func (suite *QueryGraphQLSuite) TestListOfStruct() {
 	suite.assertQueryResult(list, "{root{elements{a}}}", `{"data":{"root":{"elements":[{"a":28},{"a":-20.102},{"a":5}]}}}`)
 }
 
+func (suite *QueryGraphQLSuite) TestListOfStructWithOptionalFields() {
+	list := types.NewList(
+		types.NewStruct("Foo", types.StructData{
+			"a": types.Number(1),
+		}),
+		types.NewStruct("Foo", types.StructData{
+			"a": types.Number(2),
+			"b": types.String("bar"),
+		}),
+	)
+
+	suite.assertQueryResult(list, "{root{elements{a b}}}", `{
+                "data": {
+                        "root": {
+                                "elements": [
+                                        {"a": 1, "b": null},
+                                        {"a": 2, "b": "bar"}
+                                ]
+                        }
+                }
+        }`)
+}
+
 func (suite *QueryGraphQLSuite) TestSetBasic() {
 	for _, valuesKey := range []string{"elements", "values"} {
 		set := types.NewSet()

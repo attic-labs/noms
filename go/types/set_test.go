@@ -1001,3 +1001,22 @@ func TestSetAt(t *testing.T) {
 		s.At(42)
 	})
 }
+
+func TestSetWithStructShouldHaveOptionalFields(t *testing.T) {
+	assert := assert.New(t)
+	list := NewSet(
+		NewStruct("Foo", StructData{
+			"a": Number(1),
+		}),
+		NewStruct("Foo", StructData{
+			"a": Number(2),
+			"b": String("bar"),
+		}),
+	)
+	assert.True(
+		MakeSetType(MakeStructType2("Foo", StructFields{
+			{"a", NumberType, false},
+			{"b", StringType, true},
+		}),
+		).Equals(list.Type()))
+}

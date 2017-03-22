@@ -1298,3 +1298,47 @@ func TestMapAt(t *testing.T) {
 		m.At(42)
 	})
 }
+
+func TestMapWithStructShouldHaveOptionalFields(t *testing.T) {
+	assert := assert.New(t)
+	list := NewMap(
+		String("one"),
+		NewStruct("Foo", StructData{
+			"a": Number(1),
+		}),
+		String("two"),
+		NewStruct("Foo", StructData{
+			"a": Number(2),
+			"b": String("bar"),
+		}),
+	)
+	assert.True(
+		MakeMapType(StringType,
+			MakeStructType2("Foo", StructFields{
+				{"a", NumberType, false},
+				{"b", StringType, true},
+			}),
+		).Equals(list.Type()))
+
+	// transpose
+	list = NewMap(
+		NewStruct("Foo", StructData{
+			"a": Number(1),
+		}),
+		String("one"),
+		NewStruct("Foo", StructData{
+			"a": Number(2),
+			"b": String("bar"),
+		}),
+		String("two"),
+	)
+	assert.True(
+		MakeMapType(
+			MakeStructType2("Foo", StructFields{
+				{"a", NumberType, false},
+				{"b", StringType, true},
+			}),
+			StringType,
+		).Equals(list.Type()))
+
+}
