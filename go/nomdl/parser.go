@@ -94,7 +94,7 @@ func (p *Parser) ensureAtEnd() {
 //
 // StructFields :
 //   StructField
-//   StructField `,` (StructField `,`)*
+//   StructField `,` StructFields?
 //
 // StructName :
 //   Ident
