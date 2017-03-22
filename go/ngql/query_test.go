@@ -190,8 +190,9 @@ func (suite *QueryGraphQLSuite) TestSetOfStruct() {
 		}),
 	)
 
-	suite.assertQueryResult(set, "{root{values{a b}}}", `{"data":{"root":{"values":[{"a":-20.102,"b":"bar"},{"a":5,"b":"baz"},{"a":28,"b":"foo"}]}}}`)
-	suite.assertQueryResult(set, "{root{values{a}}}", `{"data":{"root":{"values":[{"a":-20.102},{"a":5},{"a":28}]}}}`)
+	suite.assertQueryResult(set, "{root{values{a b}}}",
+		`{"data":{"root":{"values":[{"a":-20.102,"b":"bar"},{"a":28,"b":"foo"},{"a":5,"b":"baz"}]}}}`)
+	suite.assertQueryResult(set, "{root{values{a}}}", `{"data":{"root":{"values":[{"a":-20.102},{"a":28},{"a":5}]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestMapBasic() {
@@ -307,6 +308,8 @@ func (suite *QueryGraphQLSuite) TestListOfUnionOfScalars() {
 
 	suite.assertQueryResult(list, "{root{values{... on BooleanValue{b: scalarValue} ... on StringValue{s: scalarValue} ... on NumberValue{n: scalarValue}}}}", `{"data":{"root":{"values":[{"n":28},{"s":"bar"},{"b":true}]}}}`)
 }
+
+// TODO: Add tests for List<struct S { x?: Number }> but I need to do type simplification first!
 
 func (suite *QueryGraphQLSuite) TestCyclicStructs() {
 	typ := types.MakeStructTypeFromFields("A", types.FieldMap{
@@ -800,15 +803,14 @@ func (suite *QueryGraphQLSuite) TestMapNullable() {
 		`{"data":{"root":{"keys":["a","b","c"]}}}`)
 }
 
-func (suite *QueryGraphQLSuite) TestStructWithMissingField() {
-	// This simulates the case where there are optional fields
+func (suite *QueryGraphQLSuite) TestStructWithOptionalField() {
 	tm := NewTypeMap()
 	rootValue := types.NewStruct("", types.StructData{
 		"n": types.Number(42),
 	})
-	rootType := NomsTypeToGraphQLType(types.MakeStructTypeFromFields("", types.FieldMap{
-		"n": types.NumberType,
-		"s": types.StringType,
+	rootType := NomsTypeToGraphQLType(types.MakeStructType2("", types.StructFieldTypes{
+		types.StructField{Name: "n", Type: types.NumberType, Optional: false},
+		types.StructField{Name: "s", Type: types.StringType, Optional: true},
 	}), false, tm)
 
 	queryObj := graphql.NewObject(graphql.ObjectConfig{
@@ -990,7 +992,7 @@ func (suite *QueryGraphQLSuite) TestMapWithComplexKeys() {
 	suite.assertQueryResult(m2, `{root{values(key: {n: "e"})}}`, `{"data":{"root":{"values":[3]}}}`)
 	suite.assertQueryResult(m2, `{root{values(key: {n: "x"})}}`, `{"data":{"root":{"values":[]}}}`)
 	// The order is based on hash
-	suite.assertQueryResult(m2, `{root{values(key: {n: "a"}, through: {n: "e"})}}`, `{"data":{"root":{"values":[1, 2, 3]}}}`)
+	suite.assertQueryResult(m2, `{root{values(key: {n: "e"}, through: {n: "a"})}}`, `{"data":{"root":{"values":[3,1]}}}`)
 	suite.assertQueryResult(m2, `{root{values(keys: [{n: "a"}, {n: "b"}, {n: "c"}])}}`,
 		`{"data":{"root":{"values":[1, null, 2]}}}`)
 	suite.assertQueryResult(m2, `{root{keys(keys: [{n: "a"}, {n: "b"}, {n: "c"}]) { n }}}`,
@@ -1032,8 +1034,8 @@ func (suite *QueryGraphQLSuite) TestSetWithComplexKeys() {
 		`{"data":{"root":{"values":[{"n": "e"}]}}}`)
 	suite.assertQueryResult(s2, `{root{values(key: {n: "x"}) { n } }}`, `{"data":{"root":{"values":[]}}}`)
 	// The order is based on hash
-	suite.assertQueryResult(s2, `{root{values(key: {n: "a"}, through: {n: "e"}) { n }}}`,
-		`{"data":{"root":{"values":[{"n": "a"}, {"n": "c"}, {"n": "e"}]}}}`)
+	suite.assertQueryResult(s2, `{root{values(key: {n: "e"}, through: {n: "c"}) { n }}}`,
+		`{"data":{"root":{"values":[{"n": "e"}, {"n": "a"}, {"n": "c"}]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestInputToNomsValue() {
@@ -1088,6 +1090,31 @@ func (suite *QueryGraphQLSuite) TestInputToNomsValue() {
 	), []interface{}{
 		map[string]interface{}{"a": float64(1)},
 		map[string]interface{}{"a": float64(2)},
+	})
+
+	expected := types.NewStruct("S", types.StructData{
+		"x": types.Number(42),
+	})
+	expectedType := types.MakeStructType2("S", types.StructFieldTypes{
+		types.StructField{Name: "a", Type: types.BoolType, Optional: true},
+		types.StructField{Name: "x", Type: types.NumberType, Optional: false},
+	})
+	val := map[string]interface{}{
+		"x": float64(42),
+	}
+	suite.Equal(expected, InputToNomsValue(val, expectedType))
+
+	val = map[string]interface{}{
+		"x": float64(42),
+		"a": nil,
+	}
+	suite.Equal(expected, InputToNomsValue(val, expectedType))
+
+	val = map[string]interface{}{
+		"x": nil,
+	}
+	suite.Panics(func() {
+		InputToNomsValue(val, expectedType)
 	})
 }
 
@@ -1215,7 +1242,7 @@ func (suite *QueryGraphQLSuite) TestVariables() {
 			},
 		},
 	)
-	test(m2, `{"data":null,"errors":[{"message":"Variable \"$ks\" got invalid value [null].\nIn element #1: Expected \"SInput_esbrur!\", found null.","locations":[{"line":1,"column":12}]}]}`,
+	test(m2, `{"data":null,"errors":[{"message":"Variable \"$ks\" got invalid value [null].\nIn element #1: Expected \"SInput_3jqubf!\", found null.","locations":[{"line":1,"column":12}]}]}`,
 		q,
 		map[string]interface{}{
 			"ks": []interface{}{
