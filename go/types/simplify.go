@@ -204,7 +204,7 @@ func simplifyStructs(expectedName string, ts typeset) *Type {
 	}
 
 	count := len(ts)
-	fm := make(StructFields, 0, len(ts))
+	fm := make([]StructField, 0, len(ts))
 	for n, fti := range commonFields {
 		fm = append(fm, StructField{
 			Name:     n,
@@ -213,5 +213,5 @@ func simplifyStructs(expectedName string, ts typeset) *Type {
 		})
 	}
 
-	return MakeStructType2(expectedName, fm)
+	return MakeStructType2(expectedName, fm...)
 }

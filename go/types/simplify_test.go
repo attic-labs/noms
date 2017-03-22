@@ -112,18 +112,18 @@ func TestSimplifyHelpers(t *testing.T) {
 		{structSimplifier(""),
 			[]*Type{MakeStructTypeFromFields("", FieldMap{"foo": BoolType}),
 				MakeStructTypeFromFields("", FieldMap{"foo": BoolType, "bar": NumberType})},
-			MakeStructType2("", StructFields{
-				{"bar", NumberType, true},
-				{"foo", BoolType, false},
-			})},
+			MakeStructType2("",
+				StructField{"bar", NumberType, true},
+				StructField{"foo", BoolType, false},
+			)},
 		// struct{foo:Bool}|struct{bar:Number} -> struct{foo?:Bool,bar?:Number}
 		{structSimplifier(""),
 			[]*Type{MakeStructTypeFromFields("", FieldMap{"foo": BoolType}),
 				MakeStructTypeFromFields("", FieldMap{"bar": NumberType})},
-			MakeStructType2("", StructFields{
-				{"bar", NumberType, true},
-				{"foo", BoolType, true},
-			})},
+			MakeStructType2("",
+				StructField{"bar", NumberType, true},
+				StructField{"foo", BoolType, true},
+			)},
 		// struct{foo:Ref<Bool>}|struct{foo:Ref<Number>} -> struct{foo:Ref<Bool|Number>}
 		{structSimplifier(""),
 			[]*Type{MakeStructTypeFromFields("", FieldMap{"foo": MakeRefType(BoolType)}),
@@ -142,10 +142,10 @@ func TestSimplifyHelpers(t *testing.T) {
 			[]*Type{MakeMapType(StringType, MakeStructTypeFromFields("A", FieldMap{"foo": StringType})),
 				MakeMapType(StringType, MakeStructTypeFromFields("A", FieldMap{"foo": StringType, "bar": BoolType})),
 			},
-			MakeMapType(StringType, MakeStructType2("A", StructFields{
-				{"foo", StringType, false},
-				{"bar", BoolType, true},
-			}))},
+			MakeMapType(StringType, MakeStructType2("A",
+				StructField{"foo", StringType, false},
+				StructField{"bar", BoolType, true},
+			))},
 	}
 
 	for i, c := range cases {
@@ -233,10 +233,10 @@ func TestMakeSimplifiedUnion(t *testing.T) {
 				BoolType, StringType,
 				MakeRefType(MakeUnionType(BoolType, StringType,
 					MakeSetType(MakeUnionType(BoolType, StringType)))),
-				MakeStructType2("", StructFields{
-					{"foo", NumberType, true},
-					{"bar", StringType, true},
-				}),
+				MakeStructType2("",
+					StructField{"foo", NumberType, true},
+					StructField{"bar", StringType, true},
+				),
 				MakeStructTypeFromFields("A", FieldMap{"foo": StringType}),
 			),
 		},

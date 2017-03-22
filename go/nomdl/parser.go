@@ -172,7 +172,7 @@ func (p *Parser) parseStructType() *types.Type {
 	} else {
 		p.lex.check('{', tok)
 	}
-	fields := types.StructFields{}
+	fields := []types.StructField{}
 
 	for p.lex.peek() != '}' {
 		p.lex.eat(scanner.Ident)
@@ -194,7 +194,7 @@ func (p *Parser) parseStructType() *types.Type {
 		break
 	}
 	p.lex.eat('}')
-	return types.MakeStructType2(name, fields)
+	return types.MakeStructType2(name, fields...)
 }
 
 func (p *Parser) parseSingleElemType(allowEmptyUnion bool) *types.Type {

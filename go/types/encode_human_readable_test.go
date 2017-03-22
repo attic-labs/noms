@@ -425,10 +425,9 @@ func TestEncodedValueMaxLines(t *testing.T) {
 }
 
 func TestWriteHumanReadableStructOptionalFields(t *testing.T) {
-	typ := MakeStructType2("S1", StructFields{
-		{"a", BoolType, false},
-		{"b", BoolType, true},
-	})
+	typ := MakeStructType2("S1",
+		StructField{"a", BoolType, false},
+		StructField{"b", BoolType, true})
 	assertWriteHRSEqual(t, "struct S1 {\n  a: Bool,\n  b?: Bool,\n}", typ)
 	assertWriteTaggedHRSEqual(t, "Type(struct S1 {\n  a: Bool,\n  b?: Bool,\n})", typ)
 }

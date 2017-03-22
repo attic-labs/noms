@@ -146,10 +146,10 @@ func TestStructTypes(t *testing.T) {
 	assertParseType(t, `struct S {
                 x?: Number,
                 y: String,
-        }`, types.MakeStructType2("S", types.StructFields{
-		{"x", types.NumberType, true},
-		{"y", types.StringType, false},
-	}))
+        }`, types.MakeStructType2("S",
+		types.StructField{"x", types.NumberType, true},
+		types.StructField{"y", types.StringType, false},
+	))
 
 	assertParseError(t, `struct S {
 	        x: Number

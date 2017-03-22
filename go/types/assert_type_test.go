@@ -391,11 +391,11 @@ func TestIsSubtypeOptionalFields(tt *testing.T) {
 
 	makeType := func(s string) *Type {
 		if s == "" {
-			return MakeStructType2("", nil)
+			return MakeStructType2("")
 		}
 
 		fs := strings.Split(s, " ")
-		fields := make(StructFields, len(fs))
+		fields := make([]StructField, len(fs))
 		for i, f := range fs {
 			optional := false
 			if f[len(f)-1:] == "?" {
@@ -404,7 +404,7 @@ func TestIsSubtypeOptionalFields(tt *testing.T) {
 			}
 			fields[i] = StructField{f, BoolType, optional}
 		}
-		return MakeStructType2("", fields)
+		return MakeStructType2("", fields...)
 	}
 
 	test := func(t1s, t2s string, exp1, exp2 bool) {
@@ -442,12 +442,8 @@ func TestIsSubtypeOptionalFields(tt *testing.T) {
 	test("a? c? e", "b d e", true, false)
 	test("a? c? e?", "b d", true, false)
 
-	t1 := MakeStructType2("", StructFields{
-		{"a", BoolType, true},
-	})
-	t2 := MakeStructType2("", StructFields{
-		{"a", NumberType, true},
-	})
+	t1 := MakeStructType2("", StructField{"a", BoolType, true})
+	t2 := MakeStructType2("", StructField{"a", NumberType, true})
 	assert.False(IsSubtype(t1, t2))
 	assert.False(IsSubtype(t2, t1))
 }

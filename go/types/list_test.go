@@ -1136,9 +1136,9 @@ func TestListWithStructShouldHaveOptionalFields(t *testing.T) {
 		}),
 	)
 	assert.True(
-		MakeListType(MakeStructType2("Foo", StructFields{
-			{"a", NumberType, false},
-			{"b", StringType, true},
-		}),
+		MakeListType(MakeStructType2("Foo",
+			StructField{"a", NumberType, false},
+			StructField{"b", StringType, true},
+		),
 		).Equals(list.Type()))
 }

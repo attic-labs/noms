@@ -441,9 +441,7 @@ type StructField struct {
 	Optional bool
 }
 
-type StructFields []StructField
-
-func MakeStructType2(name string, fields StructFields) *Type {
+func MakeStructType2(name string, fields ...StructField) *Type {
 	staticTypeCache.Lock()
 	defer staticTypeCache.Unlock()
 

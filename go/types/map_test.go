@@ -1314,10 +1314,10 @@ func TestMapWithStructShouldHaveOptionalFields(t *testing.T) {
 	)
 	assert.True(
 		MakeMapType(StringType,
-			MakeStructType2("Foo", StructFields{
-				{"a", NumberType, false},
-				{"b", StringType, true},
-			}),
+			MakeStructType2("Foo",
+				StructField{"a", NumberType, false},
+				StructField{"b", StringType, true},
+			),
 		).Equals(list.Type()))
 
 	// transpose
@@ -1334,10 +1334,10 @@ func TestMapWithStructShouldHaveOptionalFields(t *testing.T) {
 	)
 	assert.True(
 		MakeMapType(
-			MakeStructType2("Foo", StructFields{
-				{"a", NumberType, false},
-				{"b", StringType, true},
-			}),
+			MakeStructType2("Foo",
+				StructField{"a", NumberType, false},
+				StructField{"b", StringType, true},
+			),
 			StringType,
 		).Equals(list.Type()))
 
