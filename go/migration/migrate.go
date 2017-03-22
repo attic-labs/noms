@@ -83,7 +83,8 @@ func MigrateFromVersion7(source v7types.Value, sourceStore v7types.ValueReadWrit
 		t := migrateType(source.Type())
 		sd := source.Type().Desc.(v7types.StructDesc)
 		fields := make([]types.Value, 0, sd.Len())
-		sd.IterFields(func(name string, _ *v7types.Type) {
+		sd.IterFields(func(name string, _ *v7types.Type, optional bool) {
+			d.PanicIfTrue(optional) // values cannot have optional fields
 			if err == nil {
 				var fv types.Value
 				fv, err = MigrateFromVersion7(source.Get(name), sourceStore, sinkStore)
@@ -149,7 +150,8 @@ func migrateType(source *v7types.Type) *types.Type {
 		sd := source.Desc.(v7types.StructDesc)
 		names := make([]string, 0, sd.Len())
 		typs := make([]*types.Type, 0, sd.Len())
-		sd.IterFields(func(name string, t *v7types.Type) {
+		sd.IterFields(func(name string, t *v7types.Type, optional bool) {
+			d.PanicIfTrue(optional) // v7 did not have optional fields.
 			names = append(names, name)
 			typs = append(typs, migrateType(t))
 		})

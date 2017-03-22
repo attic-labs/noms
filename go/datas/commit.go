@@ -177,7 +177,9 @@ func getRefElementType(t *types.Type) *types.Type {
 
 func fieldTypeFromCommit(t *types.Type, fieldName string) *types.Type {
 	d.PanicIfFalse(t.Kind() == types.StructKind && t.Desc.(types.StructDesc).Name == "Commit")
-	return t.Desc.(types.StructDesc).Field(fieldName)
+	ft, optional := t.Desc.(types.StructDesc).Field(fieldName)
+	d.PanicIfTrue(optional) // commit do not have optional fields.
+	return ft
 }
 
 func IsCommitType(t *types.Type) bool {
