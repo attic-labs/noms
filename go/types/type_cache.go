@@ -376,42 +376,20 @@ func MakeMapType(keyType, valType *Type) *Type {
 	return staticTypeCache.getCompoundType(MapKind, keyType, valType)
 }
 
-type fieldSorter struct {
-	names     []string
-	types     []*Type
-	optionals []bool
-}
-
-func (fs *fieldSorter) Len() int {
-	return len(fs.names)
-}
-
-func (fs *fieldSorter) Swap(i, j int) {
-	fs.names[i], fs.names[j] = fs.names[j], fs.names[i]
-	fs.types[i], fs.types[j] = fs.types[j], fs.types[i]
-	fs.optionals[i], fs.optionals[j] = fs.optionals[j], fs.optionals[i]
-}
-
-func (fs *fieldSorter) Less(i, j int) bool {
-	return fs.names[i] < fs.names[j]
-}
-
 type FieldMap map[string]*Type
 
 func MakeStructTypeFromFields(name string, fields FieldMap) *Type {
-	// I'm the computer
-	names := make([]string, 0, len(fields))
-	types := make([]*Type, 0, len(fields))
-	optionals := make([]bool, len(fields)) // all required
+	fs := make(structFields, len(fields))
+	i := 0
 	for k, v := range fields {
-		names = append(names, k)
-		types = append(types, v)
+		fs[i] = StructField{k, v, false}
+		i++
 	}
-	fs := fieldSorter{names, types, optionals}
 	sort.Sort(&fs)
-	return MakeStructType(name, names, types)
+	return staticTypeCache.makeStructType(name, fs)
 }
 
+// MakeStructType is deprecated. Use MakeStructType2 for now.
 func MakeStructType(name string, fieldNames []string, fieldTypes []*Type) *Type {
 	staticTypeCache.Lock()
 	defer staticTypeCache.Unlock()
@@ -441,15 +419,6 @@ func (s structFields) Less(i, j int) bool { return s[i].Name < s[j].Name }
 func MakeStructType2(name string, fields ...StructField) *Type {
 	staticTypeCache.Lock()
 	defer staticTypeCache.Unlock()
-
-	names := make([]string, len(fields))
-	types := make([]*Type, len(fields))
-	optionals := make([]bool, len(fields))
-	for i, field := range fields {
-		names[i] = field.Name
-		types[i] = field.Type
-		optionals[i] = field.Optional
-	}
 
 	fs := structFields(fields)
 	sort.Sort(&fs)

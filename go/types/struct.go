@@ -15,7 +15,7 @@ import (
 	"github.com/attic-labs/noms/go/hash"
 )
 
-var EmptyStructType = MakeStructType("", []string{}, []*Type{})
+var EmptyStructType = MakeStructType2("")
 var EmptyStruct = Struct{ValueSlice{}, EmptyStructType, &hash.Hash{}}
 
 type StructData map[string]Value
@@ -35,14 +35,14 @@ func NewStruct(name string, data StructData) Struct {
 	}
 
 	sort.Sort(fieldNames)
-	fieldTypes := make([]*Type, len(data))
+	fields := make(structFields, len(data))
 	values := make(ValueSlice, len(data))
-	for i, fn := range fieldNames {
-		fieldTypes[i] = data[fn].Type()
-		values[i] = data[fn]
+	for i, name := range fieldNames {
+		fields[i] = StructField{name, data[name].Type(), false}
+		values[i] = data[name]
 	}
 
-	return Struct{values, MakeStructType(name, fieldNames, fieldTypes), &hash.Hash{}}
+	return Struct{values, MakeStructType2(name, fields...), &hash.Hash{}}
 }
 
 func NewStructWithType(t *Type, data ValueSlice) Struct {
@@ -150,19 +150,17 @@ func (s Struct) Delete(n string) Struct {
 	}
 
 	values := make([]Value, len(s.values)-1)
-	fieldNames := make([]string, len(s.values)-1)
-	fieldTypes := make([]*Type, len(s.values)-1)
+	fields := make(structFields, len(s.values)-1)
 	j := 0
 	for i, v := range s.values {
 		if i != idx {
 			values[j] = v
-			fieldNames[j] = desc.fields[i].Name
-			fieldTypes[j] = desc.fields[i].Type
+			fields[j] = StructField{desc.fields[i].Name, desc.fields[i].Type, false}
 			j++
 		}
 	}
 
-	newType := MakeStructType(s.desc().Name, fieldNames, fieldTypes)
+	newType := MakeStructType2(s.desc().Name, fields...)
 	return NewStructWithType(newType, values)
 }
 

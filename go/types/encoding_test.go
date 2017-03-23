@@ -530,7 +530,7 @@ func TestWriteListOfStruct(t *testing.T) {
 }
 
 func TestWriteListOfUnionWithType(t *testing.T) {
-	structType := MakeStructType("S", []string{"x"}, []*Type{NumberType})
+	structType := MakeStructType2("S", StructField{"x", NumberType, false})
 
 	assertEncoding(t,
 		[]interface{}{
@@ -577,13 +577,10 @@ func nomsTestWriteRecursiveStruct(t *testing.T) {
 	//   v: Number
 	// }
 
-	structType := MakeStructType("A6",
-		[]string{"cs", "v"},
-		[]*Type{
-			MakeListType(MakeCycleType(0)),
-			NumberType,
-		})
-
+	structType := MakeStructType2("A6",
+		StructField{"cs", MakeListType(MakeCycleType(0)), false},
+		StructField{"v", NumberType, false},
+	)
 	assertEncoding(t,
 		[]interface{}{
 			uint8(StructKind), "A6", uint32(2) /* len */, "cs", uint8(ListKind), uint8(CycleKind), uint32(0), "v", uint8(NumberKind),

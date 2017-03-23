@@ -308,19 +308,14 @@ func TestRecursiveStruct(t *testing.T) {
 	//   }
 	// }
 
-	a := MakeStructType("A",
-		[]string{"b", "c", "d"},
-		[]*Type{
-			MakeCycleType(0),
-			MakeListType(MakeCycleType(0)),
-			MakeStructType("D",
-				[]string{"e", "f"},
-				[]*Type{
-					MakeCycleType(0),
-					MakeCycleType(1),
-				},
-			),
-		})
+	a := MakeStructType2("A",
+		StructField{"b", MakeCycleType(0), false},
+		StructField{"c", MakeListType(MakeCycleType(0)), false},
+		StructField{"d", MakeStructType2("D",
+			StructField{"e", MakeCycleType(0), false},
+			StructField{"f", MakeCycleType(1), false},
+		), false},
+	)
 
 	assertWriteHRSEqual(t, `struct A {
   b: Cycle<0>,
@@ -364,13 +359,10 @@ func TestUnresolvedRecursiveStruct(t *testing.T) {
 	//   a: A
 	//   b: Cycle<1> (unresolved)
 	// }
-
-	a := MakeStructType("A",
-		[]string{"a", "b"},
-		[]*Type{
-			MakeCycleType(0),
-			MakeCycleType(1),
-		})
+	a := MakeStructType2("A",
+		StructField{"a", MakeCycleType(0), false},
+		StructField{"b", MakeCycleType(1), false},
+	)
 
 	assertWriteHRSEqual(t, `struct A {
   a: Cycle<0>,
@@ -398,7 +390,7 @@ func TestWriteHumanReadableWriterError(t *testing.T) {
 }
 
 func TestEmptyCollections(t *testing.T) {
-	a := MakeStructType("Nothing", []string{}, []*Type{})
+	a := MakeStructType2("Nothing")
 	assertWriteTaggedHRSEqual(t, "Type(struct Nothing {})", a)
 	b := NewStruct("Rien", StructData{})
 	assertWriteTaggedHRSEqual(t, "struct Rien {}({})", b)

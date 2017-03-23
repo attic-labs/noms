@@ -76,13 +76,13 @@ func TestTypeCacheRef(t *testing.T) {
 func TestTypeCacheStruct(t *testing.T) {
 	assert := assert.New(t)
 
-	st := MakeStructType("Foo",
-		[]string{"bar", "foo"},
-		[]*Type{StringType, NumberType},
+	st := MakeStructType2("Foo",
+		StructField{"bar", StringType, false},
+		StructField{"foo", NumberType, false},
 	)
-	st2 := MakeStructType("Foo",
-		[]string{"bar", "foo"},
-		[]*Type{StringType, NumberType},
+	st2 := MakeStructType2("Foo",
+		StructField{"bar", StringType, false},
+		StructField{"foo", NumberType, false},
 	)
 
 	assert.True(st == st2)
@@ -106,17 +106,11 @@ func TestTypeCacheUnion(t *testing.T) {
 func TestTypeCacheCyclicStruct(t *testing.T) {
 	assert := assert.New(t)
 
-	st := MakeStructType("Foo",
-		[]string{"foo"},
-		[]*Type{MakeRefType(MakeCycleType(0))},
-	)
+	st := MakeStructType2("Foo", StructField{"foo", MakeRefType(MakeCycleType(0)), false})
 	assert.True(st == st.Desc.(StructDesc).fields[0].Type.Desc.(CompoundDesc).ElemTypes[0])
 	assert.False(st.HasUnresolvedCycle())
 
-	st2 := MakeStructType("Foo",
-		[]string{"foo"},
-		[]*Type{MakeRefType(MakeCycleType(0))},
-	)
+	st2 := MakeStructType2("Foo", StructField{"foo", MakeRefType(MakeCycleType(0)), false})
 	assert.True(st2 == st2.Desc.(StructDesc).fields[0].Type.Desc.(CompoundDesc).ElemTypes[0])
 	assert.True(st == st2)
 }
@@ -128,12 +122,9 @@ func TestTypeCacheCyclicStruct2(t *testing.T) {
 	//   bar: Cycle<1>
 	//   foo: Cycle<0>
 	// }
-	st := MakeStructType("Foo",
-		[]string{"bar", "foo"},
-		[]*Type{
-			MakeCycleType(1),
-			MakeCycleType(0),
-		},
+	st := MakeStructType2("Foo",
+		StructField{"bar", MakeCycleType(1), false},
+		StructField{"foo", MakeCycleType(0), false},
 	)
 	assert.True(st.HasUnresolvedCycle())
 	// foo ref is cyclic
@@ -146,12 +137,9 @@ func TestTypeCacheCyclicStruct2(t *testing.T) {
 	//     foo: Cycle<0>
 	//   }
 	// }
-	st2 := MakeStructType("Bar",
-		[]string{"baz", "foo"},
-		[]*Type{
-			MakeCycleType(1),
-			st,
-		},
+	st2 := MakeStructType2("Bar",
+		StructField{"baz", MakeCycleType(1), false},
+		StructField{"foo", st, false},
 	)
 	assert.True(st2.HasUnresolvedCycle())
 	// foo ref is cyclic
@@ -169,12 +157,9 @@ func TestTypeCacheCyclicStruct2(t *testing.T) {
 	//   }
 	//   baz: Cycle<0>
 	// }
-	st3 := MakeStructType("Baz",
-		[]string{"bar", "baz"},
-		[]*Type{
-			st2,
-			MakeCycleType(0),
-		},
+	st3 := MakeStructType2("Baz",
+		StructField{"bar", st2, false},
+		StructField{"baz", MakeCycleType(0), false},
 	)
 	assert.False(st3.HasUnresolvedCycle())
 
@@ -192,10 +177,7 @@ func TestTypeCacheCyclicUnions(t *testing.T) {
 	assert := assert.New(t)
 
 	ut := MakeUnionType(MakeCycleType(0), NumberType, StringType, BoolType, BlobType, ValueType, TypeType)
-	st := MakeStructType("Foo",
-		[]string{"foo"},
-		[]*Type{ut},
-	)
+	st := MakeStructType2("Foo", StructField{"foo", ut, false})
 
 	assert.True(ut.Desc.(CompoundDesc).ElemTypes[6].Kind() == CycleKind)
 	// That the Struct / Cycle landed in index 5 was found empirically.
@@ -205,10 +187,7 @@ func TestTypeCacheCyclicUnions(t *testing.T) {
 
 	// Note that the union in this second case is created with a different ordering of its type arguments.
 	ut2 := MakeUnionType(NumberType, StringType, BoolType, BlobType, ValueType, TypeType, MakeCycleType(0))
-	st2 := MakeStructType("Foo",
-		[]string{"foo"},
-		[]*Type{ut2},
-	)
+	st2 := MakeStructType2("Foo", StructField{"foo", ut2, false})
 	assert.True(ut2.Desc.(CompoundDesc).ElemTypes[6].Kind() == CycleKind)
 	assert.True(st2 == st2.Desc.(StructDesc).fields[0].Type.Desc.(CompoundDesc).ElemTypes[5])
 	assert.False(ut2 == st2.Desc.(StructDesc).fields[0].Type)
@@ -220,9 +199,13 @@ func TestTypeCacheCyclicUnions(t *testing.T) {
 func TestNonNormalizedCycles(t *testing.T) {
 	assert := assert.New(t)
 
-	t1 := MakeStructType("A",
-		[]string{"a"},
-		[]*Type{MakeStructType("A", []string{"a"}, []*Type{MakeCycleType(1)})})
+	t1 := MakeStructType2("A",
+		StructField{
+			"a",
+			MakeStructType2("A", StructField{"a", MakeCycleType(1), false}),
+			false,
+		},
+	)
 	t2 := t1.Desc.(StructDesc).fields[0].Type
 	assert.True(t1.Equals(t2))
 }
