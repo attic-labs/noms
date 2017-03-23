@@ -339,7 +339,6 @@ type field struct {
 	index     int
 	nomsType  *types.Type
 	omitEmpty bool
-	optional  bool
 }
 
 type fieldSlice []field
@@ -448,7 +447,6 @@ func typeFields(t reflect.Type, parentStructTypes []reflect.Type, options encode
 			index:     i,
 			nomsType:  nt,
 			omitEmpty: tags.omitEmpty,
-			optional:  tags.omitEmpty,
 		})
 
 	}
@@ -459,7 +457,7 @@ func typeFields(t reflect.Type, parentStructTypes []reflect.Type, options encode
 			structFields[i] = types.StructField{
 				Name:     fs.name,
 				Type:     fs.nomsType,
-				Optional: fs.optional,
+				Optional: fs.omitEmpty,
 			}
 		}
 		structType = types.MakeStructType2(strings.Title(t.Name()), structFields...)

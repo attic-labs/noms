@@ -172,7 +172,7 @@ func simplifyMaps(ts typeset) *Type {
 }
 
 func simplifyStructs(expectedName string, ts typeset) *Type {
-	// We gather all the fields/types into commonFields. If the number of
+	// We gather all the fields/types into allFields. If the number of
 	// times a field name is present is less that then number of types we
 	// are simplifying then the field must be optional.
 	// If we see an optional field we do not increment the count for it and
@@ -181,14 +181,14 @@ func simplifyStructs(expectedName string, ts typeset) *Type {
 		count   int
 		typeset typeset
 	}
-	commonFields := map[string]fieldTypeInfo{}
+	allFields := map[string]fieldTypeInfo{}
 
 	for t := range ts {
 		d.Chk.True(StructKind == t.Kind())
 		desc := t.Desc.(StructDesc)
 		d.Chk.True(expectedName == desc.Name)
 		desc.IterFields(func(name string, t *Type, optional bool) {
-			fti, ok := commonFields[name]
+			fti, ok := allFields[name]
 			if !ok {
 				fti = fieldTypeInfo{
 					count:   0,
@@ -199,13 +199,13 @@ func simplifyStructs(expectedName string, ts typeset) *Type {
 			if !optional {
 				fti.count++
 			}
-			commonFields[name] = fti
+			allFields[name] = fti
 		})
 	}
 
 	count := len(ts)
 	fields := make(structFields, 0, count)
-	for name, fti := range commonFields {
+	for name, fti := range allFields {
 		fields = append(fields, StructField{
 			Name:     name,
 			Type:     makeSimplifiedTypeImpl(fti.typeset),

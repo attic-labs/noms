@@ -332,8 +332,6 @@ func (suite *QueryGraphQLSuite) TestListOfUnionOfScalars() {
 	suite.assertQueryResult(list, "{root{values{... on BooleanValue{b: scalarValue} ... on StringValue{s: scalarValue} ... on NumberValue{n: scalarValue}}}}", `{"data":{"root":{"values":[{"n":28},{"s":"bar"},{"b":true}]}}}`)
 }
 
-// TODO: Add tests for List<struct S { x?: Number }> but I need to do type simplification first!
-
 func (suite *QueryGraphQLSuite) TestCyclicStructs() {
 	typ := types.MakeStructTypeFromFields("A", types.FieldMap{
 		"a": types.StringType,
