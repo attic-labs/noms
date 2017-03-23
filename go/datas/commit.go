@@ -115,6 +115,23 @@ func findCommonRef(a, b types.RefSlice) types.Ref {
 	return types.Ref{}
 }
 
+func makeCommitStructType(metaType, parentsType, valueType *types.Type) *types.Type {
+	return types.MakeStructType2("Commit",
+		types.StructField{
+			Name: MetaField,
+			Type: metaType,
+		},
+		types.StructField{
+			Name: ParentsField,
+			Type: parentsType,
+		},
+		types.StructField{
+			Name: ValueField,
+			Type: valueType,
+		},
+	)
+}
+
 func makeCommitType(valueType *types.Type, parentsValueTypes []*types.Type, metaType *types.Type, parentsMetaTypes []*types.Type) *types.Type {
 	tmp := make([]*types.Type, len(parentsValueTypes), len(parentsValueTypes)+1)
 	copy(tmp, parentsValueTypes)
@@ -126,25 +143,24 @@ func makeCommitType(valueType *types.Type, parentsValueTypes []*types.Type, meta
 	tmp2 = append(tmp2, metaType)
 	parentsMetaUnionType := types.MakeUnionType(tmp2...)
 
-	fieldNames := []string{MetaField, ParentsField, ValueField}
 	var parentsType *types.Type
 	if parentsValueUnionType.Equals(valueType) && parentsMetaUnionType.Equals(metaType) {
 		parentsType = types.MakeSetType(types.MakeRefType(types.MakeCycleType(0)))
 	} else {
 		parentsType = types.MakeSetType(types.MakeRefType(
-			types.MakeStructType("Commit", fieldNames, []*types.Type{
+			makeCommitStructType(
 				parentsMetaUnionType,
 				types.MakeSetType(types.MakeRefType(types.MakeCycleType(0))),
 				parentsValueUnionType,
-			})))
+			),
+		))
 	}
-	fieldTypes := []*types.Type{
+
+	return makeCommitStructType(
 		metaType,
 		parentsType,
 		valueType,
-	}
-
-	return types.MakeStructType("Commit", fieldNames, fieldTypes)
+	)
 }
 
 func valueTypesFromParents(parents types.Set, fieldName string) []*types.Type {

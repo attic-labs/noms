@@ -148,14 +148,15 @@ func migrateType(source *v7types.Type) *types.Type {
 	case v7types.StructKind:
 		source = v7types.ToUnresolvedType(source)
 		sd := source.Desc.(v7types.StructDesc)
-		names := make([]string, 0, sd.Len())
-		typs := make([]*types.Type, 0, sd.Len())
+		fields := make([]types.StructField, 0, sd.Len())
 		sd.IterFields(func(name string, t *v7types.Type, optional bool) {
 			d.PanicIfTrue(optional) // v7 did not have optional fields.
-			names = append(names, name)
-			typs = append(typs, migrateType(t))
+			fields = append(fields, types.StructField{
+				Name: name,
+				Type: migrateType(t),
+			})
 		})
-		return types.MakeStructType(sd.Name, names, typs)
+		return types.MakeStructType2(sd.Name, fields...)
 	case v7types.CycleKind:
 		return types.MakeCycleType(uint32(source.Desc.(types.CycleDesc)))
 	}

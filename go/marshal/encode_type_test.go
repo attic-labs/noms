@@ -246,10 +246,16 @@ func TestMarshalTypeRecursive(t *testing.T) {
 	typ, err := MarshalType(n)
 	assert.NoError(err)
 
-	typ2 := types.MakeStructType("Node", []string{"children", "value"}, []*types.Type{
-		types.MakeListType(types.MakeCycleType(0)),
-		types.NumberType,
-	})
+	typ2 := types.MakeStructType2("Node",
+		types.StructField{
+			Name: "children",
+			Type: types.MakeListType(types.MakeCycleType(0)),
+		},
+		types.StructField{
+			Name: "value",
+			Type: types.NumberType,
+		},
+	)
 	assert.True(typ2.Equals(typ))
 }
 
