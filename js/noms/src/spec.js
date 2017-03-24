@@ -6,12 +6,26 @@
 
 import AbsolutePath from './absolute-path.js';
 import {invariant} from './assert.js';
+import type {BatchStore} from './batch-store.js';
 import {BatchStoreAdaptor} from './batch-store.js';
 import Dataset, {datasetRe} from './dataset.js';
 import Database from './database.js';
 import HttpBatchStore, {DEFAULT_MAX_READS} from './http-batch-store.js';
 import MemoryStore from './memory-store.js';
 import type Value from './value.js';
+import RefCountingBatchStore from './ref-counting-batch-store.js';
+
+// Cache of database URL -> Database object. It's reasonable for clients to
+// open a spec without worrying about whether the Database is already open.
+const batchStores: {[key: string]: RefCountingBatchStore} = Object.create(null);
+
+// Override creation of batch stores for tests.
+type createBatchStoreFunc = () => BatchStore;
+
+let createBatchStoreForTest: ?createBatchStoreFunc;
+export function setCreateBatchStoreForTest(func: ?createBatchStoreFunc) {
+  createBatchStoreForTest = func;
+}
 
 // TODO: Change databaseName() -> get databaseName, database() -> getDatabase().
 // TODO: Change databaseName to include prefix // for http/https protocols,
@@ -242,12 +256,39 @@ export default class Spec {
   }
 
   _createDatabase(): Database {
-    let batchStore;
+    let bs;
+
+    if (this.isHttp()) {
+      const url = this.url;
+      bs = batchStores[url];
+      if (!bs) {
+        bs = new RefCountingBatchStore(this._createBatchStore(), () => {
+          delete batchStores[url];
+        });
+        batchStores[url] = bs;
+      } else {
+        bs.addRef();
+      }
+    } else {
+      bs = this._createBatchStore();
+    }
+
+    let cacheSize;
+    if (this._opts && this._opts.cacheSize) {
+      cacheSize = this._opts.cacheSize;
+    }
+
+    return new Database(bs, cacheSize);
+  }
+
+  _createBatchStore(): BatchStore {
+    if (createBatchStoreForTest) {
+      return createBatchStoreForTest();
+    }
 
     switch (this._protocol) {
       case 'mem':
-        batchStore = new BatchStoreAdaptor(new MemoryStore());
-        break;
+        return new BatchStoreAdaptor(new MemoryStore());
 
       case 'http':
       case 'https': {
@@ -259,21 +300,32 @@ export default class Spec {
             },
           };
         }
-        const url = `${this._protocol}://${this._databaseName}`;
-        batchStore = new HttpBatchStore(url, DEFAULT_MAX_READS, fetchOptions);
-        break;
+        return new HttpBatchStore(this.url, DEFAULT_MAX_READS, fetchOptions);
       }
 
       default:
         throw new Error('unreachable');
     }
+  }
 
-    let cacheSize;
-    if (this._opts && this._opts.cacheSize) {
-      cacheSize = this._opts.cacheSize;
+  /**
+   * Returns the full URL of this spec, if the spec is to an http(s) store.
+   * Otherwise, throws an error.
+   */
+  get url(): string {
+    // It would be nice if this actually returned a URL object, not a string,
+    // but that isn't available in all environments.
+    if (!this.isHttp()) {
+      throw new Error(this._protocol + ' is not an http or https protocol');
     }
+    return `${this._protocol}://${this._databaseName}`;
+  }
 
-    return new Database(batchStore, cacheSize);
+  /**
+   * Returns true if this is an http or https spec.
+   */
+  isHttp(): boolean {
+    return this._protocol === 'http' || this._protocol === 'https';
   }
 }
 

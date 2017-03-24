@@ -9,9 +9,11 @@ import {suite, test} from './jest.js';
 import {invariant} from './assert.js';
 import {getHash} from './get-hash.js';
 import List from './list.js';
-import Spec from './spec.js';
+import Spec, {setCreateBatchStoreForTest} from './spec.js';
 import Struct, {StructMirror} from './struct.js';
 import type Value from './value.js';
+import MemoryStore from './memory-store.js';
+import {BatchStoreAdaptor} from './batch-store.js';
 
 const assertThrowsSyntaxError = (parse, s) => {
   let msg = '';
@@ -227,6 +229,20 @@ suite('Spec', () => {
     }
   });
 
+  test('isHttp/url', () => {
+    let sp = Spec.forDataset('http://ex.com::foobar');
+    assert.isTrue(sp.isHttp());
+    assert.strictEqual('http://ex.com', sp.url);
+
+    sp = Spec.forPath('https://ex.com::foobar.value');
+    assert.isTrue(sp.isHttp());
+    assert.strictEqual('https://ex.com', sp.url);
+
+    sp = Spec.forPath('mem::foo.value');
+    assert.isFalse(sp.isHttp());
+    assert.throws(() => sp.url);
+  });
+
   test('pin path spec', async () => {
     const unpinned = Spec.forPath('mem::foo.value');
 
@@ -286,4 +302,83 @@ suite('Spec', () => {
     const spec = Spec.forPath('mem::#imgp9mp1h3b9nv0gna6mri53dlj9f4ql.value');
     assert.strictEqual(spec, await spec.pin());
   });
+
+  test('http ref counting', async () => {
+    let constructorCount: number, isClosed: boolean;
+
+    const reset = () => {
+      constructorCount = 0;
+      isClosed = false;
+
+      setCreateBatchStoreForTest(() => {
+        constructorCount++;
+        return new closingBatchStore(() => {
+          isClosed = true;
+        });
+      });
+    };
+
+    try {
+      reset();
+
+      // Correctly ref counted.
+      const sp1 = Spec.forDatabase('http://example.com');
+      const sp2 = Spec.forDataset('http://example.com::dataset');
+      const sp3 = Spec.forPath('http://example.com::dataset.value');
+      sp1.database() && sp2.database() && sp3.database();
+      assert.strictEqual(1, constructorCount);
+
+      await sp1.close();
+      await sp2.close();
+      assert.isFalse(isClosed);
+      await sp3.close();
+      assert.isTrue(isClosed);
+
+      // Correctly ref counted after closed.
+      reset();
+
+      const sp4 = Spec.forDatabase('http://example.com');
+      sp4.database();
+      assert.strictEqual(1, constructorCount);
+
+      assert.isFalse(isClosed);
+      await sp4.close();
+      assert.isTrue(isClosed);
+
+      // http and https are separate.
+      reset();
+
+      const sp5 = Spec.forDatabase('http://example.com');
+      const sp6 = Spec.forDatabase('https://example.com');
+      sp5.database() && sp6.database();
+      assert.strictEqual(2, constructorCount);
+
+      // mem is not ref counted.
+      reset();
+
+      const sp7 = Spec.forDatabase('mem');
+      const sp8 = Spec.forDatabase('mem');
+      sp7.database() && sp8.database();
+      assert.strictEqual(2, constructorCount);
+
+    } finally {
+      setCreateBatchStoreForTest(null);
+    }
+  });
 });
+
+// For the 'http ref counting' test.
+class closingBatchStore extends BatchStoreAdaptor {
+  cb: () => any;
+
+  constructor(cb: () => any) {
+    super(new MemoryStore());
+    this.cb = cb;
+  }
+
+  // Override
+  close(): Promise<void> {
+    this.cb();
+    return super.close();
+  }
+}
