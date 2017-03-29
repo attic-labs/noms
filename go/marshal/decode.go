@@ -75,10 +75,11 @@ func Unmarshal(v types.Value, out interface{}) (err error) {
 		}
 	}()
 
-	rv, err := valueOfElem(out)
-	if err != nil {
-		return err
+	rv := reflect.ValueOf(out)
+	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		return &InvalidUnmarshalError{reflect.TypeOf(out)}
 	}
+	rv = rv.Elem()
 	d := typeDecoder(rv.Type(), nomsTags{})
 	d(v, rv)
 	return
@@ -87,22 +88,13 @@ func Unmarshal(v types.Value, out interface{}) (err error) {
 // Unmarshals a Noms value into a Go value using the same rules as Unmarshal().
 // Panics on failure.
 func MustUnmarshal(v types.Value, out interface{}) {
-	rv, err := valueOfElem(out)
-	if err != nil {
-		panic(err)
+	rv := reflect.ValueOf(out)
+	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		panic(&InvalidUnmarshalError{reflect.TypeOf(out)})
 	}
+	rv = rv.Elem()
 	d := typeDecoder(rv.Type(), nomsTags{})
 	d(v, rv)
-}
-
-func valueOfElem(out interface{}) (rv reflect.Value, err error) {
-	rv = reflect.ValueOf(out)
-	if rv.Kind() != reflect.Ptr || rv.IsNil() {
-		err = &InvalidUnmarshalError{reflect.TypeOf(out)}
-	} else {
-		rv = rv.Elem()
-	}
-	return
 }
 
 // Unmarshaler is an interface types can implement to provide their own
