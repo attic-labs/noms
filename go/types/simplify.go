@@ -180,9 +180,9 @@ func simplifyStructs(expectedName string, ts typeset, intersectStructs bool) *Ty
 
 	// If intersectStructs is true we need to pick the more restrictive version (n: T over n?: T).
 	type fieldTypeInfo struct {
-		anyRequired bool
-		count       int
-		typeset     typeset
+		anyNonOptional bool
+		count          int
+		typeset        typeset
 	}
 	allFields := map[string]fieldTypeInfo{}
 
@@ -201,7 +201,7 @@ func simplifyStructs(expectedName string, ts typeset, intersectStructs bool) *Ty
 			fti.typeset.Add(t)
 			if !optional {
 				fti.count++
-				fti.anyRequired = true
+				fti.anyNonOptional = true
 			}
 			allFields[name] = fti
 		})
@@ -213,7 +213,7 @@ func simplifyStructs(expectedName string, ts typeset, intersectStructs bool) *Ty
 		fields = append(fields, StructField{
 			Name:     name,
 			Type:     makeSimplifiedTypeImpl(fti.typeset, intersectStructs),
-			Optional: !(intersectStructs && fti.anyRequired) && fti.count < count,
+			Optional: !(intersectStructs && fti.anyNonOptional) && fti.count < count,
 		})
 	}
 
