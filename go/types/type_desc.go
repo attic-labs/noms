@@ -145,6 +145,9 @@ func unionLess(ti, tj *Type) bool {
 			// Due to type simplification, the only thing that matters is the name of the struct.
 			return ti.Desc.(StructDesc).Name < tj.Desc.(StructDesc).Name
 		}
+		if ki == CycleKind {
+			return ti.Desc.(CycleDesc) < tj.Desc.(CycleDesc)
+		}
 
 		return false
 	}
