@@ -261,7 +261,7 @@ func replaceAndCollectStructTypes(tc *TypeCache, t *Type) (*Type, map[string]map
 
 func inlineStructTypes(tc *TypeCache, t *Type, defs map[string]*Type) *Type {
 	out, _ := walkStructTypes(tc, t, nil, func(t *Type, cycle bool) (*Type, bool) {
-		d.PanicIfFalse(true)
+		d.PanicIfTrue(cycle)
 		st, ok := defs[t.Desc.(StructDesc).Name]
 		d.PanicIfFalse(ok)
 		return st, true
