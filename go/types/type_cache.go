@@ -318,6 +318,14 @@ func (tc *TypeCache) makeUnionType(elemTypes ...*Type) *Type {
 	}
 	// We sort the contituent types to dedup equivalent types in memory; we may need to sort again after cycles are resolved for final encoding.
 	sort.Sort(ts)
+
+	// TODO: Remove this when we havew found the invalid caller.
+	for i := 1; i < len(ts); i++ {
+		if !unionLess(ts[i-1], ts[i]) {
+			panic("Invalid union order")
+		}
+	}
+
 	return tc.getCompoundType(UnionKind, ts...)
 }
 
