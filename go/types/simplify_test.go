@@ -16,13 +16,13 @@ import (
 //   - test cycles
 
 func simplifyRefs(ts typeset, intersectStructs bool) *Type {
-	return staticTypeCache.simplifyRefs(ts, intersectStructs)
+	return staticTypeCache.simplifyContainers(RefKind, ts, intersectStructs)
 }
 func simplifySets(ts typeset, intersectStructs bool) *Type {
-	return staticTypeCache.simplifySets(ts, intersectStructs)
+	return staticTypeCache.simplifyContainers(SetKind, ts, intersectStructs)
 }
 func simplifyLists(ts typeset, intersectStructs bool) *Type {
-	return staticTypeCache.simplifyLists(ts, intersectStructs)
+	return staticTypeCache.simplifyContainers(ListKind, ts, intersectStructs)
 }
 
 func simplifyMaps(ts typeset, intersectStructs bool) *Type {

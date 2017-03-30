@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/attic-labs/noms/go/d"
@@ -114,11 +113,11 @@ func (tc *TypeCache) makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *
 		var r *Type
 		switch h.k {
 		case RefKind:
-			r = tc.simplifyRefs(ts, intersectStructs)
+			r = tc.simplifyContainers(h.k, ts, intersectStructs)
 		case SetKind:
-			r = tc.simplifySets(ts, intersectStructs)
+			r = tc.simplifyContainers(h.k, ts, intersectStructs)
 		case ListKind:
-			r = tc.simplifyLists(ts, intersectStructs)
+			r = tc.simplifyContainers(h.k, ts, intersectStructs)
 		case MapKind:
 			r = tc.simplifyMaps(ts, intersectStructs)
 		case StructKind:
@@ -138,39 +137,25 @@ func (tc *TypeCache) makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *
 
 	sort.Sort(out)
 
-	for i := 1; i < len(out); i++ {
-		if !unionLess(out[i-1], out[i]) {
-			fmt.Println(out[i-1].Describe(), out[i].Describe())
-			fmt.Println(out[i-1].Equals(out[i]))
-			fmt.Println(out[i-1] == out[i])
-			panic("WAT")
-		}
-	}
+	tc.Lock()
+	defer tc.Unlock()
 
-	// staticTypeCache.Lock()
-	// defer staticTypeCache.Unlock()
 	return tc.getCompoundType(UnionKind, out...)
 }
 
-func (tc *TypeCache) simplifyRefs(ts typeset, intersectStructs bool) *Type {
-	return tc.simplifyContainers(RefKind, MakeRefType, ts, intersectStructs)
-}
-
-func (tc *TypeCache) simplifySets(ts typeset, intersectStructs bool) *Type {
-	return tc.simplifyContainers(SetKind, MakeSetType, ts, intersectStructs)
-}
-
-func (tc *TypeCache) simplifyLists(ts typeset, intersectStructs bool) *Type {
-	return tc.simplifyContainers(ListKind, MakeListType, ts, intersectStructs)
-}
-
-func (tc *TypeCache) simplifyContainers(expectedKind NomsKind, makeContainer func(elem *Type) *Type, ts typeset, intersectStructs bool) *Type {
+func (tc *TypeCache) simplifyContainers(expectedKind NomsKind, ts typeset, intersectStructs bool) *Type {
 	elemTypes := make(typeset, len(ts))
 	for _, t := range ts {
 		d.Chk.True(expectedKind == t.Kind())
 		elemTypes.Add(t.Desc.(CompoundDesc).ElemTypes[0])
 	}
-	return makeContainer(tc.makeSimplifiedTypeImpl(elemTypes, intersectStructs))
+
+	elemType := tc.makeSimplifiedTypeImpl(elemTypes, intersectStructs)
+
+	tc.Lock()
+	defer tc.Unlock()
+
+	return tc.getCompoundType(expectedKind, elemType)
 }
 
 func (tc *TypeCache) simplifyMaps(ts typeset, intersectStructs bool) *Type {
@@ -182,9 +167,14 @@ func (tc *TypeCache) simplifyMaps(ts typeset, intersectStructs bool) *Type {
 		keyTypes.Add(desc.ElemTypes[0])
 		valTypes.Add(desc.ElemTypes[1])
 	}
-	return MakeMapType(
-		tc.makeSimplifiedTypeImpl(keyTypes, intersectStructs),
-		tc.makeSimplifiedTypeImpl(valTypes, intersectStructs))
+
+	kt := tc.makeSimplifiedTypeImpl(keyTypes, intersectStructs)
+	vt := tc.makeSimplifiedTypeImpl(valTypes, intersectStructs)
+
+	tc.Lock()
+	defer tc.Unlock()
+
+	return tc.getCompoundType(MapKind, kt, vt)
 }
 
 func (tc *TypeCache) simplifyStructs(expectedName string, ts typeset, intersectStructs bool) *Type {
@@ -233,5 +223,10 @@ func (tc *TypeCache) simplifyStructs(expectedName string, ts typeset, intersectS
 		})
 	}
 
-	return MakeStructType(expectedName, fields...)
+	sort.Sort(fields)
+
+	tc.Lock()
+	defer tc.Unlock()
+
+	return tc.makeStructType(expectedName, fields)
 }

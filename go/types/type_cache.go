@@ -373,18 +373,16 @@ func (s structFields) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s structFields) Less(i, j int) bool { return s[i].Name < s[j].Name }
 
 func MakeStructType(name string, fields ...StructField) *Type {
-	staticTypeCache.Lock()
-	defer staticTypeCache.Unlock()
-
 	fs := structFields(fields)
 	sort.Sort(&fs)
+
+	staticTypeCache.Lock()
+	defer staticTypeCache.Unlock()
 
 	return staticTypeCache.makeStructType(name, fs)
 }
 
 func MakeUnionType(elemTypes ...*Type) *Type {
-	// staticTypeCache.Lock()
-	// defer staticTypeCache.Unlock()
 	return staticTypeCache.makeUnionType(elemTypes...)
 }
 
@@ -393,8 +391,6 @@ func MakeUnionType(elemTypes ...*Type) *Type {
 // types.
 // This function will go away so do not use it!
 func MakeUnionTypeIntersectStructs(elemTypes ...*Type) *Type {
-	// staticTypeCache.Lock()
-	// defer staticTypeCache.Unlock()
 	return staticTypeCache.makeSimplifiedType(true, elemTypes...)
 }
 
