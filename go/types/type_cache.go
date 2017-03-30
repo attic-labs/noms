@@ -307,17 +307,10 @@ func checkForUnresolvedCycles(t, root *Type, parentStructTypes []*Type) {
 	}
 }
 
-// // MakeUnionType creates a new union type unless the elemTypes can be folded into a single non union type.
-// func (tc *TypeCache) makeUnionType(elemTypes ...*Type) *Type {
-// 	seenTypes := map[hash.Hash]bool{}
-// 	ts := flattenUnionTypes(typeSlice(elemTypes), &seenTypes)
-// 	if len(ts) == 1 {
-// 		return ts[0]
-// 	}
-// 	// We sort the contituent types to dedup equivalent types in memory; we may need to sort again after cycles are resolved for final encoding.
-// 	sort.Sort(ts)
-// 	return tc.getCompoundType(UnionKind, ts...)
-// }
+// MakeUnionType creates a new union type unless the elemTypes can be folded into a single non union type.
+func (tc *TypeCache) makeUnionType(elemTypes ...*Type) *Type {
+	return tc.makeSimplifiedType(false, elemTypes...)
+}
 
 func (tc *TypeCache) getCycleType(level uint32) *Type {
 	trie := tc.trieRoots[CycleKind].Traverse(level)
@@ -390,7 +383,9 @@ func MakeStructType(name string, fields ...StructField) *Type {
 }
 
 func MakeUnionType(elemTypes ...*Type) *Type {
-	return makeSimplifiedType(false, elemTypes...)
+	// staticTypeCache.Lock()
+	// defer staticTypeCache.Unlock()
+	return staticTypeCache.makeUnionType(elemTypes...)
 }
 
 // MakeUnionTypeIntersectStructs is a bit of strange function. It creates a
@@ -398,7 +393,9 @@ func MakeUnionType(elemTypes ...*Type) *Type {
 // types.
 // This function will go away so do not use it!
 func MakeUnionTypeIntersectStructs(elemTypes ...*Type) *Type {
-	return makeSimplifiedType(true, elemTypes...)
+	// staticTypeCache.Lock()
+	// defer staticTypeCache.Unlock()
+	return staticTypeCache.makeSimplifiedType(true, elemTypes...)
 }
 
 func MakeCycleType(level uint32) *Type {
