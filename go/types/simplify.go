@@ -1,6 +1,11 @@
 package types
 
-import "github.com/attic-labs/noms/go/d"
+import (
+	"sort"
+
+	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/hash"
+)
 
 // makeSimplifiedType returns a type that is a supertype of all the input types but is much
 // smaller and less complex than a straight union of all those types would be.
@@ -33,6 +38,8 @@ import "github.com/attic-labs/noms/go/d"
 // Anytime any of the above cases generates a union as output, the same process
 // is applied to that union recursively.
 func makeSimplifiedType(intersectStructs bool, in ...*Type) *Type {
+	seenTypes := map[hash.Hash]bool{}
+	in = flattenUnionTypes(in, &seenTypes)
 	ts := make(typeset, len(in))
 	for _, t := range in {
 		// De-cycle so that we handle cycles explicitly below. Otherwise, we would implicitly crawl
@@ -77,7 +84,7 @@ func makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *Type {
 		n string
 	}
 
-	out := make([]*Type, 0, len(in))
+	out := make(typeSlice, 0, len(in))
 	groups := map[how]typeset{}
 	for t := range in {
 		var h how
@@ -131,9 +138,11 @@ func makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *Type {
 		return out[0]
 	}
 
+	sort.Sort(out)
+
 	staticTypeCache.Lock()
 	defer staticTypeCache.Unlock()
-	return staticTypeCache.makeUnionType(out...)
+	return staticTypeCache.getCompoundType(UnionKind, out...)
 }
 
 func simplifyRefs(ts typeset, intersectStructs bool) *Type {
