@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/attic-labs/noms/go/d"
@@ -38,14 +39,12 @@ import (
 // Anytime any of the above cases generates a union as output, the same process
 // is applied to that union recursively.
 func makeSimplifiedType(intersectStructs bool, in ...*Type) *Type {
-	seenTypes := map[hash.Hash]bool{}
-	in = flattenUnionTypes(in, &seenTypes)
 	ts := make(typeset, len(in))
 	for _, t := range in {
 		// De-cycle so that we handle cycles explicitly below. Otherwise, we would implicitly crawl
 		// cycles and recurse forever.
 		ut := ToUnresolvedType(t)
-		ts[ut] = struct{}{}
+		ts.Add(ut)
 	}
 
 	// Impl de-cycles internally.
@@ -54,7 +53,7 @@ func makeSimplifiedType(intersectStructs bool, in ...*Type) *Type {
 
 // typeset is a helper that aggregates the unique set of input types for this algorithm, flattening
 // any unions recursively.
-type typeset map[*Type]struct{}
+type typeset map[hash.Hash]*Type
 
 func (ts typeset) Add(t *Type) {
 	switch t.Kind() {
@@ -63,7 +62,7 @@ func (ts typeset) Add(t *Type) {
 			ts.Add(et)
 		}
 	default:
-		ts[t] = struct{}{}
+		ts[t.Hash()] = t
 	}
 }
 
@@ -86,7 +85,7 @@ func makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *Type {
 
 	out := make(typeSlice, 0, len(in))
 	groups := map[how]typeset{}
-	for t := range in {
+	for _, t := range in {
 		var h how
 		switch t.Kind() {
 		case RefKind, SetKind, ListKind, MapKind:
@@ -107,7 +106,7 @@ func makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *Type {
 
 	for h, ts := range groups {
 		if len(ts) == 1 {
-			for t := range ts {
+			for _, t := range ts {
 				out = append(out, t)
 			}
 			continue
@@ -140,6 +139,15 @@ func makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *Type {
 
 	sort.Sort(out)
 
+	for i := 1; i < len(out); i++ {
+		if !unionLess(out[i-1], out[i]) {
+			fmt.Println(out[i-1].Describe(), out[i].Describe())
+			fmt.Println(out[i-1].Equals(out[i]))
+			fmt.Println(out[i-1] == out[i])
+			panic("WAT")
+		}
+	}
+
 	staticTypeCache.Lock()
 	defer staticTypeCache.Unlock()
 	return staticTypeCache.getCompoundType(UnionKind, out...)
@@ -159,7 +167,7 @@ func simplifyLists(ts typeset, intersectStructs bool) *Type {
 
 func simplifyContainers(expectedKind NomsKind, makeContainer func(elem *Type) *Type, ts typeset, intersectStructs bool) *Type {
 	elemTypes := make(typeset, len(ts))
-	for t := range ts {
+	for _, t := range ts {
 		d.Chk.True(expectedKind == t.Kind())
 		elemTypes.Add(t.Desc.(CompoundDesc).ElemTypes[0])
 	}
@@ -169,7 +177,7 @@ func simplifyContainers(expectedKind NomsKind, makeContainer func(elem *Type) *T
 func simplifyMaps(ts typeset, intersectStructs bool) *Type {
 	keyTypes := make(typeset, len(ts))
 	valTypes := make(typeset, len(ts))
-	for t := range ts {
+	for _, t := range ts {
 		d.Chk.True(MapKind == t.Kind())
 		desc := t.Desc.(CompoundDesc)
 		keyTypes.Add(desc.ElemTypes[0])
@@ -195,7 +203,7 @@ func simplifyStructs(expectedName string, ts typeset, intersectStructs bool) *Ty
 	}
 	allFields := map[string]fieldTypeInfo{}
 
-	for t := range ts {
+	for _, t := range ts {
 		d.Chk.True(StructKind == t.Kind())
 		desc := t.Desc.(StructDesc)
 		d.Chk.True(expectedName == desc.Name)
