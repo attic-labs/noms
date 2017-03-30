@@ -36,6 +36,7 @@ func TestWalkStructTypes(t *testing.T) {
 	test(BlobType, []string{})
 	test(ValueType, []string{})
 	test(TypeType, []string{})
+	test(MakeCycleType(1), []string{})
 
 	test(MakeStructType("A"), []string{"A"})
 	test(MakeListType(MakeStructType("A")), []string{"A"})
