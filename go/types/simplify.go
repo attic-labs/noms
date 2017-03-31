@@ -145,7 +145,6 @@ func (tc *TypeCache) makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *
 
 	tc.Lock()
 	defer tc.Unlock()
-
 	return tc.getCompoundType(UnionKind, out...)
 }
 
@@ -160,7 +159,6 @@ func (tc *TypeCache) simplifyContainers(expectedKind NomsKind, ts typeset, inter
 
 	tc.Lock()
 	defer tc.Unlock()
-
 	return tc.getCompoundType(expectedKind, elemType)
 }
 
@@ -179,7 +177,6 @@ func (tc *TypeCache) simplifyMaps(ts typeset, intersectStructs bool) *Type {
 
 	tc.Lock()
 	defer tc.Unlock()
-
 	return tc.getCompoundType(MapKind, kt, vt)
 }
 
@@ -205,7 +202,7 @@ func removeAndCollectStructFields(tc *TypeCache, t *Type, seen map[*Type]*Type, 
 			return t, false
 		}
 
-		return newType(CompoundDesc{t.Kind(), newElemTypes}, tc.nextTypeId()), true
+		return tc.getCompoundType(t.Kind(), newElemTypes...), true
 
 	case StructKind:
 		newStruct, found := seen[t]
@@ -228,8 +225,8 @@ func removeAndCollectStructFields(tc *TypeCache, t *Type, seen map[*Type]*Type, 
 		newFields := make(structFields, len(desc.fields))
 		changed := false
 		for i, f := range desc.fields {
-			newType, c := removeAndCollectStructFields(tc, f.Type, seen, pendingStructs)
-			newFields[i] = StructField{Name: f.Name, Type: newType, Optional: f.Optional}
+			nt, c := removeAndCollectStructFields(tc, f.Type, seen, pendingStructs)
+			newFields[i] = StructField{Name: f.Name, Type: nt, Optional: f.Optional}
 			changed = changed || c
 		}
 

@@ -375,5 +375,4 @@ func TestSimplifyStructFields(t *testing.T) {
 			StructField{"a", BoolType, true},
 		},
 	)
-
 }
