@@ -50,6 +50,7 @@ func (tc *TypeCache) makeSimplifiedType(intersectStructs bool, in ...*Type) *Typ
 	for _, rec := range pending {
 		desc := rec.t.Desc.(StructDesc)
 		desc.fields = simplifyStructFields(tc, rec.fieldSets, intersectStructs)
+		rec.t.Desc = desc
 	}
 	return result
 }
@@ -141,12 +142,6 @@ func (tc *TypeCache) makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *
 	}
 
 	sort.Sort(out)
-
-	for i := 1; i < len(out); i++ {
-		if !unionLess(out[i-1], out[i]) {
-			panic("Invalid union order!!!")
-		}
-	}
 
 	tc.Lock()
 	defer tc.Unlock()
