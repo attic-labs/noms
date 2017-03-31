@@ -38,15 +38,21 @@ import (
 // Anytime any of the above cases generates a union as output, the same process
 // is applied to that union recursively.
 func (tc *TypeCache) makeSimplifiedType(intersectStructs bool, in ...*Type) *Type {
+	seen := map[*Type]*Type{}
+	pending := map[string]*unsimplifiedStruct{}
+
 	ts := make(typeset, len(in))
 	for _, t := range in {
-		// De-cycle so that we handle cycles explicitly below. Otherwise, we would implicitly crawl
-		// cycles and recurse forever.
-		ts.Add(ToUnresolvedType(t))
+		out, _ := removeAndCollectStructFields(tc, t, seen, pending)
+		ts.Add(out)
 	}
 
-	// Impl de-cycles internally.
-	return tc.makeSimplifiedTypeImpl(ts, intersectStructs)
+	result := tc.makeSimplifiedTypeImpl(ts, intersectStructs)
+	for _, rec := range pending {
+		desc := rec.t.Desc.(StructDesc)
+		desc.fields = simplifyStructFields(tc, rec.fieldSets, intersectStructs)
+	}
+	return result
 }
 
 // typeset is a helper that aggregates the unique set of input types for this algorithm, flattening
