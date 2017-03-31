@@ -53,19 +53,19 @@ func (r *valueDecoder) readTypeInner() *Type {
 	k := r.readKind()
 	switch k {
 	case ListKind:
-		return getCompoundType(ListKind, r.readType())
+		return makeCompoundType(ListKind, r.readType())
 	case MapKind:
-		return getCompoundType(MapKind, r.readType(), r.readType())
+		return makeCompoundType(MapKind, r.readType(), r.readType())
 	case RefKind:
-		return getCompoundType(RefKind, r.readType())
+		return makeCompoundType(RefKind, r.readType())
 	case SetKind:
-		return getCompoundType(SetKind, r.readType())
+		return makeCompoundType(SetKind, r.readType())
 	case StructKind:
 		return r.readStructType()
 	case UnionKind:
 		return r.readUnionType()
 	case CycleKind:
-		return getCycleType(r.readUint32())
+		return MakeCycleType(r.readUint32())
 	}
 
 	d.PanicIfFalse(IsPrimitiveKind(k))
@@ -223,5 +223,5 @@ func (r *valueDecoder) readUnionType() *Type {
 	for i := uint32(0); i < l; i++ {
 		ts[i] = r.readType()
 	}
-	return getCompoundType(UnionKind, ts...)
+	return makeCompoundType(UnionKind, ts...)
 }

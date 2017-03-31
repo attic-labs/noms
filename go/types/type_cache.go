@@ -17,7 +17,7 @@ var BlobType = makePrimitiveType(BlobKind)
 var TypeType = makePrimitiveType(TypeKind)
 var ValueType = makePrimitiveType(ValueKind)
 
-func getCompoundType(kind NomsKind, elemTypes ...*Type) *Type {
+func makeCompoundType(kind NomsKind, elemTypes ...*Type) *Type {
 	return newType(CompoundDesc{kind, elemTypes})
 }
 
@@ -220,24 +220,20 @@ func makeUnionType(elemTypes ...*Type) *Type {
 	return makeSimplifiedType(false, elemTypes...)
 }
 
-func getCycleType(level uint32) *Type {
-	return newType(CycleDesc(level))
-}
-
 func MakeListType(elemType *Type) *Type {
-	return getCompoundType(ListKind, elemType)
+	return makeCompoundType(ListKind, elemType)
 }
 
 func MakeSetType(elemType *Type) *Type {
-	return getCompoundType(SetKind, elemType)
+	return makeCompoundType(SetKind, elemType)
 }
 
 func MakeRefType(elemType *Type) *Type {
-	return getCompoundType(RefKind, elemType)
+	return makeCompoundType(RefKind, elemType)
 }
 
 func MakeMapType(keyType, valType *Type) *Type {
-	return getCompoundType(MapKind, keyType, valType)
+	return makeCompoundType(MapKind, keyType, valType)
 }
 
 type FieldMap map[string]*Type
@@ -286,5 +282,5 @@ func MakeUnionTypeIntersectStructs(elemTypes ...*Type) *Type {
 }
 
 func MakeCycleType(level uint32) *Type {
-	return getCycleType(level)
+	return newType(CycleDesc(level))
 }

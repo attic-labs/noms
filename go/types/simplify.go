@@ -143,7 +143,7 @@ func makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *Type {
 
 	sort.Sort(out)
 
-	return getCompoundType(UnionKind, out...)
+	return makeCompoundType(UnionKind, out...)
 }
 
 func simplifyContainers(expectedKind NomsKind, ts typeset, intersectStructs bool) *Type {
@@ -155,7 +155,7 @@ func simplifyContainers(expectedKind NomsKind, ts typeset, intersectStructs bool
 
 	elemType := makeSimplifiedTypeImpl(elemTypes, intersectStructs)
 
-	return getCompoundType(expectedKind, elemType)
+	return makeCompoundType(expectedKind, elemType)
 }
 
 func simplifyMaps(ts typeset, intersectStructs bool) *Type {
@@ -171,7 +171,7 @@ func simplifyMaps(ts typeset, intersectStructs bool) *Type {
 	kt := makeSimplifiedTypeImpl(keyTypes, intersectStructs)
 	vt := makeSimplifiedTypeImpl(valTypes, intersectStructs)
 
-	return getCompoundType(MapKind, kt, vt)
+	return makeCompoundType(MapKind, kt, vt)
 }
 
 type unsimplifiedStruct struct {
@@ -196,7 +196,7 @@ func removeAndCollectStructFields(t *Type, seen map[*Type]*Type, pendingStructs 
 			return t, false
 		}
 
-		return getCompoundType(t.Kind(), newElemTypes...), true
+		return makeCompoundType(t.Kind(), newElemTypes...), true
 
 	case StructKind:
 		newStruct, found := seen[t]
