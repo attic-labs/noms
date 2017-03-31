@@ -4,7 +4,6 @@ import (
 	"sort"
 
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/hash"
 )
 
 // makeSimplifiedType returns a type that is a supertype of all the input types but is much
@@ -57,7 +56,7 @@ func (tc *TypeCache) makeSimplifiedType(intersectStructs bool, in ...*Type) *Typ
 
 // typeset is a helper that aggregates the unique set of input types for this algorithm, flattening
 // any unions recursively.
-type typeset map[hash.Hash]*Type
+type typeset map[*Type]struct{}
 
 func (ts typeset) Add(t *Type) {
 	switch t.Kind() {
@@ -66,7 +65,7 @@ func (ts typeset) Add(t *Type) {
 			ts.Add(et)
 		}
 	default:
-		ts[t.Hash()] = t
+		ts[t] = struct{}{}
 	}
 }
 
@@ -89,7 +88,7 @@ func (tc *TypeCache) makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *
 
 	out := make(typeSlice, 0, len(in))
 	groups := map[how]typeset{}
-	for _, t := range in {
+	for t := range in {
 		var h how
 		switch t.Kind() {
 		case RefKind, SetKind, ListKind, MapKind:
@@ -110,7 +109,7 @@ func (tc *TypeCache) makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *
 
 	for h, ts := range groups {
 		if len(ts) == 1 {
-			for _, t := range ts {
+			for t := range ts {
 				out = append(out, t)
 			}
 			continue
@@ -157,7 +156,7 @@ func (tc *TypeCache) makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *
 
 func (tc *TypeCache) simplifyContainers(expectedKind NomsKind, ts typeset, intersectStructs bool) *Type {
 	elemTypes := make(typeset, len(ts))
-	for _, t := range ts {
+	for t := range ts {
 		d.Chk.True(expectedKind == t.Kind())
 		elemTypes.Add(t.Desc.(CompoundDesc).ElemTypes[0])
 	}
@@ -173,7 +172,7 @@ func (tc *TypeCache) simplifyContainers(expectedKind NomsKind, ts typeset, inter
 func (tc *TypeCache) simplifyMaps(ts typeset, intersectStructs bool) *Type {
 	keyTypes := make(typeset, len(ts))
 	valTypes := make(typeset, len(ts))
-	for _, t := range ts {
+	for t := range ts {
 		d.Chk.True(MapKind == t.Kind())
 		desc := t.Desc.(CompoundDesc)
 		keyTypes.Add(desc.ElemTypes[0])
@@ -191,7 +190,7 @@ func (tc *TypeCache) simplifyMaps(ts typeset, intersectStructs bool) *Type {
 
 func (tc *TypeCache) simplifyStructs(expectedName string, ts typeset, intersectStructs bool) *Type {
 	allFields := make([]structFields, 0, len(ts))
-	for _, t := range ts {
+	for t := range ts {
 		desc := t.Desc.(StructDesc)
 		d.PanicIfFalse(expectedName == desc.Name)
 		allFields = append(allFields, desc.fields)
