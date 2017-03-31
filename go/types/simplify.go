@@ -127,7 +127,7 @@ func (tc *TypeCache) makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *
 		case MapKind:
 			r = tc.simplifyMaps(ts, intersectStructs)
 		case StructKind:
-			r = tc.simplifyStructs(h.n, ts, intersectStructs)
+			panic("unreachable") // we have alreade folded structs
 		}
 		out = append(out, r)
 	}
@@ -183,22 +183,6 @@ func (tc *TypeCache) simplifyMaps(ts typeset, intersectStructs bool) *Type {
 	return tc.getCompoundType(MapKind, kt, vt)
 }
 
-func (tc *TypeCache) simplifyStructs(expectedName string, ts typeset, intersectStructs bool) *Type {
-	allFields := make([]structFields, 0, len(ts))
-	for t := range ts {
-		desc := t.Desc.(StructDesc)
-		d.PanicIfFalse(expectedName == desc.Name)
-		allFields = append(allFields, desc.fields)
-	}
-
-	fields := simplifyStructFields(tc, allFields, intersectStructs)
-
-	tc.Lock()
-	defer tc.Unlock()
-
-	return tc.makeStructType(expectedName, fields)
-}
-
 type unsimplifiedStruct struct {
 	t         *Type
 	fieldSets []structFields
@@ -249,6 +233,9 @@ func removeAndCollectStructFields(tc *TypeCache, t *Type, seen map[*Type]*Type, 
 			changed = changed || c
 		}
 
+		if !changed {
+			newFields = desc.fields
+		}
 		pending.fieldSets = append(pending.fieldSets, newFields)
 		return newStruct, true
 

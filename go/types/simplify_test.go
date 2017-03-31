@@ -29,142 +29,198 @@ func simplifyMaps(ts typeset, intersectStructs bool) *Type {
 	return staticTypeCache.simplifyMaps(ts, intersectStructs)
 }
 
-func TestSimplifyHelpers(t *testing.T) {
-	structSimplifier := func(n string) func(typeset, bool) *Type {
-		return func(ts typeset, intersectStructs bool) *Type {
-			return staticTypeCache.simplifyStructs(n, ts, intersectStructs)
-		}
-	}
+func TestSimplifyType(t *testing.T) {
 
 	for _, intersectStruct := range []bool{false, true} {
 		cases := []struct {
-			f   func(typeset, bool) *Type
 			in  []*Type
 			out *Type
 		}{
 			// Ref<Bool> -> Ref<Bool>
-			{simplifyRefs,
+			{
 				[]*Type{MakeRefType(BoolType)},
-				MakeRefType(BoolType)},
+				MakeRefType(BoolType),
+			},
 			// Ref<Number>|Ref<String>|Ref<blob> -> Ref<Number|String|blob>
-			{simplifyRefs,
+			{
 				[]*Type{MakeRefType(NumberType), MakeRefType(StringType), MakeRefType(BlobType)},
-				MakeRefType(MakeUnionType(NumberType, StringType, BlobType))},
+				MakeRefType(MakeUnionType(NumberType, StringType, BlobType)),
+			},
 			// Ref<set<Bool>>|Ref<set<String>> -> Ref<set<Bool|String>>
-			{simplifyRefs,
+			{
 				[]*Type{MakeRefType(MakeSetType(BoolType)), MakeRefType(MakeSetType(StringType))},
-				MakeRefType(MakeSetType(MakeUnionType(BoolType, StringType)))},
+				MakeRefType(MakeSetType(MakeUnionType(BoolType, StringType))),
+			},
 			// Ref<set<Bool>|Ref<set<String>>|Ref<Number> -> Ref<set<Bool|String>|Number>
-			{simplifyRefs,
+			{
 				[]*Type{MakeRefType(MakeSetType(BoolType)), MakeRefType(MakeSetType(StringType)), MakeRefType(NumberType)},
-				MakeRefType(MakeUnionType(MakeSetType(MakeUnionType(BoolType, StringType)), NumberType))},
+				MakeRefType(MakeUnionType(MakeSetType(MakeUnionType(BoolType, StringType)), NumberType)),
+			},
 
 			// set<Bool> -> set<Bool>
-			{simplifySets,
+			{
 				[]*Type{MakeSetType(BoolType)},
-				MakeSetType(BoolType)},
+				MakeSetType(BoolType),
+			},
 			// set<Number>|set<String>|set<blob> -> set<Number|String|blob>
-			{simplifySets,
+			{
 				[]*Type{MakeSetType(NumberType), MakeSetType(StringType), MakeSetType(BlobType)},
-				MakeSetType(MakeUnionType(NumberType, StringType, BlobType))},
+				MakeSetType(MakeUnionType(NumberType, StringType, BlobType)),
+			},
 			// set<set<Bool>>|set<set<String>> -> set<set<Bool|String>>
-			{simplifySets,
+			{
 				[]*Type{MakeSetType(MakeSetType(BoolType)), MakeSetType(MakeSetType(StringType))},
-				MakeSetType(MakeSetType(MakeUnionType(BoolType, StringType)))},
+				MakeSetType(MakeSetType(MakeUnionType(BoolType, StringType))),
+			},
 			// set<set<Bool>|set<set<String>>|set<Number> -> set<set<Bool|String>|Number>
-			{simplifySets,
+			{
 				[]*Type{MakeSetType(MakeSetType(BoolType)), MakeSetType(MakeSetType(StringType)), MakeSetType(NumberType)},
-				MakeSetType(MakeUnionType(MakeSetType(MakeUnionType(BoolType, StringType)), NumberType))},
+				MakeSetType(MakeUnionType(MakeSetType(MakeUnionType(BoolType, StringType)), NumberType)),
+			},
 
 			// list<Bool> -> list<Bool>
-			{simplifyLists,
+			{
 				[]*Type{MakeListType(BoolType)},
-				MakeListType(BoolType)},
+				MakeListType(BoolType),
+			},
 			// list<Number>|list<String>|list<blob> -> list<Number|String|blob>
-			{simplifyLists,
+			{
 				[]*Type{MakeListType(NumberType), MakeListType(StringType), MakeListType(BlobType)},
-				MakeListType(MakeUnionType(NumberType, StringType, BlobType))},
+				MakeListType(MakeUnionType(NumberType, StringType, BlobType)),
+			},
 			// list<set<Bool>>|list<set<String>> -> list<set<Bool|String>>
-			{simplifyLists,
+			{
 				[]*Type{MakeListType(MakeListType(BoolType)), MakeListType(MakeListType(StringType))},
-				MakeListType(MakeListType(MakeUnionType(BoolType, StringType)))},
+				MakeListType(MakeListType(MakeUnionType(BoolType, StringType))),
+			},
 			// list<set<Bool>|list<set<String>>|list<Number> -> list<set<Bool|String>|Number>
-			{simplifyLists,
+			{
 				[]*Type{MakeListType(MakeListType(BoolType)), MakeListType(MakeListType(StringType)), MakeListType(NumberType)},
-				MakeListType(MakeUnionType(MakeListType(MakeUnionType(BoolType, StringType)), NumberType))},
+				MakeListType(MakeUnionType(MakeListType(MakeUnionType(BoolType, StringType)), NumberType)),
+			},
 
 			// map<Bool,bool> -> map<Bool,bool>
-			{simplifyMaps,
+			{
 				[]*Type{MakeMapType(BoolType, BoolType)},
-				MakeMapType(BoolType, BoolType)},
+				MakeMapType(BoolType, BoolType),
+			},
 			// map<Bool,bool>|map<Bool,string> -> map<Bool,bool|String>
-			{simplifyMaps,
+			{
 				[]*Type{MakeMapType(BoolType, BoolType), MakeMapType(BoolType, StringType)},
-				MakeMapType(BoolType, MakeUnionType(BoolType, StringType))},
+				MakeMapType(BoolType, MakeUnionType(BoolType, StringType)),
+			},
 			// map<Bool,bool>|map<String,bool> -> map<Bool|String,bool>
-			{simplifyMaps,
+			{
 				[]*Type{MakeMapType(BoolType, BoolType), MakeMapType(StringType, BoolType)},
-				MakeMapType(MakeUnionType(BoolType, StringType), BoolType)},
+				MakeMapType(MakeUnionType(BoolType, StringType), BoolType),
+			},
 			// map<Bool,bool>|map<String,string> -> map<Bool|String,bool|String>
-			{simplifyMaps,
+			{
 				[]*Type{MakeMapType(BoolType, BoolType), MakeMapType(StringType, StringType)},
-				MakeMapType(MakeUnionType(BoolType, StringType), MakeUnionType(BoolType, StringType))},
+				MakeMapType(MakeUnionType(BoolType, StringType), MakeUnionType(BoolType, StringType)),
+			},
 			// map<set<Bool>,bool>|map<set<String>,string> -> map<set<Bool|String>,bool|String>
-			{simplifyMaps,
+			{
 				[]*Type{MakeMapType(MakeSetType(BoolType), BoolType), MakeMapType(MakeSetType(StringType), StringType)},
-				MakeMapType(MakeSetType(MakeUnionType(BoolType, StringType)), MakeUnionType(BoolType, StringType))},
+				MakeMapType(MakeSetType(MakeUnionType(BoolType, StringType)), MakeUnionType(BoolType, StringType)),
+			},
 
 			// struct{foo:Bool} -> struct{foo:Bool}
-			{structSimplifier(""),
+			{
 				[]*Type{MakeStructTypeFromFields("", FieldMap{"foo": BoolType})},
-				MakeStructTypeFromFields("", FieldMap{"foo": BoolType})},
+				MakeStructTypeFromFields("", FieldMap{"foo": BoolType}),
+			},
 			// struct{foo:Bool}|struct{foo:Number} -> struct{foo:Bool|Number}
-			{structSimplifier(""),
+			{
 				[]*Type{MakeStructTypeFromFields("", FieldMap{"foo": BoolType}),
 					MakeStructTypeFromFields("", FieldMap{"foo": StringType})},
-				MakeStructTypeFromFields("", FieldMap{"foo": MakeUnionType(BoolType, StringType)})},
+				MakeStructTypeFromFields("", FieldMap{"foo": MakeUnionType(BoolType, StringType)}),
+			},
 			// struct{foo:Bool}|struct{foo:Bool,bar:Number} -> struct{foo:Bool,bar?:Number}
-			{structSimplifier(""),
+			{
 				[]*Type{MakeStructTypeFromFields("", FieldMap{"foo": BoolType}),
 					MakeStructTypeFromFields("", FieldMap{"foo": BoolType, "bar": NumberType})},
 				MakeStructType("",
 					StructField{"bar", NumberType, !intersectStruct},
 					StructField{"foo", BoolType, false},
-				)},
+				),
+			},
 			// struct{foo:Bool}|struct{bar:Number} -> struct{foo?:Bool,bar?:Number}
-			{structSimplifier(""),
+			{
 				[]*Type{MakeStructTypeFromFields("", FieldMap{"foo": BoolType}),
 					MakeStructTypeFromFields("", FieldMap{"bar": NumberType})},
 				MakeStructType("",
 					StructField{"bar", NumberType, !intersectStruct},
 					StructField{"foo", BoolType, !intersectStruct},
-				)},
+				),
+			},
 			// struct{foo:Ref<Bool>}|struct{foo:Ref<Number>} -> struct{foo:Ref<Bool|Number>}
-			{structSimplifier(""),
+			{
 				[]*Type{MakeStructTypeFromFields("", FieldMap{"foo": MakeRefType(BoolType)}),
 					MakeStructTypeFromFields("", FieldMap{"foo": MakeRefType(NumberType)})},
-				MakeStructTypeFromFields("", FieldMap{"foo": MakeRefType(MakeUnionType(BoolType, NumberType))})},
+				MakeStructTypeFromFields("", FieldMap{"foo": MakeRefType(MakeUnionType(BoolType, NumberType))}),
+			},
 
 			// struct A{foo:Bool}|struct A{foo:String} -> struct A{foo:Bool|String}
-			{structSimplifier("A"),
+			{
 				[]*Type{MakeStructTypeFromFields("A", FieldMap{"foo": BoolType}),
 					MakeStructTypeFromFields("A", FieldMap{"foo": StringType})},
-				MakeStructTypeFromFields("A", FieldMap{"foo": MakeUnionType(BoolType, StringType)})},
+				MakeStructTypeFromFields("A", FieldMap{"foo": MakeUnionType(BoolType, StringType)}),
+			},
+
+			// struct A { b: struct B { a: Cycle<1> } } ->
+			// struct A { b: struct B { a: Cycle<1> } }
+			{
+				[]*Type{
+					MakeStructType("A",
+						StructField{"b", MakeStructType("B",
+							StructField{"a", MakeCycleType(1), false},
+						), false},
+					),
+				},
+				MakeStructType("A",
+					StructField{"b", MakeStructType("B",
+						StructField{"a", MakeCycleType(1), false},
+					), false},
+				),
+			},
+
+			// struct A { b: struct B { a: Cycle<1> } } | struct A { c: Number } ->
+			// struct A { b?: struct B { a: Cycle<1> }, c?: Number }| struct A { c: Number } ->
+			{
+				[]*Type{
+					MakeStructType("A",
+						StructField{"b", MakeStructType("B",
+							StructField{"a", MakeCycleType(1), false},
+						), false},
+					),
+					MakeStructType("A",
+						StructField{"c", NumberType, false},
+					),
+				},
+				MakeStructType("A",
+					StructField{"b", MakeStructType("B",
+						StructField{"a", MakeCycleType(1), false},
+					), !intersectStruct},
+					StructField{"c", NumberType, !intersectStruct},
+				),
+			},
 
 			// map<String, struct A{foo:String}>,  map<String, struct A{foo:String, bar:Bool}>
 			// 	-> map<String, struct A{foo:String,bar?:Bool}>
-			{simplifyMaps,
+			{
 				[]*Type{MakeMapType(StringType, MakeStructTypeFromFields("A", FieldMap{"foo": StringType})),
 					MakeMapType(StringType, MakeStructTypeFromFields("A", FieldMap{"foo": StringType, "bar": BoolType})),
 				},
 				MakeMapType(StringType, MakeStructType("A",
 					StructField{"foo", StringType, false},
 					StructField{"bar", BoolType, !intersectStruct},
-				))},
+				)),
+			},
 		}
 
 		for i, c := range cases {
-			act := c.f(newTypeset(c.in...), intersectStruct)
+			act := staticTypeCache.makeSimplifiedType(intersectStruct, c.in...)
 			assert.True(t, c.out.Equals(act), "Test case as position %d - got %s, wanted %s", i, act.Describe(), c.out.Describe())
 		}
 	}
