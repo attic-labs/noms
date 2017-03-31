@@ -199,37 +199,64 @@ func (tc *TypeCache) simplifyStructs(expectedName string, ts typeset, intersectS
 	return tc.makeStructType(expectedName, fields)
 }
 
-func replaceAndCollectStructTypes(tc *TypeCache, t *Type) (*Type, map[string]map[*Type]struct{}) {
-	collected := map[string]map[*Type]struct{}{}
-	out, changed := walkStructTypes(tc, t, nil, func(t *Type, cycle bool) (*Type, bool) {
-		name := t.Desc.(StructDesc).Name
-
-		if !cycle {
-			// Do not collect if a cycle. We will collect when we get it on the wayt back.
-			s := collected[name]
-			if s == nil {
-				s = map[*Type]struct{}{}
-			}
-			s[t] = struct{}{}
-			collected[name] = s
-		}
-		tc.Lock()
-		defer tc.Unlock()
-		return tc.makeStructType(name, nil), true
-	})
-	d.PanicIfFalse(len(collected) > 0 == changed)
-	return out, collected
+type unsimplifiedStruct struct {
+	t         *Type
+	fieldSets []structFields
 }
 
-func inlineStructTypes(tc *TypeCache, t *Type, defs map[string]*Type) *Type {
-	out, _ := walkStructTypes(tc, t, nil, func(t *Type, cycle bool) (*Type, bool) {
-		d.PanicIfTrue(cycle)
-		st, ok := defs[t.Desc.(StructDesc).Name]
-		d.PanicIfFalse(ok)
-		return st, true
-	})
+func removeAndCollectStructFields(tc *TypeCache, t *Type, seen map[*Type]*Type, pendingStructs map[string]*unsimplifiedStruct) (*Type, bool) {
+	switch t.Kind() {
+	case BoolKind, NumberKind, StringKind, BlobKind, ValueKind, TypeKind:
+		return t, false
+	case ListKind, MapKind, RefKind, SetKind, UnionKind:
+		elemTypes := t.Desc.(CompoundDesc).ElemTypes
+		changed := false
+		newElemTypes := make(typeSlice, len(elemTypes))
+		for i, et := range elemTypes {
+			et2, c := removeAndCollectStructFields(tc, et, seen, pendingStructs)
+			newElemTypes[i] = et2
+			changed = changed || c
+		}
+		if !changed {
+			return t, false
+		}
 
-	return out
+		return newType(CompoundDesc{t.Kind(), newElemTypes}, tc.nextTypeId()), true
+
+	case StructKind:
+		newStruct, found := seen[t]
+		if found {
+			return newStruct, true
+		}
+
+		desc := t.Desc.(StructDesc)
+		name := desc.Name
+		pending, ok := pendingStructs[name]
+		if ok {
+			newStruct = pending.t
+		} else {
+			newStruct = newType(StructDesc{Name: name}, tc.nextTypeId())
+			pending = &unsimplifiedStruct{newStruct, []structFields{}}
+			pendingStructs[name] = pending
+		}
+		seen[t] = newStruct
+
+		newFields := make(structFields, len(desc.fields))
+		changed := false
+		for i, f := range desc.fields {
+			newType, c := removeAndCollectStructFields(tc, f.Type, seen, pendingStructs)
+			newFields[i] = StructField{Name: f.Name, Type: newType, Optional: f.Optional}
+			changed = changed || c
+		}
+
+		pending.fieldSets = append(pending.fieldSets, newFields)
+		return newStruct, true
+
+	case CycleKind:
+		return t, false
+	}
+
+	panic("unreachable") // no more noms kinds
 }
 
 func simplifyStructFields(tc *TypeCache, in []structFields, intersectStructs bool) structFields {
