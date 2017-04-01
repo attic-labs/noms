@@ -40,7 +40,7 @@ type Struct struct {
 
 func NewStruct(name string, data StructData) Struct {
 	valueFields := make(structValueFields, len(data))
-	typeFields := make(structFields, len(data))
+	typeFields := make(structTypeFields, len(data))
 	i := 0
 	for name, value := range data {
 		typeFields[i] = StructField{name, value.Type(), false}
@@ -159,7 +159,7 @@ func (s Struct) Set(n string, v Value) Struct {
 		if desc.fields[i].Type.Equals(vt) {
 			typ = s.Type()
 		} else {
-			typeFields := make(structFields, len(desc.fields))
+			typeFields := make(structTypeFields, len(desc.fields))
 			copy(typeFields, desc.fields)
 			typeFields[i].Type = vt
 			typ = MakeStructType(desc.Name, typeFields...)
@@ -172,7 +172,7 @@ func (s Struct) Set(n string, v Value) Struct {
 	valueFields[len(s.fields)] = structValueField{n, v}
 	sort.Sort(valueFields)
 
-	typeFields := make(structFields, len(desc.fields)+1)
+	typeFields := make(structTypeFields, len(desc.fields)+1)
 	copy(typeFields, desc.fields)
 	typeFields[len(s.fields)] = StructField{n, v.Type(), false}
 	sort.Sort(typeFields)
@@ -192,7 +192,7 @@ func (s Struct) Delete(n string) Struct {
 	desc := s.desc()
 
 	valueFields := make(structValueFields, len(s.fields)-1)
-	typeFields := make(structFields, len(s.fields)-1)
+	typeFields := make(structTypeFields, len(s.fields)-1)
 
 	j := 0
 	for i, vf := range s.fields {
@@ -333,7 +333,7 @@ func IsValidStructFieldName(name string) bool {
 	return fieldNameRe.MatchString(name)
 }
 
-func verifyFields(fs structFields) {
+func verifyFields(fs structTypeFields) {
 	for i, f := range fs {
 		verifyFieldName(f.Name)
 		if i > 0 && strings.Compare(fs[i-1].Name, f.Name) >= 0 {

@@ -205,7 +205,7 @@ func (r *valueDecoder) readStructType() *Type {
 	name := r.readString()
 	count := r.readUint32()
 
-	fields := make(structFields, count)
+	fields := make(structTypeFields, count)
 	for i := uint32(0); i < count; i++ {
 		fields[i] = StructField{
 			r.readString(),
