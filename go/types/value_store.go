@@ -459,6 +459,10 @@ func (lvs *ValueStore) checkChunksInCache(v Value, readValues bool) Hints {
 		}
 		// At this point, entry should have the most specific type info possible. Unless it matches targetType, or targetType is 'Value', bail.
 		if !IsSubtype(targetType, entry.Type()) {
+			// TODO: This should really be!
+			// if !(targetType.TargetKind() == ValueKind || entry.Type().Equals(targetType)) {
+			// https://github.com/attic-labs/noms/issues/3325
+
 			d.Panic("Value to write contains ref %s, which points to a value of type %s which is not a subtype of %s", reachable.TargetHash(), entry.Type().Describe(), targetType.Describe())
 		}
 	}
