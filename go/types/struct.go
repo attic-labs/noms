@@ -118,74 +118,80 @@ func (s Struct) desc() StructDesc {
 // MaybeGet returns the value of a field in the struct. If the struct does not a have a field with
 // the name name then this returns (nil, false).
 func (s Struct) MaybeGet(n string) (Value, bool) {
-	f, i := s.findField(n)
+	i := s.findField(n)
 	if i == -1 {
 		return nil, false
 	}
-	return f.value, true
+	return s.fields[i].value, true
 }
 
-func (s Struct) findField(name string) (*structValueField, int) {
-	i := sort.Search(len(s.fields), func(i int) bool { return s.fields[i].name >= name })
+func (s Struct) searchField(name string) int {
+	return sort.Search(len(s.fields), func(i int) bool { return s.fields[i].name >= name })
+}
+
+func (s Struct) findField(name string) int {
+	i := s.searchField(name)
 	if i == len(s.fields) || s.fields[i].name != name {
-		return nil, -1
+		return -1
 	}
-	return &s.fields[i], i
+	return i
 }
 
 // Get returns the value of a field in the struct. If the struct does not a have a field with the
 // name name then this panics.
 func (s Struct) Get(n string) Value {
-	f, i := s.findField(n)
+	i := s.findField(n)
 	if i == -1 {
 		d.Chk.Fail(fmt.Sprintf(`Struct has no field "%s"`, n))
 	}
-	return f.value
+	return s.fields[i].value
 }
 
 // Set returns a new struct where the field name has been set to value. If name is not an
 // existing field in the struct or the type of value is different from the old value of the
 // struct field a new struct type is created.
 func (s Struct) Set(n string, v Value) Struct {
-	f, i := s.findField(n)
+	i := s.searchField(n)
+	var valueFields structValueFields
 	desc := s.desc()
-	if f != nil {
-		valueFields := make(structValueFields, len(s.fields))
+	var typ *Type
+
+	if i != len(s.fields) && s.fields[i].name == n {
+		// Found
+		valueFields = make(structValueFields, len(s.fields))
 		copy(valueFields, s.fields)
 		valueFields[i].value = v
 
-		var typ *Type
-		vt := v.Type()
-		if desc.fields[i].Type.Equals(vt) {
-			typ = s.Type()
+		if v.Type().Equals(desc.fields[i].Type) {
+			typ = s.t
 		} else {
-			typeFields := make(structTypeFields, len(desc.fields))
+			typeFields := make(structTypeFields, len(s.fields))
 			copy(typeFields, desc.fields)
-			typeFields[i].Type = vt
+			typeFields[i].Type = v.Type()
 			typ = MakeStructType(desc.Name, typeFields...)
 		}
-		return Struct{desc.Name, valueFields, typ, &hash.Hash{}}
+	} else {
+		// Not found.
+		valueFields = make(structValueFields, len(s.fields)+1)
+		typeFields := make(structTypeFields, len(s.fields)+1)
+		copy(valueFields[:i], s.fields[:i])
+		copy(valueFields[i+1:], s.fields[i:])
+		copy(typeFields[:i], desc.fields[:i])
+		copy(typeFields[i+1:], desc.fields[i:])
+
+		valueFields[i] = structValueField{n, v}
+		typeFields[i] = StructField{n, v.Type(), false}
+		typ = MakeStructType(desc.Name, typeFields...)
 	}
 
-	valueFields := make(structValueFields, len(s.fields)+1)
-	copy(valueFields, s.fields)
-	valueFields[len(s.fields)] = structValueField{n, v}
-	sort.Sort(valueFields)
-
-	typeFields := make(structTypeFields, len(desc.fields)+1)
-	copy(typeFields, desc.fields)
-	typeFields[len(s.fields)] = StructField{n, v.Type(), false}
-	sort.Sort(typeFields)
-
-	typ := MakeStructType(desc.Name, typeFields...)
 	return Struct{desc.Name, valueFields, typ, &hash.Hash{}}
 }
 
 // Delete returns a new struct where the field name has been removed.
 // If name is not an existing field in the struct then the current struct is returned.
 func (s Struct) Delete(n string) Struct {
-	_, idx := s.findField(n)
-	if idx == -1 {
+	i := s.findField(n)
+	if i == -1 {
 		return s
 	}
 
@@ -194,14 +200,10 @@ func (s Struct) Delete(n string) Struct {
 	valueFields := make(structValueFields, len(s.fields)-1)
 	typeFields := make(structTypeFields, len(s.fields)-1)
 
-	j := 0
-	for i, vf := range s.fields {
-		if i != idx {
-			valueFields[j] = vf
-			typeFields[j] = StructField{desc.fields[i].Name, desc.fields[i].Type, false}
-			j++
-		}
-	}
+	copy(valueFields[:i], s.fields[:i])
+	copy(valueFields[i:], s.fields[i+1:])
+	copy(typeFields[:i], desc.fields[:i])
+	copy(typeFields[i:], desc.fields[i+1:])
 
 	typ := MakeStructType(s.desc().Name, typeFields...)
 	return Struct{desc.Name, valueFields, typ, &hash.Hash{}}
