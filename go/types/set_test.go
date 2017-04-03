@@ -567,11 +567,9 @@ func TestSetFirst(t *testing.T) {
 func TestSetOfStruct(t *testing.T) {
 	assert := assert.New(t)
 
-	typ := MakeStructType("S1", StructField{"o", NumberType, false})
-
 	elems := []Value{}
 	for i := 0; i < 200; i++ {
-		elems = append(elems, NewStructWithType(typ, ValueSlice{Number(i)}))
+		elems = append(elems, NewStruct("S1", StructData{"o": Number(i)}))
 	}
 
 	s := NewSet(elems...)

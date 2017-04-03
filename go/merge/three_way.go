@@ -260,9 +260,18 @@ func (m *merger) threeWayStructMerge(a, b, parent types.Struct, path types.Path)
 			data := types.StructData{}
 			desc := types.TypeOf(targetVal).Desc.(types.StructDesc)
 			desc.IterFields(func(name string, t *types.Type, optional bool) {
-				d.PanicIfTrue(optional) // values cannot have optional fields.
 				if name != field {
-					data[name] = targetVal.Get(name)
+					// TODO: Use struct fields directly!
+					// we can get optional here now that we are using types.TypeOf since that is
+					// a summary of the type and it can be different from the actual shape of the
+					// struct.
+					if optional {
+						if v, ok := targetVal.MaybeGet(name); ok {
+							data[name] = v
+						}
+					} else {
+						data[name] = targetVal.Get(name)
+					}
 				}
 			})
 			if change.ChangeType == types.DiffChangeAdded || change.ChangeType == types.DiffChangeModified {

@@ -101,30 +101,6 @@ func TestAssertTypeStruct(tt *testing.T) {
 	assertSubtype(t, v)
 	assertAll(tt, t, v)
 	assertSubtype(ValueType, v)
-
-	t2 := MakeStructType("Struct",
-		StructField{"x", BoolType, false},
-		StructField{"y", StringType, false},
-	)
-
-	assert.Panics(tt, func() {
-		NewStructWithType(t2, ValueSlice{Bool(true)})
-	})
-	assert.Panics(tt, func() {
-		NewStructWithType(t2, ValueSlice{String("foo")})
-	})
-
-	assert.Panics(tt, func() {
-		NewStructWithType(t2, ValueSlice{String("foo"), Bool(true)})
-	})
-
-	assert.Panics(tt, func() {
-		NewStructWithType(t2, ValueSlice{Number(1), String("foo")})
-	})
-
-	assert.Panics(tt, func() {
-		NewStructWithType(t2, ValueSlice{Bool(true), String("foo"), Number(1)})
-	})
 }
 
 func TestAssertTypeUnion(tt *testing.T) {
@@ -256,7 +232,7 @@ func TestAssertTypeStructSubtype(tt *testing.T) {
 	assertSubtype(t1, c1)
 
 	t11 := MakeStructType("Commit",
-		StructField{"parents", MakeSetType(MakeRefType(t1)), false},
+		StructField{"parents", MakeSetType(MakeRefType(MakeCycleType(0))), false},
 		StructField{"value", NumberType, false},
 	)
 	assertSubtype(t11, c1)

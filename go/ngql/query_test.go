@@ -356,12 +356,7 @@ func (suite *QueryGraphQLSuite) TestCyclicStructs() {
 }
 
 func (suite *QueryGraphQLSuite) TestCyclicStructsWithUnion() {
-	typ := types.MakeStructTypeFromFields("A", types.FieldMap{
-		"a": types.StringType,
-		"b": types.MakeUnionType(types.NumberType, types.MakeCycleType(0)),
-	})
-
-	// Struct A {
+	// struct A {
 	//  a: "aaa"
 	//  b: Struct A {
 	// 	 a: "bbb"
@@ -369,14 +364,67 @@ func (suite *QueryGraphQLSuite) TestCyclicStructsWithUnion() {
 	//  })
 	// }
 
-	s1 := types.NewStructWithType(typ, types.ValueSlice{
-		types.String("aaa"),
-		types.NewStructWithType(typ, types.ValueSlice{types.String("bbb"), types.Number(42)}),
+	// struct A {
+	//   a: String,
+	//   b: Number | Cycle<0>,
+	// }
+
+	s1 := types.NewStruct("A", types.StructData{
+		"a": types.String("aaa"),
+		"b": types.NewStruct("A", types.StructData{
+			"a": types.String("bbb"),
+			"b": types.Number(42),
+		}),
 	})
 
 	suite.assertQueryResult(s1,
-		fmt.Sprintf(`{root{a b {... on %s{a}}}}`, GetTypeName(types.TypeOf(s1))),
-		`{"data":{"root":{"a":"aaa","b":{"a":"bbb"}}}}`)
+		`{
+                        root{
+                                a
+                                b {
+                                        a
+                                        b {
+                                                scalarValue
+                                        }
+                                }
+                        }
+                }
+                `,
+		`{
+                        "data": {
+                                "root": {
+                                        "a": "aaa",
+                                        "b": {
+                                                "a": "bbb",
+                                                "b": {
+                                                        "scalarValue": 42
+                                                }
+                                        }
+                                }
+                        }
+                }`)
+
+	suite.assertQueryResult(s1,
+		fmt.Sprintf(`{
+	                root{
+	                        a
+	                        b {
+	                                ... on %s {
+	                                        a
+	                                }
+	                        }
+	                }
+	        }`, GetTypeName(types.TypeOf(s1))),
+		`{
+	                "data": {
+	                        "root": {
+	                                "a": "aaa",
+	                                "b": {
+	                                        "a": "bbb"
+	                                }
+	                        }
+	                }
+	        }`)
 }
 
 func (suite *QueryGraphQLSuite) TestNestedCollection() {

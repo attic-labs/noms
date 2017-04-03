@@ -191,7 +191,7 @@ func (r *valueDecoder) readStruct(t *Type) Value {
 		valueFields[i] = structValueField{tf.Name, r.readValue()}
 	}
 
-	return Struct{desc.Name, valueFields, t, &hash.Hash{}}
+	return Struct{desc.Name, valueFields, &hash.Hash{}}
 }
 
 func boolToUint32(b bool) uint32 {

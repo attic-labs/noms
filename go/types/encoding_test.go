@@ -562,11 +562,6 @@ func nomsTestWriteRecursiveStruct(t *testing.T) {
 	//   cs: List<A6>
 	//   v: Number
 	// }
-
-	structType := MakeStructType("A6",
-		StructField{"cs", MakeListType(MakeCycleType(0)), false},
-		StructField{"v", NumberType, false},
-	)
 	assertEncoding(t,
 		[]interface{}{
 			uint8(StructKind), "A6", uint32(2) /* len */, "cs", uint8(ListKind), uint8(CycleKind), uint32(0), "v", uint8(NumberKind),
@@ -574,7 +569,7 @@ func nomsTestWriteRecursiveStruct(t *testing.T) {
 			uint8(NumberKind), Number(42),
 		},
 		// {v: 42, cs: [{v: 555, cs: []}]}
-		NewStructWithType(structType, ValueSlice{NewList(), Number(42)}),
+		NewStruct("A6", StructData{"cs": NewList(), "v": Number(42)}),
 	)
 }
 
