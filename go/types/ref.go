@@ -79,7 +79,7 @@ func (r Ref) WalkRefs(cb RefCallback) {
 }
 
 func (r Ref) typeOf() *Type {
-	return MakeRefType(r.targetType)
+	return makeCompoundType(RefKind, r.targetType)
 }
 
 func (r Ref) Kind() NomsKind {

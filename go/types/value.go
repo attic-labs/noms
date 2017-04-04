@@ -35,6 +35,7 @@ type Value interface {
 	// chunked then this will return the refs of th sub trees of the prolly-tree.
 	WalkRefs(RefCallback)
 
+	// Kind is the NomsKind describing the kind of value this is.
 	Kind() NomsKind
 
 	// typeOf is the internal implementation of types.TypeOf. It is not normalized
