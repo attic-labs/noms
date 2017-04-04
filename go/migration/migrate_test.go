@@ -108,7 +108,14 @@ func TestMigrateFromVersion7(t *testing.T) {
 	test(types.MakeUnionType(), v7types.MakeUnionType())
 	test(types.MakeUnionType(types.StringType, types.BoolType), v7types.MakeUnionType(v7types.StringType, v7types.BoolType))
 
-	test(types.MakeCycleType(42), v7types.MakeCycleType(42))
+	// Cannot use equals on unresolved cycles.
+	{
+		expected := types.MakeCycleType(42)
+		source := v7types.MakeCycleType(42)
+		actual, err := MigrateFromVersion7(source, sourceStore, sinkStore)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	}
 
 	commit := types.MakeStructType("Commit",
 		types.StructField{

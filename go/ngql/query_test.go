@@ -215,8 +215,8 @@ func (suite *QueryGraphQLSuite) TestSetOfStruct() {
 	)
 
 	suite.assertQueryResult(set, "{root{values{a b}}}",
-		`{"data":{"root":{"values":[{"a":-20.102,"b":"bar"},{"a":28,"b":"foo"},{"a":5,"b":"baz"}]}}}`)
-	suite.assertQueryResult(set, "{root{values{a}}}", `{"data":{"root":{"values":[{"a":-20.102},{"a":28},{"a":5}]}}}`)
+		`{"data":{"root":{"values":[{"a":28,"b":"foo"},{"a":-20.102,"b":"bar"},{"a":5,"b":"baz"}]}}}`)
+	suite.assertQueryResult(set, "{root{values{a}}}", `{"data":{"root":{"values":[{"a":28},{"a":-20.102},{"a":5}]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestMapBasic() {
@@ -1025,7 +1025,7 @@ func (suite *QueryGraphQLSuite) TestMapWithComplexKeys() {
 	suite.assertQueryResult(m, `{root{values(key: [])}}`, `{"data":{"root":{"values":[]}}}`)
 
 	// The ordering here depends on the hash of the value...
-	suite.assertQueryResult(m, `{root{values(key: ["e"], through: ["c"])}}`, `{"data":{"root":{"values":[3, 4, 2]}}}`)
+	suite.assertQueryResult(m, `{root{values(key: ["a"], through: ["e"])}}`, `{"data":{"root":{"values":[1, 4, 3]}}}`)
 
 	suite.assertQueryResult(m, `{root{values(keys: [["a"],["b"],["c"]])}}`, `{"data":{"root":{"values":[1, null, 2]}}}`)
 	suite.assertQueryResult(m, `{
@@ -1061,7 +1061,7 @@ func (suite *QueryGraphQLSuite) TestMapWithComplexKeys() {
 	suite.assertQueryResult(m2, `{root{values(key: {n: "e"})}}`, `{"data":{"root":{"values":[3]}}}`)
 	suite.assertQueryResult(m2, `{root{values(key: {n: "x"})}}`, `{"data":{"root":{"values":[]}}}`)
 	// The order is based on hash
-	suite.assertQueryResult(m2, `{root{values(key: {n: "e"}, through: {n: "a"})}}`, `{"data":{"root":{"values":[3,1]}}}`)
+	suite.assertQueryResult(m2, `{root{values(key: {n: "c"}, through: {n: "g"})}}`, `{"data":{"root":{"values":[2,4]}}}`)
 	suite.assertQueryResult(m2, `{root{values(keys: [{n: "a"}, {n: "b"}, {n: "c"}])}}`,
 		`{"data":{"root":{"values":[1, null, 2]}}}`)
 	suite.assertQueryResult(m2, `{root{keys(keys: [{n: "a"}, {n: "b"}, {n: "c"}]) { n }}}`,
@@ -1081,8 +1081,8 @@ func (suite *QueryGraphQLSuite) TestSetWithComplexKeys() {
 	suite.assertQueryResult(s, `{root{values(key: []) { values }}}`, `{"data":{"root":{"values":[]}}}`)
 
 	// The ordering here depends on the hash of the value...
-	suite.assertQueryResult(s, `{root{values(key: ["e"], through: ["c"]) { values }}}`,
-		`{"data":{"root":{"values":[{"values":["e"]},{"values":["g"]},{"values":["c"]}]}}}`)
+	suite.assertQueryResult(s, `{root{values(key: ["c"], through: ["g"]) { values }}}`,
+		`{"data":{"root":{"values":[{"values":["c"]},{"values":["a"]},{"values":["g"]}]}}}`)
 
 	s2 := types.NewSet(
 		types.NewStruct("", types.StructData{
@@ -1103,8 +1103,8 @@ func (suite *QueryGraphQLSuite) TestSetWithComplexKeys() {
 		`{"data":{"root":{"values":[{"n": "e"}]}}}`)
 	suite.assertQueryResult(s2, `{root{values(key: {n: "x"}) { n } }}`, `{"data":{"root":{"values":[]}}}`)
 	// The order is based on hash
-	suite.assertQueryResult(s2, `{root{values(key: {n: "e"}, through: {n: "c"}) { n }}}`,
-		`{"data":{"root":{"values":[{"n": "e"}, {"n": "a"}, {"n": "c"}]}}}`)
+	suite.assertQueryResult(s2, `{root{values(key: {n: "c"}, through: {n: "e"}) { n }}}`,
+		`{"data":{"root":{"values":[{"n": "c"}, {"n": "g"}, {"n": "e"}]}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestInputToNomsValue() {

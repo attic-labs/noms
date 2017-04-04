@@ -285,7 +285,7 @@ func TestEnsureChunksFails(t *testing.T) {
 	cs.Put(EncodeValue(b, nil))
 	cs.Put(EncodeValue(s, nil))
 
-	badRef := constructRef(MakeRefType(MakePrimitiveType(BoolKind)), s.Hash(), 1)
+	badRef := constructRef(s.Hash(), BoolType, 1)
 	l := NewList(bref, badRef)
 
 	cs.Put(EncodeValue(l, nil))

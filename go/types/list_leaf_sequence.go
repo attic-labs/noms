@@ -32,10 +32,6 @@ func (ll listLeafSequence) WalkRefs(cb RefCallback) {
 	}
 }
 
-func (ll listLeafSequence) Kind() NomsKind {
-	return BlobKind
-}
-
 func (ll listLeafSequence) typeOf() *Type {
 	ts := make([]*Type, len(ll.values))
 	for i, v := range ll.values {
