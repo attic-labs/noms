@@ -69,29 +69,21 @@ func TestMigrateFromVersion7(t *testing.T) {
 	}))
 
 	test(
-		types.NewStructWithType(
-			types.MakeStructType("", types.StructField{"a", types.NumberType, false}),
-			[]types.Value{types.Number(42)},
-		),
-		v7types.NewStructWithType(
-			v7types.MakeStructType("", v7types.StructField{"a", v7types.NumberType, false}),
-			[]v7types.Value{v7types.Number(42)},
-		),
+		types.NewStruct("", types.StructData{
+			"a": types.Number(42),
+		}),
+		v7types.NewStruct("", v7types.StructData{
+			"a": v7types.Number(42),
+		}),
 	)
 
 	test(
-		types.NewStructWithType(
-			types.MakeStructType("",
-				types.StructField{"a", types.MakeListType(types.MakeCycleType(0)), false},
-			),
-			[]types.Value{types.NewList()},
-		),
-		v7types.NewStructWithType(
-			v7types.MakeStructType("",
-				v7types.StructField{"a", v7types.MakeListType(v7types.MakeCycleType(0)), false},
-			),
-			[]v7types.Value{v7types.NewList()},
-		),
+		types.NewStruct("", types.StructData{
+			"a": types.NewList(),
+		}),
+		v7types.NewStruct("", v7types.StructData{
+			"a": v7types.NewList(),
+		}),
 	)
 
 	r := sourceStore.WriteValue(v7types.Number(123))

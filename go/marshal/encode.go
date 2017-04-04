@@ -264,12 +264,14 @@ func structEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc
 	parentStructTypes = append(parentStructTypes, t)
 	fields, structType, originalFieldIndex := typeFields(t, parentStructTypes, encodeTypeOptions{})
 	if structType != nil {
+		// TODO: Have typeFields return name?
+		name := structType.Desc.(types.StructDesc).Name
 		e = func(v reflect.Value) types.Value {
-			values := make([]types.Value, len(fields))
-			for i, f := range fields {
-				values[i] = f.encoder(v.Field(f.index))
+			structData := make(types.StructData, len(fields))
+			for _, f := range fields {
+				structData[f.name] = f.encoder(v.Field(f.index))
 			}
-			return types.NewStructWithType(structType, values)
+			return types.NewStruct(name, structData)
 		}
 	} else if originalFieldIndex == nil {
 		// Slower path: cannot precompute the Noms type since there are Noms collections,

@@ -334,22 +334,21 @@ func (suite *QueryGraphQLSuite) TestListOfUnionOfScalars() {
 }
 
 func (suite *QueryGraphQLSuite) TestCyclicStructs() {
-	typ := types.MakeStructTypeFromFields("A", types.FieldMap{
-		"a": types.StringType,
-		"b": types.MakeSetType(types.MakeCycleType(0)),
-	})
-
-	// Struct A {
+	// struct A {
 	//  a: "aaa"
-	//  b: Set(Struct A {
+	//  b: Set(struct A {
 	// 	 a: "bbb"
 	// 	 b: Set()
 	//  })
 	// }
 
-	s1 := types.NewStructWithType(typ, types.ValueSlice{
-		types.String("aaa"),
-		types.NewSet(types.NewStructWithType(typ, types.ValueSlice{types.String("bbb"), types.NewSet()})),
+	s1 := types.NewStruct("A", types.StructData{
+		"a": types.String("aaa"),
+		"b": types.NewSet(
+			types.NewStruct("A", types.StructData{
+				"a": types.String("bbb"),
+				"b": types.NewSet(),
+			})),
 	})
 
 	suite.assertQueryResult(s1, "{root{a b{values{a}}}}", `{"data":{"root":{"a":"aaa","b":{"values":[{"a":"bbb"}]}}}}`)

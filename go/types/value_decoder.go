@@ -192,7 +192,7 @@ func (r *valueDecoder) readStruct(t *Type) Value {
 	count := desc.Len()
 	valueFields := make(structValueFields, count)
 	for i, tf := range desc.fields {
-		valueFields[i] = structValueField{tf.Name, r.readValue()}
+		valueFields[i] = StructValueField{tf.Name, r.readValue()}
 	}
 
 	return Struct{desc.Name, valueFields, &hash.Hash{}}
