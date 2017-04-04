@@ -34,14 +34,7 @@ func (mes mapEntrySlice) Equals(other mapEntrySlice) bool {
 }
 
 func newMapLeafSequence(vr ValueReader, data ...mapEntry) orderedSequence {
-	kts := make([]*Type, len(data))
-	vts := make([]*Type, len(data))
-	for i, e := range data {
-		kts[i] = TypeOf(e.key)
-		vts[i] = TypeOf(e.value)
-	}
-	t := MakeMapType(MakeUnionType(kts...), MakeUnionType(vts...))
-	return mapLeafSequence{leafSequence{vr, len(data), t}, data}
+	return mapLeafSequence{leafSequence{vr, len(data), MapKind}, data}
 }
 
 // sequence interface
@@ -64,6 +57,16 @@ func (ml mapLeafSequence) getCompareFn(other sequence) compareFn {
 		otherEntry := oml.data[otherIdx]
 		return entry.key.Equals(otherEntry.key) && entry.value.Equals(otherEntry.value)
 	}
+}
+
+func (ml mapLeafSequence) typeOf() *Type {
+	kts := make([]*Type, len(ml.data))
+	vts := make([]*Type, len(ml.data))
+	for i, e := range ml.data {
+		kts[i] = e.key.typeOf()
+		vts[i] = e.value.typeOf()
+	}
+	return makeCompoundType(MapKind, makeCompoundType(UnionKind, kts...), makeCompoundType(UnionKind, vts...))
 }
 
 // orderedSequence interface

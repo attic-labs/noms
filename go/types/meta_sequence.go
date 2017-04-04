@@ -80,12 +80,12 @@ func (key orderedKey) Less(mk2 orderedKey) bool {
 
 type metaSequence struct {
 	tuples []metaTuple
-	t      *Type
+	kind   NomsKind
 	vr     ValueReader
 }
 
-func newMetaSequence(tuples []metaTuple, t *Type, vr ValueReader) metaSequence {
-	return metaSequence{tuples, t, vr}
+func newMetaSequence(tuples []metaTuple, kind NomsKind, vr ValueReader) metaSequence {
+	return metaSequence{tuples, kind, vr}
 }
 
 func (ms metaSequence) data() []metaTuple {
@@ -131,11 +131,18 @@ func (ms metaSequence) WalkRefs(cb RefCallback) {
 }
 
 func (ms metaSequence) typeOf() *Type {
-	return ms.t
+	ts := make(typeSlice, len(ms.tuples))
+	for i, mt := range ms.tuples {
+		rt := mt.ref.typeOf()
+		d.PanicIfFalse(rt.TargetKind() == RefKind)
+		tt := rt.Desc.(CompoundDesc).ElemTypes[0]
+		ts[i] = tt
+	}
+	return makeCompoundType(ms.kind, makeCompoundType(UnionKind, ts...))
 }
 
 func (ms metaSequence) Kind() NomsKind {
-	return ms.t.TargetKind()
+	return ms.kind
 }
 
 func (ms metaSequence) numLeaves() uint64 {
@@ -184,7 +191,7 @@ func (ms metaSequence) getCompositeChildSequence(start uint64, length uint64) se
 	}
 
 	if childIsMeta {
-		return newMetaSequence(metaItems, ms.typeOf(), ms.vr)
+		return newMetaSequence(metaItems, ms.kind, ms.vr)
 	}
 
 	if isIndexedSequence {

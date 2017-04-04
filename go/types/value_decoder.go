@@ -90,16 +90,19 @@ func (r *valueDecoder) readValueSequence() ValueSlice {
 }
 
 func (r *valueDecoder) readListLeafSequence(t *Type) sequence {
+	// TODO: Remove param
 	data := r.readValueSequence()
-	return listLeafSequence{leafSequence{r.vr, len(data), t}, data}
+	return listLeafSequence{leafSequence{r.vr, len(data), ListKind}, data}
 }
 
 func (r *valueDecoder) readSetLeafSequence(t *Type) orderedSequence {
+	// TODO: Remove param
 	data := r.readValueSequence()
-	return setLeafSequence{leafSequence{r.vr, len(data), t}, data}
+	return setLeafSequence{leafSequence{r.vr, len(data), SetKind}, data}
 }
 
 func (r *valueDecoder) readMapLeafSequence(t *Type) orderedSequence {
+	// TODO: Remove param
 	count := r.readUint32()
 	data := []mapEntry{}
 	for i := uint32(0); i < count; i++ {
@@ -108,7 +111,7 @@ func (r *valueDecoder) readMapLeafSequence(t *Type) orderedSequence {
 		data = append(data, mapEntry{k, v})
 	}
 
-	return mapLeafSequence{leafSequence{r.vr, len(data), t}, data}
+	return mapLeafSequence{leafSequence{r.vr, len(data), MapKind}, data}
 }
 
 func (r *valueDecoder) readMetaSequence(t *Type) metaSequence {
@@ -129,7 +132,8 @@ func (r *valueDecoder) readMetaSequence(t *Type) metaSequence {
 		data = append(data, newMetaTuple(ref, key, numLeaves, nil))
 	}
 
-	return newMetaSequence(data, t, r.vr)
+	// TODO: Pass kind in instead of type
+	return newMetaSequence(data, t.TargetKind(), r.vr)
 }
 
 func (r *valueDecoder) readValue() Value {
