@@ -18,7 +18,6 @@ type localBatchStore struct {
 	cs            chunks.ChunkStore
 	unwrittenPuts *orderedChunkCache
 	vbs           *types.ValidatingBatchingSink
-	hints         types.Hints
 	hashes        hash.HashSet
 	mu            *sync.Mutex
 	once          sync.Once
@@ -29,7 +28,6 @@ func newLocalBatchStore(cs chunks.ChunkStore) *localBatchStore {
 		cs:            cs,
 		unwrittenPuts: newOrderedChunkCache(),
 		vbs:           types.NewValidatingBatchingSink(cs),
-		hints:         types.Hints{},
 		hashes:        hash.HashSet{},
 		mu:            &sync.Mutex{},
 	}
@@ -57,15 +55,14 @@ func (lbs *localBatchStore) Has(h hash.Hash) bool {
 	return lbs.cs.Has(h)
 }
 
-// SchedulePut simply calls Put on the underlying ChunkStore, and ignores hints.
-func (lbs *localBatchStore) SchedulePut(c chunks.Chunk, refHeight uint64, hints types.Hints) {
+// SchedulePut simply calls Put on the underlying ChunkStore.
+func (lbs *localBatchStore) SchedulePut(c chunks.Chunk, refHeight uint64) {
 	lbs.once.Do(lbs.expectVersion)
 
 	lbs.unwrittenPuts.Insert(c, refHeight)
 	lbs.mu.Lock()
 	defer lbs.mu.Unlock()
 	lbs.hashes.Insert(c.Hash())
-	lbs.AddHints(hints)
 }
 
 func (lbs *localBatchStore) expectVersion() {
@@ -87,12 +84,6 @@ func (lbs *localBatchStore) UpdateRoot(current, last hash.Hash) bool {
 	return lbs.cs.UpdateRoot(current, last)
 }
 
-func (lbs *localBatchStore) AddHints(hints types.Hints) {
-	for h := range hints {
-		lbs.hints[h] = struct{}{}
-	}
-}
-
 func (lbs *localBatchStore) Flush() {
 	lbs.once.Do(lbs.expectVersion)
 
@@ -103,7 +94,6 @@ func (lbs *localBatchStore) Flush() {
 		close(chunkChan)
 	}()
 
-	lbs.vbs.Prepare(lbs.hints)
 	for c := range chunkChan {
 		dc := lbs.vbs.DecodeUnqueued(c)
 		lbs.vbs.Enqueue(*dc.Chunk, *dc.Value)
@@ -112,7 +102,6 @@ func (lbs *localBatchStore) Flush() {
 
 	lbs.unwrittenPuts.Clear(lbs.hashes)
 	lbs.hashes = hash.HashSet{}
-	lbs.hints = types.Hints{}
 }
 
 // FlushAndDestroyWithoutClose flushes lbs and destroys its cache of unwritten chunks. It's needed because LocalDatabase wraps a localBatchStore around a ChunkStore that's used by a separate BatchStore, so calling Close() on one is semantically incorrect while it still wants to use the other.

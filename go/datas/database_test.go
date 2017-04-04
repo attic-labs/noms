@@ -98,7 +98,8 @@ func (suite *DatabaseSuite) TestReadWriteCachePersists() {
 	suite.NoError(err)
 }
 
-func (suite *DatabaseSuite) TestWriteRefToNonexistentValue() {
+// TODO: Re-enable as part of BUG 3180
+func (suite *DatabaseSuite) SkipTestWriteRefToNonexistentValue() {
 	suite.Panics(func() { suite.db.WriteValue(types.NewRef(types.Bool(true))) })
 }
 

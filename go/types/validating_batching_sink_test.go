@@ -11,28 +11,6 @@ import (
 	"github.com/attic-labs/testify/assert"
 )
 
-func TestValidatingBatchingSinkPrepare(t *testing.T) {
-	cs := chunks.NewTestStore()
-	hints := Hints{}
-	chnx := []chunks.Chunk{
-		EncodeValue(Number(42), nil),
-		EncodeValue(Number(-7), nil),
-		EncodeValue(String("oy"), nil),
-		EncodeValue(Bool(true), nil),
-		EncodeValue(NewBlob(), nil),
-	}
-	for _, c := range chnx {
-		cs.Put(c)
-		hints[c.Hash()] = struct{}{}
-	}
-
-	vbs := NewValidatingBatchingSink(cs)
-	vbs.Prepare(hints)
-	for h := range hints {
-		vbs.vs.isPresent(h)
-	}
-}
-
 func TestValidatingBatchingSinkDecode(t *testing.T) {
 	v := Number(42)
 	c := EncodeValue(v, nil)
@@ -42,6 +20,7 @@ func TestValidatingBatchingSinkDecode(t *testing.T) {
 	assert.True(t, v.Equals(*dc.Value))
 }
 
+/* Not sure if we'll still be treating these specially. CHeck back later
 func TestValidatingBatchingSinkDecodeAlreadyEnqueued(t *testing.T) {
 	v := Number(42)
 	c := EncodeValue(v, nil)
@@ -51,7 +30,7 @@ func TestValidatingBatchingSinkDecodeAlreadyEnqueued(t *testing.T) {
 	dc := vbs.DecodeUnqueued(&c)
 	assert.Nil(t, dc.Chunk)
 	assert.Nil(t, dc.Value)
-}
+}*/
 
 func assertPanicsOnInvalidChunk(t *testing.T, data []interface{}) {
 	cs := chunks.NewTestStore()

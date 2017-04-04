@@ -38,17 +38,13 @@ type ValueReadWriter interface {
 }
 
 // ValueStore provides methods to read and write Noms Values to a BatchStore.
-// It validates Values as they are written, but does not guarantee that these
-// Values are persisted through the BatchStore until a subsequent Flush.
+// It minimally validates Values as they're written, but does not guarantee
+// that these Values are persisted through the BatchStore until a subsequent
+// Flush.
 // Currently, WriteValue validates the following properties of a Value v:
 // - v can be correctly serialized and its Ref taken
-// - all Refs in v point to a Value that can be read from this ValueStore
-// - all Refs in v point to a Value of the correct Type
 type ValueStore struct {
 	bs             BatchStore
-	cacheMu        sync.RWMutex
-	hintCache      map[hash.Hash]chunkCacheEntry
-	pendingHints   map[hash.Hash]chunkCacheEntry
 	pendingMu      sync.RWMutex
 	pendingPuts    map[hash.Hash]pendingChunk
 	pendingPutMax  uint64
@@ -64,16 +60,9 @@ const (
 	defaultPendingPutMax  = 1 << 28 // 256MB
 )
 
-type chunkCacheEntry interface {
-	Present() bool
-	Hint() hash.Hash
-	typeOf() *Type
-}
-
 type pendingChunk struct {
 	c      chunks.Chunk
 	height uint64
-	hints  Hints
 }
 
 // NewTestValueStore creates a simple struct that satisfies ValueReadWriter
@@ -99,10 +88,8 @@ func NewValueStoreWithCache(bs BatchStore, cacheSize uint64) *ValueStore {
 
 func newValueStoreWithCacheAndPending(bs BatchStore, cacheSize, pendingMax uint64) *ValueStore {
 	return &ValueStore{
-		bs:             bs,
-		cacheMu:        sync.RWMutex{},
-		hintCache:      map[hash.Hash]chunkCacheEntry{},
-		pendingHints:   map[hash.Hash]chunkCacheEntry{},
+		bs: bs,
+
 		pendingMu:      sync.RWMutex{},
 		pendingPuts:    map[hash.Hash]pendingChunk{},
 		pendingPutMax:  pendingMax,
@@ -128,12 +115,10 @@ func (lvs *ValueStore) ReadValue(h hash.Hash) Value {
 		return v.(Value)
 	}
 
-	stillPending := false
 	chunk := func() chunks.Chunk {
 		lvs.pendingMu.RLock()
 		defer lvs.pendingMu.RUnlock()
 		if pc, ok := lvs.pendingPuts[h]; ok {
-			stillPending = true
 			return pc.c
 		}
 		return chunks.EmptyChunk
@@ -148,21 +133,7 @@ func (lvs *ValueStore) ReadValue(h hash.Hash) Value {
 
 	v := DecodeValue(chunk, lvs)
 	lvs.valueCache.Add(h, uint64(len(chunk.Data())), v)
-	lvs.setHintsForReadValue(v, h, stillPending)
 	return v
-}
-
-func (lvs *ValueStore) setHintsForReadValue(v Value, h hash.Hash, toPending bool) {
-	var entry chunkCacheEntry = absentChunk{}
-	if v != nil {
-		lvs.setHintsForReachable(v, h, toPending)
-		// h is trivially a hint for v, so consider putting that in the hintCache. If we got to v by reading some higher-level chunk, this entry gets dropped on the floor because h already has a hint in the hintCache. If we later read some other chunk that references v, setHintsForReachable will overwrite this with a hint pointing to that chunk.
-		// If we don't do this, top-level Values that get read but not written -- such as the existing Head of a Database upon a Commit -- can be erroneously left out during a pull.
-		entry = hintedChunk{TypeOf(v), h}
-	}
-	if cur := lvs.check(h); cur == nil || cur.Hint().IsEmpty() {
-		lvs.set(h, entry, toPending)
-	}
 }
 
 // ReadManyValues reads and decodes Values indicated by |hashes| from lvs. On
@@ -172,7 +143,6 @@ func (lvs *ValueStore) ReadManyValues(hashes hash.HashSet, foundValues chan<- Va
 	decode := func(h hash.Hash, chunk *chunks.Chunk, toPending bool) Value {
 		v := DecodeValue(*chunk, lvs)
 		lvs.valueCache.Add(h, uint64(len(chunk.Data())), v)
-		lvs.setHintsForReadValue(v, h, toPending)
 		return v
 	}
 
@@ -238,17 +208,12 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 	h := c.Hash()
 	height := maxChunkHeight(v) + 1
 	r := constructRef(MakeRefType(TypeOf(v)), h, height)
-	if lvs.isPresent(h) {
+	if v, ok := lvs.valueCache.Get(h); ok && v != nil {
 		return r
 	}
 
-	// TODO: It _really_ feels like there should be some refactoring that allows us to only have to walk the refs of |v| once, but I'm hesitant to undertake that refactor right now.
-	hints := lvs.chunkHintsFromCache(v)
-	lvs.bufferChunk(v, c, height, hints)
-
-	lvs.setHintsForReachable(v, h, true)
-	lvs.set(h, (*presentChunk)(TypeOf(v)), false)
-	lvs.valueCache.Drop(h)
+	lvs.bufferChunk(v, c, height)
+	lvs.valueCache.Drop(h) // valueCache may have an entry saying h is not present. Clear that.
 	return r
 }
 
@@ -262,21 +227,21 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 //    flushed).
 // 2. The total data occupied by buffered chunks does not exceed
 //    lvs.pendingPutMax
-func (lvs *ValueStore) bufferChunk(v Value, c chunks.Chunk, height uint64, hints Hints) {
+func (lvs *ValueStore) bufferChunk(v Value, c chunks.Chunk, height uint64) {
 	lvs.pendingMu.Lock()
 	defer lvs.pendingMu.Unlock()
 	h := c.Hash()
-	d.Chk.NotZero(height)
-	lvs.pendingPuts[h] = pendingChunk{c, height, hints}
+	d.PanicIfTrue(height == 0)
+	lvs.pendingPuts[h] = pendingChunk{c, height}
 	lvs.pendingPutSize += uint64(len(c.Data()))
 
 	putChildren := func(parent hash.Hash) (dataPut int) {
 		pc, present := lvs.pendingPuts[parent]
-		d.Chk.True(present)
+		d.PanicIfFalse(present)
 		v := DecodeValue(pc.c, lvs)
 		v.WalkRefs(func(grandchildRef Ref) {
 			if pc, present := lvs.pendingPuts[grandchildRef.TargetHash()]; present {
-				lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
+				lvs.bs.SchedulePut(pc.c, pc.height)
 				dataPut += len(pc.c.Data())
 				delete(lvs.pendingPuts, grandchildRef.TargetHash())
 			}
@@ -319,7 +284,7 @@ func (lvs *ValueStore) bufferChunk(v Value, c chunks.Chunk, height uint64, hints
 				// Any pendingPut is as good as another in this case, so take the first one
 				break
 			}
-			lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
+			lvs.bs.SchedulePut(pc.c, pc.height)
 			lvs.pendingPutSize -= uint64(len(pc.c.Data()))
 			delete(lvs.pendingPuts, tallest)
 			continue
@@ -341,7 +306,7 @@ func (lvs *ValueStore) Flush(root hash.Hash) {
 		}
 
 		put := func(h hash.Hash, pc pendingChunk) uint64 {
-			lvs.bs.SchedulePut(pc.c, pc.height, pc.hints)
+			lvs.bs.SchedulePut(pc.c, pc.height)
 			delete(lvs.pendingPuts, h)
 			return uint64(len(pc.c.Data()))
 		}
@@ -353,16 +318,6 @@ func (lvs *ValueStore) Flush(root hash.Hash) {
 		})
 		delete(lvs.pendingParents, root) // If not present, this is idempotent
 		lvs.pendingPutSize -= put(root, pc)
-
-		// Merge in pending hints
-		lvs.cacheMu.Lock()
-		defer lvs.cacheMu.Unlock()
-		for h, entry := range lvs.pendingHints {
-			if _, present := lvs.pendingPuts[h]; !present {
-				lvs.hintCache[h] = entry
-				delete(lvs.pendingHints, h)
-			}
-		}
 	}()
 	lvs.bs.Flush()
 }
@@ -377,47 +332,6 @@ func (lvs *ValueStore) Close() error {
 	return lvs.bs.Close()
 }
 
-// setHintsForReachable looks at the Chunks reachable from v and, for each one checks if there's a hint in the hintCache. If there isn't, or if the hint is a self-reference, the chunk gets r set as its new hint.
-func (lvs *ValueStore) setHintsForReachable(v Value, r hash.Hash, toPending bool) {
-	v.WalkRefs(func(reachable Ref) {
-		hash := reachable.TargetHash()
-		if cur := lvs.check(hash); cur == nil || cur.Hint().IsEmpty() || cur.Hint() == hash {
-			lvs.set(hash, hintedChunk{getTargetType(reachable), r}, toPending)
-		}
-	})
-}
-
-func (lvs *ValueStore) isPresent(r hash.Hash) (present bool) {
-	if entry := lvs.check(r); entry != nil && entry.Present() {
-		present = true
-	}
-	return
-}
-
-func (lvs *ValueStore) check(r hash.Hash) chunkCacheEntry {
-	lvs.cacheMu.RLock()
-	defer lvs.cacheMu.RUnlock()
-	return lvs.hintCache[r]
-}
-
-func (lvs *ValueStore) set(r hash.Hash, entry chunkCacheEntry, toPending bool) {
-	lvs.cacheMu.Lock()
-	defer lvs.cacheMu.Unlock()
-	if toPending {
-		lvs.pendingHints[r] = entry
-	} else {
-		lvs.hintCache[r] = entry
-	}
-}
-
-func (lvs *ValueStore) chunkHintsFromCache(v Value) Hints {
-	return lvs.checkChunksInCache(v, false)
-}
-
-func (lvs *ValueStore) ensureChunksInCache(v Value) {
-	lvs.checkChunksInCache(v, true)
-}
-
 func (lvs *ValueStore) opCache() opCache {
 	lvs.once.Do(func() {
 		lvs.opcStore = newLdbOpCacheStore(lvs)
@@ -425,98 +339,8 @@ func (lvs *ValueStore) opCache() opCache {
 	return lvs.opcStore.opCache()
 }
 
-func (lvs *ValueStore) checkChunksInCache(v Value, readValues bool) Hints {
-	hints := map[hash.Hash]struct{}{}
-	collectHints := func(reachable Ref) {
-		// First, check the hintCache to see if reachable is already known to be valid.
-		targetHash := reachable.TargetHash()
-		entry := lvs.check(targetHash)
-
-		// If it's not already in the hintCache, attempt to read the value directly, which will put it and its chunks into the hintCache.
-		var reachableV Value
-		if entry == nil || !entry.Present() {
-			if readValues {
-				// TODO: log or report that we needed to ReadValue here BUG 1762
-				reachableV = lvs.ReadValue(targetHash)
-				entry = lvs.check(targetHash)
-			}
-			if reachableV == nil {
-				d.Chk.Fail("Attempted to write Value containing Ref to non-existent object.", "%s\n, contains ref %s, which points to a non-existent Value.", v.Hash(), reachable.TargetHash())
-			}
-		}
-		if hint := entry.Hint(); !hint.IsEmpty() {
-			hints[hint] = struct{}{}
-		}
-
-		targetType := getTargetType(reachable)
-		if entry.typeOf().TargetKind() == ValueKind && targetType.TargetKind() != ValueKind {
-			// We've seen targetHash before, but only in a Ref<Value>, and reachable has a more specific type than that. Deref reachable to check the real type on the chunk it points to, and cache the result if everything checks out.
-			if reachableV == nil {
-				reachableV = lvs.ReadValue(targetHash)
-			}
-			entry = hintedChunk{TypeOf(reachableV), entry.Hint()}
-			lvs.set(targetHash, entry, false)
-		}
-		// At this point, entry should have the most specific type info possible. Unless it matches targetType, or targetType is 'Value', bail.
-		if !IsSubtype(targetType, entry.typeOf()) {
-			// TODO: This should really be!
-			// if !(targetType.TargetKind() == ValueKind || entry.Type().Equals(targetType)) {
-			// https://github.com/attic-labs/noms/issues/3325
-
-			d.Panic("Value to write contains ref %s, which points to a value of type %s which is not a subtype of %s", reachable.TargetHash(), entry.typeOf().Describe(), targetType.Describe())
-		}
-	}
-	v.WalkRefs(collectHints)
-	return hints
-}
-
 func getTargetType(refBase Ref) *Type {
 	refType := TypeOf(refBase)
 	d.PanicIfFalse(RefKind == refType.TargetKind())
 	return refType.Desc.(CompoundDesc).ElemTypes[0]
-}
-
-type hintedChunk struct {
-	t    *Type
-	hint hash.Hash
-}
-
-func (h hintedChunk) Present() bool {
-	return true
-}
-
-func (h hintedChunk) Hint() (r hash.Hash) {
-	return h.hint
-}
-
-func (h hintedChunk) typeOf() *Type {
-	return h.t
-}
-
-type presentChunk Type
-
-func (p *presentChunk) Present() bool {
-	return true
-}
-
-func (p *presentChunk) Hint() (h hash.Hash) {
-	return
-}
-
-func (p *presentChunk) typeOf() *Type {
-	return (*Type)(p)
-}
-
-type absentChunk struct{}
-
-func (a absentChunk) Present() bool {
-	return false
-}
-
-func (a absentChunk) Hint() (r hash.Hash) {
-	return
-}
-
-func (a absentChunk) typeOf() *Type {
-	panic("Not reached. Should never call typeOf() on an absentChunk.")
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
-	"github.com/attic-labs/noms/go/types"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -174,7 +173,7 @@ func (nbs *NomsBlockStore) Put(c chunks.Chunk) {
 	nbs.putCount++
 }
 
-func (nbs *NomsBlockStore) SchedulePut(c chunks.Chunk, refHeight uint64, hints types.Hints) {
+func (nbs *NomsBlockStore) SchedulePut(c chunks.Chunk, refHeight uint64) {
 	nbs.Put(c)
 }
 
@@ -417,11 +416,6 @@ func (nbs *NomsBlockStore) Close() (err error) {
 	nbs.mu.Lock()
 	defer nbs.mu.Unlock()
 	return nbs.tables.Close()
-}
-
-// types.BatchStore
-func (nbs *NomsBlockStore) AddHints(hints types.Hints) {
-	// noop
 }
 
 func (nbs *NomsBlockStore) Flush() {

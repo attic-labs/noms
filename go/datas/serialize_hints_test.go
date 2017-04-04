@@ -14,17 +14,16 @@ import (
 
 func TestHintRoundTrip(t *testing.T) {
 	b := &bytes.Buffer{}
-	input := map[hash.Hash]struct{}{
-		hash.Parse("00000000000000000000000000000000"): {},
-		hash.Parse("00000000000000000000000000000001"): {},
-		hash.Parse("00000000000000000000000000000002"): {},
-		hash.Parse("00000000000000000000000000000003"): {},
+	input := hash.HashSlice{
+		hash.Parse("00000000000000000000000000000000"),
+		hash.Parse("00000000000000000000000000000001"),
+		hash.Parse("00000000000000000000000000000002"),
+		hash.Parse("00000000000000000000000000000003"),
 	}
-	serializeHints(b, input)
-	output := deserializeHints(b)
+	serializeHashes(b, input)
+	output := deserializeHashes(b)
 	assert.Len(t, output, len(input), "Output has different number of elements than input: %v, %v", output, input)
-	for h := range output {
-		_, present := input[h]
-		assert.True(t, present, "%s is in output but not in input", h)
+	for i, h := range output {
+		assert.EqualValues(t, h, input[i], "%s is in output but not in input", h)
 	}
 }

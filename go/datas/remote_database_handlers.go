@@ -137,7 +137,6 @@ func handleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs
 		reader.Close()
 	}()
 	vbs := types.NewValidatingBatchingSink(cs)
-	vbs.Prepare(deserializeHints(reader))
 
 	// Deserialize chunks from reader in background, recovering from errors
 	errChan := make(chan error)
@@ -186,12 +185,11 @@ func handleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs
 }
 
 // Contents of the returned io.Reader are snappy-compressed.
-func buildWriteValueRequest(chunkChan chan *chunks.Chunk, hints map[hash.Hash]struct{}) io.Reader {
+func buildWriteValueRequest(chunkChan chan *chunks.Chunk) io.Reader {
 	body, pw := io.Pipe()
 
 	go func() {
 		gw := snappy.NewBufferedWriter(pw)
-		serializeHints(gw, hints)
 		for c := range chunkChan {
 			chunks.Serialize(*c, gw)
 		}

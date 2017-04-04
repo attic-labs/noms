@@ -22,7 +22,6 @@ import (
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/nbs"
-	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/golang/snappy"
 	"github.com/julienschmidt/httprouter"
@@ -48,7 +47,6 @@ type httpBatchStore struct {
 	auth         string
 	getQueue     chan chunks.ReadRequest
 	hasQueue     chan chunks.ReadRequest
-	writeQueue   chan writeRequest
 	finishedChan chan struct{}
 	rateLimit    chan struct{}
 	requestWg    *sync.WaitGroup
@@ -57,7 +55,6 @@ type httpBatchStore struct {
 
 	cacheMu       *sync.RWMutex
 	unwrittenPuts *nbs.NomsBlockCache
-	hints         types.Hints
 }
 
 func NewHTTPBatchStore(baseURL, auth string) *httpBatchStore {
@@ -73,7 +70,6 @@ func NewHTTPBatchStore(baseURL, auth string) *httpBatchStore {
 		auth:          auth,
 		getQueue:      make(chan chunks.ReadRequest, readBufferSize),
 		hasQueue:      make(chan chunks.ReadRequest, readBufferSize),
-		writeQueue:    make(chan writeRequest, writeBufferSize),
 		finishedChan:  make(chan struct{}),
 		rateLimit:     make(chan struct{}, httpChunkSinkConcurrency),
 		requestWg:     &sync.WaitGroup{},
@@ -81,7 +77,6 @@ func NewHTTPBatchStore(baseURL, auth string) *httpBatchStore {
 		flushOrder:    nbs.InsertOrder,
 		cacheMu:       &sync.RWMutex{},
 		unwrittenPuts: nbs.NewCache(),
-		hints:         types.Hints{},
 	}
 	buffSink.batchGetRequests()
 	buffSink.batchHasRequests()
@@ -90,11 +85,6 @@ func NewHTTPBatchStore(baseURL, auth string) *httpBatchStore {
 
 type httpDoer interface {
 	Do(req *http.Request) (resp *http.Response, err error)
-}
-
-type writeRequest struct {
-	hints     types.Hints
-	justHints bool
 }
 
 func (bhcs *httpBatchStore) SetReverseFlushOrder() {
@@ -116,7 +106,6 @@ func (bhcs *httpBatchStore) Close() (e error) {
 
 	close(bhcs.getQueue)
 	close(bhcs.hasQueue)
-	close(bhcs.writeQueue)
 	close(bhcs.rateLimit)
 
 	bhcs.cacheMu.Lock()
@@ -335,21 +324,10 @@ func resBodyReader(res *http.Response) (reader io.ReadCloser) {
 	return
 }
 
-func (bhcs *httpBatchStore) SchedulePut(c chunks.Chunk, refHeight uint64, hints types.Hints) {
+func (bhcs *httpBatchStore) SchedulePut(c chunks.Chunk, refHeight uint64) {
 	bhcs.cacheMu.RLock()
 	defer bhcs.cacheMu.RUnlock()
 	bhcs.unwrittenPuts.Insert(c)
-	for hint := range hints {
-		bhcs.hints[hint] = struct{}{}
-	}
-}
-
-func (bhcs *httpBatchStore) AddHints(hints types.Hints) {
-	bhcs.cacheMu.RLock()
-	defer bhcs.cacheMu.RUnlock()
-	for hint := range hints {
-		bhcs.hints[hint] = struct{}{}
-	}
 }
 
 func (bhcs *httpBatchStore) sendWriteRequests() {
@@ -369,7 +347,6 @@ func (bhcs *httpBatchStore) sendWriteRequests() {
 	defer func() {
 		bhcs.unwrittenPuts.Destroy()
 		bhcs.unwrittenPuts = nbs.NewCache()
-		bhcs.hints = types.Hints{}
 	}()
 
 	var res *http.Response
@@ -382,7 +359,7 @@ func (bhcs *httpBatchStore) sendWriteRequests() {
 			close(chunkChan)
 		}()
 
-		body := buildWriteValueRequest(chunkChan, bhcs.hints)
+		body := buildWriteValueRequest(chunkChan)
 		url := *bhcs.host
 		url.Path = httprouter.CleanPath(bhcs.host.Path + constants.WriteValuePath)
 		// TODO: Make this accept snappy encoding
