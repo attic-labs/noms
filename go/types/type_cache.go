@@ -217,28 +217,23 @@ func walkType(t *Type, parentStructTypes []*Type, cb func(*Type, []*Type)) {
 
 // MakeUnionType creates a new union type unless the elemTypes can be folded into a single non union type.
 func makeUnionType(elemTypes ...*Type) *Type {
-	return makeSimplifiedType(false, elemTypes...)
+	return makeSimplifiedType(false, makeCompoundType(UnionKind, elemTypes...))
 }
 
 func MakeListType(elemType *Type) *Type {
-	elemType = makeSimplifiedType(false, elemType)
-	return makeCompoundType(ListKind, elemType)
+	return makeSimplifiedType(false, makeCompoundType(ListKind, elemType))
 }
 
 func MakeSetType(elemType *Type) *Type {
-	elemType = makeSimplifiedType(false, elemType)
-	return makeCompoundType(SetKind, elemType)
+	return makeSimplifiedType(false, makeCompoundType(SetKind, elemType))
 }
 
 func MakeRefType(elemType *Type) *Type {
-	elemType = makeSimplifiedType(false, elemType)
-	return makeCompoundType(RefKind, elemType)
+	return makeSimplifiedType(false, makeCompoundType(RefKind, elemType))
 }
 
 func MakeMapType(keyType, valType *Type) *Type {
-	keyType = makeSimplifiedType(false, keyType)
-	valType = makeSimplifiedType(false, valType)
-	return makeCompoundType(MapKind, keyType, valType)
+	return makeSimplifiedType(false, makeCompoundType(MapKind, keyType, valType))
 }
 
 type FieldMap map[string]*Type
@@ -283,7 +278,7 @@ func MakeUnionType(elemTypes ...*Type) *Type {
 // types.
 // This function will go away so do not use it!
 func MakeUnionTypeIntersectStructs(elemTypes ...*Type) *Type {
-	return makeSimplifiedType(true, elemTypes...)
+	return makeSimplifiedType(true, makeCompoundType(UnionKind, elemTypes...))
 }
 
 func MakeCycleType(level uint32) *Type {

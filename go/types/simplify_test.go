@@ -216,7 +216,7 @@ func TestSimplifyType(t *testing.T) {
 		}
 
 		for i, c := range cases {
-			act := makeSimplifiedType(intersectStruct, c.in...)
+			act := makeSimplifiedType(intersectStruct, makeCompoundType(UnionKind, c.in...))
 			assert.True(t, c.out.Equals(act), "Test case as position %d - got %s, wanted %s", i, act.Describe(), c.out.Describe())
 		}
 	}
@@ -318,9 +318,10 @@ func TestMakeSimplifiedUnion(t *testing.T) {
 		}
 
 		for i, c := range cases {
-			act := makeSimplifiedType(intersectStruct, c.in...)
+			act := makeSimplifiedType(intersectStruct, makeCompoundType(UnionKind, c.in...))
 			assert.True(t, c.out.Equals(act), "Test case as position %d - got %s, expected %s", i, act.Describe(), c.out.Describe())
 		}
+
 	}
 }
 

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/attic-labs/noms/go/d"
@@ -37,17 +36,13 @@ import (
 //
 // Anytime any of the above cases generates a union as output, the same process
 // is applied to that union recursively.
-func makeSimplifiedType(intersectStructs bool, in ...*Type) *Type {
+func makeSimplifiedType(intersectStructs bool, in *Type) *Type {
 	seen := map[*Type]*Type{}
 	pending := map[string]*unsimplifiedStruct{}
 
-	ts := make(typeset, len(in))
-	for _, t := range in {
-		out, _ := removeAndCollectStructFields(t, seen, pending)
-		ts.Add(out)
-	}
+	out, _ := removeAndCollectStructFields(in, seen, pending)
 
-	result := makeSimplifiedTypeImpl(ts, intersectStructs)
+	result := makeSimplifiedTypeImpl(out, intersectStructs)
 	for _, rec := range pending {
 		desc := rec.t.Desc.(StructDesc)
 		desc.fields = simplifyStructFields(rec.fieldSets, intersectStructs)
@@ -82,12 +77,37 @@ func newTypeset(t ...*Type) typeset {
 // makeSimplifiedTypeImpl is an implementation detail.
 // Warning: Do not call this directly. It assumes its input has been de-cycled using
 // ToUnresolvedType() and will infinitely recurse on cyclic types otherwise.
-func makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *Type {
+func makeSimplifiedTypeImpl(in *Type, intersectStructs bool) *Type {
+	switch in.TargetKind() {
+	case BoolKind, NumberKind, StringKind, BlobKind, ValueKind, TypeKind, CycleKind:
+		return in
+	case ListKind, MapKind, RefKind, SetKind:
+		elemTypes := make(typeSlice, len(in.Desc.(CompoundDesc).ElemTypes))
+		for i, t := range in.Desc.(CompoundDesc).ElemTypes {
+			elemTypes[i] = makeSimplifiedTypeImpl(t, intersectStructs)
+		}
+		return makeCompoundType(in.TargetKind(), elemTypes...)
+	case StructKind:
+		// Structs have been replaced by "placeholders" in removeAndCollectStructFields.
+		return in
+	case UnionKind:
+		elemTypes := make(typeSlice, len(in.Desc.(CompoundDesc).ElemTypes))
+		ts := make(typeset, len(elemTypes))
+		for _, t := range in.Desc.(CompoundDesc).ElemTypes {
+			t = makeSimplifiedTypeImpl(t, intersectStructs)
+			ts.Add(t)
+		}
+
+		return bucketElements(ts, intersectStructs)
+	}
+	panic("Unknown noms kind")
+}
+
+func bucketElements(in typeset, intersectStructs bool) *Type {
 	type how struct {
 		k NomsKind
 		n string
 	}
-
 	out := make(typeSlice, 0, len(in))
 	groups := map[how]typeset{}
 	for t := range in {
@@ -128,10 +148,6 @@ func makeSimplifiedTypeImpl(in typeset, intersectStructs bool) *Type {
 		case MapKind:
 			r = simplifyMaps(ts, intersectStructs)
 		case StructKind:
-			fmt.Println("Len", len(ts), ts)
-			for k, _ := range ts {
-				fmt.Println(k.Describe(), k)
-			}
 			panic("unreachable") // we have alreade folded structs
 		}
 		out = append(out, r)
@@ -158,7 +174,7 @@ func simplifyContainers(expectedKind NomsKind, ts typeset, intersectStructs bool
 		elemTypes.Add(t.Desc.(CompoundDesc).ElemTypes[0])
 	}
 
-	elemType := makeSimplifiedTypeImpl(elemTypes, intersectStructs)
+	elemType := bucketElements(elemTypes, intersectStructs)
 
 	return makeCompoundType(expectedKind, elemType)
 }
@@ -173,8 +189,8 @@ func simplifyMaps(ts typeset, intersectStructs bool) *Type {
 		valTypes.Add(desc.ElemTypes[1])
 	}
 
-	kt := makeSimplifiedTypeImpl(keyTypes, intersectStructs)
-	vt := makeSimplifiedTypeImpl(valTypes, intersectStructs)
+	kt := bucketElements(keyTypes, intersectStructs)
+	vt := bucketElements(valTypes, intersectStructs)
 
 	return makeCompoundType(MapKind, kt, vt)
 }
@@ -253,7 +269,7 @@ func simplifyStructFields(in []structTypeFields, intersectStructs bool) structTy
 	type fieldTypeInfo struct {
 		anyNonOptional bool
 		count          int
-		typeset        typeset
+		ts             typeSlice
 	}
 	allFields := map[string]fieldTypeInfo{}
 
@@ -265,10 +281,10 @@ func simplifyStructFields(in []structTypeFields, intersectStructs bool) structTy
 			fti, ok := allFields[name]
 			if !ok {
 				fti = fieldTypeInfo{
-					typeset: typeset{},
+					ts: typeSlice{},
 				}
 			}
-			fti.typeset.Add(t)
+			fti.ts = append(fti.ts, t)
 			if !optional {
 				fti.count++
 				fti.anyNonOptional = true
@@ -282,7 +298,7 @@ func simplifyStructFields(in []structTypeFields, intersectStructs bool) structTy
 	for name, fti := range allFields {
 		fields = append(fields, StructField{
 			Name:     name,
-			Type:     makeSimplifiedTypeImpl(fti.typeset, intersectStructs),
+			Type:     makeSimplifiedTypeImpl(makeCompoundType(UnionKind, fti.ts...), intersectStructs),
 			Optional: !(intersectStructs && fti.anyNonOptional) && fti.count < count,
 		})
 	}

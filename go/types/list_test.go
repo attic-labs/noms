@@ -1019,7 +1019,7 @@ func TestListTypeAfterMutations(t *testing.T) {
 		l := NewList(values...)
 		assert.Equal(l.Len(), uint64(n))
 		assert.IsType(c, l.sequence())
-		assert.True(TypeOf(l).Equals(MakeListType(NumberType)))
+		assert.True(TypeOf(l).Equals(MakeListType(NumberType)), "%s != %s", TypeOf(l).Describe(), MakeListType(NumberType).Describe())
 
 		l = l.Append(String("a"))
 		assert.Equal(l.Len(), uint64(n+1))

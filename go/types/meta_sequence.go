@@ -135,10 +135,9 @@ func (ms metaSequence) typeOf() *Type {
 	for i, mt := range ms.tuples {
 		rt := mt.ref.typeOf()
 		d.PanicIfFalse(rt.TargetKind() == RefKind)
-		tt := rt.Desc.(CompoundDesc).ElemTypes[0]
-		ts[i] = tt
+		ts[i] = rt.Desc.(CompoundDesc).ElemTypes[0]
 	}
-	return makeCompoundType(ms.kind, makeCompoundType(UnionKind, ts...))
+	return makeCompoundType(UnionKind, ts...)
 }
 
 func (ms metaSequence) Kind() NomsKind {
