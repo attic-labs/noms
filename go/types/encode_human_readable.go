@@ -180,13 +180,13 @@ func (w *hrsWriter) writeStruct(v Struct, printStructName bool) {
 	w.write("{")
 	w.indent()
 
-	if len(v.fields) > 0 {
+	if len(v.fieldNames) > 0 {
 		w.newLine()
 	}
-	for _, f := range v.fields {
-		w.write(f.name)
+	for i := 0; i < len(v.fieldNames); i++ {
+		w.write(v.fieldNames[i])
 		w.write(": ")
-		w.Write(f.value)
+		w.Write(v.values[i])
 		w.write(",")
 		w.newLine()
 	}

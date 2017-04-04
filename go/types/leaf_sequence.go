@@ -25,3 +25,7 @@ func (seq leafSequence) valueReader() ValueReader {
 func (seq leafSequence) getChildSequence(idx int) sequence {
 	return nil
 }
+
+func (seq leafSequence) Kind() NomsKind {
+	return seq.kind
+}

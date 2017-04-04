@@ -273,7 +273,7 @@ func metaHashValueBytes(item sequenceItem, rv *rollingValueHasher) {
 	if !mt.key.isOrderedByValue {
 		// See https://github.com/attic-labs/noms/issues/1688#issuecomment-227528987
 		d.PanicIfTrue(mt.key.h.IsEmpty())
-		v = constructRef(MakeRefType(BoolType), mt.key.h, 0)
+		v = constructRef(mt.key.h, BoolType, 0)
 	}
 
 	hashValueBytes(mt.ref, rv)
@@ -301,10 +301,6 @@ func (es emptySequence) valueReader() ValueReader {
 func (es emptySequence) WalkRefs(cb RefCallback) {
 }
 
-func (es emptySequence) typeOf() *Type {
-	panic("empty sequence")
-}
-
 func (es emptySequence) getCompareFn(other sequence) compareFn {
 	return func(idx, otherIdx int) bool { panic("empty sequence") }
 }
@@ -322,5 +318,9 @@ func (es emptySequence) getChildSequence(i int) sequence {
 }
 
 func (es emptySequence) Kind() NomsKind {
+	panic("empty sequence")
+}
+
+func (es emptySequence) typeOf() *Type {
 	panic("empty sequence")
 }

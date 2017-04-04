@@ -34,7 +34,7 @@ func TestGenericStructChunks(t *testing.T) {
 	s1 := NewStruct("S1", StructData{"r": NewRef(b)})
 
 	assert.Len(getChunks(s1), 1)
-	assert.Equal(b.Hash(), getChunks(s1)[0].TargetHash())
+	assert.Equal(Bool(true).Hash(), getChunks(s1)[0].TargetHash())
 }
 
 func TestGenericStructNew(t *testing.T) {
