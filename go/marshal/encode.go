@@ -481,7 +481,7 @@ func listEncoder(t reflect.Type, parentStructTypes []reflect.Type) encoderFunc {
 	e = func(v reflect.Value) types.Value {
 		init.RLock()
 		defer init.RUnlock()
-		values := make([]types.Value, v.Len(), v.Len())
+		values := make([]types.Value, v.Len())
 		for i := 0; i < v.Len(); i++ {
 			values[i] = elemEncoder(v.Index(i))
 		}
@@ -508,7 +508,7 @@ func setFromListEncoder(t reflect.Type, parentStructTypes []reflect.Type) encode
 	e = func(v reflect.Value) types.Value {
 		init.RLock()
 		defer init.RUnlock()
-		values := make([]types.Value, v.Len(), v.Len())
+		values := make([]types.Value, v.Len())
 		for i := 0; i < v.Len(); i++ {
 			values[i] = elemEncoder(v.Index(i))
 		}

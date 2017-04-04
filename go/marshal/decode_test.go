@@ -767,8 +767,8 @@ func TestDecodeSet(t *testing.T) {
 		"c": types.NewSet(),
 		"d": types.NewMap(),
 		"e": types.NewSet(),
-		"g": types.NewSet(),
-		"f": types.NewList(),
+		"f": types.NewSet(),
+		"g": types.NewList(),
 	})
 
 	gs2 := T{
