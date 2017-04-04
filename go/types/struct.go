@@ -113,8 +113,22 @@ func (s Struct) typeOf() *Type {
 	return makeStructTypeQuickly(s.name, typeFields, checkKindNoValidate)
 }
 
-func (s Struct) RawType() *Type {
-	return s.typeOf()
+// Len is the number of fields in the struct.
+func (s Struct) Len() int {
+	return len(s.fields)
+}
+
+// Name is the name of the struct.
+func (s Struct) Name() string {
+	return s.name
+}
+
+// IterFields iterates over the fields, calling cb for every field in the
+// struct.
+func (s Struct) IterFields(cb func(name string, value Value)) {
+	for _, f := range s.fields {
+		cb(f.name, f.value)
+	}
 }
 
 func (s Struct) Kind() NomsKind {
