@@ -42,7 +42,9 @@ type Value interface {
 	// Kind is the NomsKind describing the kind of value this is.
 	Kind() NomsKind
 
-	// typeOf is the internal implementation of types.TypeOf.
+	// typeOf is the internal implementation of types.TypeOf. It is not normalized
+	// and unions might have a single element, duplicates and be in the wrong
+	// order.
 	typeOf() *Type
 }
 

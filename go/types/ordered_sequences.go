@@ -16,25 +16,10 @@ type orderedSequence interface {
 }
 
 func newSetMetaSequence(tuples []metaTuple, vr ValueReader) metaSequence {
-	// ts := make([]*Type, len(tuples))
-	// for i, mt := range tuples {
-	// 	// Ref<Set<T>>
-	// 	ts[i] = TypeOf(mt.ref).Desc.(CompoundDesc).ElemTypes[0].Desc.(CompoundDesc).ElemTypes[0]
-	// }
-	// t := MakeSetType(MakeUnionType(ts...))
 	return newMetaSequence(tuples, SetKind, vr)
 }
 
 func newMapMetaSequence(tuples []metaTuple, vr ValueReader) metaSequence {
-	// kts := make([]*Type, len(tuples))
-	// vts := make([]*Type, len(tuples))
-	// for i, mt := range tuples {
-	// 	// Ref<Map<K, V>>
-	// 	ets := TypeOf(mt.ref).Desc.(CompoundDesc).ElemTypes[0].Desc.(CompoundDesc).ElemTypes
-	// 	kts[i] = ets[0]
-	// 	vts[i] = ets[1]
-	// }
-	// t := MakeMapType(MakeUnionType(kts...), MakeUnionType(vts...))
 	return newMetaSequence(tuples, MapKind, vr)
 }
 
