@@ -155,7 +155,7 @@ func bucketElements(in typeset, intersectStructs bool) *Type {
 
 	for i, t := range out {
 		t = ToUnresolvedType(t)
-		out[i] = resolveStructCycles(t, nil)
+		out[i] = resolveStructCycles(t, map[string]*Type{})
 	}
 
 	if len(out) == 1 {

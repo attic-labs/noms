@@ -116,7 +116,7 @@ func (s StructDesc) Len() int {
 	return len(s.fields)
 }
 
-type CycleDesc uint32
+type CycleDesc string
 
 func (c CycleDesc) Kind() NomsKind {
 	return CycleKind

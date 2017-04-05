@@ -97,11 +97,15 @@ func TestContainCommonSupertype(t *testing.T) {
 		// struct{foo: string} & struct{foo: string|blob} -> true
 		{MakeStructTypeFromFields("", FieldMap{"foo": StringType}),
 			MakeStructTypeFromFields("", FieldMap{"foo": MakeUnionType(StringType, BlobType)}), true},
+
+		// 32
+
 		// struct{foo: string}|struct{foo: blob} & struct{foo: string|blob} -> true
 		{MakeUnionType(
 			MakeStructTypeFromFields("", FieldMap{"foo": StringType}),
 			MakeStructTypeFromFields("", FieldMap{"foo": BlobType}),
 		), MakeStructTypeFromFields("", FieldMap{"foo": MakeUnionType(StringType, BlobType)}), true},
+
 		// struct{foo: string}|struct{foo: blob} & struct{foo: number|bool} -> false
 		{MakeUnionType(
 			MakeStructTypeFromFields("", FieldMap{"foo": StringType}),
@@ -131,8 +135,8 @@ func TestContainCommonSupertype(t *testing.T) {
 		},
 
 		// struct A{self:A} & struct A{self:A, foo:Number} -> true
-		{MakeStructTypeFromFields("A", FieldMap{"self": MakeCycleType(0)}),
-			MakeStructTypeFromFields("A", FieldMap{"self": MakeCycleType(0), "foo": NumberType}), true},
+		{MakeStructTypeFromFields("A", FieldMap{"self": MakeCycleType("A")}),
+			MakeStructTypeFromFields("A", FieldMap{"self": MakeCycleType("A"), "foo": NumberType}), true},
 
 		// struct{b:Bool} & struct{b?:Bool} -> true
 		{

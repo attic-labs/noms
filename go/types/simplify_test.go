@@ -170,13 +170,13 @@ func TestSimplifyType(t *testing.T) {
 				[]*Type{
 					MakeStructType("A",
 						StructField{"b", MakeStructType("B",
-							StructField{"a", MakeCycleType(1), false},
+							StructField{"a", MakeCycleType("A"), false},
 						), false},
 					),
 				},
 				MakeStructType("A",
 					StructField{"b", MakeStructType("B",
-						StructField{"a", MakeCycleType(1), false},
+						StructField{"a", MakeCycleType("A"), false},
 					), false},
 				),
 			},
@@ -187,7 +187,7 @@ func TestSimplifyType(t *testing.T) {
 				[]*Type{
 					MakeStructType("A",
 						StructField{"b", MakeStructType("B",
-							StructField{"a", MakeCycleType(1), false},
+							StructField{"a", MakeCycleType("A"), false},
 						), false},
 					),
 					MakeStructType("A",
@@ -196,7 +196,7 @@ func TestSimplifyType(t *testing.T) {
 				},
 				MakeStructType("A",
 					StructField{"b", MakeStructType("B",
-						StructField{"a", MakeCycleType(1), false},
+						StructField{"a", MakeCycleType("A"), false},
 					), !intersectStruct},
 					StructField{"c", NumberType, !intersectStruct},
 				),
@@ -223,11 +223,11 @@ func TestSimplifyType(t *testing.T) {
 }
 
 func TestMakeSimplifiedUnion(t *testing.T) {
-	cycleType := MakeStructTypeFromFields("", FieldMap{"self": MakeCycleType(0)})
+	cycleType := MakeStructTypeFromFields("S", FieldMap{"self": MakeCycleType("S")})
 
 	// TODO: Why is this first step necessary?
 	cycleType = ToUnresolvedType(cycleType)
-	cycleType = resolveStructCycles(cycleType, nil)
+	cycleType = resolveStructCycles(cycleType, map[string]*Type{})
 
 	for _, intersectStruct := range []bool{false, true} {
 

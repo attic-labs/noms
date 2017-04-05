@@ -155,7 +155,7 @@ func migrateType(source *v7types.Type) *types.Type {
 		})
 		return types.MakeStructType(sd.Name, fields...)
 	case v7types.CycleKind:
-		return types.MakeCycleType(uint32(source.Desc.(types.CycleDesc)))
+		return types.MakeCycleType(string(source.Desc.(types.CycleDesc)))
 	}
 
 	panic(fmt.Sprintf("unreachable kind: %d", source.TargetKind()))

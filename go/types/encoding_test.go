@@ -586,7 +586,7 @@ func (bg bogusType) Kind() NomsKind {
 	return CycleKind
 }
 func (bg bogusType) typeOf() *Type {
-	return MakeCycleType(0)
+	return MakeCycleType("ABC")
 }
 
 func TestBogusValueWithUnresolvedCycle(t *testing.T) {

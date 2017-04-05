@@ -232,7 +232,7 @@ func TestAssertTypeStructSubtype(tt *testing.T) {
 	assertSubtype(t1, c1)
 
 	t11 := MakeStructType("Commit",
-		StructField{"parents", MakeSetType(MakeRefType(MakeCycleType(0))), false},
+		StructField{"parents", MakeSetType(MakeRefType(MakeCycleType("Commit"))), false},
 		StructField{"value", NumberType, false},
 	)
 	assertSubtype(t11, c1)
@@ -245,32 +245,32 @@ func TestAssertTypeStructSubtype(tt *testing.T) {
 }
 
 func TestAssertTypeCycleUnion(tt *testing.T) {
-	// struct {
-	//   x: Cycle<0>,
+	// struct S {
+	//   x: Cycle<S>,
 	//   y: Number,
 	// }
-	t1 := MakeStructType("",
-		StructField{"x", MakeCycleType(0), false},
+	t1 := MakeStructType("S",
+		StructField{"x", MakeCycleType("S"), false},
 		StructField{"y", NumberType, false},
 	)
-	// struct {
-	//   x: Cycle<0>,
+	// struct S {
+	//   x: Cycle<S>,
 	//   y: Number | String,
 	// }
-	t2 := MakeStructType("",
-		StructField{"x", MakeCycleType(0), false},
+	t2 := MakeStructType("S",
+		StructField{"x", MakeCycleType("S"), false},
 		StructField{"y", MakeUnionType(NumberType, StringType), false},
 	)
 
 	assert.True(tt, isSubtype(t2, t1, nil))
 	assert.False(tt, isSubtype(t1, t2, nil))
 
-	// struct {
-	//   x: Cycle<0> | Number,
+	// struct S {
+	//   x: Cycle<S> | Number,
 	//   y: Number | String,
 	// }
-	t3 := MakeStructType("",
-		StructField{"x", MakeUnionType(MakeCycleType(0), NumberType), false},
+	t3 := MakeStructType("S",
+		StructField{"x", MakeUnionType(MakeCycleType("S"), NumberType), false},
 		StructField{"y", MakeUnionType(NumberType, StringType), false},
 	)
 
@@ -280,12 +280,12 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 	assert.True(tt, isSubtype(t3, t2, nil))
 	assert.False(tt, isSubtype(t2, t3, nil))
 
-	// struct {
-	//   x: Cycle<0> | Number,
+	// struct S {
+	//   x: Cycle<S> | Number,
 	//   y: Number,
 	// }
-	t4 := MakeStructType("",
-		StructField{"x", MakeUnionType(MakeCycleType(0), NumberType), false},
+	t4 := MakeStructType("S",
+		StructField{"x", MakeUnionType(MakeCycleType("S"), NumberType), false},
 		StructField{"y", NumberType, false},
 	)
 
@@ -300,27 +300,27 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 
 	// struct B {
 	//   b: struct C {
-	//     c: Cycle<1>,
+	//     c: Cycle<B>,
 	//   },
 	// }
 
 	// struct C {
 	//   c: struct B {
-	//     b: Cycle<1>,
+	//     b: Cycle<C>,
 	//   },
 	// }
 
 	tb := MakeStructType("A",
 		StructField{
 			"b",
-			MakeStructType("B", StructField{"c", MakeCycleType(1), false}),
+			MakeStructType("B", StructField{"c", MakeCycleType("A"), false}),
 			false,
 		},
 	)
 	tc := MakeStructType("A",
 		StructField{
 			"c",
-			MakeStructType("B", StructField{"b", MakeCycleType(1), false}),
+			MakeStructType("B", StructField{"b", MakeCycleType("A"), false}),
 			false,
 		},
 	)
