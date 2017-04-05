@@ -227,12 +227,9 @@ func (nbs *NomsBlockStore) GetMany(hashes hash.HashSet, foundChunks chan *chunks
 		nbs.mu.RLock()
 		defer nbs.mu.RUnlock()
 		tables = nbs.tables
-
+		remaining = true
 		if nbs.mt != nil {
-			remaining = nbs.mt.getMany(reqs, foundChunks, &sync.WaitGroup{})
-			wg.Wait()
-		} else {
-			remaining = true
+			remaining = nbs.mt.getMany(reqs, foundChunks, nil)
 		}
 
 		return
@@ -320,6 +317,55 @@ func (nbs *NomsBlockStore) Has(h hash.Hash) bool {
 		return nbs.mt != nil && nbs.mt.has(a), nbs.tables
 	}()
 	return has || tables.has(a)
+}
+
+func (nbs *NomsBlockStore) HasMany(hashes hash.HashSet) hash.HashSet {
+	reqs := toHasRecords(hashes)
+
+	tables, remaining := func() (tables chunkReader, remaining bool) {
+		nbs.mu.RLock()
+		defer nbs.mu.RUnlock()
+		tables = nbs.tables
+
+		remaining = true
+		if nbs.mt != nil {
+			remaining = nbs.mt.hasMany(reqs)
+		}
+
+		return
+	}()
+
+	if remaining {
+		tables.hasMany(reqs)
+	}
+	return fromHasRecords(reqs)
+}
+
+func toHasRecords(hashes hash.HashSet) []hasRecord {
+	reqs := make([]hasRecord, len(hashes))
+	idx := 0
+	for h := range hashes {
+		a := addr(h)
+		reqs[idx] = hasRecord{
+			a:      &a,
+			prefix: a.Prefix(),
+			order:  idx,
+		}
+		idx++
+	}
+
+	sort.Sort(hasRecordByPrefix(reqs))
+	return reqs
+}
+
+func fromHasRecords(reqs []hasRecord) hash.HashSet {
+	present := hash.HashSet{}
+	for _, r := range reqs {
+		if r.has {
+			present.Insert(hash.New(r.a[:]))
+		}
+	}
+	return present
 }
 
 func (nbs *NomsBlockStore) Root() hash.Hash {
