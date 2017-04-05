@@ -5,26 +5,28 @@
 package types
 
 import (
-	"sync"
-
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/hash"
 )
 
 const batchSize = 100
 
 type ValidatingBatchingSink struct {
-	vs    *ValueStore
-	cs    chunks.ChunkStore
-	batch [batchSize]chunks.Chunk
-	count int
-	pool  sync.Pool
+	vs      *ValueStore
+	cs      chunks.ChunkStore
+	batch   [batchSize]chunks.Chunk
+	count   int
+	novel   hash.HashSet
+	targets hash.HashSet
 }
 
 func NewValidatingBatchingSink(cs chunks.ChunkStore) *ValidatingBatchingSink {
 	return &ValidatingBatchingSink{
-		vs: newLocalValueStore(cs),
-		cs: cs,
+		vs:      newLocalValueStore(cs),
+		cs:      cs,
+		novel:   hash.HashSet{},
+		targets: hash.HashSet{},
 	}
 }
 
@@ -37,14 +39,9 @@ type DecodedChunk struct {
 
 // DecodeUnqueued decodes c and checks that the hash of the resulting value
 // matches c.Hash(). It returns a DecodedChunk holding both c and a pointer to
-// the decoded Value. However, if c has already been Enqueued, DecodeUnqueued
-// returns an empty DecodedChunk.
+// the decoded Value.
 func (vbs *ValidatingBatchingSink) DecodeUnqueued(c *chunks.Chunk) DecodedChunk {
 	h := c.Hash()
-	// TODO: Will thisstill be a thing?
-	// if vbs.vs.isPresent(h) {
-	// 	return DecodedChunk{}
-	// }
 	v := decodeFromBytesWithValidation(c.Data(), vbs.vs)
 	if getHash(v) != h {
 		d.Panic("Invalid hash found")
@@ -54,17 +51,24 @@ func (vbs *ValidatingBatchingSink) DecodeUnqueued(c *chunks.Chunk) DecodedChunk 
 
 // Enqueue adds c to the queue of Chunks waiting to be Put into vbs' backing
 // ChunkStore. It is assumed that v is the Value decoded from c, and so v can
-// be used to validate the ref-completeness of c.  The instance keeps an
+// be used to validate the ref-completeness of c. The instance keeps an
 // internal buffer of Chunks, spilling to the ChunkStore when the buffer is
 // full.
-// TODO: v is not used right now, but will almost certainly be needed for BUG 3180
 func (vbs *ValidatingBatchingSink) Enqueue(c chunks.Chunk, v Value) {
+	h := c.Hash()
+	vbs.novel.Insert(h)
+	vbs.targets.Remove(h)
+	v.WalkRefs(func(ref Ref) {
+		if target := ref.TargetHash(); !vbs.novel.Has(target) {
+			vbs.targets.Insert(target)
+		}
+	})
+
 	vbs.batch[vbs.count] = c
 	vbs.count++
 
 	if vbs.count == batchSize {
-		vbs.cs.PutMany(vbs.batch[:vbs.count])
-		vbs.count = 0
+		vbs.Flush()
 	}
 }
 
@@ -76,4 +80,20 @@ func (vbs *ValidatingBatchingSink) Flush() {
 	}
 	vbs.cs.Flush()
 	vbs.count = 0
+}
+
+// PanicIfDangling does a Has check on all the references encountered
+// while enqueuing novel chunks. It panics if any of these refs point
+// to Chunks that don't exist in the backing ChunkStore.
+func (vbs *ValidatingBatchingSink) PanicIfDangling() {
+	present := vbs.cs.HasMany(vbs.targets)
+	absent := hash.HashSlice{}
+	for h := range vbs.targets {
+		if !present.Has(h) {
+			absent = append(absent, h)
+		}
+	}
+	if len(absent) != 0 {
+		d.Panic("Found dangling references to %v", absent)
+	}
 }

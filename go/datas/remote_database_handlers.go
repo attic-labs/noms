@@ -177,10 +177,12 @@ func handleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs
 
 	// If there was an error during chunk deserialization, raise so it can be logged and responded to.
 	if err := <-errChan; err != nil {
-		panic(d.Wrap(fmt.Errorf("Deserialization failure: %v", err)))
+		d.Panic("Deserialization failure: %v", err)
 	}
 
+	vbs.PanicIfDangling()
 	vbs.Flush()
+
 	w.WriteHeader(http.StatusCreated)
 }
 

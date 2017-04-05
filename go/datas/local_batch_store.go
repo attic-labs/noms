@@ -98,6 +98,7 @@ func (lbs *localBatchStore) Flush() {
 		dc := lbs.vbs.DecodeUnqueued(c)
 		lbs.vbs.Enqueue(*dc.Chunk, *dc.Value)
 	}
+	lbs.vbs.PanicIfDangling()
 	lbs.vbs.Flush()
 
 	lbs.unwrittenPuts.Clear(lbs.hashes)
