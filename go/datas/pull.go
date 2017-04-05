@@ -248,7 +248,7 @@ func traverseSource(srcRef types.Ref, srcDB, sinkDB Database, estimateBytesWritt
 		if v == nil {
 			d.Panic("Expected decoded chunk to be non-nil.")
 		}
-		sinkDB.validatingBatchStore().SchedulePut(c, srcRef.Height())
+		sinkDB.validatingBatchStore().SchedulePut(c)
 		bytesWritten := 0
 		if estimateBytesWritten {
 			// TODO: Probably better to hide this behind the BatchStore abstraction since

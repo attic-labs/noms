@@ -20,10 +20,7 @@ func NewRemoteDatabase(baseURL, auth string) *RemoteDatabaseClient {
 }
 
 func (rdb *RemoteDatabaseClient) validatingBatchStore() types.BatchStore {
-	hbs := rdb.BatchStore().(*httpBatchStore)
-	// TODO: Get rid of this (BUG 2982)
-	hbs.SetReverseFlushOrder()
-	return hbs
+	return rdb.BatchStore().(*httpBatchStore)
 }
 
 func (rdb *RemoteDatabaseClient) GetDataset(datasetID string) Dataset {

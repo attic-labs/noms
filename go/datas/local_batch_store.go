@@ -11,25 +11,22 @@ import (
 	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
+	"github.com/attic-labs/noms/go/nbs"
 	"github.com/attic-labs/noms/go/types"
 )
 
 type localBatchStore struct {
 	cs            chunks.ChunkStore
-	unwrittenPuts *orderedChunkCache
+	unwrittenPuts *nbs.NomsBlockCache
 	vbs           *types.ValidatingBatchingSink
-	hashes        hash.HashSet
-	mu            *sync.Mutex
 	once          sync.Once
 }
 
 func newLocalBatchStore(cs chunks.ChunkStore) *localBatchStore {
 	return &localBatchStore{
 		cs:            cs,
-		unwrittenPuts: newOrderedChunkCache(),
+		unwrittenPuts: nbs.NewCache(),
 		vbs:           types.NewValidatingBatchingSink(cs),
-		hashes:        hash.HashSet{},
-		mu:            &sync.Mutex{},
 	}
 }
 
@@ -43,26 +40,23 @@ func (lbs *localBatchStore) Get(h hash.Hash) chunks.Chunk {
 }
 
 func (lbs *localBatchStore) GetMany(hashes hash.HashSet, foundChunks chan *chunks.Chunk) {
-	lbs.cs.GetMany(hashes, foundChunks)
-}
-
-// Has checks the internal Chunk cache, proxying to the backing ChunkStore if not present.
-func (lbs *localBatchStore) Has(h hash.Hash) bool {
-	lbs.once.Do(lbs.expectVersion)
-	if lbs.unwrittenPuts.has(h) {
-		return true
+	remaining := make(hash.HashSet, len(hashes))
+	for h := range hashes {
+		remaining.Insert(h)
 	}
-	return lbs.cs.Has(h)
+	localChunks := make(chan *chunks.Chunk)
+	go func() { defer close(localChunks); lbs.unwrittenPuts.GetMany(hashes, localChunks) }()
+	for c := range localChunks {
+		remaining.Remove(c.Hash())
+		foundChunks <- c
+	}
+	lbs.cs.GetMany(remaining, foundChunks)
 }
 
 // SchedulePut simply calls Put on the underlying ChunkStore.
-func (lbs *localBatchStore) SchedulePut(c chunks.Chunk, refHeight uint64) {
+func (lbs *localBatchStore) SchedulePut(c chunks.Chunk) {
 	lbs.once.Do(lbs.expectVersion)
-
-	lbs.unwrittenPuts.Insert(c, refHeight)
-	lbs.mu.Lock()
-	defer lbs.mu.Unlock()
-	lbs.hashes.Insert(c.Hash())
+	lbs.unwrittenPuts.Insert(c)
 }
 
 func (lbs *localBatchStore) expectVersion() {
@@ -89,9 +83,8 @@ func (lbs *localBatchStore) Flush() {
 
 	chunkChan := make(chan *chunks.Chunk, 128)
 	go func() {
-		err := lbs.unwrittenPuts.ExtractChunks(lbs.hashes, chunkChan)
-		d.PanicIfError(err)
-		close(chunkChan)
+		defer close(chunkChan)
+		lbs.unwrittenPuts.ExtractChunks(chunkChan)
 	}()
 
 	for c := range chunkChan {
@@ -101,8 +94,8 @@ func (lbs *localBatchStore) Flush() {
 	lbs.vbs.PanicIfDangling()
 	lbs.vbs.Flush()
 
-	lbs.unwrittenPuts.Clear(lbs.hashes)
-	lbs.hashes = hash.HashSet{}
+	lbs.unwrittenPuts.Destroy()
+	lbs.unwrittenPuts = nbs.NewCache()
 }
 
 // FlushAndDestroyWithoutClose flushes lbs and destroys its cache of unwritten chunks. It's needed because LocalDatabase wraps a localBatchStore around a ChunkStore that's used by a separate BatchStore, so calling Close() on one is semantically incorrect while it still wants to use the other.

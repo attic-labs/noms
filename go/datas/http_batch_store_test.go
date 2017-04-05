@@ -128,7 +128,7 @@ func (suite *HTTPBatchStoreSuite) TearDownTest() {
 
 func (suite *HTTPBatchStoreSuite) TestPutChunk() {
 	c := types.EncodeValue(types.String("abc"), nil)
-	suite.store.SchedulePut(c, 1)
+	suite.store.SchedulePut(c)
 	suite.store.Flush()
 
 	suite.Equal(1, suite.cs.Writes)
@@ -141,25 +141,13 @@ func (suite *HTTPBatchStoreSuite) TestPutChunksInOrder() {
 	}
 	l := types.NewList()
 	for _, val := range vals {
-		suite.store.SchedulePut(types.EncodeValue(val, nil), 1)
+		suite.store.SchedulePut(types.EncodeValue(val, nil))
 		l = l.Append(types.NewRef(val))
 	}
-	suite.store.SchedulePut(types.EncodeValue(l, nil), 2)
+	suite.store.SchedulePut(types.EncodeValue(l, nil))
 	suite.store.Flush()
 
 	suite.Equal(3, suite.cs.Writes)
-}
-
-func (suite *HTTPBatchStoreSuite) TestPutChunksReverseOrder() {
-	val := types.String("abc")
-	l := types.NewList(types.NewRef(val))
-
-	suite.store.SchedulePut(types.EncodeValue(l, nil), 2)
-	suite.store.SchedulePut(types.EncodeValue(val, nil), 1)
-	suite.store.SetReverseFlushOrder()
-	suite.store.Flush()
-
-	suite.Equal(2, suite.cs.Writes)
 }
 
 func (suite *HTTPBatchStoreSuite) TestRoot() {
@@ -230,8 +218,8 @@ func (suite *HTTPBatchStoreSuite) TestGetManyAllCached() {
 		chunks.NewChunk([]byte("abc")),
 		chunks.NewChunk([]byte("def")),
 	}
-	suite.store.SchedulePut(chnx[0], 1)
-	suite.store.SchedulePut(chnx[1], 1)
+	suite.store.SchedulePut(chnx[0])
+	suite.store.SchedulePut(chnx[1])
 
 	hashes := hash.NewHashSet(chnx[0].Hash(), chnx[1].Hash())
 	foundChunks := make(chan *chunks.Chunk)
@@ -250,7 +238,7 @@ func (suite *HTTPBatchStoreSuite) TestGetManySomeCached() {
 	}
 	cached := chunks.NewChunk([]byte("ghi"))
 	suite.cs.PutMany(chnx)
-	suite.store.SchedulePut(cached, 1)
+	suite.store.SchedulePut(cached)
 
 	hashes := hash.NewHashSet(chnx[0].Hash(), chnx[1].Hash(), cached.Hash())
 	foundChunks := make(chan *chunks.Chunk)

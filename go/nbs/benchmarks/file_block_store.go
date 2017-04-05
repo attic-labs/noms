@@ -32,7 +32,7 @@ func (fb fileBlockStore) GetMany(hashes hash.HashSet, foundChunks chan *chunks.C
 	panic("not impl")
 }
 
-func (fb fileBlockStore) SchedulePut(c chunks.Chunk, refHeight uint64) {
+func (fb fileBlockStore) SchedulePut(c chunks.Chunk) {
 	io.Copy(fb.bw, bytes.NewReader(c.Data()))
 }
 

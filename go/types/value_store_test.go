@@ -92,11 +92,12 @@ func (cbs *checkingBatchStore) expect(rs ...Ref) {
 	}
 }
 
-func (cbs *checkingBatchStore) SchedulePut(c chunks.Chunk, refHeight uint64) {
+func (cbs *checkingBatchStore) SchedulePut(c chunks.Chunk) {
 	if cbs.a.NotZero(len(cbs.expectedOrder)) {
 		cbs.a.Equal(cbs.expectedOrder[0], c.Hash())
 		cbs.expectedOrder = cbs.expectedOrder[1:]
 	}
+	cbs.BatchStore.SchedulePut(c)
 }
 
 func (cbs *checkingBatchStore) Flush() {

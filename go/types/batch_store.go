@@ -32,7 +32,7 @@ type BatchStore interface {
 	// Value which was encoded to provide c can also be queried for its
 	// refHeight. The call may or may not block until c is persisted, but c is
 	// guaranteed to be persistent after a call to Flush() or UpdateRoot().
-	SchedulePut(c chunks.Chunk, refHeight uint64)
+	SchedulePut(c chunks.Chunk)
 
 	// Flush causes enqueued Puts to be persisted.
 	Flush()
@@ -69,7 +69,7 @@ func (bsa *BatchStoreAdaptor) GetMany(hashes hash.HashSet, foundChunks chan *chu
 }
 
 // SchedulePut simply calls Put on the underlying ChunkStore.
-func (bsa *BatchStoreAdaptor) SchedulePut(c chunks.Chunk, refHeight uint64) {
+func (bsa *BatchStoreAdaptor) SchedulePut(c chunks.Chunk) {
 	bsa.once.Do(bsa.expectVersion)
 	bsa.cs.Put(c)
 }

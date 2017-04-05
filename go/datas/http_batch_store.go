@@ -51,7 +51,6 @@ type httpBatchStore struct {
 	rateLimit    chan struct{}
 	requestWg    *sync.WaitGroup
 	workerWg     *sync.WaitGroup
-	flushOrder   nbs.EnumerationOrder
 
 	cacheMu       *sync.RWMutex
 	unwrittenPuts *nbs.NomsBlockCache
@@ -74,7 +73,6 @@ func NewHTTPBatchStore(baseURL, auth string) *httpBatchStore {
 		rateLimit:     make(chan struct{}, httpChunkSinkConcurrency),
 		requestWg:     &sync.WaitGroup{},
 		workerWg:      &sync.WaitGroup{},
-		flushOrder:    nbs.InsertOrder,
 		cacheMu:       &sync.RWMutex{},
 		unwrittenPuts: nbs.NewCache(),
 	}
@@ -85,12 +83,6 @@ func NewHTTPBatchStore(baseURL, auth string) *httpBatchStore {
 
 type httpDoer interface {
 	Do(req *http.Request) (resp *http.Response, err error)
-}
-
-func (bhcs *httpBatchStore) SetReverseFlushOrder() {
-	bhcs.cacheMu.Lock()
-	defer bhcs.cacheMu.Unlock()
-	bhcs.flushOrder = nbs.ReverseOrder
 }
 
 func (bhcs *httpBatchStore) Flush() {
@@ -324,7 +316,7 @@ func resBodyReader(res *http.Response) (reader io.ReadCloser) {
 	return
 }
 
-func (bhcs *httpBatchStore) SchedulePut(c chunks.Chunk, refHeight uint64) {
+func (bhcs *httpBatchStore) SchedulePut(c chunks.Chunk) {
 	bhcs.cacheMu.RLock()
 	defer bhcs.cacheMu.RUnlock()
 	bhcs.unwrittenPuts.Insert(c)
@@ -336,7 +328,6 @@ func (bhcs *httpBatchStore) sendWriteRequests() {
 
 	bhcs.cacheMu.Lock()
 	defer func() {
-		bhcs.flushOrder = nbs.InsertOrder // This needs to happen even if no chunks get written.
 		bhcs.cacheMu.Unlock()
 	}()
 
@@ -355,7 +346,7 @@ func (bhcs *httpBatchStore) sendWriteRequests() {
 		verbose.Log("Sending %d chunks", count)
 		chunkChan := make(chan *chunks.Chunk, 1024)
 		go func() {
-			bhcs.unwrittenPuts.ExtractChunks(bhcs.flushOrder, chunkChan)
+			bhcs.unwrittenPuts.ExtractChunks(chunkChan)
 			close(chunkChan)
 		}()
 
