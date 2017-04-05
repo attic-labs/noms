@@ -139,16 +139,12 @@ func bucketElements(in typeset, intersectStructs bool) *Type {
 
 		var r *Type
 		switch h.k {
-		case RefKind:
-			r = simplifyContainers(h.k, ts, intersectStructs)
-		case SetKind:
-			r = simplifyContainers(h.k, ts, intersectStructs)
-		case ListKind:
+		case ListKind, RefKind, SetKind:
 			r = simplifyContainers(h.k, ts, intersectStructs)
 		case MapKind:
 			r = simplifyMaps(ts, intersectStructs)
 		case StructKind:
-			panic("unreachable") // we have alreade folded structs
+			r = simplifyStructsForUnion(h.n, ts, intersectStructs)
 		}
 		out = append(out, r)
 	}
@@ -195,6 +191,20 @@ func simplifyMaps(ts typeset, intersectStructs bool) *Type {
 	return makeCompoundType(MapKind, kt, vt)
 }
 
+func simplifyStructsForUnion(name string, ts typeset, intersectStructs bool) *Type {
+	d.PanicIfFalse(name == "")
+	fieldset := make([]structTypeFields, len(ts))
+	i := 0
+	for t := range ts {
+		desc := t.Desc.(StructDesc)
+		d.PanicIfFalse(desc.Name == name)
+		fieldset[i] = desc.fields
+		i++
+	}
+	fields := simplifyStructFields(fieldset, intersectStructs)
+	return newType(StructDesc{name, fields})
+}
+
 type unsimplifiedStruct struct {
 	t         *Type
 	fieldSets []structTypeFields
@@ -227,13 +237,20 @@ func removeAndCollectStructFields(t *Type, seen map[*Type]*Type, pendingStructs 
 
 		desc := t.Desc.(StructDesc)
 		name := desc.Name
-		pending, ok := pendingStructs[name]
-		if ok {
-			newStruct = pending.t
+		var pending *unsimplifiedStruct
+		if name != "" {
+			var ok bool
+			pending, ok = pendingStructs[name]
+			if ok {
+				newStruct = pending.t
+			} else {
+				newStruct = newType(StructDesc{Name: name})
+				pending = &unsimplifiedStruct{newStruct, []structTypeFields{}}
+				pendingStructs[name] = pending
+			}
+
 		} else {
 			newStruct = newType(StructDesc{Name: name})
-			pending = &unsimplifiedStruct{newStruct, []structTypeFields{}}
-			pendingStructs[name] = pending
 		}
 		seen[t] = newStruct
 
@@ -248,7 +265,12 @@ func removeAndCollectStructFields(t *Type, seen map[*Type]*Type, pendingStructs 
 		if !changed {
 			newFields = desc.fields
 		}
-		pending.fieldSets = append(pending.fieldSets, newFields)
+
+		if name != "" {
+			pending.fieldSets = append(pending.fieldSets, newFields)
+		} else {
+			newStruct.Desc = StructDesc{"", newFields}
+		}
 		return newStruct, true
 
 	case CycleKind:
