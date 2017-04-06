@@ -22,7 +22,7 @@ const (
 
 var valueCommitType = nomdl.MustParseType(`struct Commit {
         meta: struct {},
-        parents: Set<Ref<Cycle<0>>>,
+        parents: Set<Ref<Cycle<Commit>>>,
         value: Value,
 }`)
 
@@ -33,7 +33,7 @@ var valueCommitType = nomdl.MustParseType(`struct Commit {
 // ```
 // struct Commit {
 //   meta: M,
-//   parents: Set<Ref<Cycle<0>>>,
+//   parents: Set<Ref<Cycle<Commit>>>,
 //   value: T,
 // }
 // ```

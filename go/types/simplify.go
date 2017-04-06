@@ -81,15 +81,17 @@ func (ts typeset) has(t *Type) bool {
 }
 
 type typeSimplifier struct {
-	seenStructs      typeset
-	seenByName       map[string]typeset
-	intersectStructs bool
+	seenStructs         typeset
+	seenByName          map[string]typeset
+	seenNamedCycleTypes map[string]*Type
+	intersectStructs    bool
 }
 
 func newSimplifier(intersectStructs bool) *typeSimplifier {
 	return &typeSimplifier{
 		typeset{},
 		map[string]typeset{},
+		map[string]*Type{},
 		intersectStructs,
 	}
 }
@@ -200,11 +202,21 @@ func (simplifier *typeSimplifier) simplifyStructFields(in []structTypeFields) st
 	return fields
 }
 
+func (simplifier *typeSimplifier) makeCycleType(name string) *Type {
+	if t, ok := simplifier.seenNamedCycleTypes[name]; ok {
+		return t
+	}
+
+	t := MakeCycleType(name)
+	simplifier.seenNamedCycleTypes[name] = t
+	return t
+}
+
 func (simplifier *typeSimplifier) simplify(t *Type) (*Type, bool, bool) {
 	if simplifier.seenStructs.has(t) {
 		// Already handled.
 		name := t.Desc.(StructDesc).Name
-		return MakeCycleType(name), true, true
+		return simplifier.makeCycleType(name), true, true
 	}
 
 	k := t.TargetKind()
@@ -260,13 +272,14 @@ func (simplifier *typeSimplifier) simplify(t *Type) (*Type, bool, bool) {
 			}
 			bucket.add(newStruct)
 
-			return MakeCycleType(name), true, true
+			return simplifier.makeCycleType(name), true, true
 		}
 
 		return newStruct, changed, hasCycles
 
 	case CycleKind:
-		return t, false, true
+		name := string(t.Desc.(CycleDesc))
+		return simplifier.makeCycleType(name), true, true
 
 	case UnionKind:
 		return simplifier.mergeUnion(t)
@@ -357,7 +370,7 @@ func (simplifier *typeSimplifier) mergeUnion(t *Type) (*Type, bool, bool) {
 		case CycleKind:
 			d.PanicIfFalse(hasCycles) // should have detected this earlier.
 			// All the types in a group have the same name
-			r = MakeCycleType(h.n)
+			r = simplifier.makeCycleType(h.n)
 
 		default:
 			panic("Unknown noms kind " + h.k.String())

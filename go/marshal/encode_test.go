@@ -470,7 +470,7 @@ func TestEncodeRecursive(t *testing.T) {
 	typ := types.MakeStructType("Node",
 		types.StructField{
 			Name: "children",
-			Type: types.MakeListType(types.MakeCycleType(0)),
+			Type: types.MakeListType(types.MakeCycleType("Node")),
 		},
 		types.StructField{
 			Name: "value",

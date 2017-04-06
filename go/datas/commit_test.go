@@ -36,7 +36,7 @@ func TestNewCommit(t *testing.T) {
 	at2 := types.TypeOf(commit2)
 	et2 := nomdl.MustParseType(`struct Commit {
                 meta: struct {},
-                parents: Set<Ref<Cycle<0>>>,
+                parents: Set<Ref<Cycle<Commit>>>,
                 value: Number,
         }`)
 	assertTypeEquals(et2, at2)
@@ -46,7 +46,7 @@ func TestNewCommit(t *testing.T) {
 	at3 := types.TypeOf(commit3)
 	et3 := nomdl.MustParseType(`struct Commit {
                 meta: struct {},
-                parents: Set<Ref<Cycle<0>>>,
+                parents: Set<Ref<Cycle<Commit>>>,
                 value: Number | String,
         }`)
 	assertTypeEquals(et3, at3)
@@ -65,7 +65,7 @@ func TestNewCommit(t *testing.T) {
                         date: String,
                         number: Number,
         	},
-                parents: Set<Ref<Cycle<0>>>,
+                parents: Set<Ref<Cycle<Commit>>>,
                 value: Number | String,
         }`)
 	assertTypeEquals(et4, at4)
@@ -75,7 +75,7 @@ func TestNewCommit(t *testing.T) {
 	at5 := types.TypeOf(commit5)
 	et5 := nomdl.MustParseType(`struct Commit {
                 meta: struct {},
-                parents: Set<Ref<Cycle<0>>>,
+                parents: Set<Ref<Cycle<Commit>>>,
                 value: Number | String,
         }`)
 	assertTypeEquals(et5, at5)

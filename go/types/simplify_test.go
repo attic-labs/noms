@@ -196,6 +196,24 @@ func TestSimplifyType(t *testing.T) {
 			makeCompoundType(UnionKind, BoolType, NumberType),
 		)
 
+		{
+			// Cannot do equals on cycle types
+			in := makeCompoundType(UnionKind, MakeCycleType("A"), MakeCycleType("A"))
+			exp := MakeCycleType("A")
+			act := simplifyType(in, intersectStructs)
+			assert.Equal(exp, act)
+		}
+
+		{
+			// Cannot do equals on cycle types
+			in := makeCompoundType(UnionKind,
+				makeCompoundType(ListKind, MakeCycleType("A")),
+				makeCompoundType(ListKind, MakeCycleType("A")))
+			exp := makeCompoundType(ListKind, MakeCycleType("A"))
+			act := simplifyType(in, intersectStructs)
+			assert.Equal(exp, act, "Expected: %s\nActual: %s", exp.Describe(), act.Describe())
+		}
+
 		testSame(makeStructType("A", nil))
 		testSame(makeStructType("A", structTypeFields{}))
 		testSame(makeStructType("A", structTypeFields{
@@ -315,6 +333,36 @@ func TestSimplifyType(t *testing.T) {
 				exp,
 			)
 		}
+
+		testSame(
+			makeStructType("A", structTypeFields{
+				StructField{"a", makeCompoundType(RefKind, MakeCycleType("A")), false},
+			}),
+		)
+
+		testSame(
+			makeStructType("A", structTypeFields{
+				StructField{"a", makeCompoundType(SetKind, makeCompoundType(RefKind, MakeCycleType("A"))), false},
+			}),
+		)
+		//
+		// testSame(
+		// 	makeStructType("A", structTypeFields{
+		// 		StructField{"a", makeCompoundType(SetKind, makeCompoundType(RefKind,
+		// 			makeCompoundType(UnionKind, MakeCycleType("A"), MakeCycleType("A")),
+		// 		)), false},
+		// 	}),
+		// )
+
+		// test(
+		//         makeCompoundType(UnionKind,
+		//                 makeStructType("A", structTypeFields{
+		//                         StructField{"a", makeCompoundType(RefKind, MakeCycleType("A")), false},
+		//                 }),
+		//                 makeStructType("A", structTypeFields{
+		//                         StructField{"a", makeCompoundType(RefKind, MakeCycleType("A")), false},
+		//                 }),
+		// )
 	}
 
 	t.Run("Union", func(*testing.T) {
