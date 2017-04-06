@@ -13,20 +13,27 @@ import (
 const batchSize = 100
 
 type ValidatingBatchingSink struct {
-	vs      *ValueStore
-	cs      chunks.ChunkStore
-	batch   [batchSize]chunks.Chunk
-	count   int
-	novel   hash.HashSet
-	targets hash.HashSet
+	vs         *ValueStore
+	cs         chunks.ChunkStore
+	validate   bool
+	unresolved hash.HashSet
 }
 
 func NewValidatingBatchingSink(cs chunks.ChunkStore) *ValidatingBatchingSink {
 	return &ValidatingBatchingSink{
-		vs:      newLocalValueStore(cs),
-		cs:      cs,
-		novel:   hash.HashSet{},
-		targets: hash.HashSet{},
+		vs:         newLocalValueStore(cs),
+		cs:         cs,
+		validate:   true,
+		unresolved: hash.HashSet{},
+	}
+}
+
+func NewCompletenessCheckingBatchingSink(cs chunks.ChunkStore) *ValidatingBatchingSink {
+	return &ValidatingBatchingSink{
+		vs:         newLocalValueStore(cs),
+		cs:         cs,
+		validate:   false,
+		unresolved: hash.HashSet{},
 	}
 }
 
@@ -42,54 +49,42 @@ type DecodedChunk struct {
 // the decoded Value.
 func (vbs *ValidatingBatchingSink) DecodeUnqueued(c *chunks.Chunk) DecodedChunk {
 	h := c.Hash()
-	v := decodeFromBytesWithValidation(c.Data(), vbs.vs)
+	var v Value
+	if vbs.validate {
+		v = decodeFromBytesWithValidation(c.Data(), vbs.vs)
+	} else {
+		v = DecodeFromBytes(c.Data(), vbs.vs)
+	}
+
 	if getHash(v) != h {
 		d.Panic("Invalid hash found")
 	}
 	return DecodedChunk{c, &v}
 }
 
-// Enqueue adds c to the queue of Chunks waiting to be Put into vbs' backing
-// ChunkStore. It is assumed that v is the Value decoded from c, and so v can
-// be used to validate the ref-completeness of c. The instance keeps an
-// internal buffer of Chunks, spilling to the ChunkStore when the buffer is
-// full.
-func (vbs *ValidatingBatchingSink) Enqueue(c chunks.Chunk, v Value) {
+// Put Puts c into vbs' backing ChunkStore. It is assumed that v is the Value
+// decoded from c, and so v can be used to validate the ref-completeness of c.
+func (vbs *ValidatingBatchingSink) Put(c chunks.Chunk, v Value) {
 	h := c.Hash()
-	vbs.novel.Insert(h)
-	vbs.targets.Remove(h)
+	vbs.unresolved.Remove(h)
 	v.WalkRefs(func(ref Ref) {
-		if target := ref.TargetHash(); !vbs.novel.Has(target) {
-			vbs.targets.Insert(target)
-		}
+		vbs.unresolved.Insert(ref.TargetHash())
 	})
-
-	vbs.batch[vbs.count] = c
-	vbs.count++
-
-	if vbs.count == batchSize {
-		vbs.cs.PutMany(vbs.batch[:vbs.count])
-		vbs.count = 0
-	}
+	vbs.cs.Put(c)
 }
 
-// Flush Puts any Chunks buffered by Enqueue calls into the backing
-// ChunkStore.
+// Flush makes durable all enqueued Chunks.
 func (vbs *ValidatingBatchingSink) Flush() {
-	if vbs.count > 0 {
-		vbs.cs.PutMany(vbs.batch[:vbs.count])
-	}
 	vbs.cs.Flush()
-	vbs.count = 0
 }
 
 // PanicIfDangling does a Has check on all the references encountered
 // while enqueuing novel chunks. It panics if any of these refs point
 // to Chunks that don't exist in the backing ChunkStore.
 func (vbs *ValidatingBatchingSink) PanicIfDangling() {
-	present := vbs.cs.HasMany(vbs.targets)
+	present := vbs.cs.HasMany(vbs.unresolved)
 	absent := hash.HashSlice{}
-	for h := range vbs.targets {
+	for h := range vbs.unresolved {
 		if !present.Has(h) {
 			absent = append(absent, h)
 		}

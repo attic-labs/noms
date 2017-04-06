@@ -26,11 +26,12 @@ func newLocalBatchStore(cs chunks.ChunkStore) *localBatchStore {
 	return &localBatchStore{
 		cs:            cs,
 		unwrittenPuts: nbs.NewCache(),
-		vbs:           types.NewValidatingBatchingSink(cs),
+		vbs:           types.NewCompletenessCheckingBatchingSink(cs),
 	}
 }
 
-// Get checks the internal Chunk cache, proxying to the backing ChunkStore if not present.
+// Get checks the internal Chunk cache, proxying to the backing ChunkStore if
+// not present.
 func (lbs *localBatchStore) Get(h hash.Hash) chunks.Chunk {
 	lbs.once.Do(lbs.expectVersion)
 	if pending := lbs.unwrittenPuts.Get(h); !pending.IsEmpty() {
@@ -71,7 +72,9 @@ func (lbs *localBatchStore) Root() hash.Hash {
 	return lbs.cs.Root()
 }
 
-// UpdateRoot flushes outstanding writes to the backing ChunkStore before updating its Root, because it's almost certainly the case that the caller wants to point that root at some recently-Put Chunk.
+// UpdateRoot flushes outstanding writes to the backing ChunkStore before
+// updating its Root, because it's almost certainly the case that the caller
+// wants to point that root at some recently-Put Chunk.
 func (lbs *localBatchStore) UpdateRoot(current, last hash.Hash) bool {
 	lbs.once.Do(lbs.expectVersion)
 	lbs.Flush()
@@ -89,7 +92,7 @@ func (lbs *localBatchStore) Flush() {
 
 	for c := range chunkChan {
 		dc := lbs.vbs.DecodeUnqueued(c)
-		lbs.vbs.Enqueue(*dc.Chunk, *dc.Value)
+		lbs.vbs.Put(*dc.Chunk, *dc.Value)
 	}
 	lbs.vbs.PanicIfDangling()
 	lbs.vbs.Flush()
@@ -98,7 +101,9 @@ func (lbs *localBatchStore) Flush() {
 	lbs.unwrittenPuts = nbs.NewCache()
 }
 
-// Destroy blows away lbs' cache of unwritten chunks without flushing. Used when the owning Database is closing and it isn't semantically correct to flush.
+// Destroy blows away lbs' cache of unwritten chunks without flushing. Used
+// when the owning Database is closing and it isn't semantically correct to
+// flush.
 func (lbs *localBatchStore) Destroy() {
 	lbs.unwrittenPuts.Destroy()
 }

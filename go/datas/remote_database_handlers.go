@@ -167,7 +167,7 @@ func handleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs
 		dc := <-ch
 		if dc.Chunk != nil && dc.Value != nil {
 			totalDataWritten += len(dc.Chunk.Data())
-			vbs.Enqueue(*dc.Chunk, *dc.Value)
+			vbs.Put(*dc.Chunk, *dc.Value)
 			chunkCount++
 			if chunkCount%100 == 0 {
 				verbose.Log("Enqueued %d chunks", chunkCount)
