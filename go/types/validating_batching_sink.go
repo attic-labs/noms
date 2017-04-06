@@ -68,7 +68,8 @@ func (vbs *ValidatingBatchingSink) Enqueue(c chunks.Chunk, v Value) {
 	vbs.count++
 
 	if vbs.count == batchSize {
-		vbs.Flush()
+		vbs.cs.PutMany(vbs.batch[:vbs.count])
+		vbs.count = 0
 	}
 }
 
