@@ -6,7 +6,7 @@ import (
 	"github.com/attic-labs/noms/go/d"
 )
 
-// makeSimplifiedType returns a type that is a supertype of all the input types but is much
+// simplifyType returns a type that is a supertype of all the input types but is much
 // smaller and less complex than a straight union of all those types would be.
 //
 // The resulting type is guaranteed to:
@@ -15,6 +15,7 @@ import (
 // c. have at most one element each of kind Ref, Set, List, and Map
 // d. have at most one struct element with a given name
 // e. all union types reachable from it also fulfill b-e
+// f. all named unions are pointing at the same simplified struct
 //
 // The simplification is created roughly as follows:
 //
@@ -34,24 +35,30 @@ import (
 //     {struct{foo:number,bar:string}, struct{bar:blob, baz:bool}} ->
 //       struct{foo?:number,bar:string|blob,baz?:bool}
 //
-// Anytime any of the above cases generates a union as output, the same process
-// is applied to that union recursively.
-// func makeSimplifiedType(intersectStructs bool, in *Type) *Type {
-// 	return in
-// 	// seen := map[*Type]*Type{}
-// 	// pending := map[string]*unsimplifiedStruct{}
-// 	//
-// 	// out, _ := removeAndCollectStructFields(in, seen, pending)
-// 	//
-// 	// result := makeSimplifiedTypeImpl(out, intersectStructs)
-// 	// for _, rec := range pending {
-// 	// 	desc := rec.t.Desc.(StructDesc)
-// 	//
-// 	// 	desc.fields = simplifyStructFields(rec.fieldSets, intersectStructs)
-// 	// 	rec.t.Desc = desc
-// 	// }
-// 	// return result
-// }
+// All the above rules are applied recursively.
+func simplifyType(t *Type, intersectStructs bool) *Type {
+	// seenStructs := typeset{}
+	// seenByName := map[string]typeset{}
+	simplifier := newSimplifier(intersectStructs)
+	rv, changed, hasCycles := simplifier.simplify(t)
+	if !changed {
+		return t
+	}
+	if len(simplifier.seenByName) > 0 {
+		d.PanicIfFalse(len(simplifier.seenStructs) > 0)
+		d.PanicIfFalse(changed)
+		d.PanicIfFalse(hasCycles)
+
+		env := make(map[string]*Type, len(simplifier.seenByName))
+		for name, ts := range simplifier.seenByName {
+			env[name] = simplifier.mergeStructTypes(name, ts)
+		}
+
+		return simplifier.resolveStructCycles(rv, env, map[string]struct{}{})
+	}
+
+	return rv
+}
 
 // typeset is a helper that aggregates the unique set of input types for this algorithm, flattening
 // any unions recursively.
@@ -73,44 +80,21 @@ func (ts typeset) has(t *Type) bool {
 	return ok
 }
 
-func newTypeset(t ...*Type) typeset {
-	ts := make(typeset, len(t))
-	for _, t := range t {
-		ts.add(t)
-	}
-	return ts
+type typeSimplifier struct {
+	seenStructs      typeset
+	seenByName       map[string]typeset
+	intersectStructs bool
 }
 
-// // makeSimplifiedTypeImpl is an implementation detail.
-// // Warning: Do not call this directly. It assumes its input has been de-cycled using
-// // ToUnresolvedType() and will infinitely recurse on cyclic types otherwise.
-// func makeSimplifiedTypeImpl(in *Type, seenStructs typeset, seenByName map[string]typeset, intersectStructs bool) *Type {
-// 	switch in.TargetKind() {
-// 	case BoolKind, NumberKind, StringKind, BlobKind, ValueKind, TypeKind, CycleKind:
-// 		return in
-// 	case ListKind, MapKind, RefKind, SetKind:
-// 		elemTypes := make(typeSlice, len(in.Desc.(CompoundDesc).ElemTypes))
-// 		for i, t := range in.Desc.(CompoundDesc).ElemTypes {
-// 			elemTypes[i] = makeSimplifiedTypeImpl(t, seenStructs, seenByName, intersectStructs)
-// 		}
-// 		return makeCompoundType(in.TargetKind(), elemTypes...)
-// 	case StructKind:
-// 		// Structs have been replaced by "placeholders" in removeAndCollectStructFields.
-// 		return in
-// 	case UnionKind:
-// 		elemTypes := make(typeSlice, len(in.Desc.(CompoundDesc).ElemTypes))
-// 		ts := make(typeset, len(elemTypes))
-// 		for _, t := range in.Desc.(CompoundDesc).ElemTypes {
-// 			t = makeSimplifiedTypeImpl(t, seenStructs, seenByName, intersectStructs)
-// 			ts.add(t)
-// 		}
-//
-// 		return bucketElements(ts, seenStructs, seenByName, intersectStructs)
-// 	}
-// 	panic("Unknown noms kind")
-// }
+func newSimplifier(intersectStructs bool) *typeSimplifier {
+	return &typeSimplifier{
+		typeset{},
+		map[string]typeset{},
+		intersectStructs,
+	}
+}
 
-func bucketElements(in typeset, seenStructs typeset, seenByName map[string]typeset, intersectStructs bool) *Type {
+func (simplifier *typeSimplifier) bucketElements(in typeset) *Type {
 	type how struct {
 		k NomsKind
 		n string
@@ -147,11 +131,11 @@ func bucketElements(in typeset, seenStructs typeset, seenByName map[string]types
 		var r *Type
 		switch h.k {
 		case ListKind, RefKind, SetKind:
-			r = mergeCompoundTypesForUnion(h.k, ts, seenStructs, seenByName, intersectStructs)
+			r = simplifier.mergeCompoundTypesForUnion(h.k, ts)
 		case MapKind:
-			r = mergeMapTypesForUnion(ts, seenStructs, seenByName, intersectStructs)
+			r = simplifier.mergeMapTypesForUnion(ts)
 		case StructKind:
-			r = mergeStructTypes(h.n, ts, seenStructs, seenByName, intersectStructs)
+			r = simplifier.mergeStructTypes(h.n, ts)
 		}
 		out = append(out, r)
 	}
@@ -165,87 +149,7 @@ func bucketElements(in typeset, seenStructs typeset, seenByName map[string]types
 	return makeCompoundType(UnionKind, out...)
 }
 
-// type unsimplifiedStruct struct {
-// 	t         *Type
-// 	fieldSets []structTypeFields
-// }
-
-// func removeAndCollectStructFields(t *Type, seen map[*Type]*Type, pendingStructs map[string]*unsimplifiedStruct) (*Type, bool) {
-// 	switch t.TargetKind() {
-// 	case BoolKind, NumberKind, StringKind, BlobKind, ValueKind, TypeKind:
-// 		return t, false
-// 	case ListKind, MapKind, RefKind, SetKind, UnionKind:
-// 		elemTypes := t.Desc.(CompoundDesc).ElemTypes
-// 		changed := false
-// 		newElemTypes := make(typeSlice, len(elemTypes))
-// 		for i, et := range elemTypes {
-// 			et2, c := removeAndCollectStructFields(et, seen, pendingStructs)
-// 			newElemTypes[i] = et2
-// 			changed = changed || c
-// 		}
-// 		if !changed {
-// 			return t, false
-// 		}
-//
-// 		return makeCompoundType(t.TargetKind(), newElemTypes...), true
-//
-// 	case StructKind:
-// 		newStruct, found := seen[t]
-// 		if found {
-// 			return newStruct, true
-// 		}
-//
-// 		desc := t.Desc.(StructDesc)
-// 		name := desc.Name
-// 		var pending *unsimplifiedStruct
-// 		if name != "" {
-// 			var ok bool
-// 			pending, ok = pendingStructs[name]
-// 			if ok {
-// 				newStruct = pending.t
-// 			} else {
-// 				newStruct = newType(StructDesc{Name: name})
-// 				pending = &unsimplifiedStruct{newStruct, []structTypeFields{}}
-// 				pendingStructs[name] = pending
-// 			}
-//
-// 		} else {
-// 			newStruct = newType(StructDesc{Name: name})
-// 		}
-// 		seen[t] = newStruct
-//
-// 		newFields := make(structTypeFields, len(desc.fields))
-// 		changed := false
-// 		for i, f := range desc.fields {
-// 			nt, c := removeAndCollectStructFields(f.Type, seen, pendingStructs)
-// 			newFields[i] = StructField{Name: f.Name, Type: nt, Optional: f.Optional}
-// 			changed = changed || c
-// 		}
-//
-// 		if !changed {
-// 			newFields = desc.fields
-// 		}
-//
-// 		if name != "" {
-// 			pending.fieldSets = append(pending.fieldSets, newFields)
-// 		} else {
-// 			fs := make(structTypeFields, len(newFields))
-// 			for i, f := range newFields {
-// 				// nt := makeSimplifiedTypeImpl(f.Type, inter)
-// 				fs[i] = StructField{Name: f.Name, Type: f.Type, Optional: f.Optional}
-// 			}
-// 			newStruct.Desc = StructDesc{"", fs}
-// 		}
-// 		return newStruct, true
-//
-// 	case CycleKind:
-// 		return t, false
-// 	}
-//
-// 	panic("unreachable") // no more noms kinds
-// }
-
-func simplifyStructFields(in []structTypeFields, seenStructs typeset, seenByName map[string]typeset, intersectStructs bool) structTypeFields {
+func (simplifier *typeSimplifier) simplifyStructFields(in []structTypeFields) structTypeFields {
 	// We gather all the fields/types into allFields. If the number of
 	// times a field name is present is less that then number of types we
 	// are simplifying then the field must be optional.
@@ -283,12 +187,11 @@ func simplifyStructFields(in []structTypeFields, seenStructs typeset, seenByName
 	count := len(in)
 	fields := make(structTypeFields, 0, count)
 	for name, fti := range allFields {
-		nt, _, _ := simplifyTypeImpl2(makeCompoundType(UnionKind, fti.ts...), seenStructs, seenByName, intersectStructs)
+		nt, _, _ := simplifier.simplify(makeCompoundType(UnionKind, fti.ts...))
 		fields = append(fields, StructField{
-			Name: name,
-			// Type:     makeSimplifiedTypeImpl(makeCompoundType(UnionKind, fti.ts...), intersectStructs),
+			Name:     name,
 			Type:     nt,
-			Optional: !(intersectStructs && fti.anyNonOptional) && fti.count < count,
+			Optional: !(simplifier.intersectStructs && fti.anyNonOptional) && fti.count < count,
 		})
 	}
 
@@ -297,41 +200,8 @@ func simplifyStructFields(in []structTypeFields, seenStructs typeset, seenByName
 	return fields
 }
 
-func simplifyType2(t *Type, intersectStructs bool) *Type {
-	seenStructs := typeset{}
-	seenByName := map[string]typeset{}
-	rv, changed, hasCycles := simplifyTypeImpl2(t, seenStructs, seenByName, intersectStructs)
-	if !changed {
-		return t
-	}
-	// fmt.Println("----------------------------------------")
-	// fmt.Println("changed", changed)
-	// fmt.Println("hasCycles", hasCycles)
-	// fmt.Println("Describe", rv.Describe())
-	if len(seenByName) > 0 {
-		d.PanicIfFalse(len(seenStructs) > 0)
-		d.PanicIfFalse(changed)
-		d.PanicIfFalse(hasCycles)
-
-		env := make(map[string]*Type, len(seenByName))
-		for name, ts := range seenByName {
-			// fmt.Println("name", name, len(ts))
-			newStruct := mergeStructTypes(name, ts, seenStructs, seenByName, intersectStructs)
-			// fmt.Println("merged", name, newStruct.Describe())
-			env[name] = newStruct
-			// fmt.Println("merged", name, newStruct.Describe())
-		}
-
-		rv2 := resolveStructCycles2(rv, env, map[string]struct{}{})
-		// fmt.Println("resolved", rv.Describe(), "to", rv2.Describe())
-		return rv2
-	}
-
-	return rv
-}
-
-func simplifyTypeImpl2(t *Type, seenStructs typeset, seenByName map[string]typeset, intersectStructs bool) (*Type, bool, bool) {
-	if seenStructs.has(t) {
+func (simplifier *typeSimplifier) simplify(t *Type) (*Type, bool, bool) {
+	if simplifier.seenStructs.has(t) {
 		// Already handled.
 		name := t.Desc.(StructDesc).Name
 		return MakeCycleType(name), true, true
@@ -347,7 +217,7 @@ func simplifyTypeImpl2(t *Type, seenStructs typeset, seenByName map[string]types
 		newElemTypes := make(typeSlice, len(elemTypes))
 		changed, hasCycles := false, false
 		for i, et := range elemTypes {
-			nt, c, hc := simplifyTypeImpl2(et, seenStructs, seenByName, intersectStructs)
+			nt, c, hc := simplifier.simplify(et)
 			changed = changed || c
 			hasCycles = hasCycles || hc
 			newElemTypes[i] = nt
@@ -362,13 +232,13 @@ func simplifyTypeImpl2(t *Type, seenStructs typeset, seenByName map[string]types
 		name := desc.Name
 
 		if name != "" {
-			seenStructs.add(t)
+			simplifier.seenStructs.add(t)
 		}
 
 		changed, hasCycles := false, false
 		fields := make(structTypeFields, len(desc.fields))
 		for i, f := range desc.fields {
-			ft, c, hc := simplifyTypeImpl2(f.Type, seenStructs, seenByName, intersectStructs)
+			ft, c, hc := simplifier.simplify(f.Type)
 			if c {
 				changed = true
 				fields[i] = StructField{f.Name, ft, f.Optional}
@@ -383,10 +253,10 @@ func simplifyTypeImpl2(t *Type, seenStructs typeset, seenByName map[string]types
 		}
 
 		if name != "" {
-			bucket, ok := seenByName[name]
+			bucket, ok := simplifier.seenByName[name]
 			if !ok {
 				bucket = typeset{}
-				seenByName[name] = bucket
+				simplifier.seenByName[name] = bucket
 			}
 			bucket.add(newStruct)
 
@@ -399,18 +269,17 @@ func simplifyTypeImpl2(t *Type, seenStructs typeset, seenByName map[string]types
 		return t, false, true
 
 	case UnionKind:
-		return mergeUnion2(t, seenStructs, seenByName, intersectStructs)
+		return simplifier.mergeUnion(t)
 	}
 	panic("Unknown noms kind " + k.String())
 }
 
-func mergeUnion2(t *Type, seenStructs typeset, seenByName map[string]typeset, intersectStructs bool) (*Type, bool, bool) {
+func (simplifier *typeSimplifier) mergeUnion(t *Type) (*Type, bool, bool) {
 	// For unions we merge all structs with the same name
 	elemTypes := t.Desc.(CompoundDesc).ElemTypes
 	changed, hasCycles := false, false
 
-	// Remove pointer equals types and flatten unions
-
+	// Remove pointer equal types and flatten unions
 	ts := make(typeset, len(elemTypes))
 	for _, t := range elemTypes {
 		changed = changed || t.TargetKind() == UnionKind || ts.has(t)
@@ -426,7 +295,7 @@ func mergeUnion2(t *Type, seenStructs typeset, seenByName map[string]typeset, in
 	groups := map[how]typeset{}
 
 	for ot := range ts {
-		t, c, hc := simplifyTypeImpl2(ot, seenStructs, seenByName, intersectStructs)
+		t, c, hc := simplifier.simplify(ot)
 		changed = changed || c
 		hasCycles = hasCycles || hc
 
@@ -478,12 +347,12 @@ func mergeUnion2(t *Type, seenStructs typeset, seenByName map[string]typeset, in
 			panic("Should not be part of groups")
 
 		case ListKind, RefKind, SetKind:
-			r = mergeCompoundTypesForUnion(h.k, ts, seenStructs, seenByName, intersectStructs)
+			r = simplifier.mergeCompoundTypesForUnion(h.k, ts)
 		case MapKind:
-			r = mergeMapTypesForUnion(ts, seenStructs, seenByName, intersectStructs)
+			r = simplifier.mergeMapTypesForUnion(ts)
 		case StructKind:
 			d.PanicIfFalse(h.n == "") // Only non named struct are kept at this level.
-			r = mergeStructTypes(h.n, ts, seenStructs, seenByName, intersectStructs)
+			r = simplifier.mergeStructTypes(h.n, ts)
 
 		case CycleKind:
 			d.PanicIfFalse(hasCycles) // should have detected this earlier.
@@ -514,18 +383,18 @@ func mergeUnion2(t *Type, seenStructs typeset, seenByName map[string]typeset, in
 	return t, false, hasCycles
 }
 
-func mergeCompoundTypesForUnion(k NomsKind, ts typeset, seenStructs typeset, seenByName map[string]typeset, intersectStructs bool) *Type {
+func (simplifier *typeSimplifier) mergeCompoundTypesForUnion(k NomsKind, ts typeset) *Type {
 	elemTypes := make(typeset, len(ts))
 	for t := range ts {
 		d.PanicIfFalse(t.TargetKind() == k)
 		elemTypes.add(t.Desc.(CompoundDesc).ElemTypes[0])
 	}
 
-	elemType := bucketElements(elemTypes, seenStructs, seenByName, intersectStructs)
+	elemType := simplifier.bucketElements(elemTypes)
 	return makeCompoundType(k, elemType)
 }
 
-func mergeMapTypesForUnion(ts typeset, seenStructs typeset, seenByName map[string]typeset, intersectStructs bool) *Type {
+func (simplifier *typeSimplifier) mergeMapTypesForUnion(ts typeset) *Type {
 	keyTypes := make(typeset, len(ts))
 	valTypes := make(typeset, len(ts))
 	for t := range ts {
@@ -535,13 +404,13 @@ func mergeMapTypesForUnion(ts typeset, seenStructs typeset, seenByName map[strin
 		valTypes.add(elemTypes[1])
 	}
 
-	kt := bucketElements(keyTypes, seenStructs, seenByName, intersectStructs)
-	vt := bucketElements(valTypes, seenStructs, seenByName, intersectStructs)
+	kt := simplifier.bucketElements(keyTypes)
+	vt := simplifier.bucketElements(valTypes)
 
 	return makeCompoundType(MapKind, kt, vt)
 }
 
-func mergeStructTypes(name string, ts typeset, seenStructs typeset, seenByName map[string]typeset, intersectStructs bool) *Type {
+func (simplifier *typeSimplifier) mergeStructTypes(name string, ts typeset) *Type {
 	fieldset := make([]structTypeFields, len(ts))
 	i := 0
 	for t := range ts {
@@ -550,16 +419,16 @@ func mergeStructTypes(name string, ts typeset, seenStructs typeset, seenByName m
 		fieldset[i] = desc.fields
 		i++
 	}
-	fields := simplifyStructFields(fieldset, seenStructs, seenByName, intersectStructs)
+	fields := simplifier.simplifyStructFields(fieldset)
 	return newType(StructDesc{name, fields})
 }
 
 // Drops cycles and replaces them with pointers to parent structs
-func resolveStructCycles2(t *Type, env map[string]*Type, seen map[string]struct{}) *Type {
+func (simplifier *typeSimplifier) resolveStructCycles(t *Type, env map[string]*Type, seen map[string]struct{}) *Type {
 	switch desc := t.Desc.(type) {
 	case CompoundDesc:
 		for i, et := range desc.ElemTypes {
-			desc.ElemTypes[i] = resolveStructCycles2(et, env, seen)
+			desc.ElemTypes[i] = simplifier.resolveStructCycles(et, env, seen)
 		}
 
 	case StructDesc:
@@ -572,47 +441,15 @@ func resolveStructCycles2(t *Type, env map[string]*Type, seen map[string]struct{
 		}
 
 		for i, f := range desc.fields {
-			desc.fields[i].Type = resolveStructCycles2(f.Type, env, seen)
+			desc.fields[i].Type = simplifier.resolveStructCycles(f.Type, env, seen)
 		}
 
 	case CycleDesc:
 		name := string(desc)
 		if nt, ok := env[name]; ok {
-			return resolveStructCycles2(nt, env, seen)
+			return simplifier.resolveStructCycles(nt, env, seen)
 		}
 	}
 
 	return t
 }
-
-// // Drops cycles and replaces them with pointers to parent structs
-// func resolveStructCycles2(t *Type, env map[string]*Type, seen typeset) *Type {
-// 	switch desc := t.Desc.(type) {
-// 	case CompoundDesc:
-// 		elemTypes := make(typeSlice, len(desc.ElemTypes))
-// 		for i, et := range desc.ElemTypes {
-// 			elemTypes[i] = resolveStructCycles2(et, env, seen)
-// 		}
-// 		return makeCompoundType(t.TargetKind(), elemTypes...)
-//
-// 	case StructDesc:
-// 		fields := make(structTypeFields, len(desc.fields))
-// 		for i, f := range desc.fields {
-// 			fields[i] = StructField{f.Name, resolveStructCycles2(f.Type, env, seen), f.Optional}
-// 		}
-// 		return makeStructTypeQuickly(desc.Name, fields, checkKindNoValidate)
-//
-// 	case CycleDesc:
-// 		name := string(desc)
-// 		if nt, ok := env[name]; ok {
-// 			if seen.has(nt) {
-// 				return nt
-// 			}
-// 			nt = resolveStructCycles2(nt, env, seen)
-// 			seen.add(nt)
-// 			return nt
-// 		}
-// 	}
-//
-// 	return t
-// }

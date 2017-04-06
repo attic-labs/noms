@@ -19,7 +19,8 @@ func TestSimplifyStructFields(t *testing.T) {
 	assert := assert.New(t)
 
 	test := func(in []structTypeFields, exp structTypeFields) {
-		act := simplifyStructFields(in, typeset{}, map[string]typeset{}, false)
+		simplifier := newSimplifier(false)
+		act := simplifier.simplifyStructFields(in)
 		assert.Equal(act, exp)
 	}
 
@@ -64,12 +65,12 @@ func TestSimplifyStructFields(t *testing.T) {
 	)
 }
 
-func TestSimplifyType2(t *testing.T) {
+func TestSimplifyType(t *testing.T) {
 	assert := assert.New(t)
 
 	run := func(intersectStructs bool) {
 		test := func(in, exp *Type) {
-			act := simplifyType2(in, intersectStructs)
+			act := simplifyType(in, intersectStructs)
 			assert.True(exp.Equals(act), "Expected: %s\nActual: %s", exp.Describe(), act.Describe())
 		}
 		testSame := func(t *Type) {
@@ -90,7 +91,7 @@ func TestSimplifyType2(t *testing.T) {
 		{
 			// Cannot do equals on cycle types
 			in := MakeCycleType("ABC")
-			act := simplifyType2(in, intersectStructs)
+			act := simplifyType(in, intersectStructs)
 			assert.Equal(in, act)
 		}
 
