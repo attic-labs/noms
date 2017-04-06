@@ -110,8 +110,8 @@ func TestMigrateFromVersion7(t *testing.T) {
 
 	// Cannot use equals on unresolved cycles.
 	{
-		expected := types.MakeCycleType(42)
-		source := v7types.MakeCycleType(42)
+		expected := types.MakeCycleType("Abc")
+		source := v7types.MakeCycleType("Abc")
 		actual, err := MigrateFromVersion7(source, sourceStore, sinkStore)
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)
@@ -123,7 +123,7 @@ func TestMigrateFromVersion7(t *testing.T) {
 			Type: types.MakeSetType(types.MakeRefType(types.MakeStructType("Commit",
 				types.StructField{
 					Name: "parents",
-					Type: types.MakeSetType(types.MakeRefType(types.MakeCycleType(0))),
+					Type: types.MakeSetType(types.MakeRefType(types.MakeCycleType("Comit"))),
 				},
 				types.StructField{
 					Name: "value",
@@ -143,7 +143,7 @@ func TestMigrateFromVersion7(t *testing.T) {
 			Type: v7types.MakeSetType(v7types.MakeRefType(v7types.MakeStructType("Commit",
 				v7types.StructField{
 					Name: "parents",
-					Type: v7types.MakeSetType(v7types.MakeRefType(v7types.MakeCycleType(0))),
+					Type: v7types.MakeSetType(v7types.MakeRefType(v7types.MakeCycleType("Commit"))),
 				},
 				v7types.StructField{
 					Name: "value",

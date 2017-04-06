@@ -1204,12 +1204,12 @@ func (suite *QueryGraphQLSuite) TestErrorsInInputType() {
 	test(types.MakeMapType(ut, ut))
 	test(types.MakeStructTypeFromFields("", types.FieldMap{"u": ut}))
 
-	test(types.MakeStructTypeFromFields("", types.FieldMap{
-		"l": types.MakeListType(types.MakeCycleType(0)),
+	test(types.MakeStructTypeFromFields("S", types.FieldMap{
+		"l": types.MakeListType(types.MakeCycleType("S")),
 	}))
-	test(types.MakeStructTypeFromFields("", types.FieldMap{
+	test(types.MakeStructTypeFromFields("S", types.FieldMap{
 		"n": types.NumberType,
-		"l": types.MakeListType(types.MakeCycleType(0)),
+		"l": types.MakeListType(types.MakeCycleType("S")),
 	}))
 }
 
@@ -1311,7 +1311,7 @@ func (suite *QueryGraphQLSuite) TestVariables() {
 			},
 		},
 	)
-	test(m2, `{"data":null,"errors":[{"message":"Variable \"$ks\" got invalid value [null].\nIn element #1: Expected \"SInput_3jqubf!\", found null.","locations":[{"line":1,"column":12}]}]}`,
+	test(m2, `{"data":null,"errors":[{"message":"Variable \"$ks\" got invalid value [null].\nIn element #1: Expected \"SInput_i451mq!\", found null.","locations":[{"line":1,"column":12}]}]}`,
 		q,
 		map[string]interface{}{
 			"ks": []interface{}{
