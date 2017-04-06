@@ -56,3 +56,32 @@ func (dt *DateTime) UnmarshalNoms(v types.Value) error {
 	*dt = DateTime(time.Unix(int64(s), int64(frac*1e9)))
 	return nil
 }
+
+// DateTimeNow returns a DateTime struct representing the current time. This
+// struct is created using seconds only. Since nanoseconds aren't used, it's
+// value is unchanged when Unmarshalling/Marshalling:
+//   dt1 := DateTimeNow()
+//   dt2 := DateTime{}
+//   marshal.MustUnmarshal(marshal.MustMarshal(dt1), &dt2)
+//   dt1 == dt2 // Will be true
+func DateTimeNow() DateTime {
+	return DateTime(time.Unix(time.Now().Unix(), 0))
+}
+
+// IsZero returns true if the dt is a true zero value or if it's a zero value
+// that has been marshalled into Noms and unmarshalled again.
+func (dt DateTime) IsZero() bool {
+	if time.Time(dt).IsZero() {
+		return true
+	}
+
+	dt1 := DateTime{}
+	marshal.MustUnmarshal(marshal.MustMarshal(DateTime{}), &dt1)
+	return dt == dt1
+}
+
+// String() causes DateTime structs to be printed in the same way as time.Time
+// structs.
+func (dt DateTime) String() string {
+	return time.Time(dt).String()
+}

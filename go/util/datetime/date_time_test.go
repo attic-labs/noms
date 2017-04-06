@@ -103,3 +103,22 @@ func TestMarshalType(t *testing.T) {
 	v := marshal.MustMarshal(dt)
 	assert.Equal(typ, types.TypeOf(v))
 }
+
+func TestZeroValues(t *testing.T) {
+	assert := assert.New(t)
+
+	dt1 := DateTime{}
+	assert.True(dt1.IsZero())
+
+	nomsDate, _ := dt1.MarshalNoms()
+
+	dt2 := DateTime{}
+	marshal.Unmarshal(nomsDate, &dt2)
+	assert.True(dt2.IsZero())
+
+	dt3 := DateTime{}
+	dt3.UnmarshalNoms(nomsDate)
+	assert.True(dt3.IsZero())
+
+	assert.False(DateTime(time.Now()).IsZero())
+}
