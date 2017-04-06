@@ -24,8 +24,8 @@ func TestCompareTotalOrdering(t *testing.T) {
 		String("a"), String("b"), String("c"),
 
 		// The order of these are done by the hash.
-		BoolType,
 		NewSet(Number(0), Number(1), Number(2), Number(3)),
+		BoolType,
 
 		// Value - values cannot be value
 		// Cycle - values cannot be cycle

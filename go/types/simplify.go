@@ -36,22 +36,22 @@ import (
 //
 // Anytime any of the above cases generates a union as output, the same process
 // is applied to that union recursively.
-func makeSimplifiedType(intersectStructs bool, in *Type) *Type {
-	return in
-	// seen := map[*Type]*Type{}
-	// pending := map[string]*unsimplifiedStruct{}
-	//
-	// out, _ := removeAndCollectStructFields(in, seen, pending)
-	//
-	// result := makeSimplifiedTypeImpl(out, intersectStructs)
-	// for _, rec := range pending {
-	// 	desc := rec.t.Desc.(StructDesc)
-	//
-	// 	desc.fields = simplifyStructFields(rec.fieldSets, intersectStructs)
-	// 	rec.t.Desc = desc
-	// }
-	// return result
-}
+// func makeSimplifiedType(intersectStructs bool, in *Type) *Type {
+// 	return in
+// 	// seen := map[*Type]*Type{}
+// 	// pending := map[string]*unsimplifiedStruct{}
+// 	//
+// 	// out, _ := removeAndCollectStructFields(in, seen, pending)
+// 	//
+// 	// result := makeSimplifiedTypeImpl(out, intersectStructs)
+// 	// for _, rec := range pending {
+// 	// 	desc := rec.t.Desc.(StructDesc)
+// 	//
+// 	// 	desc.fields = simplifyStructFields(rec.fieldSets, intersectStructs)
+// 	// 	rec.t.Desc = desc
+// 	// }
+// 	// return result
+// }
 
 // typeset is a helper that aggregates the unique set of input types for this algorithm, flattening
 // any unions recursively.
@@ -81,34 +81,34 @@ func newTypeset(t ...*Type) typeset {
 	return ts
 }
 
-// makeSimplifiedTypeImpl is an implementation detail.
-// Warning: Do not call this directly. It assumes its input has been de-cycled using
-// ToUnresolvedType() and will infinitely recurse on cyclic types otherwise.
-func makeSimplifiedTypeImpl(in *Type, seenStructs typeset, seenByName map[string]typeset, intersectStructs bool) *Type {
-	switch in.TargetKind() {
-	case BoolKind, NumberKind, StringKind, BlobKind, ValueKind, TypeKind, CycleKind:
-		return in
-	case ListKind, MapKind, RefKind, SetKind:
-		elemTypes := make(typeSlice, len(in.Desc.(CompoundDesc).ElemTypes))
-		for i, t := range in.Desc.(CompoundDesc).ElemTypes {
-			elemTypes[i] = makeSimplifiedTypeImpl(t, seenStructs, seenByName, intersectStructs)
-		}
-		return makeCompoundType(in.TargetKind(), elemTypes...)
-	case StructKind:
-		// Structs have been replaced by "placeholders" in removeAndCollectStructFields.
-		return in
-	case UnionKind:
-		elemTypes := make(typeSlice, len(in.Desc.(CompoundDesc).ElemTypes))
-		ts := make(typeset, len(elemTypes))
-		for _, t := range in.Desc.(CompoundDesc).ElemTypes {
-			t = makeSimplifiedTypeImpl(t, seenStructs, seenByName, intersectStructs)
-			ts.add(t)
-		}
-
-		return bucketElements(ts, seenStructs, seenByName, intersectStructs)
-	}
-	panic("Unknown noms kind")
-}
+// // makeSimplifiedTypeImpl is an implementation detail.
+// // Warning: Do not call this directly. It assumes its input has been de-cycled using
+// // ToUnresolvedType() and will infinitely recurse on cyclic types otherwise.
+// func makeSimplifiedTypeImpl(in *Type, seenStructs typeset, seenByName map[string]typeset, intersectStructs bool) *Type {
+// 	switch in.TargetKind() {
+// 	case BoolKind, NumberKind, StringKind, BlobKind, ValueKind, TypeKind, CycleKind:
+// 		return in
+// 	case ListKind, MapKind, RefKind, SetKind:
+// 		elemTypes := make(typeSlice, len(in.Desc.(CompoundDesc).ElemTypes))
+// 		for i, t := range in.Desc.(CompoundDesc).ElemTypes {
+// 			elemTypes[i] = makeSimplifiedTypeImpl(t, seenStructs, seenByName, intersectStructs)
+// 		}
+// 		return makeCompoundType(in.TargetKind(), elemTypes...)
+// 	case StructKind:
+// 		// Structs have been replaced by "placeholders" in removeAndCollectStructFields.
+// 		return in
+// 	case UnionKind:
+// 		elemTypes := make(typeSlice, len(in.Desc.(CompoundDesc).ElemTypes))
+// 		ts := make(typeset, len(elemTypes))
+// 		for _, t := range in.Desc.(CompoundDesc).ElemTypes {
+// 			t = makeSimplifiedTypeImpl(t, seenStructs, seenByName, intersectStructs)
+// 			ts.add(t)
+// 		}
+//
+// 		return bucketElements(ts, seenStructs, seenByName, intersectStructs)
+// 	}
+// 	panic("Unknown noms kind")
+// }
 
 func bucketElements(in typeset, seenStructs typeset, seenByName map[string]typeset, intersectStructs bool) *Type {
 	type how struct {
