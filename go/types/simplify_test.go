@@ -345,24 +345,6 @@ func TestSimplifyType(t *testing.T) {
 				StructField{"a", makeCompoundType(SetKind, makeCompoundType(RefKind, MakeCycleType("A"))), false},
 			}),
 		)
-		//
-		// testSame(
-		// 	makeStructType("A", structTypeFields{
-		// 		StructField{"a", makeCompoundType(SetKind, makeCompoundType(RefKind,
-		// 			makeCompoundType(UnionKind, MakeCycleType("A"), MakeCycleType("A")),
-		// 		)), false},
-		// 	}),
-		// )
-
-		// test(
-		//         makeCompoundType(UnionKind,
-		//                 makeStructType("A", structTypeFields{
-		//                         StructField{"a", makeCompoundType(RefKind, MakeCycleType("A")), false},
-		//                 }),
-		//                 makeStructType("A", structTypeFields{
-		//                         StructField{"a", makeCompoundType(RefKind, MakeCycleType("A")), false},
-		//                 }),
-		// )
 	}
 
 	t.Run("Union", func(*testing.T) {

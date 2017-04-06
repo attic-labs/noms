@@ -37,8 +37,6 @@ import (
 //
 // All the above rules are applied recursively.
 func simplifyType(t *Type, intersectStructs bool) *Type {
-	// seenStructs := typeset{}
-	// seenByName := map[string]typeset{}
 	simplifier := newSimplifier(intersectStructs)
 	rv, changed, hasCycles := simplifier.simplify(t)
 	if !changed {
@@ -202,7 +200,9 @@ func (simplifier *typeSimplifier) simplifyStructFields(in []structTypeFields) st
 	return fields
 }
 
+// makeCycleType makes sure we fold same named cycle types into one type.
 func (simplifier *typeSimplifier) makeCycleType(name string) *Type {
+	// TODO: Feel like this should not be needed. Should be grouped together...
 	if t, ok := simplifier.seenNamedCycleTypes[name]; ok {
 		return t
 	}
@@ -371,6 +371,8 @@ func (simplifier *typeSimplifier) mergeUnion(t *Type) (*Type, bool, bool) {
 			d.PanicIfFalse(hasCycles) // should have detected this earlier.
 			// All the types in a group have the same name
 			r = simplifier.makeCycleType(h.n)
+
+			// TODO: Why wasn't this grouping Cycle<A> and Cycle<A>???
 
 		default:
 			panic("Unknown noms kind " + h.k.String())
