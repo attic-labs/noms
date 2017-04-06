@@ -98,18 +98,13 @@ func (lbs *localBatchStore) Flush() {
 	lbs.unwrittenPuts = nbs.NewCache()
 }
 
-// FlushAndDestroyWithoutClose flushes lbs and destroys its cache of unwritten chunks. It's needed because LocalDatabase wraps a localBatchStore around a ChunkStore that's used by a separate BatchStore, so calling Close() on one is semantically incorrect while it still wants to use the other.
-func (lbs *localBatchStore) FlushAndDestroyWithoutClose() {
-	lbs.Flush()
-	lbs.unwrittenPuts.Destroy()
-}
-
 // Destroy blows away lbs' cache of unwritten chunks without flushing. Used when the owning Database is closing and it isn't semantically correct to flush.
 func (lbs *localBatchStore) Destroy() {
 	lbs.unwrittenPuts.Destroy()
 }
 
-// Close is supposed to close the underlying ChunkStore, but the only place localBatchStore is currently used wants to keep the underlying ChunkStore open after it's done with lbs. Hence, the above method and the panic() here.
+// Close closes the underlying ChunkStore.
 func (lbs *localBatchStore) Close() error {
-	panic("Unreached")
+	lbs.Flush()
+	return lbs.cs.Close()
 }

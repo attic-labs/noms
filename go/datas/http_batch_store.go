@@ -340,44 +340,27 @@ func (bhcs *httpBatchStore) sendWriteRequests() {
 		bhcs.unwrittenPuts = nbs.NewCache()
 	}()
 
-	var res *http.Response
-	var err error
-	for tryAgain := true; tryAgain; {
-		verbose.Log("Sending %d chunks", count)
-		chunkChan := make(chan *chunks.Chunk, 1024)
-		go func() {
-			bhcs.unwrittenPuts.ExtractChunks(chunkChan)
-			close(chunkChan)
-		}()
+	verbose.Log("Sending %d chunks", count)
+	chunkChan := make(chan *chunks.Chunk, 1024)
+	go func() {
+		bhcs.unwrittenPuts.ExtractChunks(chunkChan)
+		close(chunkChan)
+	}()
 
-		body := buildWriteValueRequest(chunkChan)
-		url := *bhcs.host
-		url.Path = httprouter.CleanPath(bhcs.host.Path + constants.WriteValuePath)
-		// TODO: Make this accept snappy encoding
-		req := newRequest("POST", bhcs.auth, url.String(), body, http.Header{
-			"Accept-Encoding":  {"gzip"},
-			"Content-Encoding": {"x-snappy-framed"},
-			"Content-Type":     {"application/octet-stream"},
-		})
+	body := buildWriteValueRequest(chunkChan)
+	url := *bhcs.host
+	url.Path = httprouter.CleanPath(bhcs.host.Path + constants.WriteValuePath)
+	// TODO: Make this accept snappy encoding
+	req := newRequest("POST", bhcs.auth, url.String(), body, http.Header{
+		"Accept-Encoding":  {"gzip"},
+		"Content-Encoding": {"x-snappy-framed"},
+		"Content-Type":     {"application/octet-stream"},
+	})
 
-		res, err = bhcs.httpClient.Do(req)
-		d.PanicIfError(err)
-		expectVersion(res)
-		defer closeResponse(res.Body)
-
-		if tryAgain = res.StatusCode == http.StatusTooManyRequests; tryAgain {
-			reader := res.Body
-			if strings.Contains(res.Header.Get("Content-Encoding"), "gzip") {
-				gr, err := gzip.NewReader(reader)
-				d.PanicIfError(err)
-				defer gr.Close()
-				reader = gr
-			}
-			/*hashes :=*/ deserializeHashes(reader)
-			// TODO: BUG 1259 Since the client must currently send all chunks in one batch, the only thing to do in response to backpressure is send EVERYTHING again. Once batching is again possible, this code should figure out how to resend the chunks indicated by hashes.
-			verbose.Log("Retrying...")
-		}
-	}
+	res, err := bhcs.httpClient.Do(req)
+	d.PanicIfError(err)
+	expectVersion(res)
+	defer closeResponse(res.Body)
 
 	if http.StatusCreated != res.StatusCode {
 		d.Panic("Unexpected response: %s", formatErrorResponse(res))

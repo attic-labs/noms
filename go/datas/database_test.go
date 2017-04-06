@@ -98,9 +98,10 @@ func (suite *DatabaseSuite) TestReadWriteCachePersists() {
 	suite.NoError(err)
 }
 
-// TODO: Re-enable as part of BUG 3180
-func (suite *DatabaseSuite) SkipTestWriteRefToNonexistentValue() {
-	suite.Panics(func() { suite.db.WriteValue(types.NewRef(types.Bool(true))) })
+func (suite *RemoteDatabaseSuite) TestWriteRefToNonexistentValue() {
+	ds := suite.db.GetDataset("foo")
+	r := types.NewRef(types.Bool(true))
+	suite.Panics(func() { suite.db.CommitValue(ds, r) })
 }
 
 func (suite *DatabaseSuite) TestTolerateUngettableRefs() {
