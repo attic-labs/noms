@@ -41,7 +41,7 @@ func StringsToKinds(strs []string) KindSlice {
 func KindsToStrings(kinds KindSlice) []string {
 	strs := make([]string, len(kinds))
 	for i, k := range kinds {
-		strs[i] = types.KindToString[k]
+		strs[i] = k.String()
 	}
 	return strs
 }

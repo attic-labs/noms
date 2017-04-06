@@ -180,7 +180,7 @@ func (r *valueDecoder) readValue() Value {
 	case TypeKind:
 		return r.readType(map[string]*Type{})
 	case CycleKind, UnionKind, ValueKind:
-		d.Chk.Fail(fmt.Sprintf("A value instance can never have type %s", KindToString[k]))
+		d.Chk.Fail(fmt.Sprintf("A value instance can never have type %s", k))
 	}
 
 	panic("not reachable")

@@ -166,7 +166,7 @@ func (w *valueEncoder) writeValue(v Value) {
 	case StructKind:
 		w.writeStruct(v.(Struct))
 	case CycleKind, UnionKind, ValueKind:
-		d.Chk.Fail(fmt.Sprintf("A value instance can never have type %s", KindToString[k]))
+		d.Chk.Fail(fmt.Sprintf("A value instance can never have type %s", k))
 	default:
 		d.Chk.Fail("Unknown NomsKind")
 	}

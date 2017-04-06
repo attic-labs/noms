@@ -5,6 +5,7 @@
 package types
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/attic-labs/testify/assert"
@@ -82,6 +83,8 @@ func TestGenericStructSet(t *testing.T) {
 	t7 := MakeStructTypeFromFields("", FieldMap{
 		"l": MakeListType(NumberType),
 	})
+	fmt.Println("raw", s7.typeOf().Describe())
+	fmt.Println("sim", TypeOf(s7).Describe())
 	assert.True(t7.Equals(TypeOf(s7)))
 }
 

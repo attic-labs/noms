@@ -54,12 +54,6 @@ func indexOfType(t *Type, tl []*Type) (uint32, bool) {
 
 // Returns a new type where cyclic pointer references are replaced with Cycle<Name> types.
 func toUnresolvedType(t *Type, seenStructs map[string]*Type) (*Type, bool) {
-	// n, found := indexOfType(t, parentStructTypes)
-	// if found {
-	// 	cycle := CycleDesc(uint32(len(parentStructTypes)) - i - 1)
-	// 	return newType(cycle), true // This type is just a placeholder. It doesn't need a real id.
-	// }
-
 	switch desc := t.Desc.(type) {
 	case CompoundDesc:
 		ts := make(typeSlice, len(desc.ElemTypes))

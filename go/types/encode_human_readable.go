@@ -232,9 +232,9 @@ func (w *hrsWriter) writeSize(v Value) {
 func (w *hrsWriter) writeType(t *Type, seenStructs map[string]*Type) {
 	switch t.TargetKind() {
 	case BlobKind, BoolKind, NumberKind, StringKind, TypeKind, ValueKind:
-		w.write(KindToString[t.TargetKind()])
+		w.write(t.TargetKind().String())
 	case ListKind, RefKind, SetKind, MapKind:
-		w.write(KindToString[t.TargetKind()])
+		w.write(t.TargetKind().String())
 		w.write("<")
 		for i, et := range t.Desc.(CompoundDesc).ElemTypes {
 			if et.TargetKind() == UnionKind && len(et.Desc.(CompoundDesc).ElemTypes) == 0 {
