@@ -115,7 +115,7 @@ func init() {
             } | struct File {
               data: Ref<Blob>,
             } | struct Directory {
-              entries: Map<String, Cycle<1>>,
+              entries: Map<String, Cycle<Inode>>,
             },
         }`)
 
