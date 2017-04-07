@@ -133,9 +133,7 @@ func (ms metaSequence) WalkRefs(cb RefCallback) {
 func (ms metaSequence) typeOf() *Type {
 	ts := make(typeSlice, len(ms.tuples))
 	for i, mt := range ms.tuples {
-		rt := mt.ref.typeOf()
-		d.PanicIfFalse(rt.TargetKind() == RefKind)
-		ts[i] = rt.Desc.(CompoundDesc).ElemTypes[0]
+		ts[i] = mt.ref.TargetType()
 	}
 	return makeCompoundType(UnionKind, ts...)
 }

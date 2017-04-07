@@ -6,21 +6,12 @@ import (
 	"github.com/attic-labs/testify/assert"
 )
 
-// testing strategy
-// - test simplifying each kind in isolation, both shallow and deep
-// - test makeSupertype
-//   - pass one type only
-//   - test that instances are properly deduplicated
-//   - test union flattening
-//   - test grouping of the various kinds
-//   - test cycles
-
 func TestSimplifyStructFields(t *testing.T) {
 	assert := assert.New(t)
 
 	test := func(in []structTypeFields, exp structTypeFields) {
-		simplifier := newSimplifier(false)
-		act := simplifier.simplifyStructFields(in)
+		// simplifier := newSimplifier(false)
+		act := simplifyStructFields(in, typeset{}, false)
 		assert.Equal(act, exp)
 	}
 
@@ -343,6 +334,59 @@ func TestSimplifyType(t *testing.T) {
 		testSame(
 			makeStructType("A", structTypeFields{
 				StructField{"a", makeCompoundType(SetKind, makeCompoundType(RefKind, MakeCycleType("A"))), false},
+			}),
+		)
+
+		test(
+			makeCompoundType(RefKind,
+				makeCompoundType(UnionKind,
+					makeCompoundType(ListKind,
+						BoolType,
+					),
+					makeCompoundType(SetKind,
+						makeCompoundType(UnionKind, StringType, NumberType),
+					),
+				),
+			),
+			makeCompoundType(RefKind,
+				makeCompoundType(UnionKind,
+					makeCompoundType(ListKind,
+						BoolType,
+					),
+					makeCompoundType(SetKind,
+						makeCompoundType(UnionKind, NumberType, StringType),
+					),
+				),
+			),
+		)
+
+		testSame(
+			makeStructType("Commit", structTypeFields{
+				StructField{
+					"parents",
+					makeCompoundType(
+						SetKind,
+						makeCompoundType(
+							RefKind,
+							MakeCycleType("Commit"),
+						),
+					),
+					false,
+				},
+			}),
+		)
+		testSame(
+			makeStructType("Commit", structTypeFields{
+				StructField{
+					"parents",
+					makeCompoundType(
+						SetKind,
+						MakeRefType(
+							MakeCycleType("Commit"),
+						),
+					),
+					false,
+				},
 			}),
 		)
 	}

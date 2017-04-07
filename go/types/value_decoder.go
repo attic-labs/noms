@@ -226,7 +226,6 @@ func (r *valueDecoder) readStructType(seenStructs map[string]*Type) *Type {
 		}
 	}
 
-	// Validate?
 	return t
 }
 

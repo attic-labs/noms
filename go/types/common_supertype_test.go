@@ -98,14 +98,11 @@ func TestContainCommonSupertype(t *testing.T) {
 		{MakeStructTypeFromFields("", FieldMap{"foo": StringType}),
 			MakeStructTypeFromFields("", FieldMap{"foo": MakeUnionType(StringType, BlobType)}), true},
 
-		// 32
-
 		// struct{foo: string}|struct{foo: blob} & struct{foo: string|blob} -> true
 		{MakeUnionType(
 			MakeStructTypeFromFields("", FieldMap{"foo": StringType}),
 			MakeStructTypeFromFields("", FieldMap{"foo": BlobType}),
 		), MakeStructTypeFromFields("", FieldMap{"foo": MakeUnionType(StringType, BlobType)}), true},
-
 		// struct{foo: string}|struct{foo: blob} & struct{foo: number|bool} -> false
 		{MakeUnionType(
 			MakeStructTypeFromFields("", FieldMap{"foo": StringType}),
