@@ -100,33 +100,6 @@ func ToUnresolvedType(t *Type) *Type {
 	return t2
 }
 
-// Drops cycles and replaces them with pointers to parent structs
-func resolveStructCycles(t *Type, seenStructs map[string]*Type) *Type {
-	switch desc := t.Desc.(type) {
-	case CompoundDesc:
-		for i, et := range desc.ElemTypes {
-			desc.ElemTypes[i] = resolveStructCycles(et, seenStructs)
-		}
-
-	case StructDesc:
-		name := desc.Name
-		if name != "" {
-			seenStructs[name] = t
-		}
-		for i, f := range desc.fields {
-			desc.fields[i].Type = resolveStructCycles(f.Type, seenStructs)
-		}
-
-	case CycleDesc:
-		name := string(desc)
-		if nt, ok := seenStructs[name]; ok {
-			return nt
-		}
-	}
-
-	return t
-}
-
 // We normalize structs during their construction iff they have no unresolved
 // cycles. Normalizing applies a canonical ordering to the composite types of a
 // union and serializes all types under the struct. To ensure a consistent
