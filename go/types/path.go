@@ -146,6 +146,8 @@ func constructPath(p Path, str string) (Path, error) {
 	}
 }
 
+// Resolves a path relative to some value.
+// A ValueReader is required to resolve paths that contain the @target annotation.
 func (p Path) Resolve(v Value, vr ValueReader) (resolved Value) {
 	resolved = v
 	for _, part := range p {
