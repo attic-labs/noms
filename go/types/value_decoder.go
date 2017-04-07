@@ -220,10 +220,14 @@ func (r *valueDecoder) readStructType(seenStructs map[string]*Type) *Type {
 
 	for i := uint32(0); i < count; i++ {
 		t.Desc.(StructDesc).fields[i] = StructField{
-			r.readString(),
-			r.readType(seenStructs),
-			r.readBool(),
+			Name: r.readString(),
 		}
+	}
+	for i := uint32(0); i < count; i++ {
+		t.Desc.(StructDesc).fields[i].Type = r.readType(seenStructs)
+	}
+	for i := uint32(0); i < count; i++ {
+		t.Desc.(StructDesc).fields[i].Optional = r.readBool()
 	}
 
 	return t

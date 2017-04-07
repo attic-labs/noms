@@ -206,9 +206,14 @@ func (w *valueEncoder) writeStructType(t *Type, seenStructs map[string]*Type) {
 	w.writeString(desc.Name)
 	w.writeUint32(uint32(desc.Len()))
 
+	// Write all names, all types and finally all the optional flags.
 	for _, field := range desc.fields {
 		w.writeString(field.Name)
+	}
+	for _, field := range desc.fields {
 		w.writeType(field.Type, seenStructs)
+	}
+	for _, field := range desc.fields {
 		w.writeBool(field.Optional)
 	}
 }
