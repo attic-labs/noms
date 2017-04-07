@@ -124,26 +124,39 @@ func ToUnresolvedType(t *Type) *Type {
 // non-Byzantine use of such a construction arises, we can attempt to simplify
 // the expansive type or find another means of comparison.
 
-func checkStructType(t *Type) {
-	walkType(t, nil, validateTypes)
+func validateType(t *Type) {
+	validateTypeImpl(t, map[string]struct{}{})
 }
 
-func validateTypes(t *Type, _ []*Type) {
-	switch t.TargetKind() {
-	case UnionKind:
-		elemTypes := t.Desc.(CompoundDesc).ElemTypes
-		if len(elemTypes) == 1 {
-			panic("Invalid union type")
-		}
-		for i := 1; i < len(elemTypes); i++ {
-			if !unionLess(elemTypes[i-1], elemTypes[i]) {
-				panic("Invalid union order")
+func validateTypeImpl(t *Type, seenStructs map[string]struct{}) {
+	switch desc := t.Desc.(type) {
+	case CompoundDesc:
+		if desc.Kind() == UnionKind {
+			if len(desc.ElemTypes) == 1 {
+				panic("Invalid union type")
+			}
+			for i := 1; i < len(desc.ElemTypes); i++ {
+				if !unionLess(desc.ElemTypes[i-1], desc.ElemTypes[i]) {
+					panic("Invalid union order")
+				}
 			}
 		}
-	case StructKind:
-		desc := t.Desc.(StructDesc)
+
+		for _, et := range desc.ElemTypes {
+			validateTypeImpl(et, seenStructs)
+		}
+	case StructDesc:
+		if desc.Name != "" {
+			if _, ok := seenStructs[desc.Name]; ok {
+				return
+			}
+			seenStructs[desc.Name] = struct{}{}
+		}
 		verifyStructName(desc.Name)
 		verifyFields(desc.fields)
+		for _, f := range desc.fields {
+			validateTypeImpl(f.Type, seenStructs)
+		}
 	}
 }
 

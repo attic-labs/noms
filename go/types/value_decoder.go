@@ -45,7 +45,7 @@ func (r *valueDecoder) readType(seenStructs map[string]*Type) *Type {
 	if r.typeDepth == 0 {
 		t = resolveCycleTypes(t)
 		if r.validating {
-			checkStructType(t)
+			validateType(t)
 		}
 	}
 	return t
