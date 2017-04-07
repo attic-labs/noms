@@ -45,8 +45,9 @@ var (
 func makeGlobalIndexCache() { globalIndexCache = newIndexCache(defaultIndexCacheSize) }
 
 type NomsBlockStore struct {
-	mm          manifest
-	nomsVersion string
+	mm           manifest
+	manifestLock addr
+	nomsVersion  string
 
 	mu     sync.RWMutex // protects the following state
 	mt     *memTable
@@ -139,7 +140,7 @@ func NewLocalStore(dir string, memTableSize uint64) *NomsBlockStore {
 func newLocalStore(dir string, memTableSize uint64, indexCache *indexCache, maxTables int) *NomsBlockStore {
 	err := CheckDir(dir)
 	d.PanicIfError(err)
-	return newNomsBlockStore(newFileManifest(dir), newFSTableSet(dir, indexCache), memTableSize, maxTables)
+	return newNomsBlockStore(fileManifest{dir}, newFSTableSet(dir, indexCache), memTableSize, maxTables)
 }
 
 func newNomsBlockStore(mm manifest, ts tableSet, memTableSize uint64, maxTables int) *NomsBlockStore {
@@ -154,8 +155,8 @@ func newNomsBlockStore(mm manifest, ts tableSet, memTableSize uint64, maxTables 
 		maxTables:   maxTables,
 	}
 
-	if exists, vers, root, tableSpecs := nbs.mm.LoadIfExists(nil); exists {
-		nbs.nomsVersion, nbs.root = vers, root
+	if exists, vers, lock, root, tableSpecs := nbs.mm.ParseIfExists(nil); exists {
+		nbs.nomsVersion, nbs.manifestLock, nbs.root = vers, lock, root
 		nbs.tables, _ = nbs.tables.Rebase(tableSpecs)
 	}
 
@@ -378,7 +379,11 @@ func (nbs *NomsBlockStore) UpdateRoot(current, last hash.Hash) bool {
 	}
 }
 
-var errLastRootMismatch = fmt.Errorf("last does not match nbs.Root()")
+var (
+	errLastRootMismatch           = fmt.Errorf("last does not match nbs.Root()")
+	errOptimisticLockFailedRoot   = fmt.Errorf("Root moved")
+	errOptimisticLockFailedTables = fmt.Errorf("Tables changed")
+)
 
 func (nbs *NomsBlockStore) updateManifest(current, last hash.Hash) error {
 	nbs.mu.Lock()
@@ -398,22 +403,28 @@ func (nbs *NomsBlockStore) updateManifest(current, last hash.Hash) error {
 		candidate, compactees = candidate.Compact() // Compact() must only compact upstream tables (BUG 3142)
 	}
 
-	actual, tableNames, lockFail := nbs.mm.Update(candidate.ToSpecs(), nbs.root, current, nil)
-	if lockFail != nil {
+	specs := candidate.ToSpecs()
+	nl := generateLockHash(current, specs)
+	lock, actual, tableNames := nbs.mm.Update(nbs.manifestLock, nl, specs, current, nil)
+	if nl != lock {
 		// Optimistic lock failure. Someone else moved to the root, the set of tables, or both out from under us.
 		// Regardless of what happened, we're going to start fresh by re-opening all the new tables from upstream, and re-calculating which tables to compact, so close all the compactees as well as any chunkSources that are dropped during Rebase().
 		compactees.close()
 		var dropped chunkSources
+		nbs.manifestLock = lock
 		nbs.root = actual
 		nbs.tables, dropped = candidate.Rebase(tableNames)
 		dropped.close()
 
-		return lockFail
+		if last != actual {
+			return errOptimisticLockFailedRoot
+		}
+		return errOptimisticLockFailedTables
 	}
 
 	nbs.tables = candidate.Flatten()
 	compactees.close()
-	nbs.nomsVersion, nbs.root = constants.NomsVersion, current
+	nbs.nomsVersion, nbs.manifestLock, nbs.root = constants.NomsVersion, lock, current
 	return nil
 }
 
