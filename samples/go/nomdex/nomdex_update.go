@@ -171,7 +171,7 @@ func addElementsToGraphBuilder(gb *types.GraphBuilder, db datas.Database, rootOb
 		typeCacheMutex.Unlock()
 		if !ok || hasPath {
 			pathResolved := false
-			tv := relPath.Resolve(v)
+			tv := relPath.Resolve(v, nil)
 			if tv != nil {
 				index.addToGraphBuilder(gb, tv, v, txRe)
 				pathResolved = true
