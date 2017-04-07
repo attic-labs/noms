@@ -147,7 +147,7 @@ type fakeManifest struct {
 }
 
 // ParseIfExists returns any fake manifest data the caller has injected using Update() or set(). It treats an empty |fm.root| as a non-existent manifest.
-func (fm *fakeManifest) ParseIfExists(readHook func()) (exists bool, vers string, root hash.Hash, tableSpecs []tableSpec) {
+func (fm *fakeManifest) LoadIfExists(readHook func()) (exists bool, vers string, root hash.Hash, tableSpecs []tableSpec) {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
 	if fm.root != (hash.Hash{}) {
@@ -157,11 +157,11 @@ func (fm *fakeManifest) ParseIfExists(readHook func()) (exists bool, vers string
 }
 
 // Update checks whether |root| == |fm.root| and, if so, updates internal fake manifest state as per the manifest.Update() contract: |fm.root| is set to |newRoot|, and the contents of |specs| are merged into |fm.tableSpecs|. If |root| != |fm.root|, then the update fails. Regardless of success or failure, the current state is returned.
-func (fm *fakeManifest) Update(specs []tableSpec, root, newRoot hash.Hash, writeHook func()) (actual hash.Hash, tableSpecs []tableSpec) {
+func (fm *fakeManifest) Update(specs []tableSpec, root, newRoot hash.Hash, writeHook func()) (actual hash.Hash, tableSpecs []tableSpec, err error) {
 	fm.mu.Lock()
 	defer fm.mu.Unlock()
 	if fm.root != root {
-		return fm.root, fm.tableSpecs
+		return fm.root, fm.tableSpecs, errOptimisticLockFailedRoot
 	}
 	fm.version = constants.NomsVersion
 	fm.root = newRoot
@@ -176,7 +176,7 @@ func (fm *fakeManifest) Update(specs []tableSpec, root, newRoot hash.Hash, write
 			fm.tableSpecs = append(fm.tableSpecs, t)
 		}
 	}
-	return fm.root, fm.tableSpecs
+	return fm.root, fm.tableSpecs, nil
 }
 
 func (fm *fakeManifest) set(version string, root hash.Hash, specs []tableSpec) {

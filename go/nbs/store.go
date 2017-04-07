@@ -28,7 +28,7 @@ import (
 
 const (
 	// StorageVersion is the version of the on-disk Noms Chunks Store data format.
-	StorageVersion = "2"
+	StorageVersion = "3"
 
 	defaultMemTableSize uint64 = (1 << 20) * 128 // 128MB
 	defaultAWSReadLimit        = 1024
@@ -139,7 +139,7 @@ func NewLocalStore(dir string, memTableSize uint64) *NomsBlockStore {
 func newLocalStore(dir string, memTableSize uint64, indexCache *indexCache, maxTables int) *NomsBlockStore {
 	err := CheckDir(dir)
 	d.PanicIfError(err)
-	return newNomsBlockStore(fileManifest{dir}, newFSTableSet(dir, indexCache), memTableSize, maxTables)
+	return newNomsBlockStore(newFileManifest(dir), newFSTableSet(dir, indexCache), memTableSize, maxTables)
 }
 
 func newNomsBlockStore(mm manifest, ts tableSet, memTableSize uint64, maxTables int) *NomsBlockStore {
@@ -154,7 +154,7 @@ func newNomsBlockStore(mm manifest, ts tableSet, memTableSize uint64, maxTables 
 		maxTables:   maxTables,
 	}
 
-	if exists, vers, root, tableSpecs := nbs.mm.ParseIfExists(nil); exists {
+	if exists, vers, root, tableSpecs := nbs.mm.LoadIfExists(nil); exists {
 		nbs.nomsVersion, nbs.root = vers, root
 		nbs.tables, _ = nbs.tables.Rebase(tableSpecs)
 	}
@@ -362,10 +362,29 @@ func (nbs *NomsBlockStore) Root() hash.Hash {
 }
 
 func (nbs *NomsBlockStore) UpdateRoot(current, last hash.Hash) bool {
+	b := &backoff.Backoff{
+		Min:    128 * time.Microsecond,
+		Max:    10 * time.Second,
+		Factor: 2,
+		Jitter: true,
+	}
+	for {
+		if err := nbs.updateManifest(current, last); err == nil {
+			return true
+		} else if err == errOptimisticLockFailedRoot || err == errLastRootMismatch {
+			return false
+		}
+		time.Sleep(b.Duration())
+	}
+}
+
+var errLastRootMismatch = fmt.Errorf("last does not match nbs.Root()")
+
+func (nbs *NomsBlockStore) updateManifest(current, last hash.Hash) error {
 	nbs.mu.Lock()
 	defer nbs.mu.Unlock()
 	if nbs.root != last {
-		return false
+		return errLastRootMismatch
 	}
 
 	if nbs.mt != nil && nbs.mt.count() > 0 {
@@ -379,21 +398,23 @@ func (nbs *NomsBlockStore) UpdateRoot(current, last hash.Hash) bool {
 		candidate, compactees = candidate.Compact() // Compact() must only compact upstream tables (BUG 3142)
 	}
 
-	actual, tableNames := nbs.mm.Update(candidate.ToSpecs(), nbs.root, current, nil)
-
-	if current != actual {
-		// Optimistic lock failure. Since we're going to start fresh, re-opening all the new tables from upstream, and re-calculate which tables to compact, close all the compactees as well as the chunkSources that are dropped during Rebase().
+	actual, tableNames, lockFail := nbs.mm.Update(candidate.ToSpecs(), nbs.root, current, nil)
+	if lockFail != nil {
+		// Optimistic lock failure. Someone else moved to the root, the set of tables, or both out from under us.
+		// Regardless of what happened, we're going to start fresh by re-opening all the new tables from upstream, and re-calculating which tables to compact, so close all the compactees as well as any chunkSources that are dropped during Rebase().
 		compactees.close()
 		var dropped chunkSources
 		nbs.root = actual
 		nbs.tables, dropped = candidate.Rebase(tableNames)
 		dropped.close()
-		return false
+
+		return lockFail
 	}
+
 	nbs.tables = candidate.Flatten()
 	compactees.close()
 	nbs.nomsVersion, nbs.root = constants.NomsVersion, current
-	return true
+	return nil
 }
 
 func (nbs *NomsBlockStore) Version() string {
@@ -413,7 +434,7 @@ func (nbs *NomsBlockStore) Flush() {
 		Factor: 2,
 		Jitter: true,
 	}
-	for !nbs.UpdateRoot(nbs.root, nbs.root) {
+	for nbs.updateManifest(nbs.root, nbs.root) != nil {
 		time.Sleep(b.Duration())
 	}
 }
