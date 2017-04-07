@@ -25,22 +25,14 @@ func makeCompoundType(kind NomsKind, elemTypes ...*Type) *Type {
 	return newType(CompoundDesc{kind, elemTypes})
 }
 
-func makeStructTypeQuickly(name string, fields structTypeFields, checkKind checkKindType) *Type {
-	t := newType(StructDesc{name, fields})
-	if t.HasUnresolvedCycle() {
-		t, _ = toUnresolvedType(t, map[string]*Type{})
-		resolveStructCycles(t, map[string]*Type{})
-		if !t.HasUnresolvedCycle() {
-			checkStructType(t, checkKind)
-		}
-	}
-	return t
+func makeStructTypeQuickly(name string, fields structTypeFields) *Type {
+	return newType(StructDesc{name, fields})
 }
 
 func makeStructType(name string, fields structTypeFields) *Type {
 	verifyStructName(name)
 	verifyFields(fields)
-	return makeStructTypeQuickly(name, fields, checkKindNormalize)
+	return makeStructTypeQuickly(name, fields)
 }
 
 func indexOfType(t *Type, tl []*Type) (uint32, bool) {
@@ -159,33 +151,8 @@ func resolveStructCycles(t *Type, seenStructs map[string]*Type) *Type {
 // non-Byzantine use of such a construction arises, we can attempt to simplify
 // the expansive type or find another means of comparison.
 
-type checkKindType uint8
-
-const (
-	checkKindNormalize checkKindType = iota
-	checkKindNoValidate
-	checkKindValidate
-)
-
-func checkStructType(t *Type, checkKind checkKindType) {
-	if checkKind == checkKindNoValidate {
-		return
-	}
-
-	switch checkKind {
-	case checkKindNormalize:
-		walkType(t, nil, sortUnions)
-	case checkKindValidate:
-		walkType(t, nil, validateTypes)
-	default:
-		panic("unreachable")
-	}
-}
-
-func sortUnions(t *Type, _ []*Type) {
-	if t.TargetKind() == UnionKind {
-		sort.Sort(t.Desc.(CompoundDesc).ElemTypes)
-	}
+func checkStructType(t *Type) {
+	walkType(t, nil, validateTypes)
 }
 
 func validateTypes(t *Type, _ []*Type) {
@@ -258,8 +225,8 @@ func MakeStructTypeFromFields(name string, fields FieldMap) *Type {
 		fs[i] = StructField{k, v, false}
 		i++
 	}
-	sort.Sort(&fs)
-	return makeStructType(name, fs)
+	sort.Sort(fs)
+	return simplifyType(makeStructType(name, fs), false)
 }
 
 // StructField describes a field in a struct type.
@@ -277,9 +244,8 @@ func (s structTypeFields) Less(i, j int) bool { return s[i].Name < s[j].Name }
 
 func MakeStructType(name string, fields ...StructField) *Type {
 	fs := structTypeFields(fields)
-	sort.Sort(&fs)
-
-	return makeStructType(name, fs)
+	sort.Sort(fs)
+	return simplifyType(makeStructType(name, fs), false)
 }
 
 func MakeUnionType(elemTypes ...*Type) *Type {
