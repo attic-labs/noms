@@ -84,25 +84,6 @@ func (t *Type) Kind() NomsKind {
 	return TypeKind
 }
 
-func MakePrimitiveType(k NomsKind) *Type {
-	switch k {
-	case BoolKind:
-		return BoolType
-	case NumberKind:
-		return NumberType
-	case StringKind:
-		return StringType
-	case BlobKind:
-		return BlobType
-	case ValueKind:
-		return ValueType
-	case TypeKind:
-		return TypeType
-	}
-	d.Chk.Fail("invalid NomsKind: %d", k)
-	return nil
-}
-
 // TypeOf returns the type describing the value. This is not an exact type but
 // often a simplification of the concrete type.
 func TypeOf(v Value) *Type {
@@ -141,4 +122,13 @@ func hasStructCycles(t *Type, visited []*Type) bool {
 	}
 
 	return false
+}
+
+func indexOfType(t *Type, tl []*Type) (uint32, bool) {
+	for i, tt := range tl {
+		if tt == t {
+			return uint32(i), true
+		}
+	}
+	return 0, false
 }
