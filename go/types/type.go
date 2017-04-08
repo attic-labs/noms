@@ -37,19 +37,6 @@ func (t *Type) TargetKind() NomsKind {
 	return t.Desc.Kind()
 }
 
-func (t *Type) hasUnresolvedCycle(visited []*Type) bool {
-	_, found := indexOfType(t, visited)
-	if found {
-		return false
-	}
-
-	return t.Desc.HasUnresolvedCycle(append(visited, t))
-}
-
-func (t *Type) HasUnresolvedCycle() bool {
-	return t.hasUnresolvedCycle(nil)
-}
-
 // Value interface
 func (t *Type) Equals(other Value) (res bool) {
 	return t == other || t.Hash() == other.Hash()
