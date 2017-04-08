@@ -20,7 +20,7 @@ import "github.com/attic-labs/noms/go/d"
 //      - else return true
 func ContainCommonSupertype(a, b *Type) bool {
 	// Avoid cycles internally.
-	return containCommonSupertypeImpl(ToUnresolvedType(a), ToUnresolvedType(b))
+	return containCommonSupertypeImpl(a, b)
 }
 
 func containCommonSupertypeImpl(a, b *Type) bool {
