@@ -111,41 +111,33 @@ func TypeOf(v Value) *Type {
 
 // HasStructCycles determines if the type contains any struct cycles.
 func HasStructCycles(t *Type) bool {
-	return hasStructCycles(t, map[string]int{})
+	return hasStructCycles(t, nil)
 }
 
-func hasStructCycles(t *Type, seenStructs map[string]int) bool {
+func hasStructCycles(t *Type, visited []*Type) bool {
+	if _, found := indexOfType(t, visited); found {
+		return true
+	}
+
 	switch desc := t.Desc.(type) {
 	case CompoundDesc:
 		for _, et := range desc.ElemTypes {
-			b := hasStructCycles(et, seenStructs)
+			b := hasStructCycles(et, visited)
 			if b {
 				return true
 			}
 		}
 
 	case StructDesc:
-		name := desc.Name
-		if name != "" {
-			if seenStructs[name] > 0 {
-				return true
-			}
-			seenStructs[name]++
-			defer func() { seenStructs[name]-- }()
-		}
 		for _, f := range desc.fields {
-			b := hasStructCycles(f.Type, seenStructs)
+			b := hasStructCycles(f.Type, append(visited, t))
 			if b {
 				return true
 			}
 		}
 
 	case CycleDesc:
-		name := string(desc)
-		d.PanicIfTrue(name == "")
-		if seenStructs[name] > 0 {
-			return true
-		}
+		panic("unexpected unresolved cycle")
 	}
 
 	return false
