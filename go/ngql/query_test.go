@@ -1026,7 +1026,7 @@ func (suite *QueryGraphQLSuite) TestMapWithComplexKeys() {
 	suite.assertQueryResult(m, `{root{values(key: [])}}`, `{"data":{"root":{"values":[]}}}`)
 
 	// The ordering here depends on the hash of the value...
-	suite.assertQueryResult(m, `{root{values(key: ["a"], through: ["e"])}}`, `{"data":{"root":{"values":[1, 4, 3]}}}`)
+	suite.assertQueryResult(m, `{root{values(key: ["a"], through: ["e"])}}`, `{"data":{"root":{"values":[1, 2, 3]}}}`)
 
 	suite.assertQueryResult(m, `{root{values(keys: [["a"],["b"],["c"]])}}`, `{"data":{"root":{"values":[1, null, 2]}}}`)
 	suite.assertQueryResult(m, `{
