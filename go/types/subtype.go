@@ -9,8 +9,8 @@ import (
 )
 
 func assertSubtype(t *Type, v Value) {
-	if !isSubtype(t, TypeOf(v), nil) {
-		d.Chk.Fail("Invalid type", "%s is not a subtype of %s", TypeOf(v).Describe(), t.Describe())
+	if !isValueSubtypeOf(v, t, nil) {
+		d.Panic("Invalid type. %s is not a subtype of %s", TypeOf(v).Describe(), t.Describe())
 	}
 }
 
@@ -125,4 +125,111 @@ func compoundSubtype(requiredType, concreteType *Type, parentStructTypes []*Type
 		return true
 	}
 	return isSubtype(requiredType, concreteType, parentStructTypes)
+}
+
+// IsValueSubtypeOf returns whether a value is a subtype of a type.
+func IsValueSubtypeOf(v Value, t *Type) bool {
+	return isValueSubtypeOf(v, t, nil)
+}
+
+func isValueSubtypeOf(v Value, t *Type, parentStructTypes []*Type) bool {
+	switch t.TargetKind() {
+	case BoolKind, NumberKind, StringKind, BlobKind, TypeKind:
+		return v.Kind() == t.TargetKind()
+	case ValueKind:
+		return true
+	case UnionKind:
+		for _, et := range t.Desc.(CompoundDesc).ElemTypes {
+			if IsValueSubtypeOf(v, et) {
+				return true
+			}
+		}
+		return false
+	default:
+		if v.Kind() != t.TargetKind() {
+			return false
+		}
+	}
+
+	switch desc := t.Desc.(type) {
+	case StructDesc:
+		_, found := indexOfType(t, parentStructTypes)
+		if found {
+			// For recursive structs the false case will be handled elsewhere.
+			return true
+		}
+
+		// If we provide a named struct type we require that the names match.
+		s := v.(Struct)
+		if desc.Name != "" && desc.Name != s.Name() {
+			return false
+		}
+
+		parentStructTypes = append(parentStructTypes, t)
+		for _, f := range desc.fields {
+			fv, ok := s.MaybeGet(f.Name)
+			if !ok {
+				return f.Optional
+			}
+			if !isValueSubtypeOf(fv, f.Type, parentStructTypes) {
+				return false
+			}
+		}
+		return true
+
+	case CompoundDesc:
+		switch v := v.(type) {
+		case Ref:
+			// Switching to the type is subtype of type here.
+			return isSubtype(desc.ElemTypes[0], v.TargetType(), parentStructTypes)
+		case Map:
+			kt := desc.ElemTypes[0]
+			vt := desc.ElemTypes[1]
+			if seq, ok := v.seq.(mapLeafSequence); ok {
+				for _, entry := range seq.data {
+					if !isValueSubtypeOf(entry.key, kt, parentStructTypes) {
+						return false
+					}
+					if !isValueSubtypeOf(entry.value, vt, parentStructTypes) {
+						return false
+					}
+				}
+				return true
+			}
+			return isMetaSequenceSubtypeOf(v.seq.(metaSequence), t, parentStructTypes)
+		case Set:
+			et := desc.ElemTypes[0]
+			if seq, ok := v.seq.(setLeafSequence); ok {
+				for _, v := range seq.data {
+					if !isValueSubtypeOf(v, et, parentStructTypes) {
+						return false
+					}
+				}
+				return true
+			}
+			return isMetaSequenceSubtypeOf(v.seq.(metaSequence), t, parentStructTypes)
+		case List:
+			et := desc.ElemTypes[0]
+			if seq, ok := v.seq.(listLeafSequence); ok {
+				for _, v := range seq.values {
+					if !isValueSubtypeOf(v, et, parentStructTypes) {
+						return false
+					}
+				}
+				return true
+			}
+			return isMetaSequenceSubtypeOf(v.seq.(metaSequence), t, parentStructTypes)
+		}
+	}
+	panic("unreachable")
+}
+
+func isMetaSequenceSubtypeOf(ms metaSequence, t *Type, parentStructTypes []*Type) bool {
+	for _, mt := range ms.tuples {
+		// Each prolly tree is also a List<T> where T needs to be a subtype.
+		if !isSubtype(t, mt.ref.TargetType(), parentStructTypes) {
+			return false
+		}
+	}
+	return true
 }
