@@ -325,8 +325,8 @@ func writeDiffLines(node LogNode, path types.Path, db datas.Database, maxLines, 
 	parentCommit := parent.(types.Ref).TargetValue(db).(types.Struct)
 	var old, neu types.Value
 	functions.All(
-		func() { old = path.Resolve(parentCommit, nil) },
-		func() { neu = path.Resolve(node.commit, nil) },
+		func() { old = path.Resolve(parentCommit, db) },
+		func() { neu = path.Resolve(node.commit, db) },
 	)
 
 	// TODO: It would be better to treat this as an add or remove, but that requires generalization
