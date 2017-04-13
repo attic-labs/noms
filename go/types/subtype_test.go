@@ -639,4 +639,51 @@ func TestIsValueSubtypeOf(tt *testing.T) {
 			StructField{"children", MakeListType(MakeCycleType("Node")), false},
 		),
 	)
+
+	assertFalse( // inner Node has wrong type.
+		NewStruct("Node", StructData{
+			"value": Number(1),
+			"children": NewList(
+				NewStruct("Node", StructData{
+					"value":    Bool(true),
+					"children": NewList(),
+				}),
+			),
+		}),
+		MakeStructType("Node",
+			StructField{"value", NumberType, false},
+			StructField{"children", MakeListType(MakeCycleType("Node")), false},
+		),
+	)
+
+	{
+		node := func(value Value, children ...Value) Value {
+			childrenAsRefs := make(ValueSlice, len(children))
+			for i, c := range children {
+				childrenAsRefs[i] = NewRef(c)
+			}
+			rv := NewStruct("Node", StructData{
+				"value":    value,
+				"children": NewList(childrenAsRefs...),
+			})
+			return rv
+		}
+
+		requiredType := MakeStructType("Node",
+			StructField{"value", NumberType, false},
+			StructField{"children", MakeListType(MakeRefType(MakeCycleType("Node"))), false},
+		)
+
+		assertTrue(
+			node(Number(0), node(Number(1)), node(Number(2), node(Number(3)))),
+			requiredType,
+		)
+		assertFalse(
+			node(Number(0),
+				node(Number(1)),
+				node(Number(2), node(String("no"))),
+			),
+			requiredType,
+		)
+	}
 }
