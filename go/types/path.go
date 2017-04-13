@@ -442,6 +442,9 @@ type TargetAnnotation struct {
 }
 
 func (ann TargetAnnotation) Resolve(v Value, vr ValueReader) Value {
+	if vr == nil {
+		d.Panic("@target annotation requires a database to resolve against")
+	}
 	if r, ok := v.(Ref); ok {
 		return r.TargetValue(vr)
 	} else {
