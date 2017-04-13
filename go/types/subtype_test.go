@@ -686,4 +686,24 @@ func TestIsValueSubtypeOf(tt *testing.T) {
 			requiredType,
 		)
 	}
+
+	{
+		t1 := MakeStructType("A",
+			StructField{"a", NumberType, false},
+			StructField{"b", MakeCycleType("A"), false},
+		)
+		t2 := MakeStructType("A",
+			StructField{"a", NumberType, false},
+			StructField{"b", MakeCycleType("A"), true},
+		)
+		v := NewStruct("A", StructData{
+			"a": Number(1),
+			"b": NewStruct("A", StructData{
+				"a": Number(2),
+			}),
+		})
+
+		assertFalse(v, t1)
+		assertTrue(v, t2)
+	}
 }
