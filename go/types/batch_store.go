@@ -81,7 +81,13 @@ func (bsa *BatchStoreAdaptor) expectVersion() {
 	}
 }
 
+func (bsa *BatchStoreAdaptor) Rebase() {
+	bsa.once.Do(bsa.expectVersion)
+	bsa.cs.Rebase()
+}
+
 func (bsa *BatchStoreAdaptor) Root() hash.Hash {
+	bsa.once.Do(bsa.expectVersion)
 	return bsa.cs.Root()
 }
 

@@ -342,8 +342,7 @@ func handleRootGet(w http.ResponseWriter, req *http.Request, ps URLParams, rt ch
 		d.Panic("Expected get method.")
 	}
 
-	rootRef := rt.Root()
-	fmt.Fprintf(w, "%v", rootRef.String())
+	fmt.Fprintf(w, "%v", rt.Root().String())
 	w.Header().Add("content-type", "text/plain")
 }
 
@@ -393,6 +392,8 @@ func handleRootPost(w http.ResponseWriter, req *http.Request, ps URLParams, cs c
 
 	if !cs.UpdateRoot(current, last) {
 		w.WriteHeader(http.StatusConflict)
+		w.Header().Add("content-type", "text/plain")
+		fmt.Fprintf(w, "%v", cs.Root().String())
 		return
 	}
 }

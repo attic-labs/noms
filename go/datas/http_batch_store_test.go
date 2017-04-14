@@ -84,9 +84,7 @@ func NewHTTPBatchStoreForTest(cs chunks.ChunkStore) *httpBatchStore {
 			HandleRootGet(w, req, ps, cs)
 		},
 	)
-	hcs := NewHTTPBatchStore("http://localhost:9000", "")
-	hcs.httpClient = serv
-	return hcs
+	return newHTTPBatchStoreWithClient("http://localhost:9000", "", serv)
 }
 
 func newAuthenticatingHTTPBatchStoreForTest(suite *HTTPBatchStoreSuite, hostUrl string) *httpBatchStore {
@@ -102,23 +100,25 @@ func newAuthenticatingHTTPBatchStoreForTest(suite *HTTPBatchStoreSuite, hostUrl 
 			HandleRootPost(w, req, ps, suite.cs)
 		},
 	)
-	hcs := NewHTTPBatchStore(hostUrl, "")
-	hcs.httpClient = serv
-	return hcs
+	serv.GET(
+		constants.RootPath,
+		func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+			HandleRootGet(w, req, ps, suite.cs)
+		},
+	)
+	return newHTTPBatchStoreWithClient(hostUrl, "", serv)
 }
 
 func newBadVersionHTTPBatchStoreForTest(suite *HTTPBatchStoreSuite) *httpBatchStore {
 	serv := inlineServer{httprouter.New()}
-	serv.POST(
+	serv.GET(
 		constants.RootPath,
 		func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-			HandleRootPost(w, req, ps, suite.cs)
+			HandleRootGet(w, req, ps, suite.cs)
 			w.Header().Set(NomsVersionHeader, "BAD")
 		},
 	)
-	hcs := NewHTTPBatchStore("http://localhost", "")
-	hcs.httpClient = serv
-	return hcs
+	return newHTTPBatchStoreWithClient("http://localhost", "", serv)
 }
 
 func (suite *HTTPBatchStoreSuite) TearDownTest() {
@@ -150,6 +150,17 @@ func (suite *HTTPBatchStoreSuite) TestPutChunksInOrder() {
 	suite.Equal(3, suite.cs.Writes)
 }
 
+func (suite *HTTPBatchStoreSuite) TestRebase() {
+	suite.Equal(hash.Hash{}, suite.store.Root())
+	c := types.EncodeValue(types.NewMap(), nil)
+	suite.cs.Put(c)
+	suite.True(suite.cs.UpdateRoot(c.Hash(), hash.Hash{})) // change happens behind our backs
+	suite.Equal(hash.Hash{}, suite.store.Root())           // shouldn't be visible yet
+
+	suite.store.Rebase()
+	suite.Equal(c.Hash(), suite.cs.Root())
+}
+
 func (suite *HTTPBatchStoreSuite) TestRoot() {
 	c := types.EncodeValue(types.NewMap(), nil)
 	suite.cs.Put(c)
@@ -158,11 +169,7 @@ func (suite *HTTPBatchStoreSuite) TestRoot() {
 }
 
 func (suite *HTTPBatchStoreSuite) TestVersionMismatch() {
-	store := newBadVersionHTTPBatchStoreForTest(suite)
-	defer store.Close()
-	c := types.EncodeValue(types.NewMap(), nil)
-	suite.cs.Put(c)
-	suite.Panics(func() { store.UpdateRoot(c.Hash(), hash.Hash{}) })
+	suite.Panics(func() { newBadVersionHTTPBatchStoreForTest(suite) })
 }
 
 func (suite *HTTPBatchStoreSuite) TestUpdateRoot() {

@@ -192,6 +192,46 @@ func (suite *BlockStoreSuite) TestChunkStoreFlushOptimisticLockFail() {
 	suite.True(suite.store.UpdateRoot(c2.Hash(), suite.store.Root()))
 }
 
+func (suite *BlockStoreSuite) TestChunkStorePutWithRebase() {
+	input1, input2 := []byte("abc"), []byte("def")
+	c1, c2 := chunks.NewChunk(input1), chunks.NewChunk(input2)
+	root := suite.store.Root()
+
+	interloper := NewLocalStore(suite.dir, testMemTableSize)
+	interloper.Put(c1)
+	interloper.Flush()
+
+	suite.store.Put(c2)
+
+	// Reading c2 via the API should work pre-rebase
+	assertInputInStore(input2, c2.Hash(), suite.store, suite.Assert())
+	// Shouldn't have c1 yet.
+	suite.False(suite.store.Has(c1.Hash()))
+
+	suite.store.Rebase()
+
+	// Reading c2 via the API should work post-rebase
+	assertInputInStore(input2, c2.Hash(), suite.store, suite.Assert())
+	// And so should reading c1 via the API
+	assertInputInStore(input1, c1.Hash(), suite.store, suite.Assert())
+
+	// Commit interloper root
+	suite.True(interloper.UpdateRoot(c1.Hash(), interloper.Root()))
+
+	// suite.store should still have its initial root
+	suite.EqualValues(root, suite.store.Root())
+	suite.store.Rebase()
+
+	// Rebase grabbed the new root, so updating should now succeed!
+	suite.True(suite.store.UpdateRoot(c2.Hash(), suite.store.Root()))
+
+	// Interloper shouldn't see c2 yet....
+	suite.False(interloper.Has(c2.Hash()))
+	interloper.Rebase()
+	// ...but post-rebase it must
+	assertInputInStore(input2, c2.Hash(), interloper, suite.Assert())
+}
+
 func (suite *BlockStoreSuite) TestCompactOnUpdateRoot() {
 	testMaxTables := 5
 	mm := fileManifest{suite.dir}

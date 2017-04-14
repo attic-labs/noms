@@ -356,6 +356,17 @@ func fromHasRecords(reqs []hasRecord) hash.HashSet {
 	return present
 }
 
+func (nbs *NomsBlockStore) Rebase() {
+	if exists, vers, lock, root, tableSpecs := nbs.mm.ParseIfExists(nil); exists {
+		nbs.mu.Lock()
+		defer nbs.mu.Unlock()
+		nbs.nomsVersion, nbs.manifestLock, nbs.root = vers, lock, root
+		var dropped chunkSources
+		nbs.tables, dropped = nbs.tables.Rebase(tableSpecs)
+		dropped.close()
+	}
+}
+
 func (nbs *NomsBlockStore) Root() hash.Hash {
 	nbs.mu.RLock()
 	defer nbs.mu.RUnlock()

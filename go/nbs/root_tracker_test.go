@@ -37,6 +37,29 @@ func TestChunkStoreVersion(t *testing.T) {
 	}
 }
 
+func TestChunkStoreRebase(t *testing.T) {
+	assert := assert.New(t)
+	fm, tt, store := makeStoreWithFakes(t)
+	defer store.Close()
+
+	assert.Equal(hash.Hash{}, store.Root())
+	assert.Equal(constants.NomsVersion, store.Version())
+
+	// Simulate another process writing a manifest behind store's back.
+	newRoot, chunks := interloperWrite(fm, tt, []byte("new root"), []byte("hello2"), []byte("goodbye2"), []byte("badbye2"))
+
+	// state in store shouldn't change
+	assert.Equal(hash.Hash{}, store.Root())
+	assert.Equal(constants.NomsVersion, store.Version())
+
+	store.Rebase()
+
+	// NOW it should
+	assert.Equal(newRoot, store.Root())
+	assert.Equal(constants.NomsVersion, store.Version())
+	assertDataInStore(chunks, store, assert)
+}
+
 func TestChunkStoreUpdateRoot(t *testing.T) {
 	assert := assert.New(t)
 	_, _, store := makeStoreWithFakes(t)
@@ -70,11 +93,8 @@ func TestChunkStoreManifestAppearsAfterConstruction(t *testing.T) {
 	assert.Equal(hash.Hash{}, store.Root())
 	assert.Equal(constants.NomsVersion, store.Version())
 
-	// Simulate another process writing a manifest after construction.
-	chunks := [][]byte{[]byte("hello2"), []byte("goodbye2"), []byte("badbye2")}
-	newLock, newRoot := computeAddr([]byte("locker")), hash.Of([]byte("new root"))
-	src := tt.p.Compact(createMemTable(chunks), nil)
-	fm.set(constants.NomsVersion, newLock, newRoot, []tableSpec{{src.hash(), uint32(len(chunks))}})
+	// Simulate another process writing a manifest behind store's back.
+	interloperWrite(fm, tt, []byte("new root"), []byte("hello2"), []byte("goodbye2"), []byte("badbye2"))
 
 	// state in store shouldn't change
 	assert.Equal(hash.Hash{}, store.Root())
@@ -86,11 +106,8 @@ func TestChunkStoreManifestFirstWriteByOtherProcess(t *testing.T) {
 	fm := &fakeManifest{}
 	tt := newFakeTableSet()
 
-	// Simulate another process having already written a manifest.
-	chunks := [][]byte{[]byte("hello2"), []byte("goodbye2"), []byte("badbye2")}
-	newLock, newRoot := computeAddr([]byte("locker")), hash.Of([]byte("new root"))
-	src := tt.p.Compact(createMemTable(chunks), nil)
-	fm.set(constants.NomsVersion, newLock, newRoot, []tableSpec{{src.hash(), uint32(len(chunks))}})
+	// Simulate another process writing a manifest behind store's back.
+	newRoot, chunks := interloperWrite(fm, tt, []byte("new root"), []byte("hello2"), []byte("goodbye2"), []byte("badbye2"))
 
 	store := newNomsBlockStore(fm, tt, defaultMemTableSize, defaultMaxTables)
 	defer store.Close()
@@ -106,10 +123,7 @@ func TestChunkStoreUpdateRootOptimisticLockFail(t *testing.T) {
 	defer store.Close()
 
 	// Simulate another process writing a manifest behind store's back.
-	chunks := [][]byte{[]byte("hello2"), []byte("goodbye2"), []byte("badbye2")}
-	newLock, newRoot := computeAddr([]byte("locker")), hash.Of([]byte("new root"))
-	src := tt.p.Compact(createMemTable(chunks), nil)
-	fm.set(constants.NomsVersion, newLock, newRoot, []tableSpec{{src.hash(), uint32(len(chunks))}})
+	newRoot, chunks := interloperWrite(fm, tt, []byte("new root"), []byte("hello2"), []byte("goodbye2"), []byte("badbye2"))
 
 	newRoot2 := hash.Of([]byte("new root 2"))
 	assert.False(store.UpdateRoot(newRoot2, hash.Hash{}))
@@ -121,6 +135,15 @@ func makeStoreWithFakes(t *testing.T) (fm *fakeManifest, tt tableSet, store *Nom
 	fm = &fakeManifest{}
 	tt = newFakeTableSet()
 	store = newNomsBlockStore(fm, tt, 0, defaultMaxTables)
+	return
+}
+
+// Simulate another process writing a manifest behind store's back.
+func interloperWrite(fm *fakeManifest, tt tableSet, rootChunk []byte, chunks ...[]byte) (newRoot hash.Hash, persisted [][]byte) {
+	newLock, newRoot := computeAddr([]byte("locker")), hash.Of(rootChunk)
+	persisted = append(chunks, rootChunk)
+	src := tt.p.Compact(createMemTable(persisted), nil)
+	fm.set(constants.NomsVersion, newLock, newRoot, []tableSpec{{src.hash(), uint32(len(chunks))}})
 	return
 }
 

@@ -54,18 +54,25 @@ type httpBatchStore struct {
 
 	cacheMu       *sync.RWMutex
 	unwrittenPuts *nbs.NomsBlockCache
+
+	rootMu *sync.RWMutex
+	root   hash.Hash
 }
 
 func NewHTTPBatchStore(baseURL, auth string) *httpBatchStore {
+	// Custom http.Client to give control of idle connections and timeouts
+	return newHTTPBatchStoreWithClient(baseURL, auth, &http.Client{Transport: &customHTTPTransport})
+}
+
+func newHTTPBatchStoreWithClient(baseURL, auth string, client httpDoer) *httpBatchStore {
 	u, err := url.Parse(baseURL)
 	d.PanicIfError(err)
 	if u.Scheme != "http" && u.Scheme != "https" {
 		d.Panic("Unrecognized scheme: %s", u.Scheme)
 	}
 	buffSink := &httpBatchStore{
-		host: u,
-		// Custom http.Client to give control of idle connections and timeouts
-		httpClient:    &http.Client{Transport: &customHTTPTransport},
+		host:          u,
+		httpClient:    client,
 		auth:          auth,
 		getQueue:      make(chan chunks.ReadRequest, readBufferSize),
 		hasQueue:      make(chan chunks.ReadRequest, readBufferSize),
@@ -75,7 +82,9 @@ func NewHTTPBatchStore(baseURL, auth string) *httpBatchStore {
 		workerWg:      &sync.WaitGroup{},
 		cacheMu:       &sync.RWMutex{},
 		unwrittenPuts: nbs.NewCache(),
+		rootMu:        &sync.RWMutex{},
 	}
+	buffSink.Rebase()
 	buffSink.batchGetRequests()
 	buffSink.batchHasRequests()
 	return buffSink
@@ -369,6 +378,12 @@ func (bhcs *httpBatchStore) sendWriteRequests() {
 }
 
 func (bhcs *httpBatchStore) Root() hash.Hash {
+	bhcs.rootMu.RLock()
+	defer bhcs.rootMu.RUnlock()
+	return bhcs.root
+}
+
+func (bhcs *httpBatchStore) Rebase() {
 	// GET http://<host>/root. Response will be ref of root.
 	res := bhcs.requestRoot("GET", hash.Hash{}, hash.Hash{})
 	expectVersion(res)
@@ -378,23 +393,34 @@ func (bhcs *httpBatchStore) Root() hash.Hash {
 		d.Panic("Unexpected response: %s", http.StatusText(res.StatusCode))
 	}
 	data, err := ioutil.ReadAll(res.Body)
-	d.Chk.NoError(err)
-	return hash.Parse(string(data))
+	d.PanicIfError(err)
+
+	bhcs.rootMu.Lock()
+	defer bhcs.rootMu.Unlock()
+	bhcs.root = hash.Parse(string(data))
 }
 
-// UpdateRoot flushes outstanding writes to the backing ChunkStore before updating its Root, because it's almost certainly the case that the caller wants to point that root at some recently-Put Chunk.
+// UpdateRoot flushes outstanding writes to the backing ChunkStore before
+// updating its Root, because it's almost certainly the case that the caller
+// wants to point that root at some recently-Put Chunk.
 func (bhcs *httpBatchStore) UpdateRoot(current, last hash.Hash) bool {
-	// POST http://<host>/root?current=<ref>&last=<ref>. Response will be 200 on success, 409 if current is outdated.
+	bhcs.rootMu.Lock()
+	defer bhcs.rootMu.Unlock()
 	bhcs.Flush()
 
+	// POST http://<host>/root?current=<ref>&last=<ref>. Response will be 200 on success, 409 if current is outdated.
 	res := bhcs.requestRoot("POST", current, last)
 	expectVersion(res)
 	defer closeResponse(res.Body)
 
 	switch res.StatusCode {
 	case http.StatusOK:
+		bhcs.root = current
 		return true
 	case http.StatusConflict:
+		data, err := ioutil.ReadAll(res.Body)
+		d.PanicIfError(err)
+		bhcs.root = hash.Parse(string(data))
 		return false
 	default:
 		buf := bytes.Buffer{}

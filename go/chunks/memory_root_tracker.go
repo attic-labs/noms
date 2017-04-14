@@ -8,6 +8,8 @@ import "github.com/attic-labs/noms/go/hash"
 
 type memoryRootTracker hash.Hash
 
+func (ms *memoryRootTracker) Rebase() {}
+
 func (ms *memoryRootTracker) Root() hash.Hash {
 	return hash.Hash(*ms)
 }

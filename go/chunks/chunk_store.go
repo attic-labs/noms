@@ -34,7 +34,17 @@ type Factory interface {
 // Database) to store a hash to a value that represents the current state and
 // entire history of a database.
 type RootTracker interface {
+	// Rebase brings this RootTracker into sync with the persistent storage's
+	// current root.
+	Rebase()
+
+	// Root returns the currently cached root value.
 	Root() hash.Hash
+
+	// Attempt to update the persisted root hash from last to current. If last
+	// doesn't match the root in persistent storage, returns false.
+	// TODO: is last now redundant? Maybe this should just try to update from
+	// the cached root to current?
 	UpdateRoot(current, last hash.Hash) bool
 }
 

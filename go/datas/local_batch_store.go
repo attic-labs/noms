@@ -54,6 +54,11 @@ func (lbs *localBatchStore) expectVersion() {
 	}
 }
 
+func (lbs *localBatchStore) Rebase() {
+	lbs.once.Do(lbs.expectVersion)
+	lbs.cs.Rebase()
+}
+
 func (lbs *localBatchStore) Root() hash.Hash {
 	lbs.once.Do(lbs.expectVersion)
 	return lbs.cs.Root()
