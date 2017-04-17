@@ -6,16 +6,40 @@ package functions
 
 import "sync"
 
-// Runs all functions in |fs| in parallel, and returns when all functions have returned.
+// All runs all functions in parallel, and returns when all functions have
+// returned.
 func All(fs ...func()) {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(fs))
-	for _, f_ := range fs {
-		f := f_
+	for _, f := range fs {
+		f := f
 		go func() {
+			defer wg.Done()
 			f()
-			wg.Done()
 		}()
 	}
 	wg.Wait()
+}
+
+// MaybeAll runs all functions in parallel, and returns when all functions have
+// returned. If any function returns an error, returns that error, but not
+// until all functions have returned.
+func MaybeAll(fs ...func() error) (err error) {
+	wg := &sync.WaitGroup{}
+	wg.Add(len(fs))
+	errMtx := sync.Mutex{}
+	for _, f := range fs {
+		f := f
+		go func() {
+			defer wg.Done()
+			fErr := f()
+			if fErr != nil && err == nil {
+				errMtx.Lock()
+				err = fErr
+				errMtx.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+	return
 }
