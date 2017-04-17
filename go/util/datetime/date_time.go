@@ -14,8 +14,7 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
-// DateTime is an alias for time.Time that allows us to marshal date time to
-// Noms.
+// DateTime implements marshaling of time.Time to and from Noms.
 type DateTime struct {
 	time.Time
 }
