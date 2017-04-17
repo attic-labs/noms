@@ -62,6 +62,28 @@ func TestChunkStoreUpdateRoot(t *testing.T) {
 	}
 }
 
+func TestChunkStoreUpdateRootNoop(t *testing.T) {
+	assert := assert.New(t)
+	_, _, store := makeStoreWithFakes(t)
+	defer store.Close()
+
+	assert.Equal(hash.Hash{}, store.Root())
+
+	newRootChunk := chunks.NewChunk([]byte("new root"))
+	newRoot := newRootChunk.Hash()
+	store.Put(newRootChunk)
+	if assert.True(store.UpdateRoot(newRoot, hash.Hash{})) {
+		assert.True(store.Has(newRoot))
+		assert.Equal(newRoot, store.Root())
+	}
+
+	// Second update should succeed and be a noop
+	if assert.True(store.UpdateRoot(newRoot, newRoot)) {
+		assert.True(store.Has(newRoot))
+		assert.Equal(newRoot, store.Root())
+	}
+}
+
 func TestChunkStoreManifestAppearsAfterConstruction(t *testing.T) {
 	assert := assert.New(t)
 	fm, tt, store := makeStoreWithFakes(t)

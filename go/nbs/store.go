@@ -397,6 +397,10 @@ func (nbs *NomsBlockStore) updateManifest(current, last hash.Hash) error {
 		nbs.mt = nil
 	}
 
+	if current == last && len(nbs.tables.novel) == 0 {
+		return nil // no-op
+	}
+
 	candidate := nbs.tables
 	var compactees chunkSources
 	if candidate.Size() > nbs.maxTables {
