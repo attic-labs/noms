@@ -373,7 +373,7 @@ func (nbs *NomsBlockStore) Root() hash.Hash {
 	return nbs.root
 }
 
-func (nbs *NomsBlockStore) UpdateRoot(current, last hash.Hash) bool {
+func (nbs *NomsBlockStore) Commit(current, last hash.Hash) bool {
 	b := &backoff.Backoff{
 		Min:    128 * time.Microsecond,
 		Max:    10 * time.Second,

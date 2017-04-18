@@ -20,7 +20,7 @@ func TestChunkStoreZeroValue(t *testing.T) {
 	_, _, store := makeStoreWithFakes(t)
 	defer store.Close()
 
-	// No manifest file gets written until the first call to UpdateRoot(). Prior to that, Root() will simply return hash.Hash{}.
+	// No manifest file gets written until the first call to Commit(). Prior to that, Root() will simply return hash.Hash{}.
 	assert.Equal(hash.Hash{}, store.Root())
 	assert.Equal(constants.NomsVersion, store.Version())
 }
@@ -32,7 +32,7 @@ func TestChunkStoreVersion(t *testing.T) {
 
 	assert.Equal(constants.NomsVersion, store.Version())
 	newRoot := hash.Of([]byte("new root"))
-	if assert.True(store.UpdateRoot(newRoot, hash.Hash{})) {
+	if assert.True(store.Commit(newRoot, hash.Hash{})) {
 		assert.Equal(constants.NomsVersion, store.Version())
 	}
 }
@@ -70,7 +70,7 @@ func TestChunkStoreUpdateRoot(t *testing.T) {
 	newRootChunk := chunks.NewChunk([]byte("new root"))
 	newRoot := newRootChunk.Hash()
 	store.Put(newRootChunk)
-	if assert.True(store.UpdateRoot(newRoot, hash.Hash{})) {
+	if assert.True(store.Commit(newRoot, hash.Hash{})) {
 		assert.True(store.Has(newRoot))
 		assert.Equal(newRoot, store.Root())
 	}
@@ -78,7 +78,7 @@ func TestChunkStoreUpdateRoot(t *testing.T) {
 	secondRootChunk := chunks.NewChunk([]byte("newer root"))
 	secondRoot := secondRootChunk.Hash()
 	store.Put(secondRootChunk)
-	if assert.True(store.UpdateRoot(secondRoot, newRoot)) {
+	if assert.True(store.Commit(secondRoot, newRoot)) {
 		assert.Equal(secondRoot, store.Root())
 		assert.True(store.Has(newRoot))
 		assert.True(store.Has(secondRoot))
@@ -126,9 +126,9 @@ func TestChunkStoreUpdateRootOptimisticLockFail(t *testing.T) {
 	newRoot, chunks := interloperWrite(fm, tt, []byte("new root"), []byte("hello2"), []byte("goodbye2"), []byte("badbye2"))
 
 	newRoot2 := hash.Of([]byte("new root 2"))
-	assert.False(store.UpdateRoot(newRoot2, hash.Hash{}))
+	assert.False(store.Commit(newRoot2, hash.Hash{}))
 	assertDataInStore(chunks, store, assert)
-	assert.True(store.UpdateRoot(newRoot2, newRoot))
+	assert.True(store.Commit(newRoot2, newRoot))
 }
 
 func makeStoreWithFakes(t *testing.T) (fm *fakeManifest, tt tableSet, store *NomsBlockStore) {
