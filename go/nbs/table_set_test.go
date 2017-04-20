@@ -117,8 +117,6 @@ func TestTableSetExtract(t *testing.T) {
 }
 
 func TestTableSetCompact(t *testing.T) {
-	assert := assert.New(t)
-
 	// Makes a tableSet with len(tableSizes) upstream tables containing tableSizes[N] unique chunks
 	makeTestTableSet := func(tableSizes []uint32) tableSet {
 		count := uint32(0)
@@ -152,24 +150,28 @@ func TestTableSetCompact(t *testing.T) {
 	}
 
 	tc := []struct {
+		name        string
 		precompact  []uint32
 		postcompact []uint32
 	}{
-		{[]uint32{1, 1, 1, 1, 1}, []uint32{5}},
-		{[]uint32{1, 1, 1, 1, 5}, []uint32{4, 5}},
-		{[]uint32{1, 1, 1, 5, 5}, []uint32{3, 5, 5}},
-		{[]uint32{5, 5, 5, 5, 5}, []uint32{25}},
-		{[]uint32{5, 5, 10}, []uint32{10, 10}},
-		{[]uint32{5, 6, 10, 11, 35, 64}, []uint32{32, 35, 64}},
-		{[]uint32{1, 2, 4, 8, 16, 32, 64}, []uint32{3, 4, 8, 16, 32, 64}},
-		{[]uint32{2, 3, 4, 8, 16, 32, 64}, []uint32{129}},
+		{"uniform", []uint32{1, 1, 1, 1, 1}, []uint32{5}},
+		{"all but last", []uint32{1, 1, 1, 1, 5}, []uint32{4, 5}},
+		{"all", []uint32{5, 5, 10}, []uint32{10, 10}},
+		{"first four", []uint32{5, 6, 10, 11, 35, 64}, []uint32{32, 35, 64}},
+		{"log, first two", []uint32{1, 2, 4, 8, 16, 32, 64}, []uint32{3, 4, 8, 16, 32, 64}},
+		{"log, all", []uint32{2, 3, 4, 8, 16, 32, 64}, []uint32{129}},
 	}
 
 	for _, c := range tc {
-		ts := makeTestTableSet(c.precompact)
-		ts2, _ := ts.Flatten().Compact()
-		assert.Equal(c.postcompact, getSortedSizes(ts2))
-		assertContainAll(t, ts, ts2)
+		t.Run(c.name, func(t *testing.T) {
+			assert := assert.New(t)
+			ts := makeTestTableSet(c.precompact)
+			ts2, _ := ts.Flatten().Compact()
+			assert.Equal(c.postcompact, getSortedSizes(ts2))
+			assertContainAll(t, ts, ts2)
+			ts.Close()
+			ts2.Close()
+		})
 	}
 }
 
