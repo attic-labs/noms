@@ -74,14 +74,14 @@ type StructTemplate struct {
 func MakeStructTemplate(name string, fieldNames []string) (t StructTemplate) {
 	t = StructTemplate{name, fieldNames}
 
-	verifyStructName(t.name)
-	if len(t.fieldNames) == 0 {
+	verifyStructName(name)
+	if len(fieldNames) == 0 {
 		return
 	}
-	verifyFieldName(t.fieldNames[0])
-	for i := 1; i < len(t.fieldNames); i++ {
-		verifyFieldName(t.fieldNames[i])
-		d.PanicIfFalse(t.fieldNames[i] > t.fieldNames[i-1])
+	verifyFieldName(fieldNames[0])
+	for i := 1; i < len(fieldNames); i++ {
+		verifyFieldName(fieldNames[i])
+		d.PanicIfFalse(fieldNames[i] > fieldNames[i-1])
 	}
 	return
 }
