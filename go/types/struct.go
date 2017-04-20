@@ -71,12 +71,19 @@ type StructTemplate struct {
 	fieldNames []string
 }
 
-func MakeStructTemplate(name string, fieldNames []string) StructTemplate {
-	st := StructTemplate{name, fieldNames}
-	for i := 0; i < len(st.fieldNames); i++ {
-		verifyFieldName(st.fieldNames[i])
+func MakeStructTemplate(name string, fieldNames []string) (t StructTemplate) {
+	t = StructTemplate{name, fieldNames}
+
+	verifyStructName(t.name)
+	if len(t.fieldNames) == 0 {
+		return
 	}
-	return st
+	verifyFieldName(t.fieldNames[0])
+	for i := 1; i < len(t.fieldNames); i++ {
+		verifyFieldName(t.fieldNames[i])
+		d.PanicIfFalse(t.fieldNames[i] > t.fieldNames[i-1])
+	}
+	return
 }
 
 func (st StructTemplate) NewStruct(values []Value) Struct {
