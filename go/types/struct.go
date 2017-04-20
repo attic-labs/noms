@@ -66,6 +66,24 @@ func NewStruct(name string, data StructData) Struct {
 	return validateStruct(newStruct(name, fieldNames, values))
 }
 
+type StructTemplate struct {
+	name       string
+	fieldNames []string
+}
+
+func MakeStructTemplate(name string, fieldNames []string) StructTemplate {
+	st := StructTemplate{name, fieldNames}
+	for i := 0; i < len(st.fieldNames); i++ {
+		verifyFieldName(st.fieldNames[i])
+	}
+	return st
+}
+
+func (st StructTemplate) NewStruct(values []Value) Struct {
+	d.PanicIfFalse(len(st.fieldNames) == len(values))
+	return newStruct(st.name, st.fieldNames, values)
+}
+
 func (s Struct) hashPointer() *hash.Hash {
 	return s.h
 }
