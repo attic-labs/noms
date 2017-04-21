@@ -55,34 +55,40 @@ func (suite *HTTPChunkStoreSuite) SetupTest() {
 }
 
 func newHTTPChunkStoreForTest(cs chunks.ChunkStore) *httpChunkStore {
+	// Ideally, this function (and its bretheren below) would take a *TestStorage and mint a fresh TestStoreView in each handler call below. That'd break a bunch of tests in pull_test.go that want to pass in a single TestStoreView and then inspect it after doing a bunch of work. The cs.Rebase() calls here are a good compromise for now, but BUG 3415 tracks Making This Right.
 	serv := inlineServer{httprouter.New()}
 	serv.POST(
 		constants.WriteValuePath,
 		func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+			cs.Rebase()
 			HandleWriteValue(w, req, ps, cs)
 		},
 	)
 	serv.POST(
 		constants.GetRefsPath,
 		func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+			cs.Rebase()
 			HandleGetRefs(w, req, ps, cs)
 		},
 	)
 	serv.POST(
 		constants.HasRefsPath,
 		func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+			cs.Rebase()
 			HandleHasRefs(w, req, ps, cs)
 		},
 	)
 	serv.POST(
 		constants.RootPath,
 		func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+			cs.Rebase()
 			HandleRootPost(w, req, ps, cs)
 		},
 	)
 	serv.GET(
 		constants.RootPath,
 		func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+			cs.Rebase()
 			HandleRootGet(w, req, ps, cs)
 		},
 	)
@@ -98,6 +104,7 @@ func newAuthenticatingHTTPChunkStoreForTest(assert *assert.Assertions, cs chunks
 	serv.POST(
 		constants.RootPath,
 		func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+			cs.Rebase()
 			authenticate(req)
 			HandleRootPost(w, req, ps, cs)
 		},
@@ -105,6 +112,7 @@ func newAuthenticatingHTTPChunkStoreForTest(assert *assert.Assertions, cs chunks
 	serv.GET(
 		constants.RootPath,
 		func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+			cs.Rebase()
 			HandleRootGet(w, req, ps, cs)
 		},
 	)
@@ -116,6 +124,7 @@ func newBadVersionHTTPChunkStoreForTest(cs chunks.ChunkStore) *httpChunkStore {
 	serv.POST(
 		constants.RootPath,
 		func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+			cs.Rebase()
 			HandleRootPost(w, req, ps, cs)
 			w.Header().Set(NomsVersionHeader, "BAD")
 		},
@@ -123,6 +132,7 @@ func newBadVersionHTTPChunkStoreForTest(cs chunks.ChunkStore) *httpChunkStore {
 	serv.GET(
 		constants.RootPath,
 		func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+			cs.Rebase()
 			HandleRootGet(w, req, ps, cs)
 		},
 	)
