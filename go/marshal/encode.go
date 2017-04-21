@@ -266,8 +266,14 @@ func structEncoder(t reflect.Type, seenStructs map[string]reflect.Type) encoderF
 	}
 
 	seenStructs[t.Name()] = t
-	fields, structType, structTemplate, originalFieldIndex := typeFields(t, seenStructs, encodeTypeOptions{})
-	if structType != nil {
+	fields, _, knownShape, originalFieldIndex := typeFields(t, seenStructs, false)
+	if knownShape {
+		fieldNames := make([]string, len(fields))
+		for i, f := range fields {
+			fieldNames[i] = f.name
+		}
+
+		structTemplate := types.MakeStructTemplate(strings.Title(t.Name()), fieldNames)
 		e = func(v reflect.Value) types.Value {
 			values := make(types.ValueSlice, len(fields))
 			for i, f := range fields {
@@ -419,8 +425,8 @@ func validateField(f reflect.StructField, t reflect.Type) {
 	}
 }
 
-func typeFields(t reflect.Type, seenStructs map[string]reflect.Type, options encodeTypeOptions) (fields fieldSlice, structType *types.Type, structTemplate types.StructTemplate, originalFieldIndex []int) {
-	canComputeStructType := true
+func typeFields(t reflect.Type, seenStructs map[string]reflect.Type, computeType bool) (fields fieldSlice, structType *types.Type, knownShape bool, originalFieldIndex []int) {
+	knownShape = true
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		tags := getTags(f)
@@ -433,14 +439,17 @@ func typeFields(t reflect.Type, seenStructs map[string]reflect.Type, options enc
 			continue
 		}
 
+		var nt *types.Type
 		validateField(f, t)
-		nt := encodeType(f.Type, seenStructs, tags, options)
-		if nt == nil {
-			canComputeStructType = false
+		if computeType {
+			nt = encodeType(f.Type, seenStructs, tags)
+			if nt == nil {
+				knownShape = false
+			}
 		}
 
-		if tags.omitEmpty && !options.IgnoreOmitEmpty {
-			canComputeStructType = false
+		if tags.omitEmpty && !computeType {
+			knownShape = false
 		}
 
 		fields = append(fields, field{
@@ -453,20 +462,16 @@ func typeFields(t reflect.Type, seenStructs map[string]reflect.Type, options enc
 
 	}
 	sort.Sort(fields)
-	if canComputeStructType {
+	if knownShape && computeType {
 		structTypeFields := make([]types.StructField, len(fields))
-		fieldNames := make([]string, len(fields))
 		for i, fs := range fields {
 			structTypeFields[i] = types.StructField{
 				Name:     fs.name,
 				Type:     fs.nomsType,
 				Optional: fs.omitEmpty,
 			}
-			fieldNames[i] = fs.name
 		}
-		name := strings.Title(t.Name())
-		structType = types.MakeStructType(name, structTypeFields...)
-		structTemplate = types.MakeStructTemplate(name, fieldNames)
+		structType = types.MakeStructType(strings.Title(t.Name()), structTypeFields...)
 	}
 	return
 }
