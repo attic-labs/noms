@@ -266,16 +266,14 @@ func structEncoder(t reflect.Type, seenStructs map[string]reflect.Type) encoderF
 	}
 
 	seenStructs[t.Name()] = t
-	fields, structType, originalFieldIndex := typeFields(t, seenStructs, encodeTypeOptions{})
+	fields, structType, structTemplate, originalFieldIndex := typeFields(t, seenStructs, encodeTypeOptions{})
 	if structType != nil {
-		// TODO: Have typeFields return name?
-		name := structType.Desc.(types.StructDesc).Name
 		e = func(v reflect.Value) types.Value {
-			structData := make(types.StructData, len(fields))
-			for _, f := range fields {
-				structData[f.name] = f.encoder(v.Field(f.index))
+			values := make(types.ValueSlice, len(fields))
+			for i, f := range fields {
+				values[i] = f.encoder(v.Field(f.index))
 			}
-			return types.NewStruct(name, structData)
+			return structTemplate.NewStruct(values)
 		}
 	} else if originalFieldIndex == nil {
 		// Slower path: cannot precompute the Noms type since there are Noms collections,
@@ -421,7 +419,7 @@ func validateField(f reflect.StructField, t reflect.Type) {
 	}
 }
 
-func typeFields(t reflect.Type, seenStructs map[string]reflect.Type, options encodeTypeOptions) (fields fieldSlice, structType *types.Type, originalFieldIndex []int) {
+func typeFields(t reflect.Type, seenStructs map[string]reflect.Type, options encodeTypeOptions) (fields fieldSlice, structType *types.Type, structTemplate types.StructTemplate, originalFieldIndex []int) {
 	canComputeStructType := true
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
@@ -457,14 +455,18 @@ func typeFields(t reflect.Type, seenStructs map[string]reflect.Type, options enc
 	sort.Sort(fields)
 	if canComputeStructType {
 		structTypeFields := make([]types.StructField, len(fields))
+		fieldNames := make([]string, len(fields))
 		for i, fs := range fields {
 			structTypeFields[i] = types.StructField{
 				Name:     fs.name,
 				Type:     fs.nomsType,
 				Optional: fs.omitEmpty,
 			}
+			fieldNames[i] = fs.name
 		}
-		structType = types.MakeStructType(strings.Title(t.Name()), structTypeFields...)
+		name := strings.Title(t.Name())
+		structType = types.MakeStructType(name, structTypeFields...)
+		structTemplate = types.MakeStructTemplate(name, fieldNames)
 	}
 	return
 }

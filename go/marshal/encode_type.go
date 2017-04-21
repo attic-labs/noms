@@ -173,6 +173,6 @@ func structEncodeType(t reflect.Type, seenStructs map[string]reflect.Type, optio
 		seenStructs[name] = t
 	}
 
-	_, structType, _ := typeFields(t, seenStructs, options)
+	_, structType, _, _ := typeFields(t, seenStructs, options)
 	return structType
 }
