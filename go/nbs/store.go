@@ -428,7 +428,7 @@ func (nbs *NomsBlockStore) updateManifest(current, last hash.Hash) error {
 
 	shouldCompact := func() bool {
 		// As the number of tables grows from 1 to maxTables, the probability of compacting, grows from 0 to 1
-		thresh := float64(math.Max(0, float64(len(candidate.upstream)-1))) / float64(nbs.maxTables)
+		thresh := float64(math.Max(0, float64(len(candidate.upstream)-1))) / float64(nbs.maxTables-1)
 		return compactThreshRand.Float64() < thresh
 	}
 
