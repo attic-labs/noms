@@ -14,7 +14,7 @@ import (
 	"github.com/attic-labs/testify/assert"
 )
 
-func TestFSTablePersisterCompact(t *testing.T) {
+func TestFSTablePersisterPersist(t *testing.T) {
 	assert := assert.New(t)
 	mt := newMemTable(testMemTableSize)
 
@@ -26,7 +26,7 @@ func TestFSTablePersisterCompact(t *testing.T) {
 	defer os.RemoveAll(dir)
 	fts := fsTablePersister{dir: dir}
 
-	src := fts.Compact(mt, nil)
+	src := fts.Persist(mt, nil)
 	if assert.True(src.count() > 0) {
 		buff, err := ioutil.ReadFile(filepath.Join(dir, src.hash().String()))
 		assert.NoError(err)
@@ -35,7 +35,7 @@ func TestFSTablePersisterCompact(t *testing.T) {
 	}
 }
 
-func TestFSTablePersisterCompactNoData(t *testing.T) {
+func TestFSTablePersisterPersistNoData(t *testing.T) {
 	assert := assert.New(t)
 	mt := newMemTable(testMemTableSize)
 	existingTable := newMemTable(testMemTableSize)
@@ -49,7 +49,7 @@ func TestFSTablePersisterCompactNoData(t *testing.T) {
 	defer os.RemoveAll(dir)
 	fts := fsTablePersister{dir: dir}
 
-	src := fts.Compact(mt, existingTable)
+	src := fts.Persist(mt, existingTable)
 	assert.True(src.count() == 0)
 
 	_, err := os.Stat(filepath.Join(dir, src.hash().String()))

@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-func TestS3TablePersisterCompact(t *testing.T) {
+func TestS3TablePersisterPersist(t *testing.T) {
 	assert := assert.New(t)
 	mt := newMemTable(testMemTableSize)
 
@@ -25,7 +25,7 @@ func TestS3TablePersisterCompact(t *testing.T) {
 	cache := newIndexCache(1024)
 	s3p := s3TablePersister{s3: s3svc, bucket: "bucket", partSize: calcPartSize(mt, 3), indexCache: cache}
 
-	src := s3p.Compact(mt, nil)
+	src := s3p.Persist(mt, nil)
 	assert.NotNil(cache.get(src.hash()))
 
 	if assert.True(src.count() > 0) {
@@ -39,7 +39,7 @@ func calcPartSize(rdr chunkReader, maxPartNum int) int {
 	return int(maxTableSize(uint64(rdr.count()), rdr.uncompressedLen())) / maxPartNum
 }
 
-func TestS3TablePersisterCompactSinglePart(t *testing.T) {
+func TestS3TablePersisterPersistSinglePart(t *testing.T) {
 	assert := assert.New(t)
 	mt := newMemTable(testMemTableSize)
 
@@ -50,7 +50,7 @@ func TestS3TablePersisterCompactSinglePart(t *testing.T) {
 	s3svc := makeFakeS3(assert)
 	s3p := s3TablePersister{s3: s3svc, bucket: "bucket", partSize: calcPartSize(mt, 1)}
 
-	src := s3p.Compact(mt, nil)
+	src := s3p.Persist(mt, nil)
 	if assert.True(src.count() > 0) {
 		if r := s3svc.readerForTable(src.hash()); assert.NotNil(r) {
 			assertChunksInReader(testChunks, r, assert)
@@ -58,7 +58,7 @@ func TestS3TablePersisterCompactSinglePart(t *testing.T) {
 	}
 }
 
-func TestS3TablePersisterCompactAbort(t *testing.T) {
+func TestS3TablePersisterPersistAbort(t *testing.T) {
 	assert := assert.New(t)
 	mt := newMemTable(testMemTableSize)
 
@@ -70,7 +70,7 @@ func TestS3TablePersisterCompactAbort(t *testing.T) {
 	s3svc := &failingFakeS3{makeFakeS3(assert), sync.Mutex{}, 1}
 	s3p := s3TablePersister{s3: s3svc, bucket: "bucket", partSize: calcPartSize(mt, numParts)}
 
-	assert.Panics(func() { s3p.Compact(mt, nil) })
+	assert.Panics(func() { s3p.Persist(mt, nil) })
 }
 
 type failingFakeS3 struct {
@@ -102,7 +102,7 @@ func TestS3TablePersisterCompactNoData(t *testing.T) {
 	s3svc := makeFakeS3(assert)
 	s3p := s3TablePersister{s3: s3svc, bucket: "bucket", partSize: 1 << 10}
 
-	src := s3p.Compact(mt, existingTable)
+	src := s3p.Persist(mt, existingTable)
 	assert.True(src.count() == 0)
 
 	_, present := s3svc.data[src.hash().String()]

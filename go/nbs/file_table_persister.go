@@ -19,7 +19,7 @@ type fsTablePersister struct {
 	indexCache *indexCache
 }
 
-func (ftp fsTablePersister) Compact(mt *memTable, haver chunkReader) chunkSource {
+func (ftp fsTablePersister) Persist(mt *memTable, haver chunkReader) chunkSource {
 	return ftp.persistTable(mt.write(haver))
 }
 

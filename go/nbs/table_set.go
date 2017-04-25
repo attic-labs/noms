@@ -141,7 +141,7 @@ func (ts tableSet) Prepend(mt *memTable) tableSet {
 		p:        ts.p,
 		rl:       ts.rl,
 	}
-	newTs.novel[0] = newCompactingChunkSource(mt, ts, ts.p, ts.rl)
+	newTs.novel[0] = newPersistingChunkSource(mt, ts, ts.p, ts.rl)
 	copy(newTs.novel[1:], ts.novel)
 	copy(newTs.upstream, ts.upstream)
 	return newTs

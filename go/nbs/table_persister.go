@@ -14,7 +14,7 @@ import (
 )
 
 type tablePersister interface {
-	Compact(mt *memTable, haver chunkReader) chunkSource
+	Persist(mt *memTable, haver chunkReader) chunkSource
 	CompactAll(sources chunkSources) chunkSource
 	Open(name addr, chunkCount uint32) chunkSource
 }

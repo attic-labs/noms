@@ -35,7 +35,7 @@ type s3UploadedPart struct {
 	etag string
 }
 
-func (s3p s3TablePersister) Compact(mt *memTable, haver chunkReader) chunkSource {
+func (s3p s3TablePersister) Persist(mt *memTable, haver chunkReader) chunkSource {
 	return s3p.persistTable(mt.write(haver))
 }
 
