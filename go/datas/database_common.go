@@ -83,7 +83,6 @@ func (dbc *databaseCommon) Rebase() {
 	}
 }
 
-// Close has no side-effects
 func (dbc *databaseCommon) Close() error {
 	return dbc.ValueStore.Close()
 }
@@ -218,7 +217,6 @@ func (dbc *databaseCommon) tryCommitChunks(currentDatasets types.Map, currentRoo
 
 	// Since dbc.rt.Commit() updates the root, dbc.datasets would be out of date upon return. So, nil it out.
 	defer func() { dbc.datasets = nil }()
-
 	if !dbc.rt.Commit(newRootHash, currentRootHash) {
 		err = ErrOptimisticLockFailed
 	}
