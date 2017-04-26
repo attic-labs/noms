@@ -6,6 +6,7 @@ package nbs
 
 import (
 	"bytes"
+	"math/rand"
 	"sync"
 	"testing"
 
@@ -111,25 +112,37 @@ func TestS3TablePersisterCompactNoData(t *testing.T) {
 
 func TestS3TablePersisterCompactAll(t *testing.T) {
 	assert := assert.New(t)
-	assert.True(len(testChunks) > 1, "Whoops, this test isn't meaningful")
-	sources := make(chunkSources, len(testChunks))
-
-	for i, c := range testChunks {
-		sources[i] = bytesToChunkSource(c)
-	}
 
 	s3svc := makeFakeS3(assert)
 	cache := newIndexCache(1024)
 	rl := make(chan struct{}, 8)
 	defer close(rl)
 
-	s3p := s3TablePersister{s3: s3svc, bucket: "bucket", partSize: 128, indexCache: cache, readRl: rl}
+	s3p := s3TablePersister{s3: s3svc, bucket: "bucket", partSize: defaultS3PartSize, indexCache: cache, readRl: rl}
+
+	chunx := make([][][]byte, 3)
+	sources := make(chunkSources, len(chunx))
+	rnd := rand.New(rand.NewSource(0))
+	MiB := 1 << 20
+	for i := 0; i < len(chunx); i++ {
+		chunx[i] = make([][]byte, (defaultS3PartSize/MiB)-1+i)
+		mt := newMemTable(2 * defaultS3PartSize)
+
+		for j := 0; j < len(chunx[i]); j++ {
+			chunx[i][j] = make([]byte, MiB)
+			rnd.Read(chunx[i][j])
+			mt.addChunk(computeAddr(chunx[i][j]), chunx[i][j])
+		}
+		sources[i] = s3p.Persist(mt, nil)
+	}
 	src := s3p.CompactAll(sources)
 	assert.NotNil(cache.get(src.hash()))
 
 	if assert.True(src.count() > 0) {
 		if r := s3svc.readerForTable(src.hash()); assert.NotNil(r) {
-			assertChunksInReader(testChunks, r, assert)
+			for _, slice := range chunx {
+				assertChunksInReader(slice, r, assert)
+			}
 		}
 	}
 }

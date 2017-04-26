@@ -5,6 +5,8 @@
 package nbs
 
 import (
+	"bytes"
+	"io"
 	"sync"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -93,6 +95,18 @@ func (ccs *persistingChunkSource) hash() addr {
 	return ccs.cs.hash()
 }
 
+func (ccs *persistingChunkSource) index() tableIndex {
+	ccs.wg.Wait()
+	d.Chk.True(ccs.cs != nil)
+	return ccs.cs.index()
+}
+
+func (ccs *persistingChunkSource) reader() io.Reader {
+	ccs.wg.Wait()
+	d.Chk.True(ccs.cs != nil)
+	return ccs.cs.reader()
+}
+
 func (ccs *persistingChunkSource) calcReads(reqs []getRecord, blockSize uint64) (reads int, remaining bool) {
 	ccs.wg.Wait()
 	d.Chk.True(ccs.cs != nil)
@@ -136,7 +150,15 @@ func (ecs emptyChunkSource) uncompressedLen() uint64 {
 }
 
 func (ecs emptyChunkSource) hash() addr {
-	return addr{} // TODO: is this legal?
+	return addr{}
+}
+
+func (ecs emptyChunkSource) index() tableIndex {
+	return tableIndex{}
+}
+
+func (ecs emptyChunkSource) reader() io.Reader {
+	return &bytes.Buffer{}
 }
 
 func (ecs emptyChunkSource) calcReads(reqs []getRecord, blockSize uint64) (reads int, remaining bool) {

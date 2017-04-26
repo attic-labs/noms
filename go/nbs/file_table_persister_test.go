@@ -83,7 +83,8 @@ func TestFSTablePersisterCompactAllDups(t *testing.T) {
 	assert.True(len(testChunks) > 1, "Whoops, this test isn't meaningful")
 	sources := make(chunkSources, len(testChunks))
 
-	for i := range testChunks {
+	reps := 3
+	for i := 0; i < reps; i++ {
 		sources[i] = bytesToChunkSource(testChunks...)
 	}
 
@@ -97,6 +98,6 @@ func TestFSTablePersisterCompactAllDups(t *testing.T) {
 		assert.NoError(err)
 		tr := newTableReader(parseTableIndex(buff), bytes.NewReader(buff), fileBlockSize)
 		assertChunksInReader(testChunks, tr, assert)
-		assert.EqualValues(len(testChunks), tr.count())
+		assert.EqualValues(reps*len(testChunks), tr.count())
 	}
 }

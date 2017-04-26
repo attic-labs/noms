@@ -19,6 +19,10 @@ type fsTablePersister struct {
 	indexCache *indexCache
 }
 
+func (ftp fsTablePersister) Open(name addr, chunkCount uint32) chunkSource {
+	return newMmapTableReader(ftp.dir, name, chunkCount, ftp.indexCache)
+}
+
 func (ftp fsTablePersister) Persist(mt *memTable, haver chunkReader) chunkSource {
 	return ftp.persistTable(mt.write(haver))
 }
@@ -44,11 +48,34 @@ func (ftp fsTablePersister) persistTable(name addr, data []byte, chunkCount uint
 }
 
 func (ftp fsTablePersister) CompactAll(sources chunkSources) chunkSource {
-	rl := make(chan struct{}, 32)
-	defer close(rl)
-	return ftp.persistTable(compactSourcesToBuffer(sources, rl))
-}
+	plan := planCompaction(sources)
+	if plan.chunkCount == 0 {
+		return emptyChunkSource{}
+	}
 
-func (ftp fsTablePersister) Open(name addr, chunkCount uint32) chunkSource {
-	return newMmapTableReader(ftp.dir, name, chunkCount, ftp.indexCache)
+	name := nameFromSuffixes(plan.suffixes())
+	tempName := func() string {
+		temp, err := ioutil.TempFile(ftp.dir, "nbs_table_")
+		d.PanicIfError(err)
+		defer checkClose(temp)
+
+		for i, dataLen := range plan.chunkDataLens {
+			r := plan.sources[i].reader()
+			n, err := io.CopyN(temp, r, int64(dataLen))
+			d.PanicIfFalse(uint64(n) == dataLen)
+			d.PanicIfError(err)
+		}
+		_, err = temp.Write(plan.mergedIndex)
+		d.PanicIfError(err)
+
+		index := parseTableIndex(plan.mergedIndex)
+		if ftp.indexCache != nil {
+			ftp.indexCache.put(name, index)
+		}
+		return temp.Name()
+	}()
+
+	err := os.Rename(tempName, filepath.Join(ftp.dir, name.String()))
+	d.PanicIfError(err)
+	return ftp.Open(name, plan.chunkCount)
 }

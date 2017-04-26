@@ -152,16 +152,20 @@ func (tw *tableWriter) writeIndex() {
 }
 
 func (tw *tableWriter) writeFooter() {
+	tw.pos += writeFooter(tw.buff[tw.pos:], uint32(len(tw.prefixes)), tw.totalUncompressedData)
+}
+
+func writeFooter(dst []byte, chunkCount uint32, uncData uint64) (pos uint64) {
 	// chunk count
-	chunkCount := uint32(len(tw.prefixes))
-	binary.BigEndian.PutUint32(tw.buff[tw.pos:], chunkCount)
-	tw.pos += uint32Size
+	binary.BigEndian.PutUint32(dst[pos:], chunkCount)
+	pos += uint32Size
 
 	// total uncompressed chunk data
-	binary.BigEndian.PutUint64(tw.buff[tw.pos:], tw.totalUncompressedData)
-	tw.pos += uint64Size
+	binary.BigEndian.PutUint64(dst[pos:], uncData)
+	pos += uint64Size
 
 	// magic number
-	copy(tw.buff[tw.pos:], magicNumber)
-	tw.pos += magicNumberSize
+	copy(dst[pos:], magicNumber)
+	pos += magicNumberSize
+	return
 }

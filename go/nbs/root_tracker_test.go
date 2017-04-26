@@ -262,3 +262,7 @@ func (csa chunkSourceAdapter) close() error {
 func (csa chunkSourceAdapter) hash() addr {
 	return csa.h
 }
+
+func (csa chunkSourceAdapter) index() tableIndex {
+	return csa.tableIndex
+}
