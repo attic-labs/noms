@@ -113,15 +113,15 @@ func planCompaction(sources chunkSources) (plan compactionPlan) {
 
 	prefixIndexRecs := make(prefixIndexSlice, 0, plan.chunkCount)
 	var ordinalOffset uint32
-	for _, src := range sources {
-		index := src.index()
+	for _, sws := range plan.sources {
+		index := sws.source.index()
 
 		// Add all the prefix tuples from this index to the list of all prefixIndexRecs, modifying the ordinals such that all entries from the 1st item in sources come after those in the 0th and so on.
 		for j, prefix := range index.prefixes {
 			rec := prefixIndexRec{prefix: prefix, order: ordinalOffset + index.ordinals[j]}
 			prefixIndexRecs = append(prefixIndexRecs, rec)
 		}
-		ordinalOffset += src.count()
+		ordinalOffset += sws.source.count()
 
 		// TODO: copy the lengths and suffixes as a byte-copy from src BUG #3438
 		// Bring over the lengths block, in order

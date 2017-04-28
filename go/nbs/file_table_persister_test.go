@@ -6,6 +6,7 @@ package nbs
 
 import (
 	"bytes"
+	"crypto/rand"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -62,7 +63,10 @@ func TestFSTablePersisterCompactAll(t *testing.T) {
 	sources := make(chunkSources, len(testChunks))
 
 	for i, c := range testChunks {
-		sources[i] = bytesToChunkSource(c)
+		randChunk := make([]byte, (i+1)*13)
+		_, err := rand.Read(randChunk)
+		assert.NoError(err)
+		sources[i] = bytesToChunkSource(c, randChunk)
 	}
 
 	dir := makeTempDir(assert)
@@ -80,17 +84,19 @@ func TestFSTablePersisterCompactAll(t *testing.T) {
 
 func TestFSTablePersisterCompactAllDups(t *testing.T) {
 	assert := assert.New(t)
-	assert.True(len(testChunks) > 1, "Whoops, this test isn't meaningful")
-	sources := make(chunkSources, len(testChunks))
-
-	reps := 3
-	for i := 0; i < reps; i++ {
-		sources[i] = bytesToChunkSource(testChunks...)
-	}
-
 	dir := makeTempDir(assert)
 	defer os.RemoveAll(dir)
 	fts := fsTablePersister{dir: dir}
+
+	reps := 3
+	sources := make(chunkSources, reps)
+	for i := 0; i < reps; i++ {
+		mt := newMemTable(1 << 10)
+		for _, c := range testChunks {
+			mt.addChunk(computeAddr(c), c)
+		}
+		sources[i] = fts.Persist(mt, nil)
+	}
 	src := fts.CompactAll(sources)
 
 	if assert.True(src.count() > 0) {
