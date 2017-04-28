@@ -16,7 +16,7 @@ const concurrentCompactions = 5
 
 func newS3TableSet(s3 s3svc, bucket string, indexCache *indexCache, readRl chan struct{}) tableSet {
 	return tableSet{
-		p:  s3TablePersister{s3, bucket, defaultS3PartSize, indexCache, readRl},
+		p:  s3TablePersister{s3, bucket, defaultS3PartSize, minS3PartSize, maxS3PartSize, indexCache, readRl},
 		rl: make(chan struct{}, concurrentCompactions),
 	}
 }

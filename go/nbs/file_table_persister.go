@@ -59,10 +59,10 @@ func (ftp fsTablePersister) CompactAll(sources chunkSources) chunkSource {
 		d.PanicIfError(err)
 		defer checkClose(temp)
 
-		for i, dataLen := range plan.chunkDataLens {
-			r := plan.sources[i].reader()
-			n, err := io.CopyN(temp, r, int64(dataLen))
-			d.PanicIfFalse(uint64(n) == dataLen)
+		for _, sws := range plan.sources {
+			r := sws.source.reader()
+			n, err := io.CopyN(temp, r, int64(sws.dataLen))
+			d.PanicIfFalse(uint64(n) == sws.dataLen)
 			d.PanicIfError(err)
 		}
 		_, err = temp.Write(plan.mergedIndex)

@@ -58,9 +58,26 @@ func (csbc chunkSourcesByAscendingCount) Less(i, j int) bool {
 }
 func (csbc chunkSourcesByAscendingCount) Swap(i, j int) { csbc[i], csbc[j] = csbc[j], csbc[i] }
 
+type chunkSourcesByDescendingDataSize []sourceWithSize
+
+func (csbds chunkSourcesByDescendingDataSize) Len() int { return len(csbds) }
+func (csbds chunkSourcesByDescendingDataSize) Less(i, j int) bool {
+	swsI, swsJ := csbds[i], csbds[j]
+	if swsI.dataLen == swsJ.dataLen {
+		hi, hj := swsI.source.hash(), swsJ.source.hash()
+		return bytes.Compare(hi[:], hj[:]) < 0
+	}
+	return swsI.dataLen > swsJ.dataLen
+}
+func (csbds chunkSourcesByDescendingDataSize) Swap(i, j int) { csbds[i], csbds[j] = csbds[j], csbds[i] }
+
+type sourceWithSize struct {
+	source  chunkSource
+	dataLen uint64
+}
+
 type compactionPlan struct {
-	sources             chunkSources
-	chunkDataLens       []uint64
+	sources             chunkSourcesByDescendingDataSize
 	mergedIndex         []byte
 	chunkCount          uint32
 	totalCompressedData uint64
@@ -79,41 +96,43 @@ func (cp compactionPlan) suffixes() []byte {
 func planCompaction(sources chunkSources) (plan compactionPlan) {
 	var totalUncompressedData uint64
 	for _, src := range sources {
-		plan.chunkCount += src.count()
 		totalUncompressedData += src.uncompressedLen()
-	}
-	plan.sources = sources
+		index := src.index()
+		plan.chunkCount += index.chunkCount
 
-	lengthsPos := uint64(plan.chunkCount) * prefixTupleSize
-	suffixesPos := lengthsPos + uint64(plan.chunkCount)*lengthSize
+		// Calculate the amount of chunk data in |src|
+		chunkDataLen := calcChunkDataLen(index)
+		plan.sources = append(plan.sources, sourceWithSize{src, chunkDataLen})
+		plan.totalCompressedData += chunkDataLen
+	}
+	sort.Sort(plan.sources)
+
+	lengthsPos := lengthsOffset(plan.chunkCount)
+	suffixesPos := suffixesOffset(plan.chunkCount)
 	plan.mergedIndex = make([]byte, indexSize(plan.chunkCount)+footerSize)
-	plan.chunkDataLens = make([]uint64, len(sources))
 
 	prefixIndexRecs := make(prefixIndexSlice, 0, plan.chunkCount)
 	var ordinalOffset uint32
-	for i, src := range sources {
-		idx := src.index()
+	for _, src := range sources {
+		index := src.index()
 
 		// Add all the prefix tuples from this index to the list of all prefixIndexRecs, modifying the ordinals such that all entries from the 1st item in sources come after those in the 0th and so on.
-		for j, prefix := range idx.prefixes {
-			rec := prefixIndexRec{prefix: prefix, order: ordinalOffset + idx.ordinals[j]}
+		for j, prefix := range index.prefixes {
+			rec := prefixIndexRec{prefix: prefix, order: ordinalOffset + index.ordinals[j]}
 			prefixIndexRecs = append(prefixIndexRecs, rec)
 		}
 		ordinalOffset += src.count()
 
-		// Calculate the amount of chunk data in |src|
-		plan.chunkDataLens[i] = idx.offsets[src.count()-1] + uint64(idx.lengths[src.count()-1])
-		plan.totalCompressedData += plan.chunkDataLens[i]
-
+		// TODO: copy the lengths and suffixes as a byte-copy from src BUG #3438
 		// Bring over the lengths block, in order
-		for _, length := range idx.lengths {
+		for _, length := range index.lengths {
 			binary.BigEndian.PutUint32(plan.mergedIndex[lengthsPos:], length)
 			lengthsPos += lengthSize
 		}
 
 		// Bring over the suffixes block, in order
-		n := copy(plan.mergedIndex[suffixesPos:], idx.suffixes)
-		d.Chk.True(n == len(idx.suffixes))
+		n := copy(plan.mergedIndex[suffixesPos:], index.suffixes)
+		d.Chk.True(n == len(index.suffixes))
 		suffixesPos += uint64(n)
 	}
 
@@ -139,6 +158,10 @@ func nameFromSuffixes(suffixes []byte) (name addr) {
 	h = sha.Sum(h) // Appends hash to h
 	copy(name[:], h)
 	return
+}
+
+func calcChunkDataLen(index tableIndex) uint64 {
+	return index.offsets[index.chunkCount-1] + uint64(index.lengths[index.chunkCount-1])
 }
 
 func compactSourcesToBuffer(sources chunkSources, rl chan struct{}) (name addr, data []byte, chunkCount uint32) {

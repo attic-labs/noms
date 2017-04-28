@@ -5,7 +5,6 @@
 package nbs
 
 import (
-	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -95,8 +94,4 @@ func (mmtr *mmapTableReader) hash() addr {
 
 func (mmtr *mmapTableReader) index() tableIndex {
 	return mmtr.tableIndex
-}
-
-func (mmtr *mmapTableReader) reader() io.Reader {
-	return mmtr.f
 }

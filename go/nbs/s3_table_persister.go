@@ -19,16 +19,19 @@ import (
 )
 
 const (
-	defaultS3PartSize = 5 * 1 << 20 // 5MiB, smallest allowed by S3
-	maxS3Parts        = 10000
+	minS3PartSize = 5 * 1 << 20 // 5MiB
+	maxS3PartSize = 5 * 1 << 27 // 5GiB
+	maxS3Parts    = 10000
+
+	defaultS3PartSize = minS3PartSize // smallest allowed by S3 allows for most throughput
 )
 
 type s3TablePersister struct {
-	s3         s3svc
-	bucket     string
-	partSize   int
-	indexCache *indexCache
-	readRl     chan struct{}
+	s3                                       s3svc
+	bucket                                   string
+	targetPartSize, minPartSize, maxPartSize uint64
+	indexCache                               *indexCache
+	readRl                                   chan struct{}
 }
 
 func (s3p s3TablePersister) Open(name addr, chunkCount uint32) chunkSource {
@@ -52,10 +55,10 @@ func (s3p s3TablePersister) persistTable(name addr, data []byte, chunkCount uint
 	s3p.multipartUpload(data, name.String())
 	verbose.Log("Compacted table of %d Kb in %s", len(data)/1024, time.Since(t1))
 
-	return s3p.newReaderFromIdxData(data, name)
+	return s3p.newReaderFromIndexData(data, name)
 }
 
-func (s3p s3TablePersister) newReaderFromIdxData(idxData []byte, name addr) *s3TableReader {
+func (s3p s3TablePersister) newReaderFromIndexData(idxData []byte, name addr) *s3TableReader {
 	s3tr := &s3TableReader{s3: s3p.s3, bucket: s3p.bucket, h: name, readRl: s3p.readRl}
 	index := parseTableIndex(idxData)
 	if s3p.indexCache != nil {
@@ -106,11 +109,10 @@ func (s3p s3TablePersister) completeMultipartUpload(key, uploadID string, mpu *s
 func (s3p s3TablePersister) uploadParts(data []byte, key, uploadID string) (*s3.CompletedMultipartUpload, error) {
 	sent, failed, done := make(chan s3UploadedPart), make(chan error), make(chan struct{})
 
-	numParts := getNumParts(len(data), s3p.partSize)
+	numParts := getNumParts(uint64(len(data)), s3p.targetPartSize)
 	d.PanicIfTrue(numParts > maxS3Parts) // TODO: BUG 3433: handle > 10k parts
 	var wg sync.WaitGroup
-	wg.Add(numParts)
-	sendPart := func(partNum int) {
+	sendPart := func(partNum, start, end uint64) {
 		defer wg.Done()
 
 		// Check if upload has been terminated
@@ -120,9 +122,8 @@ func (s3p s3TablePersister) uploadParts(data []byte, key, uploadID string) (*s3.
 		default:
 		}
 		// Upload the desired part
-		start, end := (partNum-1)*s3p.partSize, partNum*s3p.partSize
 		if partNum == numParts { // If this is the last part, make sure it includes any overflow
-			end = len(data)
+			end = uint64(len(data))
 		}
 		etag, err := s3p.uploadPart(data[start:end], key, uploadID, int64(partNum))
 		if err != nil {
@@ -136,8 +137,11 @@ func (s3p s3TablePersister) uploadParts(data []byte, key, uploadID string) (*s3.
 			return
 		}
 	}
-	for i := 1; i <= numParts; i++ {
-		go sendPart(i)
+	for i := uint64(0); i < numParts; i++ {
+		wg.Add(1)
+		partNum := i + 1 // Parts are 1-indexed
+		start, end := i*s3p.targetPartSize, (i+1)*s3p.targetPartSize
+		go sendPart(partNum, start, end)
 	}
 	go func() {
 		wg.Wait()
@@ -173,8 +177,8 @@ func (s3p s3TablePersister) uploadParts(data []byte, key, uploadID string) (*s3.
 	return multipartUpload, firstFailure
 }
 
-func getNumParts(dataLen, partSize int) int {
-	numParts := dataLen / partSize
+func getNumParts(dataLen, minPartSize uint64) uint64 {
+	numParts := dataLen / minPartSize
 	if numParts == 0 {
 		numParts = 1
 	}
@@ -202,15 +206,15 @@ func (s3p s3TablePersister) CompactAll(sources chunkSources) chunkSource {
 	}
 	t1 := time.Now()
 	name := nameFromSuffixes(plan.suffixes())
-	s3p.multipartCopyUpload(plan, name.String())
+	s3p.executeCompactionPlan(plan, name.String())
 	verbose.Log("Compacted table of %d Kb in %s", plan.totalCompressedData/1024, time.Since(t1))
 
-	return s3p.newReaderFromIdxData(plan.mergedIndex, name)
+	return s3p.newReaderFromIndexData(plan.mergedIndex, name)
 }
 
-func (s3p s3TablePersister) multipartCopyUpload(plan compactionPlan, key string) {
+func (s3p s3TablePersister) executeCompactionPlan(plan compactionPlan, key string) {
 	uploadID := s3p.startMultipartUpload(key)
-	multipartUpload, err := s3p.uploadPartsCopy(plan, key, uploadID)
+	multipartUpload, err := s3p.assembleTable(plan, key, uploadID)
 	if err != nil {
 		s3p.abortMultipartUpload(key, uploadID)
 		d.PanicIfError(err) // TODO: Better error handling here
@@ -218,24 +222,28 @@ func (s3p s3TablePersister) multipartCopyUpload(plan compactionPlan, key string)
 	s3p.completeMultipartUpload(key, uploadID, multipartUpload)
 }
 
-func (s3p s3TablePersister) uploadPartsCopy(plan compactionPlan, key, uploadID string) (*s3.CompletedMultipartUpload, error) {
+func (s3p s3TablePersister) assembleTable(plan compactionPlan, key, uploadID string) (*s3.CompletedMultipartUpload, error) {
 	d.PanicIfTrue(len(plan.sources) > maxS3Parts) // TODO: BUG 3433: handle > 10k parts
 
-	copies, manuals, buff := dividePlan(plan.sources, plan)
+	// Separate plan.sources by amount of chunkData. Tables with >5MB of chunk data (copies) can be added to the new table using S3's multipart upload copy feature. Smaller tables with <5MB of chunk data (manuals) must be read, assembled into |buff|, and then re-uploaded in parts that are larger than 5MB.
+	copies, manuals, buff := dividePlan(plan, uint64(s3p.minPartSize), uint64(s3p.maxPartSize))
+
+	// Concurrently read data from small tables into |buff|
 	var readWg sync.WaitGroup
 	for _, man := range manuals {
 		readWg.Add(1)
 		go func(m manualPart) {
 			defer readWg.Done()
-			n, _ := m.r.Read(buff[m.buffStart:m.buffEnd])
-			d.PanicIfTrue(int64(n) < m.buffEnd-m.buffStart)
+			n, _ := m.srcR.Read(buff[m.dstStart:m.dstEnd])
+			d.PanicIfTrue(int64(n) < m.dstEnd-m.dstStart)
 		}(man)
 	}
 	readWg.Wait()
 
-	type uploadFn func() (etag string, err error)
+	// sendPart calls |doUpload| to send part |partNum|, forwarding errors over |failed| or success over |sent|. Closing (or sending) on |done| will cancel all in-progress calls to sendPart.
 	sent, failed, done := make(chan s3UploadedPart), make(chan error), make(chan struct{})
 	var uploadWg sync.WaitGroup
+	type uploadFn func() (etag string, err error)
 	sendPart := func(partNum int64, doUpload uploadFn) {
 		defer uploadWg.Done()
 
@@ -259,33 +267,43 @@ func (s3p s3TablePersister) uploadPartsCopy(plan compactionPlan, key, uploadID s
 		}
 	}
 
-	numCopyParts := len(copies)
-	numManualParts := getNumParts(len(buff), s3p.partSize) // TODO: What if this is too big?
-	numParts := numCopyParts + numManualParts
-	uploadWg.Add(numParts)
-	for i, cp := range copies {
-		partNum := int64(i + 1) // parts are 1-indexed
-		go sendPart(partNum, func() (etag string, err error) {
-			return s3p.uploadPartCopy(cp.name, cp.dataLen, key, uploadID, partNum)
-		})
-	}
-	for i := numCopyParts + 1; i <= numParts; i++ {
-		start, end := (i-numCopyParts-1)*s3p.partSize, (i-numCopyParts)*s3p.partSize
-		if i == numParts { // If this is the last part, make sure it includes any overflow
-			end = len(buff)
-		}
-		partNum := int64(i)
-		go sendPart(partNum, func() (etag string, err error) {
-			return s3p.uploadPart(buff[start:end], key, uploadID, partNum)
-		})
+	// Concurrently begin sending all parts using sendPart().
+	// First, kick off sending all the copyable parts.
+	partNum := int64(1) // Part numbers are 1-indexed
+	for _, cp := range copies {
+		uploadWg.Add(1)
+		go func(cp copyPart, partNum int64) {
+			sendPart(partNum, func() (etag string, err error) {
+				return s3p.uploadPartCopy(cp.name, cp.srcOffset, cp.srcLen, key, uploadID, partNum)
+			})
+		}(cp, partNum)
+		partNum++
 	}
 
+	// Then, split buff (data from |manuals| and index) into parts and upload those concurrently.
+	numManualParts := getNumParts(uint64(len(buff)), s3p.targetPartSize) // TODO: What if this is too big?
+	for i := uint64(0); i < numManualParts; i++ {
+		start, end := i*s3p.targetPartSize, (i+1)*s3p.targetPartSize
+		if i+1 == numManualParts { // If this is the last part, make sure it includes any overflow
+			end = uint64(len(buff))
+		}
+		uploadWg.Add(1)
+		go func(data []byte, partNum int64) {
+			sendPart(partNum, func() (etag string, err error) {
+				return s3p.uploadPart(data, key, uploadID, partNum)
+			})
+		}(buff[start:end], partNum)
+		partNum++
+	}
+
+	// When all the uploads started above are done, close |sent| and |failed| so that the code below will correctly detect that we're done sending parts and move forward.
 	go func() {
 		uploadWg.Wait()
 		close(sent)
 		close(failed)
 	}()
 
+	// Watch |sent| and |failed| for the results of part uploads. If ever one fails, close |done| to stop all the in-progress or pending sendPart() calls and then bail.
 	multipartUpload := &s3.CompletedMultipartUpload{}
 	var firstFailure error
 	for cont := true; cont; {
@@ -307,46 +325,85 @@ func (s3p s3TablePersister) uploadPartsCopy(plan compactionPlan, key, uploadID s
 		}
 	}
 
+	// If there was any failure detected above, |done| is already closed
 	if firstFailure == nil {
 		close(done)
 	}
-	sort.Sort(partsByPartNum(multipartUpload.Parts))
+	sort.Sort(partsByPartNum(multipartUpload.Parts)) // S3 requires that these be in part-order
 	return multipartUpload, firstFailure
 }
 
 type copyPart struct {
-	name    string
-	dataLen int64
+	name              string
+	srcOffset, srcLen int64
 }
 
 type manualPart struct {
-	r                  io.Reader
-	buffStart, buffEnd int64
+	srcR             io.Reader
+	dstStart, dstEnd int64
 }
 
-func dividePlan(sources chunkSources, plan compactionPlan) (copies []copyPart, manuals []manualPart, buff []byte) {
+func dividePlan(plan compactionPlan, minPartSize, maxPartSize uint64) (copies []copyPart, manuals []manualPart, buff []byte) {
+	// NB: if maxPartSize < 2*minPartSize, splitting large copies apart isn't solvable. S3's limits are plenty far enough apart that this isn't a problem in production, but we could violate this in tests.
+	d.PanicIfTrue(maxPartSize < 2*minPartSize)
+
 	buffSize := uint64(len(plan.mergedIndex))
-	var offset int64
-	for i, src := range sources {
-		dataLen := plan.chunkDataLens[i]
-		if dataLen >= defaultS3PartSize { // Big enough to copy part!
-			copies = append(copies, copyPart{src.hash().String(), int64(dataLen)})
-		} else {
-			manuals = append(manuals, manualPart{src.reader(), offset, offset + int64(dataLen)})
-			offset += int64(dataLen)
-			buffSize += dataLen
+	i := 0
+	for ; i < len(plan.sources); i++ {
+		sws := plan.sources[i]
+		if sws.dataLen < minPartSize {
+			// since plan.sources is sorted in descending chunk-data-length order, we know that sws and all members after it are too small to copy.
+			break
 		}
+		if sws.dataLen <= maxPartSize {
+			copies = append(copies, copyPart{sws.source.hash().String(), 0, int64(sws.dataLen)})
+			continue
+		}
+
+		// Now, we need to break the data into some number of parts such that for all parts minPartSize <= size(part) <= maxPartSize. This code tries to split the part evenly, such that all new parts satisfy the previous inequality. This gets tricky around edge cases. Consider min = 5b and max = 10b and a data length of 101b. You need to send 11 parts, but you can't just send 10 parts of 10 bytes and 1 part of 1 byte -- the last is too small. You also can't send 10 parts of 9 bytes each and 1 part of 11 bytes, because the last is too big. You have to distribute the extra bytes across all the parts so that all of them fall into the proper size range.
+		lens := calcPartLens(sws.dataLen, maxPartSize)
+
+		var srcStart int64
+		for _, length := range lens {
+			copies = append(copies, copyPart{sws.source.hash().String(), srcStart, length})
+			srcStart += length
+		}
+	}
+	var offset int64
+	for ; i < len(plan.sources); i++ {
+		sws := plan.sources[i]
+		manuals = append(manuals, manualPart{sws.source.reader(), offset, offset + int64(sws.dataLen)})
+		offset += int64(sws.dataLen)
+		buffSize += sws.dataLen
 	}
 	buff = make([]byte, buffSize)
 	copy(buff[buffSize-uint64(len(plan.mergedIndex)):], plan.mergedIndex)
 	return
 }
 
-func (s3p s3TablePersister) uploadPartCopy(src string, dataLen int64, key, uploadID string, partNum int64) (etag string, err error) {
+func calcPartLens(dataLen, maxPartSize uint64) []int64 {
+	numParts := dataLen / maxPartSize
+	if dataLen%maxPartSize > 0 {
+		numParts++
+	}
+	baseSize := int64(dataLen / numParts)
+	extraBytes := dataLen % numParts
+	sizes := make([]int64, numParts)
+	for i := range sizes {
+		sizes[i] = baseSize
+		if extraBytes > 0 {
+			sizes[i]++
+			extraBytes--
+		}
+	}
+	return sizes
+}
+
+func (s3p s3TablePersister) uploadPartCopy(src string, srcStart, srcEnd int64, key, uploadID string, partNum int64) (etag string, err error) {
 	res, err := s3p.s3.UploadPartCopy(&s3.UploadPartCopyInput{
 		// TODO: Use url.PathEscape() once we're on go 1.8
 		CopySource:      aws.String(url.QueryEscape(s3p.bucket + "/" + src)),
-		CopySourceRange: aws.String(s3RangeHeader(0, dataLen)),
+		CopySourceRange: aws.String(s3RangeHeader(srcStart, srcEnd)),
 		Bucket:          aws.String(s3p.bucket),
 		Key:             aws.String(key),
 		PartNumber:      aws.Int64(int64(partNum)),

@@ -36,7 +36,7 @@ func TestPlanCompaction(t *testing.T) {
 
 	var totalChunks uint32
 	for i, src := range sources {
-		assert.Equal(dataLens[i], plan.chunkDataLens[i])
+		assert.Equal(dataLens[i], plan.sources[i].dataLen)
 		totalChunks += src.count()
 	}
 

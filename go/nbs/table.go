@@ -214,8 +214,9 @@ type chunkSource interface {
 	hash() addr
 	calcReads(reqs []getRecord, blockSize uint64) (reads int, remaining bool)
 
-	index() tableIndex
+	// opens a Reader to the first byte of the chunkData segment of this table.
 	reader() io.Reader
+	index() tableIndex
 }
 
 type chunkSources []chunkSource

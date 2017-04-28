@@ -438,9 +438,6 @@ func (tr tableReader) extract(chunks chan<- extractRecord) {
 }
 
 func (tr tableReader) reader() io.Reader {
-	if rdr, ok := tr.r.(io.Reader); ok {
-		return rdr
-	}
 	return &readerAdapter{tr.r, 0}
 }
 
