@@ -148,7 +148,7 @@ func TestS3TablePersisterCalcPartSizes(t *testing.T) {
 	min, max := uint64(8*1<<10), uint64(1+(16*1<<10))
 
 	testPartSizes := func(dataLen uint64) {
-		lengths := calcPartLens(dataLen, max)
+		lengths := splitOnMaxSize(dataLen, max)
 		var sum int64
 		for _, l := range lengths {
 			assert.True(uint64(l) >= min)

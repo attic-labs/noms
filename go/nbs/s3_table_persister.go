@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	minS3PartSize = 5 * 1 << 20 // 5MiB
-	maxS3PartSize = 5 * 1 << 27 // 5GiB
+	minS3PartSize = 5 * 1 << 20  // 5MiB
+	maxS3PartSize = 64 * 1 << 20 // 64MiB
 	maxS3Parts    = 10000
 
 	defaultS3PartSize = minS3PartSize // smallest allowed by S3 allows for most throughput
@@ -343,6 +343,7 @@ type manualPart struct {
 	dstStart, dstEnd int64
 }
 
+// dividePlan assumes that plan.sources (which is of type chunkSourcesByDescendingDataSize) is correctly sorted by descending data size.
 func dividePlan(plan compactionPlan, minPartSize, maxPartSize uint64) (copies []copyPart, manuals []manualPart, buff []byte) {
 	// NB: if maxPartSize < 2*minPartSize, splitting large copies apart isn't solvable. S3's limits are plenty far enough apart that this isn't a problem in production, but we could violate this in tests.
 	d.PanicIfTrue(maxPartSize < 2*minPartSize)
@@ -361,7 +362,7 @@ func dividePlan(plan compactionPlan, minPartSize, maxPartSize uint64) (copies []
 		}
 
 		// Now, we need to break the data into some number of parts such that for all parts minPartSize <= size(part) <= maxPartSize. This code tries to split the part evenly, such that all new parts satisfy the previous inequality. This gets tricky around edge cases. Consider min = 5b and max = 10b and a data length of 101b. You need to send 11 parts, but you can't just send 10 parts of 10 bytes and 1 part of 1 byte -- the last is too small. You also can't send 10 parts of 9 bytes each and 1 part of 11 bytes, because the last is too big. You have to distribute the extra bytes across all the parts so that all of them fall into the proper size range.
-		lens := calcPartLens(sws.dataLen, maxPartSize)
+		lens := splitOnMaxSize(sws.dataLen, maxPartSize)
 
 		var srcStart int64
 		for _, length := range lens {
@@ -381,7 +382,8 @@ func dividePlan(plan compactionPlan, minPartSize, maxPartSize uint64) (copies []
 	return
 }
 
-func calcPartLens(dataLen, maxPartSize uint64) []int64 {
+// Splits |dataLen| into the maximum number of roughly-equal part sizes such that each is <= maxPartSize.
+func splitOnMaxSize(dataLen, maxPartSize uint64) []int64 {
 	numParts := dataLen / maxPartSize
 	if dataLen%maxPartSize > 0 {
 		numParts++
