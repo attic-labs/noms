@@ -262,8 +262,8 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 		StructField{"y", MakeUnionType(NumberType, StringType), false},
 	)
 
-	assert.True(tt, isSubtype(t2, t1, true, nil))
-	assert.False(tt, isSubtype(t1, t2, true, nil))
+	assert.True(tt, isSubtypeTopLevel(t2, t1))
+	assert.False(tt, isSubtypeTopLevel(t1, t2))
 
 	// struct S {
 	//   x: Cycle<S> | Number,
@@ -274,11 +274,11 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 		StructField{"y", MakeUnionType(NumberType, StringType), false},
 	)
 
-	assert.True(tt, isSubtype(t3, t1, true, nil))
-	assert.False(tt, isSubtype(t1, t3, true, nil))
+	assert.True(tt, isSubtypeTopLevel(t3, t1))
+	assert.False(tt, isSubtypeTopLevel(t1, t3))
 
-	assert.True(tt, isSubtype(t3, t2, true, nil))
-	assert.False(tt, isSubtype(t2, t3, true, nil))
+	assert.True(tt, isSubtypeTopLevel(t3, t2))
+	assert.False(tt, isSubtypeTopLevel(t2, t3))
 
 	// struct S {
 	//   x: Cycle<S> | Number,
@@ -380,8 +380,8 @@ func TestIsSubtypeOptionalFields(tt *testing.T) {
 	assert.False(IsSubtype(s4, s1))
 
 	test := func(t1s, t2s string, exp1, exp2 bool) {
-		t1 := makeType(t1s)
-		t2 := makeType(t2s)
+		t1 := makeTestStructFromFieldNames(t1s)
+		t2 := makeTestStructFromFieldNames(t2s)
 		assert.Equal(exp1, IsSubtype(t1, t2))
 		assert.Equal(exp2, IsSubtype(t2, t1))
 		assert.False(t1.Equals(t2))
@@ -420,7 +420,7 @@ func TestIsSubtypeOptionalFields(tt *testing.T) {
 	assert.False(IsSubtype(t2, t1))
 }
 
-func makeType(s string) *Type {
+func makeTestStructFromFieldNames(s string) *Type {
 	if s == "" {
 		return MakeStructType("")
 	}
@@ -442,8 +442,8 @@ func TestIsSubtypeDisallowExtraStructFields(tt *testing.T) {
 	assert := assert.New(tt)
 
 	test := func(t1s, t2s string, exp1, exp2 bool) {
-		t1 := makeType(t1s)
-		t2 := makeType(t2s)
+		t1 := makeTestStructFromFieldNames(t1s)
+		t2 := makeTestStructFromFieldNames(t2s)
 		assert.Equal(exp1, IsSubtypeDisallowExtraStructFields(t1, t2))
 		assert.Equal(exp2, IsSubtypeDisallowExtraStructFields(t2, t1))
 		assert.False(t1.Equals(t2))

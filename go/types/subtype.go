@@ -16,12 +16,17 @@ func assertSubtype(t *Type, v Value) {
 
 // IsSubtype determines whether concreteType is a subtype of requiredType. For example, `Number` is a subtype of `Number | String`.
 func IsSubtype(requiredType, concreteType *Type) bool {
-	return isSubtype(requiredType, concreteType, true, nil)
+	return isSubtypeTopLevel(requiredType, concreteType)
 }
 
-// IsSubtypeDisallowExtraFields is a slightly wiered variant of IsSubtype. It returns true IFF IsSubtype(requiredType, concreteType) AND Structs in concreteType CANNOT have field names absent in requiredType
+// IsSubtypeDisallowExtraFields is a slightly weird variant of IsSubtype. It returns true IFF IsSubtype(requiredType, concreteType) AND Structs in concreteType CANNOT have field names absent in requiredType
+// ISSUE: https://github.com/attic-labs/noms/issues/3446
 func IsSubtypeDisallowExtraStructFields(requiredType, concreteType *Type) bool {
 	return isSubtype(requiredType, concreteType, false, nil)
+}
+
+func isSubtypeTopLevel(requiredType, concreteType *Type) bool {
+	return isSubtype(requiredType, concreteType, true, nil)
 }
 
 func isSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, parentStructTypes []*Type) bool {
@@ -190,7 +195,7 @@ func IsValueSubtypeOf(v Value, t *Type) bool {
 		switch v := v.(type) {
 		case Ref:
 			// Switching to the type is subtype of type here.
-			return isSubtype(desc.ElemTypes[0], v.TargetType(), true, nil)
+			return isSubtypeTopLevel(desc.ElemTypes[0], v.TargetType())
 		case Map:
 			kt := desc.ElemTypes[0]
 			vt := desc.ElemTypes[1]
@@ -236,7 +241,7 @@ func IsValueSubtypeOf(v Value, t *Type) bool {
 func isMetaSequenceSubtypeOf(ms metaSequence, t *Type) bool {
 	for _, mt := range ms.tuples {
 		// Each prolly tree is also a List<T> where T needs to be a subtype.
-		if !isSubtype(t, mt.ref.TargetType(), true, nil) {
+		if !isSubtypeTopLevel(t, mt.ref.TargetType()) {
 			return false
 		}
 	}
