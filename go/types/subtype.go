@@ -73,38 +73,43 @@ func isSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, pa
 			return true
 		}
 
-		j := 0
-	outer:
-		for _, requiredField := range requiredDesc.fields {
-			for {
-				if j >= concreteDesc.Len() {
-					if requiredField.Optional {
-						continue outer
-					}
+		i, j := 0, 0
+		for i < requiredDesc.Len() && j < concreteDesc.Len() {
+			requiredField := requiredDesc.fields[i]
+			concreteField := concreteDesc.fields[j]
+			if requiredField.Name == concreteField.Name {
+				if !requiredField.Optional && concreteField.Optional {
 					return false
 				}
-				concreteField := concreteDesc.fields[j]
 
-				if concreteField.Name == requiredField.Name {
-					if requiredField.Optional {
-						break
-					}
-					if concreteField.Optional {
-						return false
-					}
-					break
+				if !isSubtype(requiredField.Type, concreteField.Type, allowExtraStructFields, append(parentStructTypes, requiredType)) {
+					return false
 				}
-				if requiredField.Optional && concreteField.Name > requiredField.Name {
-					continue outer
-				}
+
+				i++
 				j++
+				continue
 			}
 
-			concreteField := concreteDesc.fields[j]
-			if !isSubtype(requiredField.Type, concreteField.Type, allowExtraStructFields, append(parentStructTypes, requiredType)) {
+			if requiredField.Name < concreteField.Name {
+				if !requiredField.Optional {
+					return false
+				}
+				i++
+				continue
+			}
+
+			// requiredField.Name > concreteField.Name
+			j++
+		}
+
+		for i < requiredDesc.Len() {
+			if !requiredDesc.fields[i].Optional {
 				return false
 			}
+			i++
 		}
+
 		return true
 
 	}
