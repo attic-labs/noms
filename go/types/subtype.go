@@ -19,6 +19,11 @@ func IsSubtype(requiredType, concreteType *Type) bool {
 	return isSubtype(requiredType, concreteType, true, nil)
 }
 
+// IsSubtypeDisallowExtraFields is a slightly wiered variant of IsSubtype. It returns true IFF IsSubtype(requiredType, concreteType) AND Structs in concreteType CANNOT have field names absent in requiredType
+func IsSubtypeDisallowExtraStructFields(requiredType, concreteType *Type) bool {
+	return isSubtype(requiredType, concreteType, false, nil)
+}
+
 func isSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, parentStructTypes []*Type) bool {
 	if requiredType.Equals(concreteType) {
 		return true
@@ -78,6 +83,7 @@ func isSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, pa
 			requiredField := requiredDesc.fields[i]
 			concreteField := concreteDesc.fields[j]
 			if requiredField.Name == concreteField.Name {
+				// Common field name
 				if !requiredField.Optional && concreteField.Optional {
 					return false
 				}
@@ -92,6 +98,7 @@ func isSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, pa
 			}
 
 			if requiredField.Name < concreteField.Name {
+				// Concrete lacks field in required
 				if !requiredField.Optional {
 					return false
 				}
@@ -99,15 +106,24 @@ func isSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, pa
 				continue
 			}
 
-			// requiredField.Name > concreteField.Name
+			// Required lacks field in concrete
+			if !allowExtraStructFields {
+				return false
+			}
+
 			j++
 		}
 
 		for i < requiredDesc.Len() {
+			// Fields in required not in concrete
 			if !requiredDesc.fields[i].Optional {
 				return false
 			}
 			i++
+		}
+
+		if j < concreteDesc.Len() && !allowExtraStructFields {
+			return false
 		}
 
 		return true
