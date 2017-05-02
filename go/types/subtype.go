@@ -16,10 +16,10 @@ func assertSubtype(t *Type, v Value) {
 
 // IsSubtype determines whether concreteType is a subtype of requiredType. For example, `Number` is a subtype of `Number | String`.
 func IsSubtype(requiredType, concreteType *Type) bool {
-	return isSubtype(requiredType, concreteType, nil)
+	return isSubtype(requiredType, concreteType, true, nil)
 }
 
-func isSubtype(requiredType, concreteType *Type, parentStructTypes []*Type) bool {
+func isSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, parentStructTypes []*Type) bool {
 	if requiredType.Equals(concreteType) {
 		return true
 	}
@@ -27,7 +27,7 @@ func isSubtype(requiredType, concreteType *Type, parentStructTypes []*Type) bool
 	// If the concrete type is a union, all component types must be compatible.
 	if concreteType.TargetKind() == UnionKind {
 		for _, t := range concreteType.Desc.(CompoundDesc).ElemTypes {
-			if !isSubtype(requiredType, t, parentStructTypes) {
+			if !isSubtype(requiredType, t, allowExtraStructFields, parentStructTypes) {
 				return false
 			}
 		}
@@ -37,7 +37,7 @@ func isSubtype(requiredType, concreteType *Type, parentStructTypes []*Type) bool
 	// If the required type is a union, at least one of the component types must be compatible.
 	if requiredType.TargetKind() == UnionKind {
 		for _, t := range requiredType.Desc.(CompoundDesc).ElemTypes {
-			if isSubtype(t, concreteType, parentStructTypes) {
+			if isSubtype(t, concreteType, allowExtraStructFields, parentStructTypes) {
 				return true
 			}
 		}
@@ -51,7 +51,7 @@ func isSubtype(requiredType, concreteType *Type, parentStructTypes []*Type) bool
 	if desc, ok := requiredType.Desc.(CompoundDesc); ok {
 		concreteElemTypes := concreteType.Desc.(CompoundDesc).ElemTypes
 		for i, t := range desc.ElemTypes {
-			if !compoundSubtype(t, concreteElemTypes[i], parentStructTypes) {
+			if !compoundSubtype(t, concreteElemTypes[i], allowExtraStructFields, parentStructTypes) {
 				return false
 			}
 		}
@@ -101,7 +101,7 @@ func isSubtype(requiredType, concreteType *Type, parentStructTypes []*Type) bool
 			}
 
 			concreteField := concreteDesc.fields[j]
-			if !isSubtype(requiredField.Type, concreteField.Type, append(parentStructTypes, requiredType)) {
+			if !isSubtype(requiredField.Type, concreteField.Type, allowExtraStructFields, append(parentStructTypes, requiredType)) {
 				return false
 			}
 		}
@@ -114,17 +114,17 @@ func isSubtype(requiredType, concreteType *Type, parentStructTypes []*Type) bool
 
 // compoundSubtype is called when comparing the element types of two compound types. This is the only case
 // where a concrete type may have be a union type.
-func compoundSubtype(requiredType, concreteType *Type, parentStructTypes []*Type) bool {
+func compoundSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, parentStructTypes []*Type) bool {
 	// If the concrete type is a union then all the types in the union must be subtypes of the required typ. This also means that a compound type with an empty union is going to be a subtype of all compounds, List<> is a subtype of List<T> for all T.
 	if concreteType.TargetKind() == UnionKind {
 		for _, ct := range concreteType.Desc.(CompoundDesc).ElemTypes {
-			if !isSubtype(requiredType, ct, parentStructTypes) {
+			if !isSubtype(requiredType, ct, allowExtraStructFields, parentStructTypes) {
 				return false
 			}
 		}
 		return true
 	}
-	return isSubtype(requiredType, concreteType, parentStructTypes)
+	return isSubtype(requiredType, concreteType, allowExtraStructFields, parentStructTypes)
 }
 
 // IsValueSubtypeOf returns whether a value is a subtype of a type.
@@ -169,7 +169,7 @@ func IsValueSubtypeOf(v Value, t *Type) bool {
 		switch v := v.(type) {
 		case Ref:
 			// Switching to the type is subtype of type here.
-			return isSubtype(desc.ElemTypes[0], v.TargetType(), nil)
+			return isSubtype(desc.ElemTypes[0], v.TargetType(), true, nil)
 		case Map:
 			kt := desc.ElemTypes[0]
 			vt := desc.ElemTypes[1]
@@ -215,7 +215,7 @@ func IsValueSubtypeOf(v Value, t *Type) bool {
 func isMetaSequenceSubtypeOf(ms metaSequence, t *Type) bool {
 	for _, mt := range ms.tuples {
 		// Each prolly tree is also a List<T> where T needs to be a subtype.
-		if !isSubtype(t, mt.ref.TargetType(), nil) {
+		if !isSubtype(t, mt.ref.TargetType(), true, nil) {
 			return false
 		}
 	}

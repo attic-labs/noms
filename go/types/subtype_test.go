@@ -262,8 +262,8 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 		StructField{"y", MakeUnionType(NumberType, StringType), false},
 	)
 
-	assert.True(tt, isSubtype(t2, t1, nil))
-	assert.False(tt, isSubtype(t1, t2, nil))
+	assert.True(tt, isSubtype(t2, t1, true, nil))
+	assert.False(tt, isSubtype(t1, t2, true, nil))
 
 	// struct S {
 	//   x: Cycle<S> | Number,
@@ -274,11 +274,11 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 		StructField{"y", MakeUnionType(NumberType, StringType), false},
 	)
 
-	assert.True(tt, isSubtype(t3, t1, nil))
-	assert.False(tt, isSubtype(t1, t3, nil))
+	assert.True(tt, isSubtype(t3, t1, true, nil))
+	assert.False(tt, isSubtype(t1, t3, true, nil))
 
-	assert.True(tt, isSubtype(t3, t2, nil))
-	assert.False(tt, isSubtype(t2, t3, nil))
+	assert.True(tt, isSubtype(t3, t2, true, nil))
+	assert.False(tt, isSubtype(t2, t3, true, nil))
 
 	// struct S {
 	//   x: Cycle<S> | Number,
