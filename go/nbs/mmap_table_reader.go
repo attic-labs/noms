@@ -56,14 +56,12 @@ func newMmapTableReader(dir string, h addr, chunkCount uint32, indexCache *index
 		index, found = indexCache.get(h)
 	}
 
-	var buff []byte
 	if !found {
 		// index. Mmap won't take an offset that's not page-aligned, so find the nearest page boundary preceding the index.
 		indexOffset := fi.Size() - int64(footerSize) - int64(indexSize(chunkCount))
 		aligned := indexOffset / pageSize * pageSize // Thanks, integer arithmetic!
 		d.PanicIfTrue(fi.Size()-aligned > maxInt)
-		var err error
-		buff, err = unix.Mmap(int(f.Fd()), aligned, int(fi.Size()-aligned), unix.PROT_READ, unix.MAP_SHARED)
+		buff, err := unix.Mmap(int(f.Fd()), aligned, int(fi.Size()-aligned), unix.PROT_READ, unix.MAP_SHARED)
 		d.PanicIfError(err)
 		index = parseTableIndex(buff[indexOffset-aligned:])
 
