@@ -17,9 +17,8 @@ import (
 
 type mmapTableReader struct {
 	tableReader
-	f    *os.File
-	buff []byte
-	h    addr
+	f *os.File
+	h addr
 }
 
 const (
@@ -71,27 +70,21 @@ func newMmapTableReader(dir string, h addr, chunkCount uint32, indexCache *index
 		if indexCache != nil {
 			indexCache.put(h, index)
 		}
+		err = unix.Munmap(buff)
+		d.PanicIfError(err)
 	}
 	success = true
 
-	source := &mmapTableReader{newTableReader(index, f, fileBlockSize), f, buff, h}
+	source := &mmapTableReader{newTableReader(index, f, fileBlockSize), f, h}
 
 	d.PanicIfFalse(chunkCount == source.count())
 	return source
 }
 
 func (mmtr *mmapTableReader) close() (err error) {
-	err = mmtr.f.Close()
-	if mmtr.buff != nil {
-		err = unix.Munmap(mmtr.buff)
-	}
-	return
+	return mmtr.f.Close()
 }
 
 func (mmtr *mmapTableReader) hash() addr {
 	return mmtr.h
-}
-
-func (mmtr *mmapTableReader) index() tableIndex {
-	return mmtr.tableIndex
 }
