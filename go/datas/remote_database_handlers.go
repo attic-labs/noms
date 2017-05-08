@@ -480,15 +480,13 @@ func assertMapOfStringToRefOfCommit(proposed, datasets types.Map, vr types.Value
 	for change := range changes {
 		switch change.ChangeType {
 		case types.DiffChangeAdded, types.DiffChangeModified:
-			// Since this is a Map Diff, change.V is the key at which a change was detected.
-			// Go get the Value there, which should be a Ref<Value>, deref it, and then ensure the target is a Commit.
-			val := proposed.Get(change.V)
-			ref, ok := val.(types.Ref)
+			// Since this is a Map Diff, change.NewValue should be a Ref<Value>. Deref it, and then ensure the target is a Commit.
+			ref, ok := change.NewValue.(types.Ref)
 			if !ok {
-				d.Panic("Root of a Database must be a Map<String, Ref<Commit>>, but key %s maps to a %s", change.V.(types.String), types.TypeOf(val).Describe())
+				d.Panic("Root of a Database must be a Map<String, Ref<Commit>>, but key %s maps to a %s", change.Key.(types.String), types.TypeOf(val).Describe())
 			}
 			if targetValue := ref.TargetValue(vr); !IsCommit(targetValue) {
-				d.Panic("Root of a Database must be a Map<String, Ref<Commit>>, not the ref at key %s points to a %s", change.V.(types.String), types.TypeOf(targetValue).Describe())
+				d.Panic("Root of a Database must be a Map<String, Ref<Commit>>, not the ref at key %s points to a %s", change.Key.(types.String), types.TypeOf(targetValue).Describe())
 			}
 		}
 	}
