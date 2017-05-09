@@ -36,14 +36,25 @@ type fdCacheEntry struct {
 // indicating why the file could not be opened. If the cache already had an
 // entry for |path|, RefFile increments its refcount and returns the cached
 // pointer. If not, it opens the file and caches the pointer for others to
-// use.
+// use. This is intended for clients that hold fds for extremely short
+// periods.
 // If reffing a currently unopened file causes the cache to grow beyond
-// |fc.targetSize|, RefFile makes a best effort to shrink the
-// cache by dumping entries with a zero refcount. If there aren't enough zero
-// refcount entries to drop to get the cache back to |fc.targetSize|, the
-// cache will remain over |fc.targetSize| until the next call to RefFile().
+// |fc.targetSize|, RefFile makes a best effort to shrink the cache by dumping
+// entries with a zero refcount. If there aren't enough zero refcount entries
+// to drop to get the cache back to |fc.targetSize|, the cache will remain
+// over |fc.targetSize| until the next call to RefFile().
 func (fc *fdCache) RefFile(path string) (f *os.File, err error) {
-	f, err = fc.checkCache(path)
+	// Anonymous function to scope locking
+	f, err = func() (f *os.File, err error) {
+		fc.mu.Lock()
+		defer fc.mu.Unlock()
+		if ce, present := fc.cache[path]; present {
+			ce.refCount++
+			fc.cache[path] = ce
+			return ce.f, nil
+		}
+		return nil, nil
+	}()
 	if f != nil || err != nil {
 		return f, err
 	}
@@ -59,18 +70,6 @@ func (fc *fdCache) RefFile(path string) (f *os.File, err error) {
 	}
 	fc.cache[path] = fdCacheEntry{f: f, refCount: 1}
 	return f, nil
-}
-
-func (fc *fdCache) checkCache(path string) (f *os.File, err error) {
-	fc.mu.Lock()
-	defer fc.mu.Unlock()
-	defer fc.maybeShrinkCache()
-	if ce, present := fc.cache[path]; present {
-		ce.refCount++
-		fc.cache[path] = ce
-		return ce.f, nil
-	}
-	return nil, nil
 }
 
 // DO NOT CALL unless holding fc.mu
@@ -106,6 +105,7 @@ func (fc *fdCache) UnrefFile(path string) {
 		ce.refCount--
 		fc.cache[path] = ce
 	}
+	fc.maybeShrinkCache()
 }
 
 // Drop dumps the entire cache and closes all currently open files.
