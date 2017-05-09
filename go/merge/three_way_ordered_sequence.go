@@ -76,7 +76,7 @@ func (m *merger) mergeChanges(aChange, bChange types.ValueChanged, a, b, p candi
 	// If the two diffs generate different kinds of changes at the same key, conflict.
 	if aChange.ChangeType != bChange.ChangeType {
 		if change, mergedVal, ok := m.resolve(aChange.ChangeType, bChange.ChangeType, aValue, bValue, path); ok {
-			// TODO: Correctly encode Old/NewValue with this change report
+			// TODO: Correctly encode Old/NewValue with this change report. https://github.com/attic-labs/noms/issues/3467
 			return types.ValueChanged{change, aChange.Key, nil, nil}, mergedVal, nil
 		}
 		return change, nil, newMergeConflict("Conflict:\n%s\nvs\n%s\n", describeChange(aChange), describeChange(bChange))
@@ -98,7 +98,7 @@ func (m *merger) mergeChanges(aChange, bChange types.ValueChanged, a, b, p candi
 	}
 
 	if change, mergedVal, ok := m.resolve(aChange.ChangeType, bChange.ChangeType, aValue, bValue, path); ok {
-		// TODO: Correctly encode Old/NewValue with this change report
+		// TODO: Correctly encode Old/NewValue with this change report. https://github.com/attic-labs/noms/issues/3467
 		return types.ValueChanged{change, aChange.Key, nil, nil}, mergedVal, nil
 	}
 	return change, nil, newMergeConflict("Conflict:\n%s = %s\nvs\n%s = %s", describeChange(aChange), types.EncodedValue(aValue), describeChange(bChange), types.EncodedValue(bValue))
