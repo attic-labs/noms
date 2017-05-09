@@ -165,7 +165,7 @@ func (ms metaSequence) childLevelIsLeaf() bool {
 // concatentation as one long composite sequence
 func (ms metaSequence) getCompositeChildSequence(start uint64, length uint64) sequence {
 	if length == 0 {
-		return emptySequence(ms.childLevelIsLeaf())
+		return emptySequence{ms.childLevelIsLeaf()}
 	}
 
 	metaItems := []metaTuple{}
@@ -282,7 +282,9 @@ func metaHashValueBytes(item sequenceItem, rv *rollingValueHasher) {
 	hashValueBytes(v, rv)
 }
 
-type emptySequence bool
+type emptySequence struct {
+	leaf bool
+}
 
 func (es emptySequence) getItem(idx int) sequenceItem {
 	panic("empty sequence")
@@ -332,5 +334,5 @@ func (es emptySequence) typeOf() *Type {
 }
 
 func (es emptySequence) isLeaf() bool {
-	return bool(es)
+	return es.leaf
 }
