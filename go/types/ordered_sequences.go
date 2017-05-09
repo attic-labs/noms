@@ -13,6 +13,7 @@ import (
 type orderedSequence interface {
 	sequence
 	getKey(idx int) orderedKey
+	getValue(idx int) Value
 }
 
 func newSetMetaSequence(tuples []metaTuple, vr ValueReader) metaSequence {
@@ -78,6 +79,14 @@ func getCurrentKey(cur *sequenceCursor) orderedKey {
 		d.Panic("need an ordered sequence here")
 	}
 	return seq.getKey(cur.idx)
+}
+
+func getCurrentValue(cur *sequenceCursor) Value {
+	seq, ok := cur.seq.(orderedSequence)
+	if !ok {
+		d.Panic("need an ordered sequence here")
+	}
+	return seq.getValue(cur.idx)
 }
 
 // If |vw| is not nil, chunks will be eagerly written as they're created. Otherwise they are

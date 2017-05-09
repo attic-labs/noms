@@ -51,6 +51,10 @@ func (sl setLeafSequence) getKey(idx int) orderedKey {
 	return newOrderedKey(sl.data[idx])
 }
 
+func (sl setLeafSequence) getValue(idx int) Value {
+	return nil
+}
+
 func (sl setLeafSequence) Kind() NomsKind {
 	return SetKind
 }
