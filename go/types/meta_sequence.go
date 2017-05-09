@@ -96,10 +96,6 @@ func (ms metaSequence) getKey(idx int) orderedKey {
 	return ms.tuples[idx].key
 }
 
-func (ms metaSequence) getValue(idx int) Value {
-	panic("getValue called on metaSequence")
-}
-
 func (ms metaSequence) cumulativeNumberOfLeaves(idx int) uint64 {
 	cum := uint64(0)
 	for i := 0; i <= idx; i++ {
