@@ -30,11 +30,6 @@ type metaTuple struct {
 	child     Collection // may be nil
 }
 
-type metaOrEmptySequence interface {
-	getCompositeChildSequence(start uint64, length uint64, height int) sequence
-	cumulativeNumberOfLeaves(idx int) uint64
-}
-
 func (mt metaTuple) getChildSequence(vr ValueReader) sequence {
 	if mt.child != nil {
 		return mt.child.sequence()
@@ -334,6 +329,7 @@ func (es emptySequence) typeOf() *Type {
 }
 
 func (es emptySequence) getCompositeChildSequence(start uint64, length uint64, height int) sequence {
+	d.PanicIfFalse(es.height > 1)
 	d.PanicIfFalse(es.height == height)
 	d.PanicIfFalse(start == 0)
 	d.PanicIfFalse(length == 0)
