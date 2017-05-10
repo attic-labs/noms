@@ -15,12 +15,12 @@ func sendSpliceChange(changes chan<- Splice, closeChan <-chan struct{}, splice S
 
 func indexedSequenceDiff(last sequence, lastHeight int, lastOffset uint64, current sequence, currentHeight int, currentOffset uint64, changes chan<- Splice, closeChan <-chan struct{}, maxSpliceMatrixSize uint64) bool {
 	if lastHeight > currentHeight {
-		lastChild := last.(metaSequence).getCompositeChildSequence(0, uint64(last.seqLen()))
+		lastChild := last.(metaOrEmptySequence).getCompositeChildSequence(0, uint64(last.seqLen()), lastHeight)
 		return indexedSequenceDiff(lastChild, lastHeight-1, lastOffset, current, currentHeight, currentOffset, changes, closeChan, maxSpliceMatrixSize)
 	}
 
 	if currentHeight > lastHeight {
-		currentChild := current.(metaSequence).getCompositeChildSequence(0, uint64(current.seqLen()))
+		currentChild := current.(metaOrEmptySequence).getCompositeChildSequence(0, uint64(current.seqLen()), currentHeight)
 		return indexedSequenceDiff(last, lastHeight, lastOffset, currentChild, currentHeight-1, currentOffset, changes, closeChan, maxSpliceMatrixSize)
 	}
 
@@ -42,8 +42,8 @@ func indexedSequenceDiff(last sequence, lastHeight int, lastOffset uint64, curre
 			continue
 		}
 
-		lastMeta := last.(metaSequence)
-		currentMeta := current.(metaSequence)
+		lastMeta := last.(metaOrEmptySequence)
+		currentMeta := current.(metaOrEmptySequence)
 
 		if splice.SpRemoved == 0 || splice.SpAdded == 0 {
 			// An entire subtree was removed at a meta level. We must do some math to map the splice from the meta level into the leaf coordinates.
@@ -79,8 +79,8 @@ func indexedSequenceDiff(last sequence, lastHeight int, lastOffset uint64, curre
 		}
 
 		// Meta sequence splice which includes removed & added sub-sequences. Must recurse down.
-		lastChild := lastMeta.getCompositeChildSequence(splice.SpAt, splice.SpRemoved)
-		currentChild := currentMeta.getCompositeChildSequence(splice.SpFrom, splice.SpAdded)
+		lastChild := lastMeta.getCompositeChildSequence(splice.SpAt, splice.SpRemoved, lastHeight)
+		currentChild := currentMeta.getCompositeChildSequence(splice.SpFrom, splice.SpAdded, currentHeight)
 		lastChildOffset := lastOffset
 		if splice.SpAt > 0 {
 			lastChildOffset += lastMeta.cumulativeNumberOfLeaves(int(splice.SpAt) - 1)
