@@ -224,6 +224,9 @@ func TestTableSetRebase(t *testing.T) {
 			for _, upstream := range prebased.upstream {
 				assert.Contains(specs, tableSpec{upstream.hash(), upstream.count()})
 			}
+			for _, compactee := range prebased.compactees {
+				assert.NotContains(specs, tableSpec{compactee.hash(), compactee.count()})
+			}
 			for _, crasher := range crashers {
 				assert.Contains(specs, tableSpec{crasher.hash(), crasher.count()})
 			}

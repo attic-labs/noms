@@ -21,9 +21,18 @@ func newTableSet(persister tablePersister) tableSet {
 
 // tableSet is an immutable set of persistable chunkSources.
 type tableSet struct {
-	novel, compacted, compactees, upstream chunkSources
-	p                                      tablePersister
-	rl                                     chan struct{}
+	// novel chunkSources contain chunks that have not yet been pushed upstream
+	novel chunkSources
+
+	// When Compact() conjoins upstream tables into larger tables, the results are stored in |compacted| until the next call to Flatten(). The tables that were conjoined are put into |compactees|, so they can be correctly handled during a Rebase()
+	compacted  chunkSources
+	compactees chunkSources
+
+	// upstream holds the set of already-persisted chunkSources that this tableSet references.
+	upstream chunkSources
+
+	p  tablePersister
+	rl chan struct{}
 }
 
 func (ts tableSet) has(h addr) bool {
@@ -248,17 +257,19 @@ func (ts tableSet) Rebase(specs []tableSpec) tableSet {
 	}
 
 	// Only keep locally-performed compactions if ALL compactees are still present upstream
-	keepCompactions := func() bool {
+	keepCompactions, compacteeSet := func() (bool, map[addr]struct{}) {
 		specsNames := map[addr]struct{}{}
 		for _, spec := range specs {
 			specsNames[spec.name] = struct{}{}
 		}
+		set := map[addr]struct{}{}
 		for _, compactee := range ts.compactees {
 			if _, present := specsNames[compactee.hash()]; !present {
-				return false
+				return false, nil
 			}
+			set[compactee.hash()] = struct{}{}
 		}
-		return true
+		return true, set
 	}()
 	if keepCompactions {
 		merged.compacted = make(chunkSources, len(ts.compacted))
@@ -270,7 +281,11 @@ func (ts tableSet) Rebase(specs []tableSpec) tableSet {
 	// Create a list of tables to open so we can open them in parallel.
 	tablesToOpen := map[addr]tableSpec{}
 	for _, spec := range specs {
-		if _, present := tablesToOpen[spec.name]; !present { // Filter out dups
+		if !keepCompactions {
+			tablesToOpen[spec.name] = spec
+			continue
+		}
+		if _, present := compacteeSet[spec.name]; !present { // Filter out compactees
 			tablesToOpen[spec.name] = spec
 		}
 	}
