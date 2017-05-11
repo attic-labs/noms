@@ -24,7 +24,7 @@ type tableSet struct {
 	// novel chunkSources contain chunks that have not yet been pushed upstream
 	novel chunkSources
 
-	// When Compact() conjoins upstream tables into larger tables, the results are stored in |compacted| until the next call to Flatten(). The tables that were conjoined are put into |compactees|, so they can be correctly handled during a Rebase()
+	// compactees holds precisely the chunkSources that were conjoined to build the members of compacted. If compacted is empty, compactees is also. The members of compactees are split out of upstream during Compact(), though they still represent actual persisted tables.
 	compacted  chunkSources
 	compactees chunkSources
 
