@@ -19,14 +19,18 @@ type conjoiner interface {
 	// implementation's policy. Implementations must be goroutine-safe.
 	ConjoinRequired(ts tableSet) bool
 
-	// Conjoin uses |p| to conjoin some number of tables referenced by |mm|,
-	// allowing it to update |mm| with a new, smaller, set of tables that
-	// references precisely the same set of chunks. Before performing the
-	// conjoin, implementations should verify that a conjoin is actually
-	// currently needed; callers may be working with an out-of-date notion of
-	// upstream state. |novelCount|, the number of new tables the caller is
-	// trying to land, may be used in this determination. Implementations must
-	// be goroutine-safe.
+	// Conjoin attempts to use |p| to conjoin some number of tables referenced
+	// by |mm|, allowing it to update |mm| with a new, smaller, set of tables
+	// that references precisely the same set of chunks. Conjoin() may not
+	// actually conjoin any upstream tables, usually because some out-of-
+	// process actor has already landed a conjoin of its own. Callers must
+	// handle this, likely by rebasing against upstream and re-evaluating the
+	// situation.
+	// Before performing the conjoin, implementations should verify that a
+	// conjoin is actually currently needed; callers may be working with an
+	// out-of-date notion of upstream state. |novelCount|, the number of new
+	// tables the caller is trying to land, may be used in this determination.
+	// Implementations must be goroutine-safe.
 	Conjoin(mm manifest, p tablePersister, novelCount int, stats *Stats)
 }
 
@@ -167,8 +171,20 @@ func conjoinTables(p tablePersister, upstream []tableSpec, stats *Stats) (conjoi
 
 	t1 := time.Now()
 
-	sortedUpstream := make(chunkSources, len(sources))
-	copy(sortedUpstream, sources)
+	toConjoin, toKeep := chooseConjoinees(sources)
+	conjoinedSrc := p.ConjoinAll(toConjoin, stats)
+
+	stats.ConjoinLatency.SampleTime(time.Since(t1))
+	stats.TablesPerConjoin.SampleLen(len(toConjoin))
+	stats.ChunksPerConjoin.Sample(uint64(conjoinedSrc.count()))
+
+	return tableSpec{conjoinedSrc.hash(), conjoinedSrc.count()}, toSpecs(toConjoin), toSpecs(toKeep)
+}
+
+// Current approach is to choose the smallest N tables which, when removed and replaced with the conjoinment, will leave the conjoinment as the smallest table.
+func chooseConjoinees(upstream chunkSources) (toConjoin, toKeep chunkSources) {
+	sortedUpstream := make(chunkSources, len(upstream))
+	copy(sortedUpstream, upstream)
 	sort.Sort(chunkSourcesByAscendingCount(sortedUpstream))
 
 	partition := 2
@@ -178,17 +194,7 @@ func conjoinTables(p tablePersister, upstream []tableSpec, stats *Stats) (conjoi
 		partition++
 	}
 
-	toConjoin := sortedUpstream[:partition]
-	conjoinedSrc := p.ConjoinAll(toConjoin, stats)
-	conjoined = tableSpec{conjoinedSrc.hash(), conjoinedSrc.count()}
-	conjoinees = toSpecs(toConjoin)
-	keepers = toSpecs(sortedUpstream[partition:])
-
-	stats.ConjoinLatency.SampleTime(time.Since(t1))
-	stats.TablesPerConjoin.SampleLen(len(toConjoin))
-	stats.ChunksPerConjoin.Sample(uint64(conjoined.chunkCount))
-
-	return conjoined, conjoinees, keepers
+	return sortedUpstream[:partition], sortedUpstream[partition:]
 }
 
 func toSpecs(srcs chunkSources) []tableSpec {

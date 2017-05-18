@@ -219,9 +219,7 @@ func (tr tableReader) get(h addr, stats *Stats) (data []byte) {
 	n, err := tr.r.ReadAt(buff, int64(offset))
 	stats.BytesPerRead.Sample(length)
 	stats.ChunksPerRead.SampleLen(1)
-	if latency := time.Since(t1); latency >= 0 {
-		stats.ReadLatency.SampleTime(latency)
-	}
+	stats.ReadLatency.SampleTime(roundedSince(t1))
 
 	d.Chk.NoError(err)
 	d.Chk.True(n == int(length))
@@ -229,6 +227,13 @@ func (tr tableReader) get(h addr, stats *Stats) (data []byte) {
 	d.Chk.True(data != nil)
 
 	return
+}
+
+func roundedSince(t1 time.Time) time.Duration {
+	if dur := time.Since(t1); dur > 0 {
+		return dur
+	}
+	return time.Duration(1)
 }
 
 type offsetRec struct {
@@ -259,9 +264,7 @@ func (tr tableReader) readAtOffsets(
 	n, err := tr.r.ReadAt(buff, int64(readStart))
 	stats.BytesPerRead.Sample(readLength)
 	stats.ChunksPerRead.SampleLen(len(offsets))
-	if latency := time.Since(t1); latency >= 0 {
-		stats.ReadLatency.SampleTime(latency)
-	}
+	stats.ReadLatency.SampleTime(roundedSince(t1))
 
 	d.Chk.NoError(err)
 	d.Chk.True(uint64(n) == readLength)
