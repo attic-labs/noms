@@ -80,13 +80,13 @@ func writePtreeStats(w io.Writer, v Value, vr ValueReader) {
 
 func printTreeLevel(w io.Writer, level, values, chunks, byteSize uint64) {
 	avgItems := float64(values) / float64(chunks)
-	avgSize := float64(byteSize) / float64(chunks)
+	avgSize := byteSize / chunks
 
 	fmt.Fprintf(w, treeRowFormat,
 		fmt.Sprintf("%d", level),
 		humanize.Comma(int64(chunks)),
 		fmt.Sprintf("%.1f", avgItems),
-		humanize.Bytes(uint64(avgSize)))
+		humanize.Bytes(avgSize))
 }
 
 func compressedSize(v Value) uint64 {

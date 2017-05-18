@@ -36,7 +36,7 @@ func setupShowFlags() *flag.FlagSet {
 	outputpager.RegisterOutputpagerFlags(showFlagSet)
 	verbose.RegisterVerboseFlags(showFlagSet)
 	showFlagSet.BoolVar(&showRaw, "raw", false, "If true, dumps the raw binary version of the data")
-	showFlagSet.BoolVar(&showStats, "stats", false, "If true, reports statistics relatived to the value")
+	showFlagSet.BoolVar(&showStats, "stats", false, "If true, reports statistics related to the value")
 	return showFlagSet
 }
 
@@ -53,6 +53,7 @@ func runShow(args []string) int {
 
 	if showRaw && showStats {
 		fmt.Fprintln(os.Stderr, "--raw and --stats are mutually exclusive")
+		return 0
 	}
 
 	if showRaw {
