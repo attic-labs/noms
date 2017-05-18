@@ -219,7 +219,9 @@ func (tr tableReader) get(h addr, stats *Stats) (data []byte) {
 	n, err := tr.r.ReadAt(buff, int64(offset))
 	stats.BytesPerRead.Sample(length)
 	stats.ChunksPerRead.SampleLen(1)
-	stats.ReadLatency.SampleTime(time.Since(t1))
+	if latency := time.Since(t1); latency >= 0 {
+		stats.ReadLatency.SampleTime(latency)
+	}
 
 	d.Chk.NoError(err)
 	d.Chk.True(n == int(length))
@@ -257,7 +259,9 @@ func (tr tableReader) readAtOffsets(
 	n, err := tr.r.ReadAt(buff, int64(readStart))
 	stats.BytesPerRead.Sample(readLength)
 	stats.ChunksPerRead.SampleLen(len(offsets))
-	stats.ReadLatency.SampleTime(time.Since(t1))
+	if latency := time.Since(t1); latency >= 0 {
+		stats.ReadLatency.SampleTime(latency)
+	}
 
 	d.Chk.NoError(err)
 	d.Chk.True(uint64(n) == readLength)
