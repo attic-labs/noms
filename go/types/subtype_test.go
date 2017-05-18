@@ -262,8 +262,8 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 		StructField{"y", MakeUnionType(NumberType, StringType), false},
 	)
 
-	assert.True(tt, isSubtypeTopLevel(t2, t1))
-	assert.False(tt, isSubtypeTopLevel(t1, t2))
+	assert.True(tt, IsSubtype(t2, t1))
+	assert.False(tt, IsSubtype(t1, t2))
 
 	// struct S {
 	//   x: Cycle<S> | Number,
@@ -274,11 +274,11 @@ func TestAssertTypeCycleUnion(tt *testing.T) {
 		StructField{"y", MakeUnionType(NumberType, StringType), false},
 	)
 
-	assert.True(tt, isSubtypeTopLevel(t3, t1))
-	assert.False(tt, isSubtypeTopLevel(t1, t3))
+	assert.True(tt, IsSubtype(t3, t1))
+	assert.False(tt, IsSubtype(t1, t3))
 
-	assert.True(tt, isSubtypeTopLevel(t3, t2))
-	assert.False(tt, isSubtypeTopLevel(t2, t3))
+	assert.True(tt, IsSubtype(t3, t2))
+	assert.False(tt, IsSubtype(t2, t3))
 
 	// struct S {
 	//   x: Cycle<S> | Number,
@@ -757,4 +757,47 @@ func TestIsValueSubtypeOf(tt *testing.T) {
 		})
 		assertFalse(v, t)
 	}
+}
+
+func TestIsValueSubtypeHasExtras(tt *testing.T) {
+	assert := assert.New(tt)
+
+	test := func(v Value, t *Type, is, he bool) {
+		isSub, hasExtra := IsValueSubtypeOf(v, t)
+		assert.Equal(is, isSub, "isSub had unexpected value: %t", isSub)
+		assert.Equal(he, hasExtra, "hasExtra had unexpected value: %t", hasExtra)
+	}
+
+	test(
+		NewStruct("Struct", StructData{"x": Bool(true)}),
+		MakeStructType("Struct"),
+		true, true,
+	)
+	test(
+		NewStruct("Struct", StructData{"x": Bool(true)}),
+		MakeStructType("Struct",
+			StructField{"x", BoolType, true},
+			StructField{"y", NumberType, true},
+		),
+		true, false,
+	)
+	test(
+		NewStruct("Struct", StructData{
+			"x": Bool(true),
+			"z": Bool(true),
+		}),
+		MakeStructType("Struct",
+			StructField{"x", BoolType, true},
+			StructField{"y", NumberType, true},
+		),
+		true, true,
+	)
+	test(
+		NewStruct("Struct", StructData{"x": Bool(true)}),
+		MakeStructType("Struct",
+			StructField{"x", BoolType, false},
+			StructField{"y", NumberType, false},
+		),
+		false, false,
+	)
 }

@@ -150,7 +150,7 @@ func start(dataset string, mount mount) {
 
 	hv, ok := ds.MaybeHeadValue()
 	if ok {
-		if !types.IsValueSubtypeOf(hv, fsType) {
+		if isSub, _ := types.IsValueSubtypeOf(hv, fsType); !isSub {
 			fmt.Fprintf(os.Stderr, "Invalid dataset head: expected type '%s' but found type '%s'\n", fsType.Desc.(types.StructDesc).Name, types.TypeOf(hv).Desc.(types.StructDesc).Name)
 			return
 		}

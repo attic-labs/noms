@@ -9,70 +9,83 @@ import (
 )
 
 func assertSubtype(t *Type, v Value) {
-	if !IsValueSubtypeOf(v, t) {
+	if isSub, _ := IsValueSubtypeOf(v, t); !isSub {
 		d.Panic("Invalid type. %s is not a subtype of %s", TypeOf(v).Describe(), t.Describe())
 	}
 }
 
 // IsSubtype determines whether concreteType is a subtype of requiredType. For example, `Number` is a subtype of `Number | String`.
 func IsSubtype(requiredType, concreteType *Type) bool {
-	return isSubtypeTopLevel(requiredType, concreteType)
+	isSub, _ := isSubtypeTopLevel(requiredType, concreteType)
+	return isSub
 }
 
 // IsSubtypeDisallowExtraFields is a slightly weird variant of IsSubtype. It returns true IFF IsSubtype(requiredType, concreteType) AND Structs in concreteType CANNOT have field names absent in requiredType
 // ISSUE: https://github.com/attic-labs/noms/issues/3446
 func IsSubtypeDisallowExtraStructFields(requiredType, concreteType *Type) bool {
+	isSub, hasExtra := isSubtype(requiredType, concreteType, false, nil)
+	if hasExtra {
+		return false
+	}
+	return isSub
+}
+
+// isSubtypeTopLevel returns two values: IsSub and hasExtra. See IsValueSubtypeOf()
+// below for an explanation.
+func isSubtypeTopLevel(requiredType, concreteType *Type) (isSub bool, hasExtra bool) {
 	return isSubtype(requiredType, concreteType, false, nil)
 }
 
-func isSubtypeTopLevel(requiredType, concreteType *Type) bool {
-	return isSubtype(requiredType, concreteType, true, nil)
-}
-
-func isSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, parentStructTypes []*Type) bool {
+func isSubtype(requiredType, concreteType *Type, hasExtra bool, parentStructTypes []*Type) (bool, bool) {
 	if requiredType.Equals(concreteType) {
-		return true
+		return true, hasExtra
 	}
 
 	// If the concrete type is a union, all component types must be compatible.
 	if concreteType.TargetKind() == UnionKind {
 		for _, t := range concreteType.Desc.(CompoundDesc).ElemTypes {
-			if !isSubtype(requiredType, t, allowExtraStructFields, parentStructTypes) {
-				return false
+			isSub, hasMore := isSubtype(requiredType, t, hasExtra, parentStructTypes)
+			if !isSub {
+				return false, hasExtra
 			}
+			hasExtra = hasExtra || hasMore
 		}
-		return true
+		return true, hasExtra
 	}
 
 	// If the required type is a union, at least one of the component types must be compatible.
 	if requiredType.TargetKind() == UnionKind {
 		for _, t := range requiredType.Desc.(CompoundDesc).ElemTypes {
-			if isSubtype(t, concreteType, allowExtraStructFields, parentStructTypes) {
-				return true
+			isSub, hasMore := isSubtype(t, concreteType, hasExtra, parentStructTypes)
+			if isSub {
+				hasExtra = hasExtra || hasMore
+				return true, hasExtra
 			}
 		}
-		return false
+		return false, hasExtra
 	}
 
 	if requiredType.TargetKind() != concreteType.TargetKind() {
-		return requiredType.TargetKind() == ValueKind
+		return requiredType.TargetKind() == ValueKind, hasExtra
 	}
 
 	if desc, ok := requiredType.Desc.(CompoundDesc); ok {
 		concreteElemTypes := concreteType.Desc.(CompoundDesc).ElemTypes
 		for i, t := range desc.ElemTypes {
-			if !compoundSubtype(t, concreteElemTypes[i], allowExtraStructFields, parentStructTypes) {
-				return false
+			isSub, hasMore := compoundSubtype(t, concreteElemTypes[i], hasExtra, parentStructTypes)
+			if !isSub {
+				return false, hasExtra
 			}
+			hasExtra = hasExtra || hasMore
 		}
-		return true
+		return true, hasExtra
 	}
 
 	if requiredType.TargetKind() == StructKind {
 		requiredDesc := requiredType.Desc.(StructDesc)
 		concreteDesc := concreteType.Desc.(StructDesc)
 		if requiredDesc.Name != "" && requiredDesc.Name != concreteDesc.Name {
-			return false
+			return false, hasExtra
 		}
 
 		// We may already be computing the subtype for this type if we have a cycle.
@@ -80,7 +93,7 @@ func isSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, pa
 		// is not a subtype but that will be handled at a higher level in the callstack.
 		_, found := indexOfType(requiredType, parentStructTypes)
 		if found {
-			return true
+			return true, hasExtra
 		}
 
 		i, j := 0, 0
@@ -90,12 +103,14 @@ func isSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, pa
 			if requiredField.Name == concreteField.Name {
 				// Common field name
 				if !requiredField.Optional && concreteField.Optional {
-					return false
+					return false, hasExtra
 				}
 
-				if !isSubtype(requiredField.Type, concreteField.Type, allowExtraStructFields, append(parentStructTypes, requiredType)) {
-					return false
+				isSub, hasMore := isSubtype(requiredField.Type, concreteField.Type, hasExtra, append(parentStructTypes, requiredType))
+				if !isSub {
+					return false, hasExtra
 				}
+				hasExtra = hasExtra || hasMore
 
 				i++
 				j++
@@ -105,34 +120,27 @@ func isSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, pa
 			if requiredField.Name < concreteField.Name {
 				// Concrete lacks field in required
 				if !requiredField.Optional {
-					return false
+					return false, hasExtra
 				}
 				i++
-				continue
+			} else {
+				// Concrete contains extra field
+				hasExtra = true
+				j++
 			}
-
-			// Required lacks field in concrete
-			if !allowExtraStructFields {
-				return false
-			}
-
-			j++
 		}
 
 		for i < requiredDesc.Len() {
 			// Fields in required not in concrete
 			if !requiredDesc.fields[i].Optional {
-				return false
+				hasExtra = true
+				return false, hasExtra
 			}
 			i++
 		}
 
-		if j < concreteDesc.Len() && !allowExtraStructFields {
-			return false
-		}
-
-		return true
-
+		hasExtra = hasExtra || j < concreteDesc.Len()
+		return true, hasExtra
 	}
 
 	panic("unreachable")
@@ -140,38 +148,80 @@ func isSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, pa
 
 // compoundSubtype is called when comparing the element types of two compound types. This is the only case
 // where a concrete type may have be a union type.
-func compoundSubtype(requiredType, concreteType *Type, allowExtraStructFields bool, parentStructTypes []*Type) bool {
+func compoundSubtype(requiredType, concreteType *Type, hasExtra bool, parentStructTypes []*Type) (bool, bool) {
 	// If the concrete type is a union then all the types in the union must be subtypes of the required typ. This also means that a compound type with an empty union is going to be a subtype of all compounds, List<> is a subtype of List<T> for all T.
 	if concreteType.TargetKind() == UnionKind {
 		for _, ct := range concreteType.Desc.(CompoundDesc).ElemTypes {
-			if !isSubtype(requiredType, ct, allowExtraStructFields, parentStructTypes) {
-				return false
+			isSub, hasExtra1 := isSubtype(requiredType, ct, hasExtra, parentStructTypes)
+			if !isSub {
+				return false, hasExtra1
 			}
 		}
-		return true
+		return true, hasExtra
 	}
-	return isSubtype(requiredType, concreteType, allowExtraStructFields, parentStructTypes)
+	return isSubtype(requiredType, concreteType, hasExtra, parentStructTypes)
 }
 
-// IsValueSubtypeOf returns whether a value is a subtype of a type.
-func IsValueSubtypeOf(v Value, t *Type) bool {
+// IsValueSubtypeOf returns whether a value is a subtype of a type and whether
+// it has extra fields. See comment above on function: isSubtypeTopLevel().
+// IsValueSubtypeOf returns two values:
+//   isSub - which indicates whether concreteType is a subtype of requiredType.
+//   hasExtra - which indicates whether concreteType has additional fields.
+//     This field has no meaning if IsSub is false.
+//
+// For example, given the following data:
+//   type1 := struct S {               v := Struct S1 {
+//       a Number | string                 a: "hello"
+//       b ?int                            b: 2
+//   }                                 }
+// IsValueSubtypeOf(v, type1) would return isSub == true, and hasExtra == false
+//
+// And given these types:
+//   type2 := struct S {               v := Struct S1 {
+//       a Number | string                 a: "hello"
+//       b ?int                            b: 2
+//   }                                     c: "hello again"
+//                                     }
+// IsValueSubtypeOf(v, type1) would return isSub == true, and hasExtra == true
+func IsValueSubtypeOf(v Value, t *Type) (bool, bool) {
+	return isValueSubtypeOf(v, t, false)
+}
+
+func isValueSubtypeOf(v Value, t *Type, hasExtra bool) (bool, bool) {
 	switch t.TargetKind() {
 	case BoolKind, NumberKind, StringKind, BlobKind, TypeKind:
-		return v.Kind() == t.TargetKind()
+		return v.Kind() == t.TargetKind(), hasExtra
 	case ValueKind:
-		return true
+		return true, hasExtra
 	case UnionKind:
+		var anonStruct *Type
+
 		for _, et := range t.Desc.(CompoundDesc).ElemTypes {
-			if IsValueSubtypeOf(v, et) {
-				return true
+			if et.TargetKind() == StructKind && et.Desc.(StructDesc).Name == "" {
+				anonStruct = et
+				continue
+			}
+			isSub, hasMore := isValueSubtypeOf(v, et, hasExtra)
+			if isSub {
+				hasExtra = hasExtra || hasMore
+				return isSub, hasExtra
 			}
 		}
-		return false
+
+		if anonStruct != nil {
+			isSub, hasMore := isValueSubtypeOf(v, anonStruct, hasExtra)
+			if isSub {
+				hasExtra = hasExtra || hasMore
+				return isSub, hasExtra
+			}
+		}
+
+		return false, hasExtra
 	case CycleKind:
 		panic("unreachable") // CycleKind are ephemeral.
 	default:
 		if v.Kind() != t.TargetKind() {
-			return false
+			return false, hasExtra
 		}
 	}
 
@@ -180,16 +230,29 @@ func IsValueSubtypeOf(v Value, t *Type) bool {
 		// If we provide a named struct type we require that the names match.
 		s := v.(Struct)
 		if desc.Name != "" && desc.Name != s.Name() {
-			return false
+			return false, hasExtra
 		}
-
+		missingOptionalFieldCnt := 0
 		for _, f := range desc.fields {
 			fv, ok := s.MaybeGet(f.Name)
-			if (!ok && !f.Optional) || (ok && !IsValueSubtypeOf(fv, f.Type)) {
-				return false
+			if !ok {
+				if f.Optional {
+					missingOptionalFieldCnt += 1
+				} else {
+					return false, hasExtra
+				}
+			} else {
+				isSub, hasMore := isValueSubtypeOf(fv, f.Type, hasExtra)
+				if !isSub {
+					return false, hasExtra
+				}
+				hasExtra = hasExtra || hasMore
 			}
 		}
-		return true
+		if len(s.fieldNames)+missingOptionalFieldCnt > len(desc.fields) {
+			hasExtra = true
+		}
+		return true, hasExtra
 
 	case CompoundDesc:
 		switch v := v.(type) {
@@ -201,49 +264,59 @@ func IsValueSubtypeOf(v Value, t *Type) bool {
 			vt := desc.ElemTypes[1]
 			if seq, ok := v.seq.(mapLeafSequence); ok {
 				for _, entry := range seq.data {
-					if !IsValueSubtypeOf(entry.key, kt) {
-						return false
+					isSub, hasMore := isValueSubtypeOf(entry.key, kt, hasExtra)
+					if !isSub {
+						return false, hasExtra
 					}
-					if !IsValueSubtypeOf(entry.value, vt) {
-						return false
+					hasExtra = hasExtra || hasMore
+					isSub, hasExtra = isValueSubtypeOf(entry.value, vt, hasExtra)
+					if !isSub {
+						return false, hasExtra
 					}
+					hasExtra = hasExtra || hasMore
 				}
-				return true
+				return true, hasExtra
 			}
-			return isMetaSequenceSubtypeOf(v.seq.(metaSequence), t)
+			return isMetaSequenceSubtypeOf(v.seq.(metaSequence), t, hasExtra)
 		case Set:
 			et := desc.ElemTypes[0]
 			if seq, ok := v.seq.(setLeafSequence); ok {
 				for _, v := range seq.data {
-					if !IsValueSubtypeOf(v, et) {
-						return false
+					isSub, hasMore := isValueSubtypeOf(v, et, hasExtra)
+					if !isSub {
+						return false, hasExtra
 					}
+					hasExtra = hasExtra || hasMore
 				}
-				return true
+				return true, hasExtra
 			}
-			return isMetaSequenceSubtypeOf(v.seq.(metaSequence), t)
+			return isMetaSequenceSubtypeOf(v.seq.(metaSequence), t, hasExtra)
 		case List:
 			et := desc.ElemTypes[0]
 			if seq, ok := v.seq.(listLeafSequence); ok {
 				for _, v := range seq.values {
-					if !IsValueSubtypeOf(v, et) {
-						return false
+					isSub, hasMore := isValueSubtypeOf(v, et, hasExtra)
+					if !isSub {
+						return false, hasExtra
 					}
+					hasExtra = hasExtra || hasMore
 				}
-				return true
+				return true, hasExtra
 			}
-			return isMetaSequenceSubtypeOf(v.seq.(metaSequence), t)
+			return isMetaSequenceSubtypeOf(v.seq.(metaSequence), t, hasExtra)
 		}
 	}
 	panic("unreachable")
 }
 
-func isMetaSequenceSubtypeOf(ms metaSequence, t *Type) bool {
+func isMetaSequenceSubtypeOf(ms metaSequence, t *Type, hasExtra bool) (bool, bool) {
 	for _, mt := range ms.tuples {
 		// Each prolly tree is also a List<T> where T needs to be a subtype.
-		if !isSubtypeTopLevel(t, mt.ref.TargetType()) {
-			return false
+		isSub, hasMore := isSubtypeTopLevel(t, mt.ref.TargetType())
+		if !isSub {
+			return false, hasExtra
 		}
+		hasExtra = hasExtra || hasMore
 	}
-	return true
+	return true, hasExtra
 }

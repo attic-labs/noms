@@ -172,7 +172,7 @@ func openIndex(idxName string, im *indexManager) error {
 		types.MakeUnionType(types.StringType, types.NumberType),
 		types.ValueType)
 
-	if !types.IsValueSubtypeOf(index, typ) {
+	if isSub, _ := types.IsValueSubtypeOf(index, typ); !isSub {
 		return fmt.Errorf("%s does not point to a suitable index type:", idxName)
 	}
 
