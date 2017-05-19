@@ -204,6 +204,20 @@ func isValueSubtypeOfDetails(v Value, t *Type, hasExtra bool) (bool, bool) {
 		var anonStruct *Type
 
 		for _, et := range t.Desc.(CompoundDesc).ElemTypes {
+			// Typically if IsSubtype(v.Type(), A|B|C|...) then exactly one of the
+			// element types in the union will be a supertype of v.Type() because
+			// of type simplification rules (only one of each kind is allowed in
+			// the simplified union except for structs, where one of each unique
+			// struct name is allowed).
+			//
+			// However there is one exception which is that type simplification
+			// allows the struct with empty name. So if v.Type() is a struct with a
+			// name, then it is possible for *two* elements in the union to match
+			// it -- a struct with that same name, and a struct with no name.
+			//
+			// So if we happen across an element type that is an anonymous struct, we
+			// save it for later and only try to use it if we can't find anything
+			// better.
 			if et.TargetKind() == StructKind && et.Desc.(StructDesc).Name == "" {
 				anonStruct = et
 				continue
