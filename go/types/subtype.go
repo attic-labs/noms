@@ -9,7 +9,7 @@ import (
 )
 
 func assertSubtype(t *Type, v Value) {
-	if isSub, _ := IsValueSubtypeOf(v, t); !isSub {
+	if !IsValueSubtypeOf(v, t) {
 		d.Panic("Invalid type. %s is not a subtype of %s", TypeOf(v).Describe(), t.Describe())
 	}
 }
@@ -23,7 +23,7 @@ func IsSubtype(requiredType, concreteType *Type) bool {
 // IsSubtypeDisallowExtraFields is a slightly weird variant of IsSubtype. It returns true IFF IsSubtype(requiredType, concreteType) AND Structs in concreteType CANNOT have field names absent in requiredType
 // ISSUE: https://github.com/attic-labs/noms/issues/3446
 func IsSubtypeDisallowExtraStructFields(requiredType, concreteType *Type) bool {
-	isSub, hasExtra := isSubtype(requiredType, concreteType, false, nil)
+	isSub, hasExtra := isSubtypeDetails(requiredType, concreteType, false, nil)
 	if hasExtra {
 		return false
 	}
@@ -33,10 +33,14 @@ func IsSubtypeDisallowExtraStructFields(requiredType, concreteType *Type) bool {
 // isSubtypeTopLevel returns two values: IsSub and hasExtra. See IsValueSubtypeOf()
 // below for an explanation.
 func isSubtypeTopLevel(requiredType, concreteType *Type) (isSub bool, hasExtra bool) {
-	return isSubtype(requiredType, concreteType, false, nil)
+	return isSubtypeDetails(requiredType, concreteType, false, nil)
 }
 
-func isSubtype(requiredType, concreteType *Type, hasExtra bool, parentStructTypes []*Type) (bool, bool) {
+// IsSubtypeDetails returns two values:
+//   isSub - which indicates whether concreteType is a subtype of requiredType.
+//   hasExtra - which indicates whether concreteType has additional fields.
+// See comment below on isValueSubtypeOfDetails
+func isSubtypeDetails(requiredType, concreteType *Type, hasExtra bool, parentStructTypes []*Type) (bool, bool) {
 	if requiredType.Equals(concreteType) {
 		return true, hasExtra
 	}
@@ -44,7 +48,7 @@ func isSubtype(requiredType, concreteType *Type, hasExtra bool, parentStructType
 	// If the concrete type is a union, all component types must be compatible.
 	if concreteType.TargetKind() == UnionKind {
 		for _, t := range concreteType.Desc.(CompoundDesc).ElemTypes {
-			isSub, hasMore := isSubtype(requiredType, t, hasExtra, parentStructTypes)
+			isSub, hasMore := isSubtypeDetails(requiredType, t, hasExtra, parentStructTypes)
 			if !isSub {
 				return false, hasExtra
 			}
@@ -56,7 +60,7 @@ func isSubtype(requiredType, concreteType *Type, hasExtra bool, parentStructType
 	// If the required type is a union, at least one of the component types must be compatible.
 	if requiredType.TargetKind() == UnionKind {
 		for _, t := range requiredType.Desc.(CompoundDesc).ElemTypes {
-			isSub, hasMore := isSubtype(t, concreteType, hasExtra, parentStructTypes)
+			isSub, hasMore := isSubtypeDetails(t, concreteType, hasExtra, parentStructTypes)
 			if isSub {
 				hasExtra = hasExtra || hasMore
 				return true, hasExtra
@@ -106,7 +110,7 @@ func isSubtype(requiredType, concreteType *Type, hasExtra bool, parentStructType
 					return false, hasExtra
 				}
 
-				isSub, hasMore := isSubtype(requiredField.Type, concreteField.Type, hasExtra, append(parentStructTypes, requiredType))
+				isSub, hasMore := isSubtypeDetails(requiredField.Type, concreteField.Type, hasExtra, append(parentStructTypes, requiredType))
 				if !isSub {
 					return false, hasExtra
 				}
@@ -152,29 +156,32 @@ func compoundSubtype(requiredType, concreteType *Type, hasExtra bool, parentStru
 	// If the concrete type is a union then all the types in the union must be subtypes of the required typ. This also means that a compound type with an empty union is going to be a subtype of all compounds, List<> is a subtype of List<T> for all T.
 	if concreteType.TargetKind() == UnionKind {
 		for _, ct := range concreteType.Desc.(CompoundDesc).ElemTypes {
-			isSub, hasExtra1 := isSubtype(requiredType, ct, hasExtra, parentStructTypes)
+			isSub, hasExtra1 := isSubtypeDetails(requiredType, ct, hasExtra, parentStructTypes)
 			if !isSub {
 				return false, hasExtra1
 			}
 		}
 		return true, hasExtra
 	}
-	return isSubtype(requiredType, concreteType, hasExtra, parentStructTypes)
+	return isSubtypeDetails(requiredType, concreteType, hasExtra, parentStructTypes)
 }
 
-// IsValueSubtypeOf returns whether a value is a subtype of a type and whether
-// it has extra fields. See comment above on function: isSubtypeTopLevel().
-// IsValueSubtypeOf returns two values:
-//   isSub - which indicates whether concreteType is a subtype of requiredType.
-//   hasExtra - which indicates whether concreteType has additional fields.
-//     This field has no meaning if IsSub is false.
+func IsValueSubtypeOf(v Value, t *Type) bool {
+	isSub, _ := isValueSubtypeOfDetails(v, t, false)
+	return isSub
+}
+
+// IsValueSubtypeOfDetails returns two values:
+//   isSub - which indicates whether v is a subtype of t.
+//   hasExtra - which indicates whether v has additional fields. This field has
+//              no meaning if IsSub is false.
 //
 // For example, given the following data:
 //   type1 := struct S {               v := Struct S1 {
 //       a Number | string                 a: "hello"
 //       b ?int                            b: 2
 //   }                                 }
-// IsValueSubtypeOf(v, type1) would return isSub == true, and hasExtra == false
+// IsValueSubtypeOfDetails(v, type1) would return isSub == true, and hasExtra == false
 //
 // And given these types:
 //   type2 := struct S {               v := Struct S1 {
@@ -182,12 +189,12 @@ func compoundSubtype(requiredType, concreteType *Type, hasExtra bool, parentStru
 //       b ?int                            b: 2
 //   }                                     c: "hello again"
 //                                     }
-// IsValueSubtypeOf(v, type1) would return isSub == true, and hasExtra == true
-func IsValueSubtypeOf(v Value, t *Type) (bool, bool) {
-	return isValueSubtypeOf(v, t, false)
+// IsValueSubtypeOfDetails(v, type1) would return isSub == true, and hasExtra == true
+func IsValueSubtypeOfDetails(v Value, t *Type) (bool, bool) {
+	return isValueSubtypeOfDetails(v, t, false)
 }
 
-func isValueSubtypeOf(v Value, t *Type, hasExtra bool) (bool, bool) {
+func isValueSubtypeOfDetails(v Value, t *Type, hasExtra bool) (bool, bool) {
 	switch t.TargetKind() {
 	case BoolKind, NumberKind, StringKind, BlobKind, TypeKind:
 		return v.Kind() == t.TargetKind(), hasExtra
@@ -201,7 +208,7 @@ func isValueSubtypeOf(v Value, t *Type, hasExtra bool) (bool, bool) {
 				anonStruct = et
 				continue
 			}
-			isSub, hasMore := isValueSubtypeOf(v, et, hasExtra)
+			isSub, hasMore := isValueSubtypeOfDetails(v, et, hasExtra)
 			if isSub {
 				hasExtra = hasExtra || hasMore
 				return isSub, hasExtra
@@ -209,7 +216,7 @@ func isValueSubtypeOf(v Value, t *Type, hasExtra bool) (bool, bool) {
 		}
 
 		if anonStruct != nil {
-			isSub, hasMore := isValueSubtypeOf(v, anonStruct, hasExtra)
+			isSub, hasMore := isValueSubtypeOfDetails(v, anonStruct, hasExtra)
 			if isSub {
 				hasExtra = hasExtra || hasMore
 				return isSub, hasExtra
@@ -242,7 +249,7 @@ func isValueSubtypeOf(v Value, t *Type, hasExtra bool) (bool, bool) {
 					return false, hasExtra
 				}
 			} else {
-				isSub, hasMore := isValueSubtypeOf(fv, f.Type, hasExtra)
+				isSub, hasMore := isValueSubtypeOfDetails(fv, f.Type, hasExtra)
 				if !isSub {
 					return false, hasExtra
 				}
@@ -264,12 +271,12 @@ func isValueSubtypeOf(v Value, t *Type, hasExtra bool) (bool, bool) {
 			vt := desc.ElemTypes[1]
 			if seq, ok := v.seq.(mapLeafSequence); ok {
 				for _, entry := range seq.data {
-					isSub, hasMore := isValueSubtypeOf(entry.key, kt, hasExtra)
+					isSub, hasMore := isValueSubtypeOfDetails(entry.key, kt, hasExtra)
 					if !isSub {
 						return false, hasExtra
 					}
 					hasExtra = hasExtra || hasMore
-					isSub, hasExtra = isValueSubtypeOf(entry.value, vt, hasExtra)
+					isSub, hasExtra = isValueSubtypeOfDetails(entry.value, vt, hasExtra)
 					if !isSub {
 						return false, hasExtra
 					}
@@ -282,7 +289,7 @@ func isValueSubtypeOf(v Value, t *Type, hasExtra bool) (bool, bool) {
 			et := desc.ElemTypes[0]
 			if seq, ok := v.seq.(setLeafSequence); ok {
 				for _, v := range seq.data {
-					isSub, hasMore := isValueSubtypeOf(v, et, hasExtra)
+					isSub, hasMore := isValueSubtypeOfDetails(v, et, hasExtra)
 					if !isSub {
 						return false, hasExtra
 					}
@@ -295,7 +302,7 @@ func isValueSubtypeOf(v Value, t *Type, hasExtra bool) (bool, bool) {
 			et := desc.ElemTypes[0]
 			if seq, ok := v.seq.(listLeafSequence); ok {
 				for _, v := range seq.values {
-					isSub, hasMore := isValueSubtypeOf(v, et, hasExtra)
+					isSub, hasMore := isValueSubtypeOfDetails(v, et, hasExtra)
 					if !isSub {
 						return false, hasExtra
 					}

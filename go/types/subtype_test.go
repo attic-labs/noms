@@ -763,7 +763,7 @@ func TestIsValueSubtypeHasExtras(tt *testing.T) {
 	assert := assert.New(tt)
 
 	test := func(v Value, t *Type, is, he bool) {
-		isSub, hasExtra := IsValueSubtypeOf(v, t)
+		isSub, hasExtra := IsValueSubtypeOfDetails(v, t)
 		assert.Equal(is, isSub, "isSub had unexpected value: %t", isSub)
 		assert.Equal(he, hasExtra, "hasExtra had unexpected value: %t", hasExtra)
 	}
