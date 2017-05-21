@@ -142,6 +142,10 @@ func (cur *sequenceCursor) indexInChunk() int {
 	return cur.idx
 }
 
+func (cur *sequenceCursor) atLastItem() bool {
+	return cur.idx == cur.length()-1
+}
+
 func (cur *sequenceCursor) advance() bool {
 	return cur.advanceMaybeAllowPastEnd(true)
 }

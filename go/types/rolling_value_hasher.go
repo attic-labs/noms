@@ -47,11 +47,10 @@ func normalProductionChunks() {
 }
 
 type rollingValueHasher struct {
-	bz                          *buzhash.BuzHash
-	enc                         *valueEncoder
-	bytesHashed                 uint32
-	lengthOnly, crossedBoundary bool
-	pattern, window             uint32
+	bz              *buzhash.BuzHash
+	enc             *valueEncoder
+	crossedBoundary bool
+	pattern, window uint32
 }
 
 func hashValueBytes(item sequenceItem, rv *rollingValueHasher) {
@@ -74,18 +73,17 @@ func newRollingValueHasher() *rollingValueHasher {
 }
 
 func (rv *rollingValueHasher) HashByte(b byte) {
-	rv.bytesHashed++
-	if rv.lengthOnly {
+	if rv.crossedBoundary {
 		return
 	}
 
 	rv.bz.HashByte(b)
-	rv.crossedBoundary = rv.crossedBoundary || (rv.bz.Sum32()&chunkPattern == chunkPattern)
+	rv.crossedBoundary = (rv.bz.Sum32()&chunkPattern == chunkPattern)
 }
 
-func (rv *rollingValueHasher) ClearLastBoundary() {
+func (rv *rollingValueHasher) Reset() {
 	rv.crossedBoundary = false
-	rv.bytesHashed = 0
+	rv.bz = buzhash.NewBuzHash(rv.window)
 }
 
 func (rv *rollingValueHasher) HashValue(v Value) {
