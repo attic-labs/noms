@@ -295,6 +295,7 @@ func readBlob(r io.Reader, vrw ValueReadWriter) Blob {
 	mtChan := make(chan chan metaTuple, runtime.NumCPU())
 
 	makeChunk := func() {
+		rv.Reset()
 		cp := make([]byte, offset)
 		copy(cp, chunkBytes[0:offset])
 
@@ -322,7 +323,6 @@ func readBlob(r io.Reader, vrw ValueReadWriter) Blob {
 			n, err := r.Read(readBuff[:])
 			for i := 0; i < n; i++ {
 				if addByte(readBuff[i]) {
-					rv.ClearLastBoundary()
 					makeChunk()
 				}
 			}

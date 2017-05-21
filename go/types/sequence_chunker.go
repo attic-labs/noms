@@ -60,78 +60,20 @@ func (sc *sequenceChunker) resume() {
 		sc.createParent()
 	}
 
-	// Number of previous items' value bytes which must be hashed into the boundary checker.
-	primeHashBytes := int64(sc.rv.window)
-
-	appendCount := 0
-	primeHashCount := 0
-
-	// If the cursor is beyond the final position in the sequence, then we can't tell the difference between it having been an explicit and implicit boundary. Since the caller may be about to append another value, we need to know whether the existing final item is an explicit chunk boundary.
-	cursorBeyondFinal := sc.cur.idx == sc.cur.length()
-	if cursorBeyondFinal && sc.cur.retreatMaybeAllowBeforeStart(false) {
-		// In that case, we prime enough items *prior* to the final item to be correct.
-		appendCount++
-		primeHashCount++
-	}
+	idx := sc.cur.idx
 
 	// Walk backwards to the start of the existing chunk.
-	sc.rv.lengthOnly = true
 	for sc.cur.indexInChunk() > 0 && sc.cur.retreatMaybeAllowBeforeStart(false) {
-		appendCount++
-		if primeHashBytes > 0 {
-			primeHashCount++
-			sc.rv.ClearLastBoundary()
-			sc.hashValueBytes(sc.cur.current(), sc.rv)
-			primeHashBytes -= int64(sc.rv.bytesHashed)
-		}
 	}
 
-	// If the hash window won't be filled by the preceding items in the current chunk, walk further back until they will.
-	for primeHashBytes > 0 && sc.cur.retreatMaybeAllowBeforeStart(false) {
-		primeHashCount++
-		sc.rv.ClearLastBoundary()
-		sc.hashValueBytes(sc.cur.current(), sc.rv)
-		primeHashBytes -= int64(sc.rv.bytesHashed)
-	}
-	sc.rv.lengthOnly = false
-
-	for primeHashCount > 0 || appendCount > 0 {
-		item := sc.cur.current()
-		sc.cur.advance()
-
-		if primeHashCount > appendCount {
-			// Before the start of the current chunk: just hash value bytes into window
-			sc.hashValueBytes(item, sc.rv)
-			primeHashCount--
-			continue
-		}
-
-		if appendCount > primeHashCount {
-			// In current chunk, but before window: just append item.
-			sc.current = append(sc.current, item)
-			appendCount--
-			continue
-		}
-
-		sc.rv.ClearLastBoundary()
-		sc.hashValueBytes(item, sc.rv)
-		sc.current = append(sc.current, item)
-
-		// Within current chunk and hash window: append item & hash value bytes into window.
-		if sc.rv.crossedBoundary && cursorBeyondFinal && appendCount == 1 {
-			// The cursor is positioned immediately after the final item in the sequence and it *was* an *explicit* chunk boundary: create a chunk.
-			sc.handleChunkBoundary()
-		}
-
-		appendCount--
-		primeHashCount--
+	for ; sc.cur.idx < idx; sc.cur.advance() {
+		sc.Append(sc.cur.current())
 	}
 }
 
 func (sc *sequenceChunker) Append(item sequenceItem) {
 	d.PanicIfTrue(item == nil)
 	sc.current = append(sc.current, item)
-	sc.rv.ClearLastBoundary()
 	sc.hashValueBytes(item, sc.rv)
 	if sc.rv.crossedBoundary {
 		sc.handleChunkBoundary()
@@ -181,7 +123,7 @@ func (sc *sequenceChunker) createSequence() (sequence, metaTuple) {
 
 func (sc *sequenceChunker) handleChunkBoundary() {
 	d.Chk.NotEmpty(sc.current)
-
+	sc.rv.Reset()
 	_, mt := sc.createSequence()
 	if sc.parent == nil {
 		sc.createParent()
@@ -253,37 +195,26 @@ func (sc *sequenceChunker) finalizeCursor() {
 		return
 	}
 
-	// Append the rest of the values in the sequence, up to the window size, plus the rest of that chunk. It needs to be the full window size because anything that was appended/skipped between chunker construction and finalization will have changed the hash state.
-	hashWindow := int64(sc.rv.window)
+	// TODO: I feel like it should be possible to exit early if we find ourserlves
+	// at the first item in a chunk and sc.current is empty.
 
-	isBoundary := len(sc.current) == 0
-
-	// We can terminate when: (1) we hit the end input in this sequence or (2) we process beyond the hash window and encounter an item which is boundary in both the old and new state of the sequence.
-	for i := 0; sc.cur.valid() && (hashWindow > 0 || sc.cur.indexInChunk() > 0 || !isBoundary); i++ {
-		if i == 0 || sc.cur.indexInChunk() == 0 {
+	first := true
+	for ; sc.cur.valid(); sc.cur.advance() {
+		if first || sc.cur.indexInChunk() == 0 {
 			// Every time we step into a chunk from the original sequence, that chunk will no longer exist in the new sequence. The parent must be instructed to skip it.
 			sc.skipParentIfExists()
 		}
+		first = false
 
 		item := sc.cur.current()
 		sc.current = append(sc.current, item)
-		isBoundary = false
+		sc.hashValueBytes(item, sc.rv)
 
-		sc.cur.advance()
-
-		if hashWindow > 0 {
-			// While we are within the hash window, we need to continue to hash items into the rolling hash and explicitly check for resulting boundaries.
-			sc.rv.ClearLastBoundary()
-			sc.hashValueBytes(item, sc.rv)
-			hashWindow -= int64(sc.rv.bytesHashed)
-			isBoundary = sc.rv.crossedBoundary
-		} else if sc.cur.indexInChunk() == 0 {
-			// Once we are beyond the hash window, we know that boundaries can only occur in the same place they did within the existing sequence.
-			isBoundary = true
-		}
-
-		if isBoundary {
+		if sc.rv.crossedBoundary {
 			sc.handleChunkBoundary()
+			if sc.cur.atLastItem() {
+				break // boundary occurred at same place in old & new sequence
+			}
 		}
 	}
 }
