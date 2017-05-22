@@ -21,18 +21,6 @@ type PullProgress struct {
 
 const bytesWrittenSampleRate = .10
 
-// PullWithFlush calls Pull and then manually flushes data to sinkDB. This is
-// an unfortunate current necessity. The Flush() can't happen at the end of
-// regular Pull() because that breaks tests that try to ensure we're not
-// reading more data from the sinkDB than expected. Flush() triggers
-// validation, which triggers sinkDB reads, which means that the code can no
-// longer tell which reads were caused by Pull() and which by Flush().
-// TODO: Get rid of this (BUG 2982)
-func PullWithFlush(srcDB, sinkDB Database, sourceRef types.Ref, progressCh chan PullProgress) {
-	Pull(srcDB, sinkDB, sourceRef, progressCh)
-	persistChunks(sinkDB.chunkStore())
-}
-
 // Pull objects that descend from sourceRef from srcDB to sinkDB.
 func Pull(srcDB, sinkDB Database, sourceRef types.Ref, progressCh chan PullProgress) {
 	// Sanity Check
@@ -52,7 +40,6 @@ func Pull(srcDB, sinkDB Database, sourceRef types.Ref, progressCh chan PullProgr
 	}
 	var sampleSize, sampleCount uint64
 
-	cc := newCompletenessChecker()
 	absent := hash.NewHashSet(sourceRef.TargetHash())
 	for len(absent) != 0 {
 		updateProgress(0, uint64(len(absent)), 0)
@@ -76,7 +63,6 @@ func Pull(srcDB, sinkDB Database, sourceRef types.Ref, progressCh chan PullProgr
 		// Descend to the next level of the tree by gathering up the pointers from every chunk we just pulled over to the sink in the loop above
 		nextLevel := hash.HashSet{}
 		for _, v := range absentValues {
-			cc.AddRefs(v)
 			v.WalkRefs(func(r types.Ref) {
 				nextLevel.Insert(r.TargetHash())
 			})
@@ -86,5 +72,5 @@ func Pull(srcDB, sinkDB Database, sourceRef types.Ref, progressCh chan PullProgr
 		absent = sinkDB.chunkStore().HasMany(nextLevel)
 	}
 
-	cc.PanicIfDangling(sinkDB.chunkStore())
+	persistChunks(sinkDB.chunkStore())
 }

@@ -32,10 +32,11 @@ func TestRemoteToRemotePulls(t *testing.T) {
 
 type PullSuite struct {
 	suite.Suite
-	sinkCS   *chunks.TestStoreView
-	sourceCS *chunks.TestStoreView
-	sink     Database
-	source   Database
+	sinkCS      *chunks.TestStoreView
+	sourceCS    *chunks.TestStoreView
+	sink        Database
+	source      Database
+	commitReads int // The number of reads triggered by commit differs across chunk store impls
 }
 
 func makeTestStoreViews() (ts1, ts2 *chunks.TestStoreView) {
@@ -71,6 +72,7 @@ func (suite *LocalToRemoteSuite) SetupTest() {
 	suite.sinkCS, suite.sourceCS = makeTestStoreViews()
 	suite.sink = makeRemoteDb(suite.sinkCS)
 	suite.source = NewDatabase(suite.sourceCS)
+	suite.commitReads = 1
 }
 
 type RemoteToRemoteSuite struct {
@@ -81,6 +83,7 @@ func (suite *RemoteToRemoteSuite) SetupTest() {
 	suite.sinkCS, suite.sourceCS = makeTestStoreViews()
 	suite.sink = makeRemoteDb(suite.sinkCS)
 	suite.source = makeRemoteDb(suite.sourceCS)
+	suite.commitReads = 1
 }
 
 func makeRemoteDb(cs chunks.ChunkStore) Database {
@@ -143,15 +146,16 @@ func (pt *progressTracker) Validate(suite *PullSuite) {
 //
 // Sink: Nada
 func (suite *PullSuite) TestPullEverything() {
+	expectedReads := suite.sinkCS.Reads
+
 	l := buildListOfHeight(2, suite.source)
 	sourceRef := suite.commitToSource(l, types.NewSet())
 	pt := startProgressTracker()
 
 	Pull(suite.source, suite.sink, sourceRef, pt.Ch)
-	suite.Equal(0, suite.sinkCS.Reads)
+	suite.True(expectedReads-suite.sinkCS.Reads <= suite.commitReads)
 	pt.Validate(suite)
 
-	persistChunks(suite.sink.chunkStore())
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
 	suite.True(l.Equals(v.Get(ValueField)))
@@ -192,10 +196,9 @@ func (suite *PullSuite) TestPullMultiGeneration() {
 
 	Pull(suite.source, suite.sink, sourceRef, pt.Ch)
 
-	suite.Equal(expectedReads, suite.sinkCS.Reads)
+	suite.True(expectedReads-suite.sinkCS.Reads <= suite.commitReads)
 	pt.Validate(suite)
 
-	persistChunks(suite.sink.chunkStore())
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
 	suite.True(srcL.Equals(v.Get(ValueField)))
@@ -239,11 +242,9 @@ func (suite *PullSuite) TestPullDivergentHistory() {
 
 	Pull(suite.source, suite.sink, sourceRef, pt.Ch)
 
-	// No objects read from sink, since sink Head is not an ancestor of source HEAD.
-	suite.Equal(preReads, suite.sinkCS.Reads)
+	suite.True(preReads-suite.sinkCS.Reads <= suite.commitReads)
 	pt.Validate(suite)
 
-	persistChunks(suite.sink.chunkStore())
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
 	suite.True(srcL.Equals(v.Get(ValueField)))
@@ -283,10 +284,9 @@ func (suite *PullSuite) TestPullUpdates() {
 
 	Pull(suite.source, suite.sink, sourceRef, pt.Ch)
 
-	suite.Equal(expectedReads, suite.sinkCS.Reads)
+	suite.True(expectedReads-suite.sinkCS.Reads <= suite.commitReads)
 	pt.Validate(suite)
 
-	persistChunks(suite.sink.chunkStore())
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
 	suite.True(srcL.Equals(v.Get(ValueField)))

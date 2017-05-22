@@ -327,15 +327,8 @@ func (hcs *httpChunkStore) hasRefs(hashes hash.HashSet, batch chunks.ReadBatch) 
 	scanner.Split(bufio.ScanWords)
 	for scanner.Scan() {
 		h := hash.Parse(scanner.Text())
-		d.PanicIfFalse(scanner.Scan())
-		if scanner.Text() == "false" {
-			for _, outstanding := range batch[h] {
-				outstanding.Satisfy(h, &chunks.EmptyChunk)
-			}
-		} else {
-			for _, outstanding := range batch[h] {
-				outstanding.Fail()
-			}
+		for _, outstanding := range batch[h] {
+			outstanding.Satisfy(h, &chunks.EmptyChunk)
 		}
 		delete(batch, h)
 	}
