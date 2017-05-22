@@ -5,12 +5,10 @@
 package datas
 
 import (
-	"sort"
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/testify/assert"
 	"github.com/attic-labs/testify/suite"
 )
 
@@ -149,7 +147,7 @@ func (suite *PullSuite) TestPullEverything() {
 	sourceRef := suite.commitToSource(l, types.NewSet())
 	pt := startProgressTracker()
 
-	Pull(suite.source, suite.sink, sourceRef, types.Ref{}, 2, pt.Ch)
+	Pull(suite.source, suite.sink, sourceRef, pt.Ch)
 	suite.Equal(0, suite.sinkCS.Reads)
 	pt.Validate(suite)
 
@@ -180,7 +178,7 @@ func (suite *PullSuite) TestPullEverything() {
 //                         \ -1-> L0
 func (suite *PullSuite) TestPullMultiGeneration() {
 	sinkL := buildListOfHeight(2, suite.sink)
-	sinkRef := suite.commitToSink(sinkL, types.NewSet())
+	suite.commitToSink(sinkL, types.NewSet())
 	expectedReads := suite.sinkCS.Reads
 
 	srcL := buildListOfHeight(2, suite.source)
@@ -192,7 +190,7 @@ func (suite *PullSuite) TestPullMultiGeneration() {
 
 	pt := startProgressTracker()
 
-	Pull(suite.source, suite.sink, sourceRef, sinkRef, 2, pt.Ch)
+	Pull(suite.source, suite.sink, sourceRef, pt.Ch)
 
 	suite.Equal(expectedReads, suite.sinkCS.Reads)
 	pt.Validate(suite)
@@ -239,7 +237,7 @@ func (suite *PullSuite) TestPullDivergentHistory() {
 
 	pt := startProgressTracker()
 
-	Pull(suite.source, suite.sink, sourceRef, sinkRef, 2, pt.Ch)
+	Pull(suite.source, suite.sink, sourceRef, pt.Ch)
 
 	// No objects read from sink, since sink Head is not an ancestor of source HEAD.
 	suite.Equal(preReads, suite.sinkCS.Reads)
@@ -267,9 +265,9 @@ func (suite *PullSuite) TestPullDivergentHistory() {
 //                         \ -3-> L2 -1-> N
 //                                 \ -2-> L1 -1-> N
 //                                         \ -1-> L0
-func (suite *PullSuite) SkipTestPullUpdates() {
+func (suite *PullSuite) TestPullUpdates() {
 	sinkL := buildListOfHeight(4, suite.sink)
-	sinkRef := suite.commitToSink(sinkL, types.NewSet())
+	suite.commitToSink(sinkL, types.NewSet())
 	expectedReads := suite.sinkCS.Reads
 
 	srcL := buildListOfHeight(4, suite.source)
@@ -283,12 +281,8 @@ func (suite *PullSuite) SkipTestPullUpdates() {
 
 	pt := startProgressTracker()
 
-	Pull(suite.source, suite.sink, sourceRef, sinkRef, 2, pt.Ch)
+	Pull(suite.source, suite.sink, sourceRef, pt.Ch)
 
-	// if suite.sinkIsLocal() {
-	// 	// 2 objects read from sink: L3 and L2 (when considering the shared commit C1).
-	// 	expectedReads += 2
-	// }
 	suite.Equal(expectedReads, suite.sinkCS.Reads)
 	pt.Validate(suite)
 
@@ -323,32 +317,4 @@ func buildListOfHeight(height int, vw types.ValueWriter) types.List {
 		l = types.NewList(r1, r2)
 	}
 	return l
-}
-
-// Note: This test is asserting that findCommon correctly separates refs which are exclusive to |taller| from those which are |common|.
-func TestFindCommon(t *testing.T) {
-	taller := &types.RefByHeight{}
-	shorter := &types.RefByHeight{}
-
-	for i := 0; i < 50; i++ {
-		shorter.PushBack(types.NewRef(types.Number(i)))
-	}
-
-	for i := 50; i < 250; i++ {
-		shorter.PushBack(types.NewRef(types.Number(i)))
-		taller.PushBack(types.NewRef(types.Number(i)))
-	}
-
-	for i := 250; i < 275; i++ {
-		taller.PushBack(types.NewRef(types.Number(i)))
-	}
-
-	sort.Sort(shorter)
-	sort.Sort(taller)
-
-	tallRefs, comRefs := findCommon(taller, shorter, 1)
-	assert.Equal(t, 25, len(tallRefs))
-	assert.Equal(t, 200, len(comRefs))
-	assert.Equal(t, 0, len(*taller))
-	assert.Equal(t, 50, len(*shorter))
 }
