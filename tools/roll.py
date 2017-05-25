@@ -12,14 +12,14 @@ def main():
   parser.add_argument('url')
   parser.add_argument('--path', help=(
       'path to store the dependency at, defaults to vendor/[url without protocol]'))
-  parser.add_argument('--incl', help=(
-      'subdirectory of the dependency to check out, relative to the path. '
+  parser.add_argument('--incl', action='append', help=(
+      'subdirectories of the dependency to check out, relative to the path. '
       'Defaults to root. Evaluated before --excl.'))
-  parser.add_argument('--excl', help=(
-      'subdirectory of the dependency to delete after checking out, relative to the path. '
+  parser.add_argument('--excl', action='append', help=(
+      'subdirectories of the dependency to delete after checking out, relative to the path. '
       'Defaults to nothing. Evaluated after --incl.'))
   parser.add_argument('--version', default='HEAD', help=(
-      'version of the dependency to snapshot, defaults to HEAD'))
+    'version of the dependency to snapshot, defaults to HEAD'))
 
   args = parser.parse_args()
 
@@ -33,8 +33,14 @@ def main():
       print 'subdirectory %s must be a relative path' % subdir
       sys.exit(1)
     return subdir
-  incl = rel(args.incl)
-  excl = rel(args.excl)
+
+  incl = None
+  if args.incl is not None:
+    incl = [rel(i) for i in args.incl]
+
+  excl = None
+  if args.excl is not None:
+    excl = [rel(e) for e in args.excl]
 
   if not os.path.isdir('.git'):
     print '%s must be run from the root of a repository' % sys.argv[0]
@@ -43,6 +49,8 @@ def main():
   path = url.path
   if path.startswith('/'):
     path = path[1:]
+  if path.endswith('.git'):
+    path = path[0:len(path) - 4]
 
   depdir = args.path
   if depdir is None:
@@ -77,28 +85,41 @@ def main():
     shutil.rmtree('vendor')
 
   if incl is not None:
-    if not os.path.isdir(incl):
-      print 'Warning: --incl directory %s does not exist, skipping.' % incl
-    else:
-      inclPath = os.path.abspath(incl)
-      inclParent, inclName = os.path.split(inclPath)
+    inclPaths = []
+    inclParentToName = {}
+    for dir in incl:
+      if not os.path.isdir(dir):
+        print 'Warning: --incl directory %s does not exist, skipping.' % dir
+      else:
+        path = os.path.abspath(dir)
+        parent, name = os.path.split(path)
+        inclPaths.append(path)
+        inclParentToName[parent] = name
 
-      for (dirpath, dirnames, _) in os.walk(os.getcwd()):
-        if dirpath == inclParent:
-          # Don't descend into the included subdirectory.
-          dirnames.remove(inclName)
-        elif not inclPath.startswith(dirpath):
-          # Remove directories that aren't an ancestor of the included.
-          print 'rm subdirectory: %s' % dirpath
-          shutil.rmtree(dirpath)
+    def inclPathStartsWith(dir):
+      for p in inclPaths:
+        if p.startswith(dir):
+          return True
+      return False
+
+    for (dirpath, dirnames, _) in os.walk(os.getcwd()):
+      if dirpath in inclParentToName:
+        inclName = inclParentToName[dirpath]
+        # Don't descend into the included subdirectory.
+        dirnames.remove(inclName)
+      elif not inclPathStartsWith(dirpath):
+        # Remove directories that aren't an ancestor of the included.
+        print 'rm subdirectory: %s' % dirpath
+        shutil.rmtree(dirpath)
 
   if excl is not None:
-    if not os.path.isdir(excl):
-      print 'Warning: --excl directory %s does not exist, skipping.' % incl
-    else:
-      exclPath = os.path.abspath(excl)
-      print 'rm subdirectory: %s' % exclPath
-      shutil.rmtree(exclPath)
+    for dir in excl:
+      if not os.path.isdir(dir):
+        print 'Warning: --excl directory %s does not exist, skipping.' % dir
+      else:
+        exclPath = os.path.abspath(dir)
+        print 'rm subdirectory: %s' % exclPath
+        shutil.rmtree(exclPath)
 
 
 if __name__ == '__main__':
