@@ -42,17 +42,17 @@ type s3svc interface {
 	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
 }
 
-func newS3TableReader(s3 s3svc, bucket string, h addr, chunkCount uint32, indexCache *indexCache, readRl chan struct{}) chunkSource {
-	source := &s3TableReader{s3: s3, bucket: bucket, h: h, readRl: readRl}
+func newS3TableReader(s3 s3svc, bucket string, spec tableSpec, indexCache *indexCache, readRl chan struct{}) chunkSource {
+	source := &s3TableReader{s3: s3, bucket: bucket, h: spec.name, readRl: readRl}
 
 	var index tableIndex
 	found := false
 	if indexCache != nil {
-		index, found = indexCache.get(h)
+		index, found = indexCache.get(spec.name)
 	}
 
 	if !found {
-		size := indexSize(chunkCount) + footerSize
+		size := indexSize(spec.chunkCount) + footerSize
 		buff := make([]byte, size)
 
 		n, err := source.readRange(buff, fmt.Sprintf("%s=-%d", s3RangePrefix, size))
@@ -61,12 +61,12 @@ func newS3TableReader(s3 s3svc, bucket string, h addr, chunkCount uint32, indexC
 		index = parseTableIndex(buff)
 
 		if indexCache != nil {
-			indexCache.put(h, index)
+			indexCache.put(spec.name, index)
 		}
 	}
 
 	source.tableReader = newTableReader(index, source, s3BlockSize)
-	d.PanicIfFalse(chunkCount == source.count())
+	d.PanicIfFalse(spec.chunkCount == source.count())
 	return source
 }
 

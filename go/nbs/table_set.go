@@ -11,17 +11,14 @@ import (
 	"github.com/attic-labs/noms/go/d"
 )
 
-const concurrentCompactions = 5
-
 func newTableSet(persister tablePersister) tableSet {
-	return tableSet{p: persister, rl: make(chan struct{}, concurrentCompactions)}
+	return tableSet{p: persister}
 }
 
 // tableSet is an immutable set of persistable chunkSources.
 type tableSet struct {
 	novel, upstream chunkSources
 	p               tablePersister
-	rl              chan struct{}
 }
 
 func (ts tableSet) has(h addr) bool {
@@ -132,18 +129,39 @@ func (ts tableSet) Upstream() int {
 	return len(ts.upstream)
 }
 
-// Prepend adds a memTable to an existing tableSet, compacting |mt| and
-// returning a new tableSet with newly compacted table added.
-func (ts tableSet) Prepend(mt *memTable, stats *Stats) tableSet {
+// Prepend adds a chunkSource to an existing tableSet
+func (ts tableSet) Prepend(source chunkSource) tableSet {
 	newTs := tableSet{
 		novel:    make(chunkSources, len(ts.novel)+1),
 		upstream: make(chunkSources, len(ts.upstream)),
 		p:        ts.p,
-		rl:       ts.rl,
 	}
-	newTs.novel[0] = newPersistingChunkSource(mt, ts, ts.p, ts.rl, stats)
+	newTs.novel[0] = source
 	copy(newTs.novel[1:], ts.novel)
 	copy(newTs.upstream, ts.upstream)
+	return newTs
+}
+
+// Replace replaces a novel chunkSource by source.hash()
+func (ts tableSet) ReplaceNovel(source chunkSource) tableSet {
+	newTs := tableSet{
+		novel:    make(chunkSources, len(ts.novel)),
+		upstream: make(chunkSources, len(ts.upstream)),
+		p:        ts.p,
+	}
+	copy(newTs.novel, ts.novel)
+	copy(newTs.upstream, ts.upstream)
+
+	found := false
+	for i, n := range newTs.novel {
+		if n.hash() == source.hash() {
+			newTs.novel[i] = source
+			found = true
+			break
+		}
+	}
+
+	d.PanicIfFalse(found)
 	return newTs
 }
 
@@ -163,7 +181,6 @@ func (ts tableSet) Flatten() (flattened tableSet) {
 	flattened = tableSet{
 		upstream: make(chunkSources, 0, ts.Size()),
 		p:        ts.p,
-		rl:       ts.rl,
 	}
 	for _, src := range ts.novel {
 		if src.count() > 0 {
@@ -181,7 +198,6 @@ func (ts tableSet) Rebase(specs []tableSpec) tableSet {
 		novel:    make(chunkSources, 0, len(ts.novel)),
 		upstream: make(chunkSources, 0, len(specs)),
 		p:        ts.p,
-		rl:       ts.rl,
 	}
 
 	// Rebase the novel tables, skipping those that are actually empty (usually due to de-duping during table compaction)
@@ -206,7 +222,7 @@ func (ts tableSet) Rebase(specs []tableSpec) tableSet {
 	for _, spec := range tablesToOpen {
 		wg.Add(1)
 		go func(idx int, spec tableSpec) {
-			merged.upstream[idx] = ts.p.Open(spec.name, spec.chunkCount)
+			merged.upstream[idx] = ts.p.Open(spec)
 			wg.Done()
 		}(i, spec)
 		i++
