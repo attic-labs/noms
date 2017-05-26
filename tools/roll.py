@@ -5,6 +5,7 @@
 # http://www.apache.org/licenses/LICENSE-2.0
 
 import argparse, os, os.path, subprocess, sys, shutil, urlparse
+from collections import defaultdict
 
 
 def main():
@@ -15,9 +16,6 @@ def main():
     parser.add_argument('--incl', action='append', help=(
         'subdirectories of the dependency to check out, relative to the path. '
         'Defaults to root. Evaluated before --excl.'))
-    parser.add_argument('--excl', action='append', help=(
-        'subdirectories of the dependency to delete after checking out, relative to the path. '
-        'Defaults to nothing. Evaluated after --incl.'))
     parser.add_argument('--version', default='HEAD', help=(
         'version of the dependency to snapshot, defaults to HEAD'))
 
@@ -37,10 +35,6 @@ def main():
     incl = None
     if args.incl is not None:
         incl = [rel(i) for i in args.incl]
-
-    excl = None
-    if args.excl is not None:
-        excl = [rel(e) for e in args.excl]
 
     if not os.path.isdir('.git'):
         print '%s must be run from the root of a repository' % sys.argv[0]
@@ -86,7 +80,7 @@ def main():
 
     if incl is not None:
         inclPaths = []
-        inclParentToName = {}
+        inclParentToName = defaultdict(set)
         for dir in incl:
             if not os.path.isdir(dir):
                 print 'Warning: --incl directory %s does not exist, skipping.' % dir
@@ -94,33 +88,17 @@ def main():
                 path = os.path.abspath(dir)
                 parent, name = os.path.split(path)
                 inclPaths.append(path)
-                inclParentToName[parent] = name
-
-        def inclPathStartsWith(dir):
-            for p in inclPaths:
-                if p.startswith(dir):
-                    return True
-            return False
+                inclParentToName[parent].add(name)
 
         for (dirpath, dirnames, _) in os.walk(os.getcwd()):
             if dirpath in inclParentToName:
-                inclName = inclParentToName[dirpath]
-                # Don't descend into the included subdirectory.
-                dirnames.remove(inclName)
-            elif not inclPathStartsWith(dirpath):
+                # Don't descend into included subdirectories
+                for n in inclParentToName[dirpath]:
+                    dirnames.remove(n)
+            elif not any(p.startswith(dirpath) for p in inclPaths):
                 # Remove directories that aren't an ancestor of the included.
                 print 'rm subdirectory: %s' % dirpath
                 shutil.rmtree(dirpath)
-
-    if excl is not None:
-        for dir in excl:
-            if not os.path.isdir(dir):
-                print 'Warning: --excl directory %s does not exist, skipping.' % dir
-            else:
-                exclPath = os.path.abspath(dir)
-                print 'rm subdirectory: %s' % exclPath
-                shutil.rmtree(exclPath)
-
 
 if __name__ == '__main__':
     main()
