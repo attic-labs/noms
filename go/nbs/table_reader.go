@@ -193,6 +193,14 @@ func (tr tableReader) uncompressedLen() uint64 {
 	return tr.totalUncompressedData
 }
 
+func calcChunkDataLen(index tableIndex) uint64 {
+	return index.offsets[index.chunkCount-1] + uint64(index.lengths[index.chunkCount-1])
+}
+
+func (tr tableReader) chunkDataLen() uint64 {
+	return calcChunkDataLen(tr.index())
+}
+
 func (tr tableReader) index() tableIndex {
 	return tr.tableIndex
 }

@@ -10,10 +10,8 @@ import (
 	"net/url"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
@@ -34,8 +32,8 @@ type s3TablePersister struct {
 	readRl                                   chan struct{}
 }
 
-func (s3p s3TablePersister) Open(name addr, chunkCount uint32) chunkSource {
-	return newS3TableReader(s3p.s3, s3p.bucket, name, chunkCount, s3p.indexCache, s3p.readRl)
+func (s3p s3TablePersister) Open(spec tableSpec) chunkSource {
+	return newS3TableReader(s3p.s3, s3p.bucket, spec, s3p.indexCache, s3p.readRl)
 }
 
 type s3UploadedPart struct {
@@ -43,26 +41,17 @@ type s3UploadedPart struct {
 	etag string
 }
 
-func (s3p s3TablePersister) Persist(mt *memTable, haver chunkReader, stats *Stats) chunkSource {
-	return s3p.persistTable(mt.write(haver, stats))
+func (s3p s3TablePersister) Persist(novel byteTableReader) chunkSource {
+	s3p.multipartUpload(novel.data, novel.hash().String())
+
+	return s3p.newReaderFromIndexData(novel.data, tableSpec{novel.hash(), novel.chunkCount})
 }
 
-func (s3p s3TablePersister) persistTable(name addr, data []byte, chunkCount uint32) chunkSource {
-	if chunkCount == 0 {
-		return emptyChunkSource{}
-	}
-	t1 := time.Now()
-	s3p.multipartUpload(data, name.String())
-	verbose.Log("Compacted table of %d Kb in %s", len(data)/1024, time.Since(t1))
-
-	return s3p.newReaderFromIndexData(data, name)
-}
-
-func (s3p s3TablePersister) newReaderFromIndexData(idxData []byte, name addr) *s3TableReader {
-	s3tr := &s3TableReader{s3: s3p.s3, bucket: s3p.bucket, h: name, readRl: s3p.readRl}
+func (s3p s3TablePersister) newReaderFromIndexData(idxData []byte, name tableSpec) *s3TableReader {
+	s3tr := &s3TableReader{s3: s3p.s3, bucket: s3p.bucket, h: name.name, readRl: s3p.readRl}
 	index := parseTableIndex(idxData)
 	if s3p.indexCache != nil {
-		s3p.indexCache.put(name, index)
+		s3p.indexCache.put(name.name, index)
 	}
 	s3tr.tableReader = newTableReader(index, s3tr, s3BlockSize)
 	return s3tr
@@ -199,34 +188,28 @@ func (s partsByPartNum) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-func (s3p s3TablePersister) ConjoinAll(sources chunkSources, stats *Stats) chunkSource {
-	plan := planConjoin(sources, stats)
-	if plan.chunkCount == 0 {
-		return emptyChunkSource{}
-	}
-	t1 := time.Now()
-	name := nameFromSuffixes(plan.suffixes())
-	s3p.executeCompactionPlan(plan, name.String())
-	verbose.Log("Compacted table of %d Kb in %s", plan.totalCompressedData/1024, time.Since(t1))
-
-	return s3p.newReaderFromIndexData(plan.mergedIndex, name)
-}
-
-func (s3p s3TablePersister) executeCompactionPlan(plan compactionPlan, key string) {
+func (s3p s3TablePersister) ConjoinAll(spec tableSpec, sources chunkSources, index []byte) chunkSource {
+	// s3p.executeCompactionPlan(name, sources, index)
+	key := spec.name.String()
 	uploadID := s3p.startMultipartUpload(key)
-	multipartUpload, err := s3p.assembleTable(plan, key, uploadID)
+	multipartUpload, err := s3p.assembleTable(sources, index, key, uploadID)
 	if err != nil {
 		s3p.abortMultipartUpload(key, uploadID)
 		d.PanicIfError(err) // TODO: Better error handling here
 	}
 	s3p.completeMultipartUpload(key, uploadID, multipartUpload)
+
+	return s3p.newReaderFromIndexData(index, spec)
 }
 
-func (s3p s3TablePersister) assembleTable(plan compactionPlan, key, uploadID string) (*s3.CompletedMultipartUpload, error) {
-	d.PanicIfTrue(len(plan.sources) > maxS3Parts) // TODO: BUG 3433: handle > 10k parts
+func (s3p s3TablePersister) executeCompactionPlan(plan compactionPlan, key string) {
+}
+
+func (s3p s3TablePersister) assembleTable(sources chunkSources, index []byte, key, uploadID string) (*s3.CompletedMultipartUpload, error) {
+	d.PanicIfTrue(len(sources) > maxS3Parts) // TODO: BUG 3433: handle > 10k parts
 
 	// Separate plan.sources by amount of chunkData. Tables with >5MB of chunk data (copies) can be added to the new table using S3's multipart upload copy feature. Smaller tables with <5MB of chunk data (manuals) must be read, assembled into |buff|, and then re-uploaded in parts that are larger than 5MB.
-	copies, manuals, buff := dividePlan(plan, uint64(s3p.minPartSize), uint64(s3p.maxPartSize))
+	copies, manuals, buff := dividePlan(sources, index, uint64(s3p.minPartSize), uint64(s3p.maxPartSize))
 
 	// Concurrently read data from small tables into |buff|
 	var readWg sync.WaitGroup
@@ -344,41 +327,41 @@ type manualPart struct {
 }
 
 // dividePlan assumes that plan.sources (which is of type chunkSourcesByDescendingDataSize) is correctly sorted by descending data size.
-func dividePlan(plan compactionPlan, minPartSize, maxPartSize uint64) (copies []copyPart, manuals []manualPart, buff []byte) {
+func dividePlan(sources chunkSources, index []byte, minPartSize, maxPartSize uint64) (copies []copyPart, manuals []manualPart, buff []byte) {
 	// NB: if maxPartSize < 2*minPartSize, splitting large copies apart isn't solvable. S3's limits are plenty far enough apart that this isn't a problem in production, but we could violate this in tests.
 	d.PanicIfTrue(maxPartSize < 2*minPartSize)
 
-	buffSize := uint64(len(plan.mergedIndex))
+	buffSize := uint64(len(index))
 	i := 0
-	for ; i < len(plan.sources); i++ {
-		sws := plan.sources[i]
-		if sws.dataLen < minPartSize {
-			// since plan.sources is sorted in descending chunk-data-length order, we know that sws and all members after it are too small to copy.
+	for ; i < len(sources); i++ {
+		source := sources[i]
+		if source.chunkDataLen() < minPartSize {
+			// since plan.sources is sorted in descending chunk-data-length order, we know that source and all members after it are too small to copy.
 			break
 		}
-		if sws.dataLen <= maxPartSize {
-			copies = append(copies, copyPart{sws.source.hash().String(), 0, int64(sws.dataLen)})
+		if source.chunkDataLen() <= maxPartSize {
+			copies = append(copies, copyPart{source.hash().String(), 0, int64(source.chunkDataLen())})
 			continue
 		}
 
 		// Now, we need to break the data into some number of parts such that for all parts minPartSize <= size(part) <= maxPartSize. This code tries to split the part evenly, such that all new parts satisfy the previous inequality. This gets tricky around edge cases. Consider min = 5b and max = 10b and a data length of 101b. You need to send 11 parts, but you can't just send 10 parts of 10 bytes and 1 part of 1 byte -- the last is too small. You also can't send 10 parts of 9 bytes each and 1 part of 11 bytes, because the last is too big. You have to distribute the extra bytes across all the parts so that all of them fall into the proper size range.
-		lens := splitOnMaxSize(sws.dataLen, maxPartSize)
+		lens := splitOnMaxSize(source.chunkDataLen(), maxPartSize)
 
 		var srcStart int64
 		for _, length := range lens {
-			copies = append(copies, copyPart{sws.source.hash().String(), srcStart, length})
+			copies = append(copies, copyPart{source.hash().String(), srcStart, length})
 			srcStart += length
 		}
 	}
 	var offset int64
-	for ; i < len(plan.sources); i++ {
-		sws := plan.sources[i]
-		manuals = append(manuals, manualPart{sws.source.reader(), offset, offset + int64(sws.dataLen)})
-		offset += int64(sws.dataLen)
-		buffSize += sws.dataLen
+	for ; i < len(sources); i++ {
+		source := sources[i]
+		manuals = append(manuals, manualPart{source.reader(), offset, offset + int64(source.chunkDataLen())})
+		offset += int64(source.chunkDataLen())
+		buffSize += source.chunkDataLen()
 	}
 	buff = make([]byte, buffSize)
-	copy(buff[buffSize-uint64(len(plan.mergedIndex)):], plan.mergedIndex)
+	copy(buff[buffSize-uint64(len(index)):], index)
 	return
 }
 

@@ -19,18 +19,17 @@ import (
 // opening persistent tables for reading, and conjoining a number of existing
 // chunkSources into one.
 type tablePersister interface {
-	// Persist makes the contents of mt durable. Chunks already present in
-	// |haver| may be dropped in the process.
-	Persist(mt *memTable, haver chunkReader, stats *Stats) chunkSource
+	// Persist makes the |novel| durable.
+	Persist(novel byteTableReader) chunkSource
 
 	// ConjoinAll conjoins all chunks in |sources| into a single, new
-	// chunkSource.
-	ConjoinAll(sources chunkSources, stats *Stats) chunkSource
+	// chunkSource. Upon return the resulting table must be durable.
+	ConjoinAll(name tableSpec, sources chunkSources, index []byte) chunkSource
 
 	// Open a table named |name|, containing |chunkCount| chunks. The
 	// tablePersister is responsible for managing the lifetime of the returned
 	// chunkSource. TODO: Is that actually true? Or can we get rid of explicit 'close'
-	Open(name addr, chunkCount uint32) chunkSource
+	Open(name tableSpec) chunkSource
 }
 
 type indexCache struct {
@@ -69,26 +68,21 @@ func (csbc chunkSourcesByAscendingCount) Less(i, j int) bool {
 }
 func (csbc chunkSourcesByAscendingCount) Swap(i, j int) { csbc[i], csbc[j] = csbc[j], csbc[i] }
 
-type chunkSourcesByDescendingDataSize []sourceWithSize
+type chunkSourcesByDescendingDataSize []chunkSource
 
 func (csbds chunkSourcesByDescendingDataSize) Len() int { return len(csbds) }
 func (csbds chunkSourcesByDescendingDataSize) Less(i, j int) bool {
-	swsI, swsJ := csbds[i], csbds[j]
-	if swsI.dataLen == swsJ.dataLen {
-		hi, hj := swsI.source.hash(), swsJ.source.hash()
+	si, sj := csbds[i], csbds[j]
+	if si.chunkDataLen() == sj.chunkDataLen() {
+		hi, hj := si.hash(), sj.hash()
 		return bytes.Compare(hi[:], hj[:]) < 0
 	}
-	return swsI.dataLen > swsJ.dataLen
+	return si.chunkDataLen() > sj.chunkDataLen()
 }
 func (csbds chunkSourcesByDescendingDataSize) Swap(i, j int) { csbds[i], csbds[j] = csbds[j], csbds[i] }
 
-type sourceWithSize struct {
-	source  chunkSource
-	dataLen uint64
-}
-
 type compactionPlan struct {
-	sources             chunkSourcesByDescendingDataSize
+	sources             chunkSources
 	mergedIndex         []byte
 	chunkCount          uint32
 	totalCompressedData uint64
@@ -112,11 +106,10 @@ func planConjoin(sources chunkSources, stats *Stats) (plan compactionPlan) {
 		plan.chunkCount += index.chunkCount
 
 		// Calculate the amount of chunk data in |src|
-		chunkDataLen := calcChunkDataLen(index)
-		plan.sources = append(plan.sources, sourceWithSize{src, chunkDataLen})
-		plan.totalCompressedData += chunkDataLen
+		plan.sources = append(plan.sources, src)
+		plan.totalCompressedData += src.chunkDataLen()
 	}
-	sort.Sort(plan.sources)
+	sort.Sort(chunkSourcesByDescendingDataSize(plan.sources))
 
 	lengthsPos := lengthsOffset(plan.chunkCount)
 	suffixesPos := suffixesOffset(plan.chunkCount)
@@ -124,15 +117,15 @@ func planConjoin(sources chunkSources, stats *Stats) (plan compactionPlan) {
 
 	prefixIndexRecs := make(prefixIndexSlice, 0, plan.chunkCount)
 	var ordinalOffset uint32
-	for _, sws := range plan.sources {
-		index := sws.source.index()
+	for _, source := range plan.sources {
+		index := source.index()
 
 		// Add all the prefix tuples from this index to the list of all prefixIndexRecs, modifying the ordinals such that all entries from the 1st item in sources come after those in the 0th and so on.
 		for j, prefix := range index.prefixes {
 			rec := prefixIndexRec{prefix: prefix, order: ordinalOffset + index.ordinals[j]}
 			prefixIndexRecs = append(prefixIndexRecs, rec)
 		}
-		ordinalOffset += sws.source.count()
+		ordinalOffset += source.count()
 
 		// TODO: copy the lengths and suffixes as a byte-copy from src BUG #3438
 		// Bring over the lengths block, in order
@@ -171,8 +164,4 @@ func nameFromSuffixes(suffixes []byte) (name addr) {
 	h = sha.Sum(h) // Appends hash to h
 	copy(name[:], h)
 	return
-}
-
-func calcChunkDataLen(index tableIndex) uint64 {
-	return index.offsets[index.chunkCount-1] + uint64(index.lengths[index.chunkCount-1])
 }

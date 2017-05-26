@@ -162,7 +162,7 @@ func conjoinTables(p tablePersister, upstream []tableSpec, stats *Stats) (conjoi
 	for i, spec := range upstream {
 		wg.Add(1)
 		go func(idx int, spec tableSpec) {
-			sources[idx] = p.Open(spec.name, spec.chunkCount)
+			sources[idx] = p.Open(spec)
 			wg.Done()
 		}(i, spec)
 		i++
@@ -172,7 +172,11 @@ func conjoinTables(p tablePersister, upstream []tableSpec, stats *Stats) (conjoi
 	t1 := time.Now()
 
 	toConjoin, toKeep := chooseConjoinees(sources)
-	conjoinedSrc := p.ConjoinAll(toConjoin, stats)
+
+	plan := planConjoin(sources, stats)
+	spec := tableSpec{nameFromSuffixes(plan.suffixes()), plan.chunkCount}
+
+	conjoinedSrc := p.ConjoinAll(spec, plan.sources, plan.mergedIndex)
 
 	stats.ConjoinLatency.SampleTime(time.Since(t1))
 	stats.TablesPerConjoin.SampleLen(len(toConjoin))
