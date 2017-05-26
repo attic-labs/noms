@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/attic-labs/noms/go/chunks"
+	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 )
 
@@ -98,11 +99,12 @@ func (mt *memTable) extract(chunks chan<- extractRecord) {
 	return
 }
 
-func (mt *memTable) write(haver chunkReader, stats *Stats) (name addr, data []byte, count uint32) {
+func (mt *memTable) write(haver chunkReader, stats *Stats) byteTableReader {
 	maxSize := maxTableSize(uint64(len(mt.order)), mt.totalData)
 	buff := make([]byte, maxSize)
 	tw := newTableWriter(buff, mt.snapper)
 
+	chunkCount := uint32(0)
 	if haver != nil {
 		sort.Sort(hasRecordByPrefix(mt.order)) // hasMany() requires addresses to be sorted.
 		haver.hasMany(mt.order)
@@ -113,15 +115,37 @@ func (mt *memTable) write(haver chunkReader, stats *Stats) (name addr, data []by
 		if !addr.has {
 			h := addr.a
 			tw.addChunk(*h, mt.chunks[*h])
-			count++
+			chunkCount++
 		}
 	}
 	tableSize, name := tw.finish()
 
-	if count > 0 {
+	if chunkCount > 0 {
 		stats.BytesPerPersist.Sample(uint64(tableSize))
-		stats.ChunksPerPersist.Sample(uint64(count))
+		stats.ChunksPerPersist.Sample(uint64(chunkCount))
 	}
 
-	return name, buff[:tableSize], count
+	data := buff[:tableSize]
+
+	size := int(indexSize(chunkCount) + footerSize)
+	index := parseTableIndex(data[(len(data))-size:])
+	byteReader := byteTableReader{h: name, data: data}
+	byteReader.tableReader = newTableReader(index, byteReader, 1)
+	return byteReader
+}
+
+type byteTableReader struct {
+	tableReader
+	h    addr
+	data []byte
+}
+
+func (br byteTableReader) ReadAt(p []byte, off int64) (n int, err error) {
+	d.PanicIfTrue(off+int64(len(p)) > int64(len(br.data)))
+	copy(p, br.data[off:off+int64(len(p))])
+	return len(p), nil
+}
+
+func (br byteTableReader) hash() addr {
+	return br.h
 }

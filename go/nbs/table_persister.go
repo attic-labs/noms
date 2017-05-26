@@ -19,9 +19,8 @@ import (
 // opening persistent tables for reading, and conjoining a number of existing
 // chunkSources into one.
 type tablePersister interface {
-	// Persist makes the table serialized in |buff| durable. Upon return the table
-	// must be durable.
-	Persist(spec tableSpec, buff []byte) chunkSource
+	// Persist makes the |novel| durable.
+	Persist(novel byteTableReader) chunkSource
 
 	// ConjoinAll conjoins all chunks in |sources| into a single, new
 	// chunkSource. Upon return the resulting table must be durable.

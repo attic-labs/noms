@@ -29,7 +29,7 @@ const (
 	defaultMaxTables           = 256
 
 	defaultIndexCacheSize = (1 << 20) * 8 // 8MB
-	concurrentCompactions = 5
+	concurrentPersists    = 5
 )
 
 var (
@@ -104,7 +104,7 @@ func newNomsBlockStore(mm manifest, p tablePersister, c conjoiner, memTableSize 
 		mm:           mm,
 		p:            p,
 		c:            c,
-		persistLimit: concurrentCompactions,
+		persistLimit: concurrentPersists,
 		tables:       newTableSet(p),
 		nomsVersion:  constants.NomsVersion,
 		mtSize:       memTableSize,
@@ -149,22 +149,6 @@ func (nbs *NomsBlockStore) Put(c chunks.Chunk) {
 	nbs.stats.PutLatency.SampleTime(dur)
 }
 
-type byteTableReader struct {
-	tableReader
-	h    addr
-	data []byte
-}
-
-func (br byteTableReader) ReadAt(p []byte, off int64) (n int, err error) {
-	d.PanicIfTrue(off+int64(len(p)) > int64(len(br.data)))
-	copy(p, br.data[off:off+int64(len(p))])
-	return len(p), nil
-}
-
-func (br byteTableReader) hash() addr {
-	return br.h
-}
-
 // MUST be called already holding the store lock. Makes durable the existing
 // memtable. Will block if there are already |nbs.persistLimit| concurrent
 // persist operations underway until one has completed.
@@ -176,28 +160,24 @@ func (nbs *NomsBlockStore) persistMemTable() {
 	mt := nbs.mt
 	nbs.mt = nil
 
-	h, data, chunkCount := mt.write(nbs.tables, nbs.stats)
-	if chunkCount == 0 {
+	memSource := mt.write(nbs.tables, nbs.stats)
+	if memSource.chunkCount == 0 {
 		return // no novel chunks
 	}
 
 	for nbs.activePersists == nbs.persistLimit {
 		nbs.cond.Wait()
 	}
+
 	nbs.activePersists++
-
-	spec := tableSpec{h, chunkCount}
-	size := int(indexSize(chunkCount) + footerSize)
-	index := parseTableIndex(data[(len(data))-size:])
-
-	temporarySource := byteTableReader{h: h, data: data}
-	temporarySource.tableReader = newTableReader(index, temporarySource, 1)
-	nbs.tables = nbs.tables.Prepend(temporarySource)
+	nbs.tables = nbs.tables.Prepend(memSource)
 
 	go func() {
-		durableSource := nbs.p.Persist(spec, data)
+		durableSource := nbs.p.Persist(memSource)
+
 		nbs.lock()
 		defer nbs.unlock()
+
 		nbs.tables = nbs.tables.ReplaceNovel(durableSource)
 		nbs.activePersists--
 		nbs.cond.Signal()

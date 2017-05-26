@@ -41,10 +41,10 @@ type s3UploadedPart struct {
 	etag string
 }
 
-func (s3p s3TablePersister) Persist(spec tableSpec, data []byte) chunkSource {
-	s3p.multipartUpload(data, spec.name.String())
+func (s3p s3TablePersister) Persist(novel byteTableReader) chunkSource {
+	s3p.multipartUpload(novel.data, novel.hash().String())
 
-	return s3p.newReaderFromIndexData(data, spec)
+	return s3p.newReaderFromIndexData(novel.data, tableSpec{novel.hash(), novel.chunkCount})
 }
 
 func (s3p s3TablePersister) newReaderFromIndexData(idxData []byte, name tableSpec) *s3TableReader {

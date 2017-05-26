@@ -29,21 +29,20 @@ func (ftp *fsTablePersister) Open(spec tableSpec) chunkSource {
 	return newMmapTableReader(ftp.dir, spec.name, spec.chunkCount, ftp.indexCache, ftp.fc)
 }
 
-func (ftp *fsTablePersister) Persist(spec tableSpec, data []byte) chunkSource {
+func (ftp *fsTablePersister) Persist(novel byteTableReader) chunkSource {
 	tempName := func() string {
 		temp, err := ioutil.TempFile(ftp.dir, "nbs_table_")
 		d.PanicIfError(err)
 		defer checkClose(temp)
-		io.Copy(temp, bytes.NewReader(data))
-		index := parseTableIndex(data)
+		io.Copy(temp, bytes.NewReader(novel.data))
 		if ftp.indexCache != nil {
-			ftp.indexCache.put(spec.name, index)
+			ftp.indexCache.put(novel.hash(), novel.index())
 		}
 		return temp.Name()
 	}()
-	err := os.Rename(tempName, filepath.Join(ftp.dir, spec.name.String()))
+	err := os.Rename(tempName, filepath.Join(ftp.dir, novel.hash().String()))
 	d.PanicIfError(err)
-	return ftp.Open(spec)
+	return ftp.Open(tableSpec{novel.hash(), novel.chunkCount})
 }
 
 func (ftp *fsTablePersister) ConjoinAll(spec tableSpec, sources chunkSources, index []byte) chunkSource {
