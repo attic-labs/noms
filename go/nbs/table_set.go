@@ -5,7 +5,6 @@
 package nbs
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -68,7 +67,6 @@ func (ts tableSet) getMany(reqs []getRecord, foundChunks chan *chunks.Chunk, wg 
 	f := func(css chunkSources) (remaining bool) {
 		for _, haver := range css {
 			if rp, ok := haver.(chunkReadPlanner); ok {
-				fmt.Println("Using read planner")
 				offsets, remaining := rp.findOffsets(reqs)
 				go rp.getManyAtOffsets(reqs, offsets, foundChunks, wg, stats)
 				if !remaining {
