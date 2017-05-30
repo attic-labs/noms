@@ -5,7 +5,6 @@
 package nbs
 
 import (
-	"bytes"
 	"crypto/rand"
 	"fmt"
 	"io/ioutil"
@@ -96,7 +95,7 @@ func TestFSTablePersisterPersist(t *testing.T) {
 	if assert.True(src.count() > 0) {
 		buff, err := ioutil.ReadFile(filepath.Join(dir, src.hash().String()))
 		assert.NoError(err)
-		tr := newTableReader(parseTableIndex(buff), bytes.NewReader(buff), fileBlockSize)
+		tr := newTableReader(parseTableIndex(buff), tableReaderAtFromBytes(buff), fileBlockSize)
 		assertChunksInReader(testChunks, tr, assert)
 	}
 }
@@ -188,7 +187,7 @@ func TestFSTablePersisterConjoinAll(t *testing.T) {
 	if assert.True(src.count() > 0) {
 		buff, err := ioutil.ReadFile(filepath.Join(dir, src.hash().String()))
 		assert.NoError(err)
-		tr := newTableReader(parseTableIndex(buff), bytes.NewReader(buff), fileBlockSize)
+		tr := newTableReader(parseTableIndex(buff), tableReaderAtFromBytes(buff), fileBlockSize)
 		assertChunksInReader(testChunks, tr, assert)
 	}
 
@@ -219,7 +218,7 @@ func TestFSTablePersisterConjoinAllDups(t *testing.T) {
 	if assert.True(src.count() > 0) {
 		buff, err := ioutil.ReadFile(filepath.Join(dir, src.hash().String()))
 		assert.NoError(err)
-		tr := newTableReader(parseTableIndex(buff), bytes.NewReader(buff), fileBlockSize)
+		tr := newTableReader(parseTableIndex(buff), tableReaderAtFromBytes(buff), fileBlockSize)
 		assertChunksInReader(testChunks, tr, assert)
 		assert.EqualValues(reps*len(testChunks), tr.count())
 	}

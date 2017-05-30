@@ -6,7 +6,6 @@ package nbs
 
 import (
 	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/attic-labs/testify/assert"
@@ -116,11 +115,12 @@ func makeTempDir(assert *assert.Assertions) string {
 
 func TestTableSetRebase(t *testing.T) {
 	assert := assert.New(t)
-	dir := makeTempDir(assert)
-	defer os.RemoveAll(dir)
-	fc := newFDCache(defaultMaxTables)
-	defer fc.Drop()
-	persister := newFSTablePersister(dir, fc, nil)
+	// dir := makeTempDir(assert)
+	// defer os.RemoveAll(dir)
+	// fc := newFDCache(defaultMaxTables)
+	// defer fc.Drop()
+	// persister := newFSTablePersister(dir, fc, nil)
+	persister := newFakeTablePersister()
 
 	insert := func(ts tableSet, chunks ...[]byte) tableSet {
 		for _, c := range chunks {

@@ -5,7 +5,6 @@
 package nbs
 
 import (
-	"bytes"
 	"fmt"
 	"sync"
 	"testing"
@@ -218,7 +217,7 @@ func (ftp fakeTablePersister) Persist(mt *memTable, haver chunkReader, stats *St
 	if mt.count() > 0 {
 		name, data, chunkCount := mt.write(haver, stats)
 		if chunkCount > 0 {
-			ftp.sources[name] = newTableReader(parseTableIndex(data), bytes.NewReader(data), fileBlockSize)
+			ftp.sources[name] = newTableReader(parseTableIndex(data), tableReaderAtFromBytes(data), fileBlockSize)
 			return chunkSourceAdapter{ftp.sources[name], name}
 		}
 	}
@@ -228,7 +227,7 @@ func (ftp fakeTablePersister) Persist(mt *memTable, haver chunkReader, stats *St
 func (ftp fakeTablePersister) ConjoinAll(sources chunkSources, stats *Stats) chunkSource {
 	name, data, chunkCount := compactSourcesToBuffer(sources)
 	if chunkCount > 0 {
-		ftp.sources[name] = newTableReader(parseTableIndex(data), bytes.NewReader(data), fileBlockSize)
+		ftp.sources[name] = newTableReader(parseTableIndex(data), tableReaderAtFromBytes(data), fileBlockSize)
 		return chunkSourceAdapter{ftp.sources[name], name}
 	}
 	return emptyChunkSource{}
