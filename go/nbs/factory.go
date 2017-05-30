@@ -18,6 +18,7 @@ import (
 
 const (
 	defaultAWSReadLimit = 1024
+	awsMaxOpenFiles     = 8192
 	awsMaxTables        = 128
 )
 
@@ -28,21 +29,30 @@ type AWSStoreFactory struct {
 	conjoiner conjoiner
 }
 
-func NewAWSStoreFactory(sess *session.Session, table, bucket string, indexCacheSize uint64) chunks.Factory {
+func NewAWSStoreFactory(sess *session.Session, table, bucket string, indexCacheSize, tableCacheSize uint64, tableCacheDir string) chunks.Factory {
 	var indexCache *indexCache
 	if indexCacheSize > 0 {
 		indexCache = newIndexCache(indexCacheSize)
 	}
+
+	s3 := s3.New(sess)
+
+	var tc *s3TableCache
+	if tableCacheSize > 0 {
+		tc = newS3TableCache(tableCacheDir, tableCacheSize, awsMaxOpenFiles, s3, bucket)
+	}
+
 	return &AWSStoreFactory{
 		dynamodb.New(sess),
 		&s3TablePersister{
-			s3.New(sess),
+			s3,
 			bucket,
 			defaultS3PartSize,
 			minS3PartSize,
 			maxS3PartSize,
 			indexCache,
 			make(chan struct{}, defaultAWSReadLimit),
+			tc,
 		},
 		table,
 		newAsyncConjoiner(awsMaxTables),

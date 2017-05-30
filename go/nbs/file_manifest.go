@@ -45,7 +45,7 @@ func (fm fileManifest) Name() string {
 // This is to allow for race condition testing.
 func (fm fileManifest) ParseIfExists(stats *Stats, readHook func()) (exists bool, vers string, lock addr, root hash.Hash, tableSpecs []tableSpec) {
 	t1 := time.Now()
-	defer func() { stats.ReadManifestLatency.SampleTime(time.Since(t1)) }()
+	defer func() { stats.ReadManifestLatency.SampleTime(roundedSince(t1)) }()
 
 	// !exists(lockFileName) => unitialized store
 	if l := openIfExists(filepath.Join(fm.dir, lockFileName)); l != nil {
@@ -94,7 +94,7 @@ func parseManifest(r io.Reader) (nomsVersion string, lock addr, root hash.Hash, 
 
 func (fm fileManifest) Update(lastLock, newLock addr, specs []tableSpec, newRoot hash.Hash, stats *Stats, writeHook func()) (lock addr, actual hash.Hash, tableSpecs []tableSpec) {
 	t1 := time.Now()
-	defer func() { stats.WriteManifestLatency.SampleTime(time.Since(t1)) }()
+	defer func() { stats.WriteManifestLatency.SampleTime(roundedSince(t1)) }()
 
 	// Write a temporary manifest file, to be renamed over manifestFileName upon success.
 	// The closure here ensures this file is closed before moving on.
