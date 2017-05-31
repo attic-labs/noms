@@ -18,7 +18,7 @@ import (
 
 func TestFSTableCacheOnOpen(t *testing.T) {
 	assert := assert.New(t)
-	dir := makeTempDir(assert)
+	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
 
 	names := []addr{}
@@ -57,6 +57,12 @@ func TestFSTableCacheOnOpen(t *testing.T) {
 	assert.Len(present, cacheSize)
 }
 
+func makeTempDir(t *testing.T) string {
+	dir, err := ioutil.TempDir("", "")
+	assert.NoError(t, err)
+	return dir
+}
+
 func writeTableData(dir string, chunx ...[]byte) (name addr, err error) {
 	var tableData []byte
 	tableData, name = buildTable(chunx)
@@ -84,7 +90,7 @@ func contains(s sort.StringSlice, e string) bool {
 
 func TestFSTablePersisterPersist(t *testing.T) {
 	assert := assert.New(t)
-	dir := makeTempDir(assert)
+	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
 	fc := newFDCache(defaultMaxTables)
 	defer fc.Drop()
@@ -120,7 +126,7 @@ func TestFSTablePersisterPersistNoData(t *testing.T) {
 		assert.True(existingTable.addChunk(computeAddr(c), c))
 	}
 
-	dir := makeTempDir(assert)
+	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
 	fc := newFDCache(defaultMaxTables)
 	defer fc.Drop()
@@ -135,7 +141,7 @@ func TestFSTablePersisterPersistNoData(t *testing.T) {
 
 func TestFSTablePersisterCacheOnPersist(t *testing.T) {
 	assert := assert.New(t)
-	dir := makeTempDir(assert)
+	dir := makeTempDir(t)
 	fc := newFDCache(1)
 	defer fc.Drop()
 	fts := newFSTablePersister(dir, fc, nil)
@@ -167,7 +173,7 @@ func TestFSTablePersisterConjoinAll(t *testing.T) {
 	assert.True(len(testChunks) > 1, "Whoops, this test isn't meaningful")
 	sources := make(chunkSources, len(testChunks))
 
-	dir := makeTempDir(assert)
+	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
 	fc := newFDCache(len(sources))
 	defer fc.Drop()
@@ -198,7 +204,7 @@ func TestFSTablePersisterConjoinAll(t *testing.T) {
 
 func TestFSTablePersisterConjoinAllDups(t *testing.T) {
 	assert := assert.New(t)
-	dir := makeTempDir(assert)
+	dir := makeTempDir(t)
 	defer os.RemoveAll(dir)
 	fc := newFDCache(defaultMaxTables)
 	defer fc.Drop()

@@ -167,16 +167,12 @@ func TestS3TablePersisterConjoinAll(t *testing.T) {
 	targetPartSize := uint64(1024)
 	minPartSize, maxPartSize := targetPartSize, 5*targetPartSize
 
-	dir := makeTempDir(assert)
-
 	ic := newIndexCache(1024)
 	rl := make(chan struct{}, 8)
 	defer close(rl)
 
 	newPersister := func(s3svc s3svc) s3TablePersister {
-		b := "bukkit"
-		tc := newS3TableCache(dir, cacheSize, maxOpenFds, s3svc, b)
-		return s3TablePersister{s3svc, b, targetPartSize, minPartSize, maxPartSize, ic, rl}
+		return s3TablePersister{s3svc, "bucket", targetPartSize, minPartSize, maxPartSize, ic, rl, nil}
 	}
 
 	smallChunks := [][]byte{}

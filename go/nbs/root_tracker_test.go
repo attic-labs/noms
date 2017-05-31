@@ -206,17 +206,20 @@ func newFakeTableSet() tableSet {
 }
 
 func newFakeTablePersister() tablePersister {
-	return fakeTablePersister{map[addr]tableReader{}}
+	return fakeTablePersister{map[addr]tableReader{}, &sync.RWMutex{}}
 }
 
 type fakeTablePersister struct {
 	sources map[addr]tableReader
+	mu      *sync.RWMutex
 }
 
 func (ftp fakeTablePersister) Persist(mt *memTable, haver chunkReader, stats *Stats) chunkSource {
 	if mt.count() > 0 {
 		name, data, chunkCount := mt.write(haver, stats)
 		if chunkCount > 0 {
+			ftp.mu.Lock()
+			defer ftp.mu.Unlock()
 			ftp.sources[name] = newTableReader(parseTableIndex(data), tableReaderAtFromBytes(data), fileBlockSize)
 			return chunkSourceAdapter{ftp.sources[name], name}
 		}
@@ -227,6 +230,8 @@ func (ftp fakeTablePersister) Persist(mt *memTable, haver chunkReader, stats *St
 func (ftp fakeTablePersister) ConjoinAll(sources chunkSources, stats *Stats) chunkSource {
 	name, data, chunkCount := compactSourcesToBuffer(sources)
 	if chunkCount > 0 {
+		ftp.mu.Lock()
+		defer ftp.mu.Unlock()
 		ftp.sources[name] = newTableReader(parseTableIndex(data), tableReaderAtFromBytes(data), fileBlockSize)
 		return chunkSourceAdapter{ftp.sources[name], name}
 	}
@@ -276,6 +281,8 @@ func compactSourcesToBuffer(sources chunkSources) (name addr, data []byte, chunk
 }
 
 func (ftp fakeTablePersister) Open(name addr, chunkCount uint32) chunkSource {
+	ftp.mu.RLock()
+	defer ftp.mu.RUnlock()
 	return chunkSourceAdapter{ftp.sources[name], name}
 }
 

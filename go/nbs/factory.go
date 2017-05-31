@@ -39,18 +39,15 @@ func NewAWSStoreFactory(sess *session.Session, table, bucket string, indexCacheS
 	if indexCacheSize > 0 {
 		indexCache = newIndexCache(indexCacheSize)
 	}
-
-	s3 := s3.New(sess)
-
-	var tc *s3TableCache
+	var tc *fsTableCache
 	if tableCacheSize > 0 {
-		tc = newS3TableCache(tableCacheDir, tableCacheSize, awsMaxOpenFiles, s3, bucket)
+		tc = newFSTableCache(tableCacheDir, tableCacheSize, awsMaxOpenFiles)
 	}
 
 	return &AWSStoreFactory{
 		dynamodb.New(sess),
 		&s3TablePersister{
-			s3,
+			s3.New(sess),
 			bucket,
 			defaultS3PartSize,
 			minS3PartSize,
