@@ -51,6 +51,7 @@ type rollingValueHasher struct {
 	enc             *valueEncoder
 	crossedBoundary bool
 	pattern, window uint32
+	salt            byte
 }
 
 func hashValueBytes(item sequenceItem, rv *rollingValueHasher) {
@@ -61,12 +62,13 @@ func hashValueByte(item sequenceItem, rv *rollingValueHasher) {
 	rv.HashByte(item.(byte))
 }
 
-func newRollingValueHasher() *rollingValueHasher {
+func newRollingValueHasher(salt byte) *rollingValueHasher {
 	pattern, window := chunkingConfig()
 	rv := &rollingValueHasher{
 		bz:      buzhash.NewBuzHash(window),
 		pattern: pattern,
 		window:  window,
+		salt:    salt,
 	}
 	rv.enc = newValueEncoder(rv, nil, true)
 	return rv
@@ -77,8 +79,8 @@ func (rv *rollingValueHasher) HashByte(b byte) {
 		return
 	}
 
-	rv.bz.HashByte(b)
-	rv.crossedBoundary = (rv.bz.Sum32()&chunkPattern == chunkPattern)
+	rv.bz.HashByte(b ^ rv.salt)
+	rv.crossedBoundary = (rv.bz.Sum32()&rv.pattern == rv.pattern)
 }
 
 func (rv *rollingValueHasher) Reset() {

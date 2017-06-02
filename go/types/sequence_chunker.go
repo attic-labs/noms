@@ -46,7 +46,7 @@ func newSequenceChunker(cur *sequenceCursor, level uint64, vr ValueReader, vw Va
 		makeChunk, parentMakeChunk,
 		true,
 		hashValueBytes,
-		newRollingValueHasher(),
+		newRollingValueHasher(byte(level % 256)),
 		false,
 	}
 
