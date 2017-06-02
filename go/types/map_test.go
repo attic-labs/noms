@@ -267,11 +267,11 @@ func (suite *mapTestSuite) TestStreamingMap2() {
 }
 
 func TestMapSuite4K(t *testing.T) {
-	suite.Run(t, newMapTestSuite(12, 9, 2, 2, newNumber))
+	suite.Run(t, newMapTestSuite(12, 14, 17, 2, newNumber))
 }
 
 func TestMapSuite4KStructs(t *testing.T) {
-	suite.Run(t, newMapTestSuite(12, 13, 2, 2, newNumberStruct))
+	suite.Run(t, newMapTestSuite(12, 7, 7, 9, newNumberStruct))
 }
 
 func newNumber(i int) Value {
@@ -405,8 +405,8 @@ func TestMapMutationReadWriteCount(t *testing.T) {
 	})
 
 	assert.Equal(t, uint64(3), NewRef(m).Height())
-	assert.Equal(t, 122, readCount)
-	assert.Equal(t, 123, writeCount)
+	assert.Equal(t, 124, readCount)
+	assert.Equal(t, 117, writeCount)
 }
 
 func TestMapInfiniteChunkBug(t *testing.T) {
