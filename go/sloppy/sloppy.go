@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package types
+package sloppy
 
 import "github.com/attic-labs/noms/go/d"
 
@@ -106,8 +106,8 @@ func (sl *Sloppy) Update(src []byte) {
 }
 
 func (sl *Sloppy) Reset() {
-	sl.matching = false
 	sl.idx = 0
+	sl.matching = false
 	sl.matchOffset = 0
 	sl.matchLength = 0
 	sl.table = [maxTableSize]uint16{}

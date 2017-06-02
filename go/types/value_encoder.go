@@ -13,12 +13,11 @@ import (
 
 type valueEncoder struct {
 	nomsWriter
-	vw             ValueWriter
-	forRollingHash bool
+	vw ValueWriter
 }
 
-func newValueEncoder(w nomsWriter, vw ValueWriter, forRollingHash bool) *valueEncoder {
-	return &valueEncoder{w, vw, forRollingHash}
+func newValueEncoder(w nomsWriter, vw ValueWriter) *valueEncoder {
+	return &valueEncoder{w, vw}
 }
 
 func (w *valueEncoder) writeKind(kind NomsKind) {
@@ -27,9 +26,7 @@ func (w *valueEncoder) writeKind(kind NomsKind) {
 
 func (w *valueEncoder) writeRef(r Ref) {
 	w.writeHash(r.TargetHash())
-	if !w.forRollingHash {
-		w.writeType(r.TargetType(), map[string]*Type{})
-	}
+	w.writeType(r.TargetType(), map[string]*Type{})
 	w.writeCount(r.Height())
 }
 
