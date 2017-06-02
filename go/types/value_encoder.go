@@ -91,13 +91,14 @@ func (w *valueEncoder) writeMapLeafSequence(seq mapLeafSequence) {
 }
 
 func (w *valueEncoder) maybeWriteMetaSequence(seq sequence) bool {
-	ms, ok := seq.(metaSequence)
-	if !ok {
-		w.writeBool(false) // not a meta sequence
+	if seq.isLeaf() {
+		w.writeCount(0) // leaf
 		return false
 	}
 
-	w.writeBool(true) // a meta sequence
+	ms := seq.(metaSequence)
+	d.PanicIfFalse(ms.level > 0)
+	w.writeCount(ms.level)
 
 	count := ms.seqLen()
 	w.writeCount(uint64(count))

@@ -993,8 +993,8 @@ func TestListDiffAllValuesInSequenceRemoved(t *testing.T) {
 	m2 := newSequenceMetaTuple(Number(4), Number(5), Number(6), Number(7), Number(8))
 	m3 := newSequenceMetaTuple(Number(9), Number(10), Number(11), Number(12), Number(13), Number(14), Number(15))
 
-	l1 := newList(newListMetaSequence([]metaTuple{m1, m3}, nil))     // [1, 2, 3][9, 10, 11, 12, 13, 14, 15]
-	l2 := newList(newListMetaSequence([]metaTuple{m1, m2, m3}, nil)) // [1, 2, 3][4, 5, 6, 7, 8][9, 10, 11, 12, 13, 14, 15]
+	l1 := newList(newListMetaSequence(1, []metaTuple{m1, m3}, nil))     // [1, 2, 3][9, 10, 11, 12, 13, 14, 15]
+	l2 := newList(newListMetaSequence(1, []metaTuple{m1, m2, m3}, nil)) // [1, 2, 3][4, 5, 6, 7, 8][9, 10, 11, 12, 13, 14, 15]
 
 	diff := accumulateDiffSplices(l2, l1)
 
