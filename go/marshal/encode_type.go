@@ -157,6 +157,20 @@ func structEncodeType(t reflect.Type, seenStructs map[string]reflect.Type) *type
 		seenStructs[name] = t
 	}
 
-	_, structType, _, _ := typeFields(t, seenStructs, true, false)
+	fields, knownShape, _ := typeFields(t, seenStructs, true, false)
+
+	var structType *types.Type
+	if knownShape {
+		structTypeFields := make([]types.StructField, len(fields))
+		for i, fs := range fields {
+			structTypeFields[i] = types.StructField{
+				Name:     fs.name,
+				Type:     fs.nomsType,
+				Optional: fs.omitEmpty,
+			}
+		}
+		structType = types.MakeStructType(getStructName(t), structTypeFields...)
+	}
+
 	return structType
 }
