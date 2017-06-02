@@ -10,6 +10,7 @@ type hashValueBytesFn func(item sequenceItem, rv *rollingValueHasher)
 
 type sequenceChunker struct {
 	cur                        *sequenceCursor
+	level                      uint64
 	vr                         ValueReader
 	vw                         ValueWriter
 	parent                     *sequenceChunker
@@ -22,13 +23,13 @@ type sequenceChunker struct {
 }
 
 // makeChunkFn takes a sequence of items to chunk, and returns the result of chunking those items, a tuple of a reference to that chunk which can itself be chunked + its underlying value.
-type makeChunkFn func(values []sequenceItem) (Collection, orderedKey, uint64)
+type makeChunkFn func(level uint64, values []sequenceItem) (Collection, orderedKey, uint64)
 
 func newEmptySequenceChunker(vr ValueReader, vw ValueWriter, makeChunk, parentMakeChunk makeChunkFn, hashValueBytes hashValueBytesFn) *sequenceChunker {
-	return newSequenceChunker(nil, vr, vw, makeChunk, parentMakeChunk, hashValueBytes)
+	return newSequenceChunker(nil, uint64(0), vr, vw, makeChunk, parentMakeChunk, hashValueBytes)
 }
 
-func newSequenceChunker(cur *sequenceCursor, vr ValueReader, vw ValueWriter, makeChunk, parentMakeChunk makeChunkFn, hashValueBytes hashValueBytesFn) *sequenceChunker {
+func newSequenceChunker(cur *sequenceCursor, level uint64, vr ValueReader, vw ValueWriter, makeChunk, parentMakeChunk makeChunkFn, hashValueBytes hashValueBytesFn) *sequenceChunker {
 	d.PanicIfFalse(makeChunk != nil)
 	d.PanicIfFalse(parentMakeChunk != nil)
 	d.PanicIfFalse(hashValueBytes != nil)
@@ -37,6 +38,7 @@ func newSequenceChunker(cur *sequenceCursor, vr ValueReader, vw ValueWriter, mak
 
 	sc := &sequenceChunker{
 		cur,
+		level,
 		vr,
 		vw,
 		nil,
@@ -100,13 +102,13 @@ func (sc *sequenceChunker) createParent() {
 		// Clone the parent cursor because otherwise calling cur.advance() will affect our parent - and vice versa - in surprising ways. Instead, Skip moves forward our parent's cursor if we advance across a boundary.
 		parent = sc.cur.parent.clone()
 	}
-	sc.parent = newSequenceChunker(parent, sc.vr, sc.vw, sc.parentMakeChunk, sc.parentMakeChunk, metaHashValueBytes)
+	sc.parent = newSequenceChunker(parent, sc.level+1, sc.vr, sc.vw, sc.parentMakeChunk, sc.parentMakeChunk, metaHashValueBytes)
 	sc.parent.isLeaf = false
 }
 
 func (sc *sequenceChunker) createSequence() (sequence, metaTuple) {
 	// If the sequence chunker has a ValueWriter, eagerly write sequences.
-	col, key, numLeaves := sc.makeChunk(sc.current)
+	col, key, numLeaves := sc.makeChunk(sc.level, sc.current)
 	seq := col.sequence()
 	var ref Ref
 	if sc.vw != nil {
