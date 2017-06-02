@@ -279,7 +279,7 @@ func readBlob(r io.Reader, vrw ValueReadWriter) Blob {
 	// TODO: The code below is temporary. It's basically a custom leaf-level chunker for blobs. There are substational perf gains by doing it this way as it avoids the cost of boxing every single byte which is chunked.
 	chunkBuff := [8192]byte{}
 	chunkBytes := chunkBuff[:]
-	rv := newRollingValueHasher()
+	rv := newRollingValueHasher(0)
 	offset := 0
 	addByte := func(b byte) bool {
 		if offset >= len(chunkBytes) {
