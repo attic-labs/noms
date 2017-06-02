@@ -15,8 +15,19 @@ import (
 const (
 	defaultChunkPattern = uint32(1<<12 - 1) // Avg Chunk Size of 4k
 
-	// The window size to use for computing the rolling hash. This is way more than necessary assuming random data (two bytes would be sufficient with a target chunk size of 4k). The benefit of a larger window is it allows for better distribution on input with lower entropy. At a target chunk size of 4k, any given byte changing has roughly a 1.5% chance of affecting an existing boundary, which seems like an acceptable trade-off.
-	defaultChunkWindow = uint32(64)
+	// The choice of hash window here is a trade off between:
+	//   -When mutating a prolly tree, the likelihood that a change within a node
+	//    "cascades" by affecting the chunk boundary and causing a following node
+	//    to change.
+	//   -The chance that repeated sequences of bytes which happen to be longer
+	//    than the window do not chunk and cause average chunk size to be way
+	//    larger than the target
+	// The most likely source of repeated sequences larger than the chunk window
+	// is structs, all of whose field names are encoded together. A window size
+	// of 256 gives a roughly 6% chance that a change within a chunk will cascade
+	// into the next chunk while being sufficiently large to be larger than the
+	// field encodings of a "reasonable" struct.
+	defaultChunkWindow = uint32(256)
 )
 
 // Only set by tests
