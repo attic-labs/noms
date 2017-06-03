@@ -135,7 +135,8 @@ func constructPath(p Path, str string) (Path, error) {
 			return constructPath(append(p, TypeAnnotation{}), rem)
 
 		default:
-			return Path{}, fmt.Errorf("Unsupported annotation: @%s", ann)
+			p = append(p, UnknownAnnotationPart{ann})
+			return constructPath(p, rem)
 		}
 
 	case ']':
@@ -543,4 +544,21 @@ func getAbsoluteIndex(col Collection, relIdx int64) (absIdx uint64, ok bool) {
 
 	ok = true
 	return
+}
+
+/**
+ * UnknownAnnotationPart is a PathPart of an annotation that wasn't recognized
+ * by Path. Callers can interpret it themselves. For the purpose of
+ * Path.Resolve, it just resolves to the Value it annotates.
+ */
+type UnknownAnnotationPart struct {
+	Annotation string
+}
+
+func (p UnknownAnnotationPart) Resolve(v Value) Value {
+	return v
+}
+
+func (p UnknownAnnotationPart) String() string {
+	return "@" + p.Annotation
 }

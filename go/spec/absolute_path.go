@@ -99,6 +99,18 @@ func (p AbsolutePath) Resolve(db datas.Database) (val types.Value) {
 	if val != nil && p.Path != nil {
 		val = p.Path.Resolve(val, db)
 	}
+
+	// Commits resolve to their values unless they have the @commit annotation.
+	useCommitValue := false
+	if val != nil && p.Path != nil && len(p.Path) > 0 && datas.IsCommitType(val.Type()) {
+		ann, ok := p.Path[0].(types.UnknownAnnotationPart)
+		useCommitValue = !ok || ann.Annotation != "commit"
+	}
+
+	if useCommitValue {
+		val = val.(types.Struct).Get(datas.ValueField)
+	}
+
 	return
 }
 
