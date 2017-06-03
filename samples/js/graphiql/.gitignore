@@ -1,6 +1,3 @@
-.babelrc
-.eslintrc.js
-.flowconfig
 generated-files
 graphiql.css
 node_modules
