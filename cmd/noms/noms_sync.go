@@ -78,7 +78,19 @@ func runSync(args []string) int {
 		lastProgressCh <- last
 	}()
 
-	sourceRef := types.NewRef(sourceObj)
+	var sourceRef types.Ref
+	if sourceObj.Type().Kind() == types.RefKind {
+		sourceRef = sourceObj.(types.Ref)
+	} else {
+		// TODO: This is ghetto. Should not have to write to source in this case, and might not
+		// even be able to do that (source might be read-only).
+		sourceRef = sourceStore.WriteValue(sourceObj)
+
+		// Need to flush here because later on Pull() pokes around at the batchstore level, so we
+		// need to get the new value out of the ValueStore cache.
+		sourceStore.Flush()
+	}
+
 	sinkRef, sinkExists := sinkDataset.MaybeHeadRef()
 	nonFF := false
 	err = d.Try(func() {
