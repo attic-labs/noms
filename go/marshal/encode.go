@@ -75,7 +75,9 @@ import (
 //   Field int `noms:",omitempty"
 //
 // The name of the Noms struct is the name of the Go struct where the first
-// character is changed to upper case.
+// character is changed to upper case. You can also implement the
+// StructNameMarshaler interface to get more control over the actual struct
+// name.
 //
 // Anonymous struct fields are usually marshaled as if their inner exported
 // fields were fields in the outer struct, subject to the usual Go visibility.
