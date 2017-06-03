@@ -1,0 +1,279 @@
+%%
+%% Copyright (C) 2014 by Julien Cretel <jubobs.tex at gmail.com>
+%%
+%% This work may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3
+%% of this license or (at your option) any later version.
+%% The latest version of this license is in
+%%
+%%     http://www.latex-project.org/lppl.txt
+%%
+%% and version 1.3 or later is part of all distributions of LaTeX
+%% version 2005/12/01 or later.
+%%
+%% This work has the LPPL maintenance status `maintained'.
+%%
+%% The Current Maintainer of this work is Julien Cretel.
+%%
+%% This work currently consists of the file gitdags.sty.
+%%
+\NeedsTeXFormat{LaTeX2e}[2011/06/27]
+\ProvidesClass{gitdags}
+  [2014/08/28 v0.1 A package for drawing educational Git history graphs]
+
+\DeclareOption*{\PassOptionsToPackage{\CurrentOption}{tikz}}
+\ProcessOptions\relax
+
+\RequirePackage{xcolor-solarized}
+\RequirePackage{tikz}
+\usetikzlibrary{
+  arrows.meta,
+  graphs,
+  positioning,
+  shadows,
+  shapes,
+}
+
+% conflict color
+\colorlet{conflictcolor}{red}
+
+% custom shape, adapted from 102.5.3 in the TikZ 3.0 manual
+\pgfdeclareshape{dogeared}{
+  \inheritsavedanchors[from=rectangle]
+  \inheritanchorborder[from=rectangle]
+  \inheritanchor[from=rectangle]{center}
+  \inheritanchor[from=rectangle]{north}
+  \inheritanchor[from=rectangle]{south}
+  \inheritanchor[from=rectangle]{west}
+  \inheritanchor[from=rectangle]{east}
+  \backgroundpath{%
+    \southwest \pgf@xa=\pgf@x \pgf@ya=\pgf@y
+    \northeast \pgf@xb=\pgf@x \pgf@yb=\pgf@y
+    \pgf@xc=\pgf@xb \advance\pgf@xc by-5pt
+    \pgf@yc=\pgf@yb \advance\pgf@yc by-5pt
+    \pgfpathmoveto{\pgfpoint{\pgf@xa}{\pgf@ya}}
+    \pgfpathlineto{\pgfpoint{\pgf@xa}{\pgf@yb}}
+    \pgfpathlineto{\pgfpoint{\pgf@xc}{\pgf@yb}}
+    \pgfpathlineto{\pgfpoint{\pgf@xb}{\pgf@yc}}
+    \pgfpathlineto{\pgfpoint{\pgf@xb}{\pgf@ya}}
+    \pgfpathclose
+    \pgfpathmoveto{\pgfpoint{\pgf@xc}{\pgf@yb}}
+    \pgfpathlineto{\pgfpoint{\pgf@xc}{\pgf@yc}}
+    \pgfpathlineto{\pgfpoint{\pgf@xb}{\pgf@yc}}
+    \pgfpathclose
+  }
+}
+
+% To cancel a shadow (see http://tex.stackexchange.com/a/198298/21891)
+\tikzset{reset preaction/.code={\def\tikz@preactions{}}}
+
+% --- repository history graphs ---
+% style definitions
+\tikzset{
+  gitdags node/.style={
+    draw,
+    node distance = 1.4em,
+    drop shadow   = {opacity=0.15},
+    font          = \fontfamily{lmtt}\selectfont\small,
+  },
+  DAGref/.style={
+    gitdags node,
+    shape          = rectangle,
+    minimum height = 1.4em,
+    draw           = solarized-base01,
+    thick,
+    font           = \fontfamily{lmtt}\selectfont\scriptsize,
+  },
+  DAGedge/.style={
+    semithick,
+    Latex-,
+    draw = gray,
+  },
+  DAGrefedge/.style={
+    DAGedge,
+    thick,
+    densely dotted,
+  },
+  DAGcommit/.style={
+    gitdags node,
+    shape                        = rounded rectangle,
+    rounded rectangle arc length = 90,
+    minimum height               = 1.6em,
+    minimum width                = 2em,
+    draw                         = solarized-base01,
+    fill                         = solarized-green!20,
+    very thick,
+  },
+  graphs/DAG/.style={
+    nodes          = DAGcommit,
+    edges          = DAGedge,
+    branch down    = 3em,
+    grow right sep = 1.5em,
+  },
+  gitareas/.style={
+    gitdags node,
+    shape           = rectangle,
+    rounded corners = .5em,
+    minimum width   = 7em,
+    minimum height  = 3em,
+    text opacity    = 0.75,
+    semithick,
+  },
+  gitSA/.style={
+    gitareas,
+    anchor = north west,
+    xshift = 1em,
+    yshift = -1em,
+    draw   = solarized-orange,
+    fill   = solarized-orange!5,
+    text   = solarized-orange,
+  },
+  gitWT/.style={
+    gitareas,
+    node distance = .6em,
+    draw          = solarized-violet,
+    fill          = solarized-violet!5,
+    text          = solarized-violet,
+  },
+  resetarrows/.style={
+    -Stealth,
+    dashed,
+    thick,
+    draw         = solarized-base02,
+    draw opacity = .75,
+  },
+  highlighted commit/.style={
+    DAGcommit,
+    reset preaction,
+    fill opacity = 0,
+    draw         = solarized-base02,
+  },
+  problematic commits/.style={
+    reset preaction,
+    draw opacity = .25,
+    fill opacity = .25,
+  },
+  graphs/unreachable/.style={
+    problematic commits,
+    target edge style = problematic commits,
+  },
+  graphs/conflict/.style={
+    empty nodes,
+    problematic commits,
+    target edge style = problematic commits,
+    draw              = conflictcolor,
+    fill              = conflictcolor!25,
+  },
+  placeholder commits/.style={
+    reset preaction,
+    draw opacity = 0,
+    fill opacity = 0,
+  },
+  graphs/placeholder/.style={
+    placeholder commits,
+    target edge style = placeholder commits,
+  },
+  blob/.style={
+    shape          = dogeared,
+    minimum width  = 2em,
+    minimum height = 2.82em,
+    node distance  = .75em,
+    line join      = bevel,
+    draw           = black,
+    fill           = white,
+    align          = left,
+    font           = \ttfamily\tiny,
+  },
+}
+
+% directed acyclic graph
+\newcommand\gitDAG[1][]{\graph[DAG,#1]}
+
+% helper macro (let's check the name's availability)
+\newcommand\nodename@gitdags{}
+
+% local-branch reference
+\newcommand\gitbranch[4][]{%
+  \renewcommand\nodename@gitdags{#1}%
+  \if\relax\detokenize{#1}\relax% check for empty optional argument
+    \renewcommand\nodename@gitdags{#2}%
+  \fi
+  \node[
+    DAGref,
+    fill = yellow!30,
+  ] (\nodename@gitdags) [#3] {#2};
+  \draw[DAGrefedge] (#4) -- (\nodename@gitdags);
+}
+
+% remote-branch reference
+\newcommand\gitremotebranch[4][]{%
+  \renewcommand\nodename@gitdags{#1}%
+  \if\relax\detokenize{#1}\relax% check for empty optional argument
+    \renewcommand\nodename@gitdags{#2}%
+  \fi
+  \node[
+    DAGref,
+    fill = solarized-blue!20,
+  ] (\nodename@gitdags) [#3] {#2};
+  \draw[DAGrefedge] (#4) -- (\nodename@gitdags);
+}
+
+% tag reference
+\newcommand\gittag[4][]{%
+  \renewcommand\nodename@gitdags{#1}%
+  \if\relax\detokenize{#1}\relax% check for empty optional argument
+    \renewcommand\nodename@gitdags{#2}%
+  \fi
+  \node[
+    DAGref,
+    fill = solarized-magenta!20,
+  ] (\nodename@gitdags) [#3] {#2};
+  \draw[DAGrefedge] (#4) -- (\nodename@gitdags);
+}
+
+% HEAD symbolic reference
+\newcommand\gitHEAD[2]{%
+  \node[
+    DAGref,
+    fill          = solarized-red!20,
+    node distance = 1em,
+  ] (gitHEAD) [#1] {HEAD};
+  \draw[DAGrefedge] (#2) -- (gitHEAD);
+}
+
+% the following macro is useful for explaining how merge conflicts arise
+\newcommand\gitblob[2][]
+  {\node[blob,#1] {#2};}
+
+% to highlight a merge conflict arising in a given file
+\newcommand\gitblobmc[1]{%
+  \node[
+    blob,
+    draw = conflictcolor,
+    text = conflictcolor,
+    font = \scriptsize,
+    #1] {???};
+}
+
+% staging area and worktree
+\newcommand\SAandWT{%
+  \node[
+    gitSA,
+  ] (stagingarea) at (current bounding box.south east) {staging area};
+  \node[
+    gitWT,
+    below=of stagingarea,
+  ] (workingtree) {working tree};
+}
+
+% arrows pointing from a commit to the staging area or working tree
+\newcommand\toSAorWT[2]{%
+  \node[highlighted commit] at (#1) {\phantom{#1}};
+  \draw[resetarrows] (#1.south) to[out=290, in=170]
+    ([xshift=1em,yshift=-1em]#2.north west);
+}
+
+\newcommand\toSAfrom[1]{\toSAorWT{#1}{stagingarea}}
+\newcommand\toWTfrom[1]{\toSAorWT{#1}{workingtree}}
+
+\endinput
