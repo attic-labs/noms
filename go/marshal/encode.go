@@ -125,7 +125,7 @@ type Marshaler interface {
 	MarshalNoms() (val types.Value, err error)
 }
 
-// StructNameMarshaler is an interface that can be implemented to to define the
+// StructNameMarshaler is an interface that can be implemented to define the
 // name of a Noms struct.
 type StructNameMarshaler interface {
 	MarshalNomsStructName() string

@@ -17,7 +17,8 @@ import (
 // MarshalType computes a Noms type from a Go type
 //
 // The rules for MarshalType is the same as for Marshal, except for omitempty
-// is ignored since that cannot be determined statically.
+// which leads to an optional field since it depends on the runtime value and
+// can lead to the property not being present.
 //
 // If a Go struct contains a noms tag with original the field is skipped since
 // the Noms type depends on the original Noms value which is not available.
