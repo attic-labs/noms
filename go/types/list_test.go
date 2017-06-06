@@ -156,7 +156,7 @@ func TestListSuite4K(t *testing.T) {
 }
 
 func TestListSuite8K(t *testing.T) {
-	suite.Run(t, newListTestSuite(14, 23, 2, 2))
+	suite.Run(t, newListTestSuite(14, 22, 2, 2))
 }
 
 func TestListInsert(t *testing.T) {

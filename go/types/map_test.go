@@ -405,8 +405,8 @@ func TestMapMutationReadWriteCount(t *testing.T) {
 	})
 
 	assert.Equal(t, uint64(3), NewRef(m).Height())
-	assert.Equal(t, 122, readCount)
-	assert.Equal(t, 123, writeCount)
+	assert.Equal(t, 125, readCount)
+	assert.Equal(t, 124, writeCount)
 }
 
 func TestMapInfiniteChunkBug(t *testing.T) {

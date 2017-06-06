@@ -337,7 +337,7 @@ func TestWriteStruct(t *testing.T) {
 	assertEncoding(t,
 		[]interface{}{
 			uint8(StructKind), "S", uint64(2), /* len */
-			"b", "x", uint8(BoolKind), true, uint8(NumberKind), Number(42),
+			"b", uint8(BoolKind), true, "x", uint8(NumberKind), Number(42),
 		},
 		NewStruct("S", StructData{"x": Number(42), "b": Bool(true)}),
 	)
