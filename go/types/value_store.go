@@ -105,9 +105,7 @@ func (lvs *ValueStore) ChunkStore() chunks.ChunkStore {
 func (lvs *ValueStore) ReadValue(h hash.Hash) Value {
 	lvs.versOnce.Do(lvs.expectVersion)
 	if v, ok := lvs.valueCache.Get(h); ok {
-		if v == nil {
-			return nil
-		}
+		d.PanicIfTrue(v == nil)
 		return v.(Value)
 	}
 
@@ -127,6 +125,7 @@ func (lvs *ValueStore) ReadValue(h hash.Hash) Value {
 	}
 
 	v := DecodeValue(chunk, lvs)
+	d.PanicIfTrue(v == nil)
 	lvs.valueCache.Add(h, uint64(len(chunk.Data())), v)
 	return v
 }
@@ -138,6 +137,7 @@ func (lvs *ValueStore) ReadManyValues(hashes hash.HashSet, foundValues chan<- Va
 	lvs.versOnce.Do(lvs.expectVersion)
 	decode := func(h hash.Hash, chunk *chunks.Chunk, toPending bool) Value {
 		v := DecodeValue(*chunk, lvs)
+		d.PanicIfTrue(v == nil)
 		lvs.valueCache.Add(h, uint64(len(chunk.Data())), v)
 		return v
 	}
@@ -146,9 +146,8 @@ func (lvs *ValueStore) ReadManyValues(hashes hash.HashSet, foundValues chan<- Va
 	remaining := hash.HashSet{}
 	for h := range hashes {
 		if v, ok := lvs.valueCache.Get(h); ok {
-			if v != nil {
-				foundValues <- v.(Value)
-			}
+			d.PanicIfTrue(v == nil)
+			foundValues <- v.(Value)
 			continue
 		}
 
@@ -196,10 +195,6 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 	h := c.Hash()
 	height := maxChunkHeight(v) + 1
 	r := constructRef(h, TypeOf(v), height)
-	if v, ok := lvs.valueCache.Get(h); ok && v != nil {
-		return r
-	}
-
 	lvs.bufferChunk(v, c, height)
 	return r
 }
