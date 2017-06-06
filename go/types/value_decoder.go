@@ -187,12 +187,9 @@ func (r *valueDecoder) readStruct() Value {
 	count := r.readCount()
 
 	fieldNames := make([]string, count)
-	for i := uint64(0); i < count; i++ {
-		fieldNames[i] = r.readString()
-	}
-
 	values := make([]Value, count)
 	for i := uint64(0); i < count; i++ {
+		fieldNames[i] = r.readString()
 		values[i] = r.readValue()
 	}
 

@@ -182,13 +182,9 @@ func (w *valueEncoder) writeStruct(s Struct) {
 	w.writeString(s.name)
 	w.writeCount(uint64(len(s.fieldNames)))
 
-	// Write field names first because they will compress better together.
-	for _, name := range s.fieldNames {
+	for i, name := range s.fieldNames {
 		w.writeString(name)
-	}
-
-	for _, v := range s.values {
-		w.writeValue(v)
+		w.writeValue(s.values[i])
 	}
 }
 
