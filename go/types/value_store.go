@@ -173,12 +173,10 @@ func (lvs *ValueStore) ReadManyValues(hashes hash.HashSet, foundValues chan<- Va
 
 	// Request remaining hashes from ChunkStore, processing the found chunks as they come in.
 	foundChunks := make(chan *chunks.Chunk, 16)
-	foundHashes := hash.HashSet{}
 
 	go func() { lvs.cs.GetMany(remaining, foundChunks); close(foundChunks) }()
 	for c := range foundChunks {
 		h := c.Hash()
-		foundHashes[h] = struct{}{}
 		foundValues <- decode(h, c, false)
 	}
 }
