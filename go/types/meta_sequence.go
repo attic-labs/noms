@@ -342,7 +342,7 @@ func (es emptySequence) isLeaf() bool {
 
 // Invokes |cb| on all "uncommitted" ptree nodes reachable from |v| in
 // "bottom-up" order. It will only follow refs in the case of an in-memory
-// reference to an uncommitted child. Note that |v| maybe not neccesariby be
+// reference to an uncommitted child. Note that |v| maybe not necessarily be
 // a collection, but a collection with uncommitted children maybe be reachable
 // from it (e.g. a Struct).
 func iterateUncommittedChildren(v Value, cb func(sv Value)) {
