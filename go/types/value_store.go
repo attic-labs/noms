@@ -314,7 +314,7 @@ func (lvs *ValueStore) Rebase() {
 // Flush() puts all bufferedChunks into the ChunkStore, with best-effort
 // locality. NB: The Chunks will not be made durable unless the caller also
 // Commits to the underlying ChunkStore.
-func (lvs *ValueStore) Commit(current, last hash.Hash) bool {
+func (lvs *ValueStore) Commit(current hash.Hash) bool {
 	return func() bool {
 		lvs.bufferMu.Lock()
 		defer lvs.bufferMu.Unlock()
@@ -359,7 +359,7 @@ func (lvs *ValueStore) Commit(current, last hash.Hash) bool {
 			PanicIfDangling(lvs.unresolvedRefs, lvs.cs)
 		}
 
-		if !lvs.cs.Commit(current, last) {
+		if !lvs.cs.Commit(current) {
 			return false
 		}
 
