@@ -311,20 +311,16 @@ func (lvs *ValueStore) Rebase() {
 	lvs.cs.Rebase()
 }
 
-// Flush() puts all bufferedChunks into the ChunkStore, with best-effort
-// locality. NB: The Chunks will not be made durable unless the caller also
-// Commits to the underlying ChunkStore.
+// Commit() flushes all bufferedChunks into the ChunkStore, with best-effort
+// locality, and attempts to Commit, updating the root to |current| (or keeping
+// it the same as Root()). If the root has moved since this ValueStore was
+// opened, or last Rebased(), it will return false and will have internally
+// rebased. Until Commit() succeeds, no work of the ValueStore will be visible
+// to other readers of the underlying ChunkStore.
 func (lvs *ValueStore) Commit(current hash.Hash) bool {
 	return func() bool {
 		lvs.bufferMu.Lock()
 		defer lvs.bufferMu.Unlock()
-
-		checkCurrent := false
-		if (current != hash.Hash{}) {
-			if _, ok := lvs.bufferedChunks[current]; !ok {
-				checkCurrent = true
-			}
-		}
 
 		put := func(h hash.Hash, chunk chunks.Chunk) {
 			lvs.cs.Put(chunk)
@@ -353,9 +349,19 @@ func (lvs *ValueStore) Commit(current hash.Hash) bool {
 		lvs.bufferedChunks = map[hash.Hash]chunks.Chunk{}
 
 		if lvs.enforceCompleteness {
-			if checkCurrent {
-				lvs.unresolvedRefs.Insert(current)
+			checkCurrent := false
+			if (current != hash.Hash{} && current != lvs.Root()) {
+				if _, ok := lvs.bufferedChunks[current]; !ok {
+					// If the client is attempting to move the root and the referenced
+					// value isn't still buffered, we need to ensure that it is contained
+					// in the ChunkStore.
+					lvs.unresolvedRefs.Insert(current)
+				}
 			}
+
+			if checkCurrent {
+			}
+
 			PanicIfDangling(lvs.unresolvedRefs, lvs.cs)
 		}
 

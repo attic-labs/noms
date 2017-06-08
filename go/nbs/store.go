@@ -377,7 +377,7 @@ func (nbs *NomsBlockStore) Commit(current hash.Hash) bool {
 	for {
 		if err := nbs.updateManifest(current); err == nil {
 			return true
-		} else if err == errOptimisticLockFailedRoot || err == errLastRootMismatch {
+		} else if err == errOptimisticLockFailedRoot {
 			return false
 		}
 		time.Sleep(b.Duration())
@@ -385,7 +385,6 @@ func (nbs *NomsBlockStore) Commit(current hash.Hash) bool {
 }
 
 var (
-	errLastRootMismatch           = fmt.Errorf("last does not match nbs.Root()")
 	errOptimisticLockFailedRoot   = fmt.Errorf("Root moved")
 	errOptimisticLockFailedTables = fmt.Errorf("Tables changed")
 )
