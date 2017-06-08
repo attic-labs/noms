@@ -164,11 +164,13 @@ func handleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs
 		}
 	}()
 
-	cc := newCompletenessChecker()
+	unresolvedRefs := hash.HashSet{}
 	for ch := range decoded {
 		dc := <-ch
 		if dc.Chunk != nil && dc.Value != nil {
-			cc.AddRefs(*dc.Value)
+			(*dc.Value).WalkRefs(func(r types.Ref) {
+				unresolvedRefs.Insert(r.TargetHash())
+			})
 
 			totalDataWritten += len(dc.Chunk.Data())
 			cs.Put(*dc.Chunk)
@@ -185,7 +187,7 @@ func handleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs
 	}
 
 	if chunkCount > 0 {
-		cc.PanicIfDangling(cs)
+		types.PanicIfDangling(unresolvedRefs, cs)
 		persistChunks(cs)
 	}
 

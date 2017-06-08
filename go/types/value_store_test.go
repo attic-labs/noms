@@ -228,6 +228,30 @@ func TestPanicOnBadVersion(t *testing.T) {
 	})
 }
 
+func TestPanicIfDangling(t *testing.T) {
+	assert := assert.New(t)
+	vs := newTestValueStore()
+
+	r := NewRef(Bool(true))
+	l := NewList(r)
+	vs.WriteValue(l)
+
+	assert.Panics(func() {
+		vs.Flush()
+	})
+}
+
+func TestSkipEnforceCompleteness(t *testing.T) {
+	vs := newTestValueStore()
+	vs.SetEnforceCompleteness(false)
+
+	r := NewRef(Bool(true))
+	l := NewList(r)
+	vs.WriteValue(l)
+
+	vs.Flush()
+}
+
 type badVersionStore struct {
 	chunks.ChunkStore
 }

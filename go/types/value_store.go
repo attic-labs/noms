@@ -50,9 +50,18 @@ type ValueStore struct {
 	bufferedChunksMax    uint64
 	bufferedChunkSize    uint64
 	withBufferedChildren map[hash.Hash]uint64 // chunk Hash -> ref height
+	unresolvedRefs       hash.HashSet
+	enforceCompleteness  bool
 	decodedChunks        *sizecache.SizeCache
 
 	versOnce sync.Once
+}
+
+func PanicIfDangling(unresolved hash.HashSet, cs chunks.ChunkStore) {
+	absent := cs.HasMany(unresolved)
+	if len(absent) != 0 {
+		d.Panic("Found dangling references to %v", absent)
+	}
 }
 
 const (
@@ -83,8 +92,9 @@ func newValueStoreWithCacheAndPending(cs chunks.ChunkStore, cacheSize, pendingMa
 		bufferedChunksMax:    pendingMax,
 		withBufferedChildren: map[hash.Hash]uint64{},
 		decodedChunks:        sizecache.New(cacheSize),
-
-		versOnce: sync.Once{},
+		unresolvedRefs:       hash.HashSet{},
+		enforceCompleteness:  true,
+		versOnce:             sync.Once{},
 	}
 }
 
@@ -93,6 +103,10 @@ func (lvs *ValueStore) expectVersion() {
 	if constants.NomsVersion != dataVersion {
 		d.Panic("SDK version %s incompatible with data of version %s", constants.NomsVersion, dataVersion)
 	}
+}
+
+func (lvs *ValueStore) SetEnforceCompleteness(enforce bool) {
+	lvs.enforceCompleteness = enforce
 }
 
 func (lvs *ValueStore) ChunkStore() chunks.ChunkStore {
@@ -253,6 +267,10 @@ func (lvs *ValueStore) bufferChunk(v Value, c chunks.Chunk, height uint64) {
 			childHash := childRef.TargetHash()
 			if _, isBuffered := lvs.bufferedChunks[childHash]; isBuffered {
 				lvs.withBufferedChildren[h] = height
+			} else if lvs.enforceCompleteness {
+				// If the childRef isn't presently buffered, we must consider it an
+				// unresolved ref.
+				lvs.unresolvedRefs.Insert(childHash)
 			}
 			if _, hasBufferedChildren := lvs.withBufferedChildren[childHash]; hasBufferedChildren {
 				putChildren(childHash)
@@ -288,36 +306,39 @@ func (lvs *ValueStore) bufferChunk(v Value, c chunks.Chunk, height uint64) {
 // locality. NB: The Chunks will not be made durable unless the caller also
 // Commits to the underlying ChunkStore.
 func (lvs *ValueStore) Flush() {
-	func() {
-		lvs.bufferMu.Lock()
-		defer lvs.bufferMu.Unlock()
+	lvs.bufferMu.Lock()
+	defer lvs.bufferMu.Unlock()
 
-		put := func(h hash.Hash, chunk chunks.Chunk) {
-			lvs.cs.Put(chunk)
-			delete(lvs.bufferedChunks, h)
-			lvs.bufferedChunkSize -= uint64(len(chunk.Data()))
-		}
+	put := func(h hash.Hash, chunk chunks.Chunk) {
+		lvs.cs.Put(chunk)
+		delete(lvs.bufferedChunks, h)
+		lvs.bufferedChunkSize -= uint64(len(chunk.Data()))
+	}
 
-		for parent := range lvs.withBufferedChildren {
-			if pending, present := lvs.bufferedChunks[parent]; present {
-				v := DecodeValue(pending, lvs)
-				v.WalkRefs(func(reachable Ref) {
-					if pending, present := lvs.bufferedChunks[reachable.TargetHash()]; present {
-						put(reachable.TargetHash(), pending)
-					}
-				})
-				put(parent, pending)
-			}
+	for parent := range lvs.withBufferedChildren {
+		if pending, present := lvs.bufferedChunks[parent]; present {
+			v := DecodeValue(pending, lvs)
+			v.WalkRefs(func(reachable Ref) {
+				if pending, present := lvs.bufferedChunks[reachable.TargetHash()]; present {
+					put(reachable.TargetHash(), pending)
+				}
+			})
+			put(parent, pending)
 		}
-		for _, c := range lvs.bufferedChunks {
-			// Can't use put() because it's wrong to delete from a lvs.bufferedChunks while iterating it.
-			lvs.cs.Put(c)
-			lvs.bufferedChunkSize -= uint64(len(c.Data()))
-		}
-		d.PanicIfFalse(lvs.bufferedChunkSize == 0)
-		lvs.withBufferedChildren = map[hash.Hash]uint64{}
-		lvs.bufferedChunks = map[hash.Hash]chunks.Chunk{}
-	}()
+	}
+	for _, c := range lvs.bufferedChunks {
+		// Can't use put() because it's wrong to delete from a lvs.bufferedChunks while iterating it.
+		lvs.cs.Put(c)
+		lvs.bufferedChunkSize -= uint64(len(c.Data()))
+	}
+	d.PanicIfFalse(lvs.bufferedChunkSize == 0)
+	lvs.withBufferedChildren = map[hash.Hash]uint64{}
+	lvs.bufferedChunks = map[hash.Hash]chunks.Chunk{}
+
+	if lvs.enforceCompleteness {
+		PanicIfDangling(lvs.unresolvedRefs, lvs.cs)
+		lvs.unresolvedRefs = hash.HashSet{}
+	}
 }
 
 // persist() calls Flush(), but also flushes the ChunkStore to make the Chunks
