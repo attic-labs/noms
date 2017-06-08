@@ -347,13 +347,12 @@ func TestHandlePostRoot(t *testing.T) {
 	commitRef := vs.WriteValue(commit)
 	firstHead := types.NewMap(types.String("dataset1"), types.ToRefOfValue(commitRef))
 	firstHeadRef := vs.WriteValue(firstHead)
-	vs.Flush()
+	vs.Commit(vs.Root(), vs.Root())
 
 	commit = buildTestCommit(types.String("second"), commitRef)
 	newHead := types.NewMap(types.String("dataset1"), types.ToRefOfValue(vs.WriteValue(commit)))
 	newHeadRef := vs.WriteValue(newHead)
-	vs.Flush()
-	persistChunks(cs)
+	vs.Commit(vs.Root(), vs.Root())
 
 	// First attempt should fail, as 'last' won't match.
 	url = buildPostRootURL(newHeadRef.TargetHash(), firstHeadRef.TargetHash())
@@ -402,8 +401,7 @@ func TestRejectPostRoot(t *testing.T) {
 	commit := buildTestCommit(types.String("commit"))
 	head := types.NewMap(types.String("dataset1"), types.ToRefOfValue(vs.WriteValue(commit)))
 	headRef := vs.WriteValue(head)
-	vs.Flush()
-	assert.True(cs.Commit(headRef.TargetHash(), hash.Hash{}))
+	assert.True(vs.Commit(headRef.TargetHash(), vs.Root()))
 
 	// Attempt to update head to empty hash should fail
 	url = buildPostRootURL(hash.Hash{}, headRef.TargetHash())

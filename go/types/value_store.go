@@ -232,6 +232,7 @@ func (lvs *ValueStore) writeValueInternal(v Value) Ref {
 func (lvs *ValueStore) bufferChunk(v Value, c chunks.Chunk, height uint64) {
 	lvs.bufferMu.Lock()
 	defer lvs.bufferMu.Unlock()
+
 	d.PanicIfTrue(height == 0)
 	h := c.Hash()
 	if _, present := lvs.bufferedChunks[h]; !present {
@@ -302,51 +303,72 @@ func (lvs *ValueStore) bufferChunk(v Value, c chunks.Chunk, height uint64) {
 	}
 }
 
+func (lvs *ValueStore) Root() hash.Hash {
+	return lvs.cs.Root()
+}
+
+func (lvs *ValueStore) Rebase() {
+	lvs.cs.Rebase()
+}
+
 // Flush() puts all bufferedChunks into the ChunkStore, with best-effort
 // locality. NB: The Chunks will not be made durable unless the caller also
 // Commits to the underlying ChunkStore.
-func (lvs *ValueStore) Flush() {
-	lvs.bufferMu.Lock()
-	defer lvs.bufferMu.Unlock()
+func (lvs *ValueStore) Commit(current, last hash.Hash) bool {
+	return func() bool {
+		lvs.bufferMu.Lock()
+		defer lvs.bufferMu.Unlock()
 
-	put := func(h hash.Hash, chunk chunks.Chunk) {
-		lvs.cs.Put(chunk)
-		delete(lvs.bufferedChunks, h)
-		lvs.bufferedChunkSize -= uint64(len(chunk.Data()))
-	}
-
-	for parent := range lvs.withBufferedChildren {
-		if pending, present := lvs.bufferedChunks[parent]; present {
-			v := DecodeValue(pending, lvs)
-			v.WalkRefs(func(reachable Ref) {
-				if pending, present := lvs.bufferedChunks[reachable.TargetHash()]; present {
-					put(reachable.TargetHash(), pending)
-				}
-			})
-			put(parent, pending)
+		checkCurrent := false
+		if (current != hash.Hash{}) {
+			if _, ok := lvs.bufferedChunks[current]; !ok {
+				checkCurrent = true
+			}
 		}
-	}
-	for _, c := range lvs.bufferedChunks {
-		// Can't use put() because it's wrong to delete from a lvs.bufferedChunks while iterating it.
-		lvs.cs.Put(c)
-		lvs.bufferedChunkSize -= uint64(len(c.Data()))
-	}
-	d.PanicIfFalse(lvs.bufferedChunkSize == 0)
-	lvs.withBufferedChildren = map[hash.Hash]uint64{}
-	lvs.bufferedChunks = map[hash.Hash]chunks.Chunk{}
 
-	if lvs.enforceCompleteness {
-		PanicIfDangling(lvs.unresolvedRefs, lvs.cs)
-		lvs.unresolvedRefs = hash.HashSet{}
-	}
-}
+		put := func(h hash.Hash, chunk chunks.Chunk) {
+			lvs.cs.Put(chunk)
+			delete(lvs.bufferedChunks, h)
+			lvs.bufferedChunkSize -= uint64(len(chunk.Data()))
+		}
 
-// persist() calls Flush(), but also flushes the ChunkStore to make the Chunks
-// durable. If you're using this outside of tests, you're probably holding it
-// wrong.
-func (lvs *ValueStore) persist() {
-	lvs.Flush()
-	d.PanicIfFalse(lvs.cs.Commit(lvs.cs.Root(), lvs.cs.Root()))
+		for parent := range lvs.withBufferedChildren {
+			if pending, present := lvs.bufferedChunks[parent]; present {
+				v := DecodeValue(pending, lvs)
+				v.WalkRefs(func(reachable Ref) {
+					if pending, present := lvs.bufferedChunks[reachable.TargetHash()]; present {
+						put(reachable.TargetHash(), pending)
+					}
+				})
+				put(parent, pending)
+			}
+		}
+		for _, c := range lvs.bufferedChunks {
+			// Can't use put() because it's wrong to delete from a lvs.bufferedChunks while iterating it.
+			lvs.cs.Put(c)
+			lvs.bufferedChunkSize -= uint64(len(c.Data()))
+		}
+		d.PanicIfFalse(lvs.bufferedChunkSize == 0)
+		lvs.withBufferedChildren = map[hash.Hash]uint64{}
+		lvs.bufferedChunks = map[hash.Hash]chunks.Chunk{}
+
+		if lvs.enforceCompleteness {
+			if checkCurrent {
+				lvs.unresolvedRefs.Insert(current)
+			}
+			PanicIfDangling(lvs.unresolvedRefs, lvs.cs)
+		}
+
+		if !lvs.cs.Commit(current, last) {
+			return false
+		}
+
+		if lvs.enforceCompleteness {
+			lvs.unresolvedRefs = hash.HashSet{}
+		}
+
+		return true
+	}()
 }
 
 // Close closes the underlying ChunkStore

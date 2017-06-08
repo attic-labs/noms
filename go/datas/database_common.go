@@ -39,7 +39,7 @@ func newDatabase(cs chunks.ChunkStore) *database {
 
 	return &database{
 		ValueStore: vs, // ValueStore is responsible for closing |cs|
-		rt:         cs,
+		rt:         vs,
 	}
 }
 
@@ -205,8 +205,6 @@ func (db *database) doDelete(datasetIDstr string) error {
 
 func (db *database) tryCommitChunks(currentDatasets types.Map, currentRootHash hash.Hash) (err error) {
 	newRootHash := db.WriteValue(currentDatasets).TargetHash()
-
-	db.Flush()
 
 	if !db.rt.Commit(newRootHash, currentRootHash) {
 		err = ErrOptimisticLockFailed
