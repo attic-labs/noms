@@ -11,6 +11,7 @@ import (
 	"sort"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/testify/assert"
@@ -407,6 +408,62 @@ func TestMapMutationReadWriteCount(t *testing.T) {
 	assert.Equal(t, uint64(3), NewRef(m).Height())
 	assert.Equal(t, 125, readCount)
 	assert.Equal(t, 124, writeCount)
+}
+
+func TestStreamingMapUpdate(t *testing.T) {
+	smallTestChunks()
+	defer normalProductionChunks()
+
+	ts := &chunks.TestStorage{}
+	cs := ts.NewView()
+	vs := newValueStoreWithCacheAndPending(cs, 0, 0)
+
+	t1 := time.Now()
+	total := 50000
+	increment := 10
+	kvChan := make(chan Value)
+	var m Map
+	go func() {
+		for i := 0; i < total; i++ {
+			kvChan <- Number(i)
+			kvChan <- String(fmt.Sprintf("my string %d", i))
+		}
+		close(kvChan)
+	}()
+
+	m = <-NewStreamingMap(vs, kvChan)
+	fmt.Println(m.Len(), m.Hash().String(), time.Since(t1), m.sequence().treeLevel())
+
+	m1 := m
+
+	t2 := time.Now()
+	for i := 0; i < total; i += increment {
+		m1 = m1.Set(Number(i), String(fmt.Sprintf("my other string %d", i)))
+	}
+
+	fmt.Println(m1.Hash().String(), time.Since(t2))
+
+	t3 := time.Now()
+
+	var ch *sequenceChunker
+	for i := 0; i < total; i += increment {
+		k := Number(i)
+		v := String(fmt.Sprintf("my other string %d", i))
+
+		c, f := m.getCursorAtValue(k, false)
+		assert.True(t, f)
+		if ch == nil {
+			ch = newSequenceChunker(c, 0, vs, nil, makeMapLeafChunkFn(vs), newOrderedMetaSequenceChunkFn(MapKind, vs), mapHashValueBytes)
+		} else {
+			ch.advanceTo(c)
+		}
+		ch.Skip()
+		ch.Append(mapEntry{k, v})
+	}
+
+	m2 := newMap(ch.Done().(orderedSequence))
+	fmt.Println(m2.Hash().String(), time.Since(t3))
+	assert.True(t, m1.Equals(m2))
 }
 
 func TestMapInfiniteChunkBug(t *testing.T) {
