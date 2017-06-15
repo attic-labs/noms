@@ -11,7 +11,6 @@ import (
 	"sort"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/testify/assert"
@@ -383,87 +382,25 @@ func TestMapMutationReadWriteCount(t *testing.T) {
 	cs.Writes = 0
 	cs.Reads = 0
 
-	m2 := vs.ReadValue(r.TargetHash()).(Map)
 	i := 0
-	readCount := 0
-	writeCount := 0
 
+	me := NewMapEditor(vs.ReadValue(r.TargetHash()).(Map))
 	m.IterAll(func(k, v Value) {
 		if i%every == 0 {
 			s := v.(Struct)
 
 			s = s.Set("Number", Number(float64(s.Get("Number").(Number))+1))
-			m2 = m2.Set(k, s)
-			r := vs.WriteValue(m2)
-			vs.Commit(vs.Root(), vs.Root())
-			readCount += cs.Reads
-			writeCount += cs.Writes
-			cs.Reads = 0
-			cs.Writes = 0
-			m2 = vs.ReadValue(r.TargetHash()).(Map)
+			me.Set(k, s)
 		}
 		i++
 	})
 
+	me.Build(vs)
+	vs.Commit(vs.Root(), vs.Root())
+
 	assert.Equal(t, uint64(3), NewRef(m).Height())
-	assert.Equal(t, 125, readCount)
-	assert.Equal(t, 124, writeCount)
-}
-
-func TestStreamingMapUpdate(t *testing.T) {
-	smallTestChunks()
-	defer normalProductionChunks()
-
-	ts := &chunks.TestStorage{}
-	cs := ts.NewView()
-	vs := newValueStoreWithCacheAndPending(cs, 0, 0)
-
-	t1 := time.Now()
-	total := 50000
-	increment := 10
-	kvChan := make(chan Value)
-	var m Map
-	go func() {
-		for i := 0; i < total; i++ {
-			kvChan <- Number(i)
-			kvChan <- String(fmt.Sprintf("my string %d", i))
-		}
-		close(kvChan)
-	}()
-
-	m = <-NewStreamingMap(vs, kvChan)
-	fmt.Println(m.Len(), m.Hash().String(), time.Since(t1), m.sequence().treeLevel())
-
-	m1 := m
-
-	t2 := time.Now()
-	for i := 0; i < total; i += increment {
-		m1 = m1.Set(Number(i), String(fmt.Sprintf("my other string %d", i)))
-	}
-
-	fmt.Println(m1.Hash().String(), time.Since(t2))
-
-	t3 := time.Now()
-
-	var ch *sequenceChunker
-	for i := 0; i < total; i += increment {
-		k := Number(i)
-		v := String(fmt.Sprintf("my other string %d", i))
-
-		c, f := m.getCursorAtValue(k, false)
-		assert.True(t, f)
-		if ch == nil {
-			ch = newSequenceChunker(c, 0, vs, nil, makeMapLeafChunkFn(vs), newOrderedMetaSequenceChunkFn(MapKind, vs), mapHashValueBytes)
-		} else {
-			ch.advanceTo(c)
-		}
-		ch.Skip()
-		ch.Append(mapEntry{k, v})
-	}
-
-	m2 := newMap(ch.Done().(orderedSequence))
-	fmt.Println(m2.Hash().String(), time.Since(t3))
-	assert.True(t, m1.Equals(m2))
+	assert.Equal(t, 84, cs.Reads)
+	assert.Equal(t, 45, cs.Writes)
 }
 
 func TestMapInfiniteChunkBug(t *testing.T) {
@@ -479,11 +416,13 @@ func TestMapInfiniteChunkBug(t *testing.T) {
 
 	prefix := buff.String()
 
-	m := NewMap()
+	me := NewMapEditor(NewMap())
 
 	for i := 0; i < 10000; i++ {
-		m = m.Set(String(prefix+fmt.Sprintf("%d", i)), Number(i))
+		me.Set(String(prefix+fmt.Sprintf("%d", i)), Number(i))
 	}
+
+	me.Build(nil)
 }
 
 func TestNewMap(t *testing.T) {
@@ -555,15 +494,55 @@ func TestMapHas(t *testing.T) {
 
 func TestMapHasRemove(t *testing.T) {
 	assert := assert.New(t)
-	m1 := NewMap()
-	assert.False(m1.Has(String("foo")))
-	m2 := m1.Set(String("foo"), String("foo"))
-	assert.False(m1.Has(String("foo")))
-	assert.True(m2.Has(String("foo")))
-	m3 := m1.Remove(String("foo"))
-	assert.False(m1.Has(String("foo")))
-	assert.True(m2.Has(String("foo")))
-	assert.False(m3.Has(String("foo")))
+
+	me := NewMapEditor(NewMap())
+	bothHave := func(k Value) bool {
+		meHas := me.Has(k)
+		mHas := me.Build(nil).Has(k)
+		assert.Equal(meHas, mHas)
+		return meHas
+	}
+
+	assert.False(bothHave(String("a")))
+
+	me.Set(String("a"), String("a"))
+	assert.True(bothHave(String("a")))
+
+	me.Remove(String("a"))
+	assert.False(bothHave(String("a")))
+
+	me.Set(String("a"), String("a"))
+	assert.True(bothHave(String("a")))
+
+	me.Set(String("a"), String("a"))
+	assert.True(bothHave(String("a")))
+
+	// In-order insertions
+	me.Set(String("b"), String("b"))
+	me.Set(String("c"), String("c"))
+	assert.True(bothHave(String("a")))
+	assert.True(bothHave(String("b")))
+	assert.True(bothHave(String("c")))
+
+	// Out-of-order insertions
+	me.Set(String("z"), String("z"))
+	me.Set(String("y"), String("y"))
+	assert.True(bothHave(String("z")))
+	assert.True(bothHave(String("y")))
+	assert.True(bothHave(String("a")))
+	assert.True(bothHave(String("b")))
+	assert.True(bothHave(String("c")))
+
+	// Removals
+	me.Remove(String("z")).Remove(String("y")).Remove(String("a")).Remove(String("b")).Remove(String("c")).Remove(String("never-inserted"))
+	assert.False(bothHave(String("z")))
+	assert.False(bothHave(String("y")))
+	assert.False(bothHave(String("a")))
+	assert.False(bothHave(String("b")))
+	assert.False(bothHave(String("c")))
+
+	m := me.Build(nil)
+	assert.True(m.Len() == 0)
 }
 
 func TestMapRemove(t *testing.T) {
@@ -580,7 +559,7 @@ func TestMapRemove(t *testing.T) {
 		whole := tm.toMap()
 		run := func(i int) {
 			expected := tm.Remove(i, i+1).toMap()
-			actual := whole.Remove(tm.entries[i].key)
+			actual := NewMapEditor(whole).Remove(tm.entries[i].key).Build(nil)
 			assert.Equal(expected.Len(), actual.Len())
 			assert.True(expected.Equals(actual))
 			diffMapTest(assert, expected, actual, 0, 0, 0)
@@ -605,7 +584,7 @@ func TestMapRemoveNonexistentKey(t *testing.T) {
 
 	tm := getTestNativeOrderMap(2)
 	original := tm.toMap()
-	actual := original.Remove(Number(-1)) // rand.Int63 returns non-negative numbers.
+	actual := NewMapEditor(original).Remove(Number(-1)).Build(nil) // rand.Int63 returns non-negative numbers.
 
 	assert.Equal(original.Len(), actual.Len())
 	assert.True(original.Equals(actual))
@@ -622,8 +601,7 @@ func TestMapFirst(t *testing.T) {
 	assert.Nil(k)
 	assert.Nil(v)
 
-	m1 = m1.Set(String("foo"), String("bar"))
-	m1 = m1.Set(String("hot"), String("dog"))
+	m1 = NewMapEditor(m1).Set(String("foo"), String("bar")).Set(String("hot"), String("dog")).Build(nil)
 	ak, av := m1.First()
 	var ek, ev Value
 
@@ -670,8 +648,7 @@ func TestMapLast(t *testing.T) {
 	assert.Nil(k)
 	assert.Nil(v)
 
-	m1 = m1.Set(String("foo"), String("bar"))
-	m1 = m1.Set(String("hot"), String("dog"))
+	m1 = NewMapEditor(m1).Set(String("foo"), String("bar")).Set(String("hot"), String("dog")).Build(nil)
 	ak, av := m1.Last()
 	var ek, ev Value
 
@@ -713,27 +690,41 @@ func TestMapSetGet(t *testing.T) {
 	smallTestChunks()
 	defer normalProductionChunks()
 
-	m1 := NewMap()
-	assert.Nil(m1.Get(String("foo")))
-	m2 := m1.Set(String("foo"), Number(42))
-	assert.Nil(m1.Get(String("foo")))
-	assert.True(Number(42).Equals(m2.Get(String("foo"))))
-	m3 := m2.Set(String("foo"), Number(43))
-	assert.Nil(m1.Get(String("foo")))
-	assert.True(Number(42).Equals(m2.Get(String("foo"))))
-	assert.True(Number(43).Equals(m3.Get(String("foo"))))
-	m4 := m3.Remove(String("foo"))
-	assert.Nil(m1.Get(String("foo")))
-	assert.True(Number(42).Equals(m2.Get(String("foo"))))
-	assert.True(Number(43).Equals(m3.Get(String("foo"))))
-	assert.Nil(m4.Get(String("foo")))
+	me := NewMapEditor(NewMap())
+	bothAre := func(k Value) Value {
+		meV := me.Get(k)
+		mV := me.Build(nil).Get(k)
+		assert.True((meV == nil && mV == nil) || meV.Equals(mV))
+		return mV
+	}
+
+	assert.Nil(bothAre(String("foo")))
+
+	me.Set(String("foo"), Number(42)).Build(nil)
+	assert.True(Number(42).Equals(bothAre(String("foo"))))
+
+	me.Set(String("foo"), Number(43))
+	assert.True(Number(43).Equals(bothAre(String("foo"))))
+
+	me.Remove(String("foo"))
+	assert.Nil(bothAre(String("foo")))
 }
 
 func validateMapInsertion(t *testing.T, tm testMap) {
-	m := NewMap()
+	allMe := NewMapEditor(NewMap())
+	incrMe := NewMapEditor(NewMap())
+
 	for i, entry := range tm.entries {
-		m = m.Set(entry.key, entry.value)
-		validateMap(t, m, tm.entries[0:i+1])
+		allMe.Set(entry.key, entry.value)
+		incrMe.Set(entry.key, entry.value)
+
+		m1 := allMe.Build(nil)
+		m2 := incrMe.Build(nil)
+
+		validateMap(t, m1, tm.entries[0:i+1])
+		validateMap(t, m2, tm.entries[0:i+1])
+
+		incrMe = NewMapEditor(m2)
 	}
 }
 
@@ -748,36 +739,36 @@ func TestMapValidateInsertAscending(t *testing.T) {
 	validateMapInsertion(t, newSortedTestMap(300, newNumber))
 }
 
-func TestMapSet(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping test in short mode.")
-	}
+// func TestMapSet(t *testing.T) {
+// 	if testing.Short() {
+// 		t.Skip("Skipping test in short mode.")
+// 	}
 
-	smallTestChunks()
-	defer normalProductionChunks()
+// 	smallTestChunks()
+// 	defer normalProductionChunks()
 
-	assert := assert.New(t)
+// 	assert := assert.New(t)
 
-	doTest := func(incr, offset int, tm testMap) {
-		expected := tm.toMap()
-		run := func(from, to int) {
-			actual := tm.Remove(from, to).toMap().SetM(tm.Flatten(from, to)...)
-			assert.Equal(expected.Len(), actual.Len())
-			assert.True(expected.Equals(actual))
-			diffMapTest(assert, expected, actual, 0, 0, 0)
-		}
-		for i := 0; i < len(tm.entries)-offset; i += incr {
-			run(i, i+offset)
-		}
-		run(len(tm.entries)-offset, len(tm.entries))
-	}
+// 	doTest := func(incr, offset int, tm testMap) {
+// 		expected := tm.toMap()
+// 		run := func(from, to int) {
+// 			actual := tm.Remove(from, to).toMap().SetM(tm.Flatten(from, to)...)
+// 			assert.Equal(expected.Len(), actual.Len())
+// 			assert.True(expected.Equals(actual))
+// 			diffMapTest(assert, expected, actual, 0, 0, 0)
+// 		}
+// 		for i := 0; i < len(tm.entries)-offset; i += incr {
+// 			run(i, i+offset)
+// 		}
+// 		run(len(tm.entries)-offset, len(tm.entries))
+// 	}
 
-	doTest(18, 3, getTestNativeOrderMap(9))
-	doTest(128, 1, getTestNativeOrderMap(32))
-	doTest(64, 1, getTestRefValueOrderMap(4))
-	doTest(64, 1, getTestRefToNativeOrderMap(4, newTestValueStore()))
-	doTest(64, 1, getTestRefToValueOrderMap(4, newTestValueStore()))
-}
+// 	doTest(18, 3, getTestNativeOrderMap(9))
+// 	doTest(128, 1, getTestNativeOrderMap(32))
+// 	doTest(64, 1, getTestRefValueOrderMap(4))
+// 	doTest(64, 1, getTestRefToNativeOrderMap(4, newTestValueStore()))
+// 	doTest(64, 1, getTestRefToValueOrderMap(4, newTestValueStore()))
+// }
 
 func TestMapSetExistingKeyToNewValue(t *testing.T) {
 	if testing.Short() {
@@ -797,7 +788,7 @@ func TestMapSetExistingKeyToNewValue(t *testing.T) {
 	for i, entry := range tm.entries {
 		newValue := Number(int64(entry.value.(Number)) + 1)
 		expectedWorking = expectedWorking.SetValue(i, newValue)
-		actual = actual.Set(entry.key, newValue)
+		actual = NewMapEditor(actual).Set(entry.key, newValue).Build(nil)
 	}
 
 	expected := expectedWorking.toMap()
@@ -805,20 +796,6 @@ func TestMapSetExistingKeyToNewValue(t *testing.T) {
 	assert.True(expected.Equals(actual))
 	assert.False(original.Equals(actual))
 	diffMapTest(assert, expected, actual, 0, 0, 0)
-}
-
-func TestMapSetM(t *testing.T) {
-	assert := assert.New(t)
-	m1 := NewMap()
-	m2 := m1.SetM()
-	assert.True(m1.Equals(m2))
-	m3 := m2.SetM(String("foo"), String("bar"), String("hot"), String("dog"))
-	assert.Equal(uint64(2), m3.Len())
-	assert.True(String("bar").Equals(m3.Get(String("foo"))))
-	assert.True(String("dog").Equals(m3.Get(String("hot"))))
-	m4 := m3.SetM(String("mon"), String("key"))
-	assert.Equal(uint64(2), m3.Len())
-	assert.Equal(uint64(3), m4.Len())
 }
 
 // BUG 98
@@ -885,7 +862,7 @@ func TestMapIter(t *testing.T) {
 	m.Iter(cb)
 	assert.Equal(0, len(results))
 
-	m = m.SetM(String("a"), Number(0), String("b"), Number(1))
+	m = NewMapEditor(m).Set(String("a"), Number(0)).Set(String("b"), Number(1)).Build(nil)
 	m.Iter(cb)
 	assert.Equal(2, len(results))
 	assert.True(got(String("a"), Number(0)))
@@ -989,7 +966,7 @@ func TestMapEquals(t *testing.T) {
 	diffMapTest(assert, m3, m2, 0, 0, 0)
 
 	m1 = NewMap(String("foo"), Number(0.0), String("bar"), NewList())
-	m2 = m2.SetM(String("foo"), Number(0.0), String("bar"), NewList())
+	m2 = NewMapEditor(m2).Set(String("foo"), Number(0.0)).Set(String("bar"), NewList()).Build(nil)
 	assert.True(m1.Equals(m2))
 	assert.True(m2.Equals(m1))
 	assert.False(m2.Equals(m3))
@@ -1160,12 +1137,16 @@ func TestMapOrdering(t *testing.T) {
 func TestMapEmpty(t *testing.T) {
 	assert := assert.New(t)
 
-	m := NewMap()
-	assert.True(m.Empty())
-	m = m.Set(Bool(false), String("hi"))
-	assert.False(m.Empty())
-	m = m.Set(NewList(), NewMap())
-	assert.False(m.Empty())
+	me := NewMapEditor(NewMap())
+	empty := func() bool {
+		return me.Build(nil).Empty()
+	}
+
+	assert.True(empty())
+	me.Set(Bool(false), String("hi"))
+	assert.False(empty())
+	me.Set(NewList(), NewMap())
+	assert.False(empty())
 }
 
 func TestMapType(t *testing.T) {
@@ -1175,19 +1156,19 @@ func TestMapType(t *testing.T) {
 	m := NewMap()
 	assert.True(TypeOf(m).Equals(emptyMapType))
 
-	m2 := m.Remove(String("B"))
+	m2 := NewMapEditor(m).Remove(String("B")).Build(nil)
 	assert.True(emptyMapType.Equals(TypeOf(m2)))
 
 	tr := MakeMapType(StringType, NumberType)
-	m2 = m.Set(String("A"), Number(1))
+	m2 = NewMapEditor(m).Set(String("A"), Number(1)).Build(nil)
 	assert.True(tr.Equals(TypeOf(m2)))
 
-	m2 = m.SetM(String("B"), Number(2), String("C"), Number(2))
+	m2 = NewMapEditor(m).Set(String("B"), Number(2)).Set(String("C"), Number(2)).Build(nil)
 	assert.True(tr.Equals(TypeOf(m2)))
 
-	m3 := m2.Set(String("A"), Bool(true))
+	m3 := NewMapEditor(m2).Set(String("A"), Bool(true)).Build(nil)
 	assert.True(MakeMapType(StringType, MakeUnionType(BoolType, NumberType)).Equals(TypeOf(m3)), TypeOf(m3).Describe())
-	m4 := m3.Set(Bool(true), Number(1))
+	m4 := NewMapEditor(m3).Set(Bool(true), Number(1)).Build(nil)
 	assert.True(MakeMapType(MakeUnionType(BoolType, StringType), MakeUnionType(BoolType, NumberType)).Equals(TypeOf(m4)))
 }
 
@@ -1255,13 +1236,13 @@ func TestMapModifyAfterRead(t *testing.T) {
 	m = vs.ReadValue(vs.WriteValue(m).TargetHash()).(Map)
 	// Modify/query. Once upon a time this would crash.
 	fst, fstval := m.First()
-	m = m.Remove(fst)
+	m = NewMapEditor(m).Remove(fst).Build(nil)
 	assert.False(m.Has(fst))
 
 	fst2, _ := m.First()
 	assert.True(m.Has(fst2))
 
-	m = m.Set(fst, fstval)
+	m = NewMapEditor(m).Set(fst, fstval).Build(nil)
 	assert.True(m.Has(fst))
 }
 
@@ -1280,12 +1261,12 @@ func TestMapTypeAfterMutations(t *testing.T) {
 		assert.IsType(c, m.sequence())
 		assert.True(TypeOf(m).Equals(MakeMapType(NumberType, NumberType)))
 
-		m = m.Set(String("a"), String("a"))
+		m = NewMapEditor(m).Set(String("a"), String("a")).Build(nil)
 		assert.Equal(m.Len(), uint64(n+1))
 		assert.IsType(c, m.sequence())
 		assert.True(TypeOf(m).Equals(MakeMapType(MakeUnionType(NumberType, StringType), MakeUnionType(NumberType, StringType))))
 
-		m = m.Remove(String("a"))
+		m = NewMapEditor(m).Remove(String("a")).Build(nil)
 		assert.Equal(m.Len(), uint64(n))
 		assert.IsType(c, m.sequence())
 		assert.True(TypeOf(m).Equals(MakeMapType(NumberType, NumberType)))
@@ -1324,7 +1305,7 @@ func TestCompoundMapWithValuesOfEveryType(t *testing.T) {
 	for i := 1; m.sequence().isLeaf(); i++ {
 		k := Number(i)
 		kvs = append(kvs, k, v)
-		m = m.Set(k, v)
+		m = NewMapEditor(m).Set(k, v).Build(nil)
 	}
 
 	assert.Equal(len(kvs)/2, int(m.Len()))
@@ -1344,7 +1325,7 @@ func TestCompoundMapWithValuesOfEveryType(t *testing.T) {
 	for len(kvs) > 0 {
 		k := kvs[0]
 		kvs = kvs[2:]
-		m = m.Remove(k)
+		m = NewMapEditor(m).Remove(k).Build(nil)
 		assert.False(m.Has(k))
 		assert.Equal(len(kvs)/2, int(m.Len()))
 	}
@@ -1369,7 +1350,7 @@ func TestMapRemoveLastWhenNotLoaded(t *testing.T) {
 		last := entr[len(entr)-1]
 		entr = entr[:len(entr)-1]
 		tm.entries = entr
-		nm = reload(nm.Remove(last.key))
+		nm = reload(NewMapEditor(nm).Remove(last.key).Build(nil))
 		assert.True(tm.toMap().Equals(nm))
 	}
 }

@@ -76,7 +76,6 @@ func (sc *sequenceChunker) resume() {
 // advanceTo advances the sequenceChunker to the next "spine" at which
 // modifications to the prolly-tree should take place
 func (sc *sequenceChunker) advanceTo(next *sequenceCursor) {
-	d.PanicIfFalse(sc.cur.valid())
 	// There are four basic situations which must be handled when advancing to a
 	// new chunking position:
 	//
