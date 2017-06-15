@@ -218,7 +218,7 @@ func buildMap(count uint64, createFn createValueFn) types.Collection {
 }
 
 func buildMapIncrementally(count uint64, createFn createValueFn) types.Collection {
-	me := types.NewMapEditor(types.NewMap())
+	me := types.NewMap().Edit()
 
 	for i := uint64(0); i < count*2; i += 2 {
 		me.Set(createFn(i), createFn(i+1))

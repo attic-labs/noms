@@ -264,6 +264,10 @@ func (m Map) IterFrom(start Value, cb mapIterCallback) {
 	})
 }
 
+func (m Map) Edit() *MapEditor {
+	return NewMapEditor(m)
+}
+
 func buildMapData(values []Value) mapEntrySlice {
 	if len(values) == 0 {
 		return mapEntrySlice{}

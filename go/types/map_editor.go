@@ -14,7 +14,7 @@ import (
 // are buffered to memory and can be applied via Build(), which returns a new
 // Map. Prior to Build(), Get() & Has() will return the value that the resulting
 // Map would return if it were built immediately prior to the respective call.
-// Note: The implementation biases performance towards a usage which applys
+// Note: The implementation biases performance towards a usage which applies
 // edits in key-order.
 type MapEditor struct {
 	m          Map
