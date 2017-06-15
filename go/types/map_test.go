@@ -698,16 +698,47 @@ func TestMapSetGet(t *testing.T) {
 		return mV
 	}
 
-	assert.Nil(bothAre(String("foo")))
+	assert.Nil(bothAre(String("a")))
 
-	me.Set(String("foo"), Number(42)).Build(nil)
-	assert.True(Number(42).Equals(bothAre(String("foo"))))
+	me.Set(String("a"), Number(42))
+	assert.True(Number(42).Equals(bothAre(String("a"))))
 
-	me.Set(String("foo"), Number(43))
-	assert.True(Number(43).Equals(bothAre(String("foo"))))
+	me.Set(String("a"), Number(43))
+	assert.True(Number(43).Equals(bothAre(String("a"))))
 
-	me.Remove(String("foo"))
-	assert.Nil(bothAre(String("foo")))
+	me.Remove(String("a"))
+	assert.Nil(bothAre(String("a")))
+
+	// in-order insertions
+	me.Set(String("b"), Number(43))
+	me.Set(String("c"), Number(44))
+
+	assert.True(Number(43).Equals(bothAre(String("b"))))
+	assert.True(Number(44).Equals(bothAre(String("c"))))
+
+	// out-of-order insertions
+	me.Set(String("z"), Number(0))
+	me.Set(String("y"), Number(1))
+
+	assert.True(Number(0).Equals(bothAre(String("z"))))
+	assert.True(Number(1).Equals(bothAre(String("y"))))
+
+	// removals
+	me.Remove(String("z"))
+	me.Remove(String("a"))
+	me.Remove(String("y"))
+	me.Remove(String("b"))
+	me.Remove(String("c"))
+
+	assert.Nil(bothAre(String("a")))
+	assert.Nil(bothAre(String("b")))
+	assert.Nil(bothAre(String("c")))
+	assert.Nil(bothAre(String("y")))
+	assert.Nil(bothAre(String("z")))
+	assert.Nil(bothAre(String("never-inserted")))
+
+	m := me.Build(nil)
+	assert.True(m.Len() == 0)
 }
 
 func validateMapInsertion(t *testing.T, tm testMap) {
@@ -739,36 +770,50 @@ func TestMapValidateInsertAscending(t *testing.T) {
 	validateMapInsertion(t, newSortedTestMap(300, newNumber))
 }
 
-// func TestMapSet(t *testing.T) {
-// 	if testing.Short() {
-// 		t.Skip("Skipping test in short mode.")
-// 	}
+func TestMapSet(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping test in short mode.")
+	}
 
-// 	smallTestChunks()
-// 	defer normalProductionChunks()
+	smallTestChunks()
+	defer normalProductionChunks()
 
-// 	assert := assert.New(t)
+	assert := assert.New(t)
 
-// 	doTest := func(incr, offset int, tm testMap) {
-// 		expected := tm.toMap()
-// 		run := func(from, to int) {
-// 			actual := tm.Remove(from, to).toMap().SetM(tm.Flatten(from, to)...)
-// 			assert.Equal(expected.Len(), actual.Len())
-// 			assert.True(expected.Equals(actual))
-// 			diffMapTest(assert, expected, actual, 0, 0, 0)
-// 		}
-// 		for i := 0; i < len(tm.entries)-offset; i += incr {
-// 			run(i, i+offset)
-// 		}
-// 		run(len(tm.entries)-offset, len(tm.entries))
-// 	}
+	doTest := func(incr, offset int, tm testMap) {
+		expected := tm.toMap()
+		run := func(from, to int) {
+			actual := tm.Remove(from, to).toMap().Edit().SetM(tm.Flatten(from, to)...).Build(nil)
+			assert.Equal(expected.Len(), actual.Len())
+			assert.True(expected.Equals(actual))
+			diffMapTest(assert, expected, actual, 0, 0, 0)
+		}
+		for i := 0; i < len(tm.entries)-offset; i += incr {
+			run(i, i+offset)
+		}
+		run(len(tm.entries)-offset, len(tm.entries))
+	}
 
-// 	doTest(18, 3, getTestNativeOrderMap(9))
-// 	doTest(128, 1, getTestNativeOrderMap(32))
-// 	doTest(64, 1, getTestRefValueOrderMap(4))
-// 	doTest(64, 1, getTestRefToNativeOrderMap(4, newTestValueStore()))
-// 	doTest(64, 1, getTestRefToValueOrderMap(4, newTestValueStore()))
-// }
+	doTest(18, 3, getTestNativeOrderMap(9))
+	doTest(128, 1, getTestNativeOrderMap(32))
+	doTest(64, 1, getTestRefValueOrderMap(4))
+	doTest(64, 1, getTestRefToNativeOrderMap(4, newTestValueStore()))
+	doTest(64, 1, getTestRefToValueOrderMap(4, newTestValueStore()))
+}
+
+func TestMapSetM(t *testing.T) {
+	assert := assert.New(t)
+	m1 := NewMap()
+	m2 := m1.Edit().SetM().Build(nil)
+	assert.True(m1.Equals(m2))
+	m3 := m2.Edit().SetM(String("foo"), String("bar"), String("hot"), String("dog")).Build(nil)
+	assert.Equal(uint64(2), m3.Len())
+	assert.True(String("bar").Equals(m3.Get(String("foo"))))
+	assert.True(String("dog").Equals(m3.Get(String("hot"))))
+	m4 := m3.Edit().SetM(String("mon"), String("key")).Build(nil)
+	assert.Equal(uint64(2), m3.Len())
+	assert.Equal(uint64(3), m4.Len())
+}
 
 func TestMapSetExistingKeyToNewValue(t *testing.T) {
 	if testing.Short() {

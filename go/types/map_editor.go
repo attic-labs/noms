@@ -87,6 +87,15 @@ func (me *MapEditor) Set(k, v Value) *MapEditor {
 	return me
 }
 
+func (me *MapEditor) SetM(kv ...Value) *MapEditor {
+	d.PanicIfFalse(len(kv)%2 == 0)
+
+	for i := 0; i < len(kv); i += 2 {
+		me.Set(kv[i], kv[i+1])
+	}
+	return me
+}
+
 func (me *MapEditor) Remove(k Value) *MapEditor {
 	me.set(k, nil)
 	return me
