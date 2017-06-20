@@ -109,7 +109,7 @@ func (sc *sequenceChunker) advanceTo(next *sequenceCursor) {
 			if sc.cur.parent != nil {
 
 				if sc.cur.parent.compare(next.parent) < 0 {
-					// Case (4): We stopped consuming items on this level before ending
+					// Case (4): We stopped consuming items on this level before entering
 					// the sequence referenced by |next|
 					reachedNext = false
 				}
