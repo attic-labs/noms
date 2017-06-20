@@ -32,18 +32,21 @@ const (
 )
 
 var (
-	cacheOnce           = sync.Once{}
-	globalIndexCache    *indexCache
-	globalManifestCache *manifestCache
-	globalFDCache       *fdCache
-	globalConjoiner     conjoiner
+	cacheOnce        = sync.Once{}
+	globalIndexCache *indexCache
+	globalAddCache   func(manifest) manifest
+	globalFDCache    *fdCache
+	globalConjoiner  conjoiner
 )
 
 func makeGlobalCaches() {
 	globalIndexCache = newIndexCache(defaultIndexCacheSize)
-	globalManifestCache = newManifestCache(defaultManifestCacheSize)
 	globalFDCache = newFDCache(defaultMaxTables)
 	globalConjoiner = newAsyncConjoiner(defaultMaxTables)
+
+	cacheMu := &sync.Mutex{}
+	manifestCache := newManifestCache(defaultManifestCacheSize)
+	globalAddCache = func(mm manifest) manifest { return cachingManifest{mm, cacheMu, manifestCache} }
 }
 
 type NomsBlockStore struct {
@@ -76,7 +79,7 @@ func NewAWSStore(table, ns, bucket string, s3 s3svc, ddb ddbsvc, memTableSize ui
 		make(chan struct{}, 32),
 		nil,
 	}
-	mm := newDynamoManifest(table, ns, ddb, globalManifestCache)
+	mm := globalAddCache(newDynamoManifest(table, ns, ddb))
 	return newNomsBlockStore(mm, p, globalConjoiner, memTableSize)
 }
 
@@ -84,7 +87,7 @@ func NewLocalStore(dir string, memTableSize uint64) *NomsBlockStore {
 	cacheOnce.Do(makeGlobalCaches)
 	d.PanicIfError(checkDir(dir))
 
-	mm := newFileManifest(dir, globalManifestCache)
+	mm := globalAddCache(fileManifest{dir})
 	p := newFSTablePersister(dir, globalFDCache, globalIndexCache)
 	return newNomsBlockStore(mm, p, globalConjoiner, memTableSize)
 }

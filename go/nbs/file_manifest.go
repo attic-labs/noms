@@ -30,12 +30,7 @@ const (
 // |-- String --|-- String --|-------- String --------|-------- String --------|-- String --|- String --|...|-- String --|- String --|
 // | nbs version:Noms version:Base32-encoded lock hash:Base32-encoded root hash:table 1 hash:table 1 cnt:...:table N hash:table N cnt|
 type fileManifest struct {
-	dir   string
-	cache *manifestCache
-}
-
-func newFileManifest(dir string, cache *manifestCache) manifest {
-	return fileManifest{dir, cache}
+	dir string
 }
 
 func (fm fileManifest) Name() string {
@@ -71,7 +66,6 @@ func (fm fileManifest) ParseIfExists(stats *Stats, readHook func()) (exists bool
 			contents = parseManifest(f)
 		}
 	}
-	fm.cache.Put(fm.Name(), contents.size(), contents)
 	return
 }
 
@@ -104,12 +98,6 @@ func parseManifest(r io.Reader) manifestContents {
 }
 
 func (fm fileManifest) Update(lastLock addr, newContents manifestContents, stats *Stats, writeHook func()) manifestContents {
-	if upstream, hit := fm.cache.Get(fm.Name()); hit {
-		if lastLock != upstream.lock {
-			return upstream
-		}
-	}
-
 	t1 := time.Now()
 	defer func() { stats.WriteManifestLatency.SampleTimeSince(t1) }()
 
@@ -152,7 +140,6 @@ func (fm fileManifest) Update(lastLock addr, newContents manifestContents, stats
 		upstream = newContents
 	}
 
-	fm.cache.Put(fm.Name(), upstream.size(), upstream)
 	return upstream
 }
 
