@@ -229,7 +229,7 @@ func buildNewCommit(ds Dataset, v types.Value, opts CommitOptions) types.Struct 
 	if (parents == types.Set{}) {
 		parents = types.NewSet()
 		if headRef, ok := ds.MaybeHeadRef(); ok {
-			parents = parents.Insert(headRef)
+			parents = parents.Edit().Insert(headRef).Build(nil)
 		}
 	}
 

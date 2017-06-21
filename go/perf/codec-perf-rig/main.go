@@ -195,12 +195,12 @@ func buildSet(count uint64, createFn createValueFn) types.Collection {
 }
 
 func buildSetIncrementally(count uint64, createFn createValueFn) types.Collection {
-	s := types.NewSet()
+	s := types.NewSet().Edit()
 	for i := uint64(0); i < count; i++ {
-		s = s.Insert(createFn(i))
+		s.Insert(createFn(i))
 	}
 
-	return s
+	return s.Build(nil)
 }
 
 func readSet(c types.Collection) {

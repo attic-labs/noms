@@ -81,16 +81,17 @@ func (suite *DatabaseSuite) TestCompletenessCheck() {
 	datasetID := "ds1"
 	ds1 := suite.db.GetDataset(datasetID)
 
-	s := types.NewSet()
+	se := types.NewSet().Edit()
 	for i := 0; i < 100; i++ {
-		s = s.Insert(suite.db.WriteValue(types.Number(100)))
+		se.Insert(suite.db.WriteValue(types.Number(100)))
 	}
+	s := se.Build(nil)
 
 	ds1, err := suite.db.CommitValue(ds1, s)
 	suite.NoError(err)
 
 	s = ds1.HeadValue().(types.Set)
-	s = s.Insert(types.NewRef(types.Number(1000))) // danging ref
+	s = s.Edit().Insert(types.NewRef(types.Number(1000))).Build(nil) // danging ref
 	suite.Panics(func() {
 		ds1, err = suite.db.CommitValue(ds1, s)
 	})

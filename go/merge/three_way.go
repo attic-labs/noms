@@ -240,9 +240,9 @@ func (m *merger) threeWaySetMerge(a, b, parent types.Set, path types.Path) (merg
 		defer updateProgress(m.progress)
 		switch change.ChangeType {
 		case types.DiffChangeAdded, types.DiffChangeModified:
-			return setCandidate{target.getValue().(types.Set).Insert(newVal)}
+			return setCandidate{target.getValue().(types.Set).Edit().Insert(newVal).Build(nil)}
 		case types.DiffChangeRemoved:
-			return setCandidate{target.getValue().(types.Set).Remove(newVal)}
+			return setCandidate{target.getValue().(types.Set).Edit().Remove(newVal).Build(nil)}
 		default:
 			panic("Not Reached")
 		}

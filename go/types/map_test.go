@@ -95,6 +95,14 @@ func (tm testMap) toMap() Map {
 	return NewMap(keyvals...)
 }
 
+func toValuable(vs ValueSlice) []Valuable {
+	vb := make([]Valuable, len(vs))
+	for i, v := range vs {
+		vb[i] = v
+	}
+	return vb
+}
+
 func (tm testMap) Flatten(from, to int) []Value {
 	flat := make([]Value, 0, len(tm.entries)*2)
 	for _, entry := range tm.entries[from:to] {
@@ -694,7 +702,7 @@ func TestMapSetGet(t *testing.T) {
 	bothAre := func(k Value) Value {
 		meV := me.Get(k)
 		mV := me.Build(nil).Get(k)
-		assert.True((meV == nil && mV == nil) || meV.Equals(mV))
+		assert.True((meV == nil && mV == nil) || meV.(Value).Equals(mV))
 		return mV
 	}
 
@@ -783,7 +791,7 @@ func TestMapSet(t *testing.T) {
 	doTest := func(incr, offset int, tm testMap) {
 		expected := tm.toMap()
 		run := func(from, to int) {
-			actual := tm.Remove(from, to).toMap().Edit().SetM(tm.Flatten(from, to)...).Build(nil)
+			actual := tm.Remove(from, to).toMap().Edit().SetM(toValuable(tm.Flatten(from, to))...).Build(nil)
 			assert.Equal(expected.Len(), actual.Len())
 			assert.True(expected.Equals(actual))
 			diffMapTest(assert, expected, actual, 0, 0, 0)
