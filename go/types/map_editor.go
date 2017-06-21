@@ -32,10 +32,10 @@ func (me *MapEditor) Kind() NomsKind {
 }
 
 func (me *MapEditor) Value(vrw ValueReadWriter) Value {
-	return me.Build(vrw)
+	return me.Map(vrw)
 }
 
-func (me *MapEditor) Build(vrw ValueReadWriter) Map {
+func (me *MapEditor) Map(vrw ValueReadWriter) Map {
 	if len(me.edits) == 0 {
 		return me.m // no edits
 	}
@@ -56,13 +56,15 @@ func (me *MapEditor) Build(vrw ValueReadWriter) Map {
 				continue // next edit supercedes this one
 			}
 
+			edit := edit
+
 			// TODO: Use ReadMany
 			cc := make(chan *sequenceCursor, 1)
 			cursChan <- cc
 
-			go func(k Value, cc chan *sequenceCursor) {
-				cc <- newCursorAtValue(me.m.seq, k, true, false, false)
-			}(edit.key, cc)
+			go func() {
+				cc <- newCursorAtValue(me.m.seq, edit.key, true, false, false)
+			}()
 
 			kvc := make(chan mapEntry, 1)
 			kvsChan <- kvc
@@ -77,16 +79,16 @@ func (me *MapEditor) Build(vrw ValueReadWriter) Map {
 				continue
 			}
 
-			go func(k Value, v Valuable, kvc chan mapEntry) {
-				sv := v.Value(vrw)
+			go func() {
+				sv := edit.value.Value(vrw)
 				if e, ok := sv.(Emptyable); ok {
 					if e.Empty() {
 						sv = nil
 					}
 				}
 
-				kvc <- mapEntry{k, sv}
-			}(edit.key, edit.value, kvc)
+				kvc <- mapEntry{edit.key, sv}
+			}()
 		}
 
 		close(cursChan)

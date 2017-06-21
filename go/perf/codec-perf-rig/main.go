@@ -200,7 +200,7 @@ func buildSetIncrementally(count uint64, createFn createValueFn) types.Collectio
 		s.Insert(createFn(i))
 	}
 
-	return s.Build(nil)
+	return s.Set(nil)
 }
 
 func readSet(c types.Collection) {
@@ -224,7 +224,7 @@ func buildMapIncrementally(count uint64, createFn createValueFn) types.Collectio
 		me.Set(createFn(i), createFn(i+1))
 	}
 
-	return me.Build(nil)
+	return me.Map(nil)
 }
 
 func readMap(c types.Collection) {

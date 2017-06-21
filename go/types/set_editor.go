@@ -30,11 +30,11 @@ func (se *SetEditor) Kind() NomsKind {
 	return SetKind
 }
 
-func (se *SetEditor) build(vrw ValueReadWriter) Value {
-	return se.Build(vrw)
+func (se *SetEditor) Value(vrw ValueReadWriter) Value {
+	return se.Set(vrw)
 }
 
-func (se *SetEditor) Build(vrw ValueReadWriter) Set {
+func (se *SetEditor) Set(vrw ValueReadWriter) Set {
 	if len(se.edits) == 0 {
 		return se.s // no edits
 	}
@@ -55,13 +55,15 @@ func (se *SetEditor) Build(vrw ValueReadWriter) Set {
 				continue // next edit supercedes this one
 			}
 
+			edit := edit
+
 			// Load cursor. TODO: Use ReadMany
 			cc := make(chan *sequenceCursor, 1)
 			cursChan <- cc
 
-			go func(v Value, cc chan *sequenceCursor) {
-				cc <- newCursorAtValue(se.s.seq, v, true, false, false)
-			}(edit.value, cc)
+			go func() {
+				cc <- newCursorAtValue(se.s.seq, edit.value, true, false, false)
+			}()
 
 			editChan <- edit
 		}
