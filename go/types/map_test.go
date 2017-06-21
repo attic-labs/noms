@@ -1511,3 +1511,50 @@ func TestMapWithNil(t *testing.T) {
 		NewSet(String("a"), String("b"), Number(42), nil)
 	})
 }
+
+func TestNestedEditing(t *testing.T) {
+	me0 := NewMap().Edit()
+
+	// m.a.a
+	me1a := NewMap().Edit()
+	me0.Set(String("a"), me1a)
+	se2a := NewSet().Edit()
+	me1a.Set(String("a"), se2a)
+	se2a.Insert(String("a"))
+
+	// m.b.b
+	me1b := NewMap().Edit()
+	me0.Set(String("b"), me1b)
+	se2b := NewSet().Edit()
+	me1b.Set(String("b"), se2b)
+	se2b.Insert(String("b"))
+
+	mOut := me0.Map(nil)
+	assert.True(t, mOut.Equals(NewMap(
+		String("a"), NewMap(
+			String("a"), NewSet(String("a")),
+		),
+		String("b"), NewMap(
+			String("b"), NewSet(String("b")),
+		),
+	)))
+
+	se2a.Remove(String("a")).Insert(String("aa"))
+	se2b.Remove(String("b")).Insert(String("bb"))
+
+	mOut = me0.Map(nil)
+	assert.True(t, mOut.Equals(NewMap(
+		String("a"), NewMap(
+			String("a"), NewSet(String("aa")),
+		),
+		String("b"), NewMap(
+			String("b"), NewSet(String("bb")),
+		),
+	)))
+
+	se2a.Remove(String("aa"))
+	se2b.Remove(String("bb"))
+
+	mOut = me0.Map(nil)
+	assert.True(t, mOut.Equals(NewMap())) // remove empty
+}
