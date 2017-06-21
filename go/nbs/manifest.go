@@ -75,9 +75,7 @@ func (cm cachingManifest) ParseIfExists(stats *Stats, readHook func()) (exists b
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 	exists, contents = cm.mm.ParseIfExists(stats, readHook)
-	if exists {
-		cm.cache.Put(cm.Name(), contents)
-	}
+	cm.cache.Put(cm.Name(), contents)
 	return
 }
 

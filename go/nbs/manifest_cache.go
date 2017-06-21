@@ -73,7 +73,7 @@ func (mc *manifestCache) Put(db string, contents manifestContents) {
 			key1 := el.Value.(string)
 			ce, ok := mc.cache[key1]
 			if !ok {
-				d.Panic("SizeCache is missing expected value")
+				d.Panic("manifestCache is missing expected value")
 			}
 			next := el.Next()
 			delete(mc.cache, key1)

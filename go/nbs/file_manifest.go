@@ -121,26 +121,25 @@ func (fm fileManifest) Update(lastLock addr, newContents manifestContents, stats
 	}
 
 	// Read current manifest (if it exists). The closure ensures that the file is closed before moving on, so we can rename over it later if need be.
-	var upstream manifestContents
 	manifestPath := filepath.Join(fm.dir, manifestFileName)
-	func() {
+	upstream := func() manifestContents {
 		if f := openIfExists(manifestPath); f != nil {
 			defer checkClose(f)
 
-			upstream = parseManifest(f)
+			upstream := parseManifest(f)
 			d.PanicIfFalse(constants.NomsVersion == upstream.vers)
-		} else {
-			d.Chk.True(lastLock == addr{})
+			return upstream
 		}
+		d.Chk.True(lastLock == addr{})
+		return manifestContents{}
 	}()
 
-	if lastLock == upstream.lock {
-		rerr := os.Rename(tempManifestPath, manifestPath)
-		d.PanicIfError(rerr)
-		upstream = newContents
+	if lastLock != upstream.lock {
+		return upstream
 	}
-
-	return upstream
+	rerr := os.Rename(tempManifestPath, manifestPath)
+	d.PanicIfError(rerr)
+	return newContents
 }
 
 func writeManifest(temp io.Writer, contents manifestContents) {
