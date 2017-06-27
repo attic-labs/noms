@@ -374,7 +374,6 @@ func sendWriteRequest(u url.URL, auth, vers string, p *nbs.NomsBlockCache, cli h
 	}()
 
 	body := buildWriteValueRequest(chunkChan)
-	// TODO: Make this accept snappy encoding
 	req := newRequest("POST", auth, u.String(), body, http.Header{
 		"Accept-Encoding":  {"gzip"},
 		"Content-Encoding": {"x-snappy-framed"},
