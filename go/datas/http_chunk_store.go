@@ -235,15 +235,7 @@ func (hcs *httpChunkStore) batchReadRequests(queue <-chan chunks.ReadRequest, ge
 			case <-hcs.finishedChan:
 				done = true
 			}
-			/*	// Drain queue before returning
-				select {
-				case req := <-queue:
-					hcs.sendReadRequests(req, queue, getter)
-				default:
-					//drained!
-				}*/
 		}
-
 	}()
 }
 
