@@ -405,8 +405,7 @@ func (nbs *NomsBlockStore) updateManifest(current, last hash.Hash) error {
 		return errLastRootMismatch
 	}
 
-	if upstream, doomed := nbs.mm.updateWillFail(nbs.manifestLock); doomed {
-		// Pre-emptive optimistic lock failure. Someone else in-process moved to the root, the set of tables, or both out from under us.
+	handleOptimisticLockFailure := func(upstream manifestContents) error {
 		nbs.manifestLock = upstream.lock
 		nbs.root = upstream.root
 		nbs.tables = nbs.tables.Rebase(upstream.specs)
@@ -415,6 +414,11 @@ func (nbs *NomsBlockStore) updateManifest(current, last hash.Hash) error {
 			return errOptimisticLockFailedRoot
 		}
 		return errOptimisticLockFailedTables
+	}
+
+	if upstream, doomed := nbs.mm.updateWillFail(nbs.manifestLock); doomed {
+		// Pre-emptive optimistic lock failure. Someone else in-process moved to the root, the set of tables, or both out from under us.
+		return handleOptimisticLockFailure(upstream)
 	}
 
 	if nbs.mt != nil && nbs.mt.count() > 0 {
@@ -443,14 +447,7 @@ func (nbs *NomsBlockStore) updateManifest(current, last hash.Hash) error {
 	upstream := nbs.mm.Update(nbs.manifestLock, newContents, nbs.stats, nil)
 	if newContents.lock != upstream.lock {
 		// Optimistic lock failure. Someone else moved to the root, the set of tables, or both out from under us.
-		nbs.manifestLock = upstream.lock
-		nbs.root = upstream.root
-		nbs.tables = nbs.tables.Rebase(upstream.specs)
-
-		if last != upstream.root {
-			return errOptimisticLockFailedRoot
-		}
-		return errOptimisticLockFailedTables
+		return handleOptimisticLockFailure(upstream)
 	}
 
 	nbs.tables = nbs.tables.Flatten()
