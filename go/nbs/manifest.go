@@ -7,6 +7,7 @@ package nbs
 import (
 	"crypto/sha512"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/attic-labs/noms/go/d"
@@ -14,6 +15,9 @@ import (
 )
 
 type manifest interface {
+	// Name returns a stable, unique identifier for the store this manifest describes.
+	Name() string
+
 	// ParseIfExists extracts and returns values from a NomsBlockStore
 	// manifest, if one exists. Concrete implementations are responsible for
 	// defining how to find and parse the desired manifest, e.g. a
@@ -29,6 +33,10 @@ type manifest interface {
 	// implementation is guaranteeing exclusive access to the manifest.
 	ParseIfExists(stats *Stats, readHook func()) (exists bool, contents manifestContents)
 
+	manifestUpdater
+}
+
+type manifestUpdater interface {
 	// Update optimistically tries to write a new manifest containing
 	// |newContents|. If |lastLock| matches the lock hash in the currently
 	// persisted manifest (logically, the lock that would be returned by
@@ -45,9 +53,6 @@ type manifest interface {
 	// guaranteeing exclusive access to the manifest. This allows for testing
 	// of race conditions.
 	Update(lastLock addr, newContents manifestContents, stats *Stats, writeHook func()) manifestContents
-
-	// Name returns a stable, unique identifier for the store this manifest describes.
-	Name() string
 }
 
 type manifestContents struct {
@@ -65,13 +70,88 @@ func (mc manifestContents) size() (size uint64) {
 	return
 }
 
-type cachingManifest struct {
-	mm    manifest
-	cache *manifestCache
+func newManifestLocks() *manifestLocks {
+	return &manifestLocks{map[string]struct{}{}, map[string]struct{}{}, sync.NewCond(&sync.Mutex{})}
 }
 
-func (cm cachingManifest) updateWillFail(lastLock addr) (cached manifestContents, doomed bool) {
-	if upstream, _, hit := cm.cache.Get(cm.Name()); hit {
+type manifestLocks struct {
+	updating map[string]struct{}
+	fetching map[string]struct{}
+	cond     *sync.Cond
+}
+
+func (ml *manifestLocks) lockForFetch(db string) {
+	ml.cond.L.Lock()
+	defer ml.cond.L.Unlock()
+
+	for {
+		if _, inProgress := ml.fetching[db]; !inProgress {
+			ml.fetching[db] = struct{}{}
+			break
+		}
+		ml.cond.Wait()
+	}
+}
+
+func (ml *manifestLocks) unlockForFetch(db string) {
+	ml.cond.L.Lock()
+	defer ml.cond.L.Unlock()
+
+	_, ok := ml.fetching[db]
+	d.PanicIfFalse(ok)
+	delete(ml.fetching, db)
+
+	ml.cond.Broadcast()
+}
+
+func (ml *manifestLocks) lockForUpdate(db string) {
+	ml.cond.L.Lock()
+	defer ml.cond.L.Unlock()
+
+	for {
+		if _, updateInProgress := ml.updating[db]; !updateInProgress {
+			ml.updating[db] = struct{}{}
+			break
+		}
+		ml.cond.Wait()
+	}
+}
+
+func (ml *manifestLocks) unlockForUpdate(db string) {
+	ml.cond.L.Lock()
+	defer ml.cond.L.Unlock()
+
+	_, ok := ml.updating[db]
+	d.PanicIfFalse(ok)
+	delete(ml.updating, db)
+
+	ml.cond.Broadcast()
+}
+
+type manifestManager struct {
+	m     manifest
+	cache *manifestCache
+	locks *manifestLocks
+}
+
+func (mm manifestManager) LockOutFetch() {
+	mm.locks.lockForFetch(mm.Name())
+}
+
+func (mm manifestManager) AllowFetch() {
+	mm.locks.unlockForFetch(mm.Name())
+}
+
+func (mm manifestManager) LockForUpdate() {
+	mm.locks.lockForUpdate(mm.Name())
+}
+
+func (mm manifestManager) UnlockForUpdate() {
+	mm.locks.unlockForUpdate(mm.Name())
+}
+
+func (mm manifestManager) updateWillFail(lastLock addr) (cached manifestContents, doomed bool) {
+	if upstream, _, hit := mm.cache.Get(mm.Name()); hit {
 		if lastLock != upstream.lock {
 			doomed, cached = true, upstream
 		}
@@ -79,13 +159,13 @@ func (cm cachingManifest) updateWillFail(lastLock addr) (cached manifestContents
 	return
 }
 
-func (cm cachingManifest) ParseIfExists(stats *Stats, readHook func()) (exists bool, contents manifestContents) {
+func (mm manifestManager) Fetch(stats *Stats) (exists bool, contents manifestContents) {
 	entryTime := time.Now()
 
-	cm.cache.Lock(cm.Name())
-	defer cm.cache.Unlock(cm.Name())
+	mm.locks.lockForFetch(mm.Name())
+	defer mm.locks.unlockForFetch(mm.Name())
 
-	cached, t, hit := cm.cache.Get(cm.Name())
+	cached, t, hit := mm.cache.Get(mm.Name())
 
 	if hit && t.After(entryTime) {
 		// Cache contains a manifest which is newer than entry time.
@@ -93,27 +173,25 @@ func (cm cachingManifest) ParseIfExists(stats *Stats, readHook func()) (exists b
 	}
 
 	t = time.Now()
-	exists, contents = cm.mm.ParseIfExists(stats, readHook)
-	cm.cache.Put(cm.Name(), contents, t)
+	exists, contents = mm.m.ParseIfExists(stats, nil)
+	mm.cache.Put(mm.Name(), contents, t)
 	return
 }
 
-func (cm cachingManifest) Update(lastLock addr, newContents manifestContents, stats *Stats, writeHook func()) manifestContents {
-	cm.cache.Lock(cm.Name())
-	defer cm.cache.Unlock(cm.Name())
-	if upstream, _, hit := cm.cache.Get(cm.Name()); hit {
+func (mm manifestManager) Update(lastLock addr, newContents manifestContents, stats *Stats, writeHook func()) manifestContents {
+	if upstream, _, hit := mm.cache.Get(mm.Name()); hit {
 		if lastLock != upstream.lock {
 			return upstream
 		}
 	}
 	t := time.Now()
-	contents := cm.mm.Update(lastLock, newContents, stats, writeHook)
-	cm.cache.Put(cm.Name(), contents, t)
+	contents := mm.m.Update(lastLock, newContents, stats, writeHook)
+	mm.cache.Put(mm.Name(), contents, t)
 	return contents
 }
 
-func (cm cachingManifest) Name() string {
-	return cm.mm.Name()
+func (mm manifestManager) Name() string {
+	return mm.m.Name()
 }
 
 type tableSpec struct {
