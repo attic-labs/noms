@@ -18,7 +18,7 @@ The DynamoDB table you create, on the other hand, does need to have a particular
 
 ### Access control
 
-The NBS code honors AWS credentials files, so when running on your development machine the easiest thing to do is drop the creds of the user that created the bucket and table above into `~/.aws/credentials` and run that way. This isn't a great approach for running in on an EC2 instance in production, however. The right way to do that is to create an IAM Role, and run your instance as that role.
+The NBS code honors AWS credentials files, so when running on your development machine the easiest thing to do is drop the creds of the user that created the bucket and table above into `~/.aws/credentials` and run that way. This isn't a great approach for running in on an EC2 instance in production, however. The right way to do that is to create an IAM Role, and run your instance as that role. You can also specify credentials in your environment variables. See [AWS SDK Docs](https://github.com/aws/aws-sdk-go#configuring-credentials)
 
 Create such a role using the IAM Management Console (or command line tool of your choice) and make sure it has a policy with at least the following permissions:
 ```
@@ -33,26 +33,25 @@ Create such a role using the IAM Management Console (or command line tool of you
                 "dynamodb:BatchWriteItem",
                 "dynamodb:DeleteItem",
                 "dynamodb:GetItem",
-                "dynamodb:PutItem",
+                "dynamodb:PutItem"
             ],
             "Resource": [
-                "[ARN for your DynamoDB table]",
+                "[ARN for your DynamoDB table]"
             ]
         },
         {
             "Sid": "Stmt1454457944000",
             "Effect": "Allow",
             "Action": [
-                "s3:AbortMultipartUpload"
-                "s3:CompleteMultipartUpload",
-                "s3:CreateMultipartUpload",
+				"s3:AbortMultipartUpload",
+				"s3:DeleteObject",
                 "s3:GetObject",
                 "s3:PutObject",
-                "s3:UploadPart",
-                "s3:UploadPartCopy",
+                "s3:ListBucketMultipartUploads",
+                "s3:ListMultipartUploadParts"
             ],
             "Resource": [
-                "[ARN for your S3 bucket]",
+                "[ARN for your S3 bucket]"
             ]
         }
     ]
