@@ -449,13 +449,7 @@ func (nfile nomsFile) Read(dest []byte, off int64) (fuse.ReadResult, fuse.Status
 	ref := file.(types.Struct).Get("data").(types.Ref)
 	blob := ref.TargetValue(nfile.fs.db).(types.Blob)
 
-	br := blob.Reader()
-
-	_, err := br.Seek(off, 0)
-	if err != nil {
-		return nil, fuse.EIO
-	}
-	n, err := br.Read(dest)
+	n, err := blob.ReadAt(dest, off)
 	if err != nil {
 		return fuse.ReadResultData(dest[:n]), fuse.EIO
 	}
@@ -862,9 +856,8 @@ func (fs *nomsFS) GetXAttr(path string, attribute string, context *fuse.Context)
 	}
 
 	blob := v.(types.Blob)
-
 	data := make([]byte, blob.Len())
-	blob.Reader().Read(data)
+	blob.ReadAt(data, 0)
 
 	return data, fuse.OK
 }
