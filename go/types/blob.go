@@ -52,23 +52,24 @@ func (b Blob) ReadAt(p []byte, off int64) (n int, err error) {
 		return
 	}
 
-	leaves, localStart := LoadLeafSequences(b, startIdx, endIdx)
+	root := b.sequence()
+	leaves, localStart := loadLeafSequences(root.valueReader(), []sequence{root}, startIdx, endIdx)
 	endIdx = localStart + endIdx - startIdx
 	startIdx = localStart
 
 	for _, s := range leaves {
 		bl := s.(blobLeafSequence)
 
-		le := endIdx
-		ll := uint64(len(bl.data))
-		if le > ll {
-			le = ll
+		localEnd := endIdx
+		leafLength := uint64(len(bl.data))
+		if localEnd > leafLength {
+			localEnd = leafLength
 		}
-		src := bl.data[startIdx:le]
+		src := bl.data[startIdx:localEnd]
 
 		copy(p[n:], src)
 		n += len(src)
-		endIdx -= le
+		endIdx -= localEnd
 		startIdx = 0
 	}
 
@@ -83,6 +84,9 @@ func (b Blob) Copy(w io.Writer) (n int64) {
 	return b.CopyReadAhead(w, 1<<23 /* 8MB */, 6)
 }
 
+// CopyReadAhead copies the entire contents of |b| to |w|, and attempts to stay
+// |concurrency| |chunkSize| blocks of bytes ahead of the last byte written to
+// |w|.
 func (b Blob) CopyReadAhead(w io.Writer, chunkSize uint64, concurrency int) (n int64) {
 	bChan := make(chan chan []byte, concurrency)
 
@@ -93,14 +97,14 @@ func (b Blob) CopyReadAhead(w io.Writer, chunkSize uint64, concurrency int) (n i
 			bChan <- bc
 
 			start := idx
-			len := b.Len() - start
-			if len > chunkSize {
-				len = chunkSize
+			blockLength := b.Len() - start
+			if blockLength > chunkSize {
+				blockLength = chunkSize
 			}
-			idx += len
+			idx += blockLength
 
 			go func() {
-				buff := make([]byte, len)
+				buff := make([]byte, blockLength)
 				b.ReadAt(buff, int64(start))
 				bc <- buff
 			}()
@@ -110,7 +114,7 @@ func (b Blob) CopyReadAhead(w io.Writer, chunkSize uint64, concurrency int) (n i
 
 	// Ensure read-ahead goroutines can exit
 	defer func() {
-		for _ = range bChan {
+		for range bChan {
 		}
 	}()
 

@@ -81,10 +81,8 @@ func orderedKeyFromSum(msd []metaTuple) orderedKey {
 	return orderedKeyFromUint64(sum)
 }
 
-func LoadLeafSequences(c Collection, startIdx, endIdx uint64) (leaves []sequence, firstIdx uint64) {
-	return loadLeafSequences(c.sequence().valueReader(), []sequence{c.sequence()}, startIdx, endIdx)
-}
-
+// loads the set of leaf sequences which contain the items [startIdx -> endIdx).
+// Returns the set of sequences and the offset within the first sequence which corresponds to |startIdx|.
 func loadLeafSequences(vr ValueReader, seqs []sequence, startIdx, endIdx uint64) ([]sequence, uint64) {
 	if seqs[0].isLeaf() {
 		for _, s := range seqs {
@@ -104,6 +102,7 @@ func loadLeafSequences(vr ValueReader, seqs []sequence, startIdx, endIdx uint64)
 
 		for _, mt := range ms.tuples {
 			if cum == 0 && mt.numLeaves <= startIdx {
+				// skip tuples whose items are < startIdx
 				startIdx -= mt.numLeaves
 				endIdx -= mt.numLeaves
 				continue
