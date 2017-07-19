@@ -5,7 +5,6 @@
 package types
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"sync"
@@ -30,10 +29,99 @@ func NewEmptyBlob() Blob {
 	return Blob{newBlobLeafSequence(nil, []byte{}), &hash.Hash{}}
 }
 
-// BUG 155 - Should provide Write... Maybe even have Blob implement ReadWriteSeeker
+// ReaderAt interface. Eagerly loads requested byte-range from the blob p-tree.
+func (b Blob) ReadAt(p []byte, off int64) (n int, err error) {
+	// TODO: Support negative off?
+	d.PanicIfTrue(off < 0)
+
+	startIdx := uint64(off)
+	if startIdx >= b.Len() {
+		return 0, io.EOF
+	}
+
+	endIdx := startIdx + uint64(len(p))
+	if endIdx > b.Len() {
+		endIdx = b.Len()
+	}
+
+	if endIdx == b.Len() {
+		err = io.EOF
+	}
+
+	if startIdx == endIdx {
+		return
+	}
+
+	leaves, localStart := LoadLeafSequences(b, startIdx, endIdx)
+	endIdx = localStart + endIdx - startIdx
+	startIdx = localStart
+
+	for _, s := range leaves {
+		bl := s.(blobLeafSequence)
+
+		le := endIdx
+		ll := uint64(len(bl.data))
+		if le > ll {
+			le = ll
+		}
+		src := bl.data[startIdx:le]
+
+		copy(p[n:], src)
+		n += len(src)
+		endIdx -= le
+		startIdx = 0
+	}
+
+	return
+}
+
 func (b Blob) Reader() *BlobReader {
-	cursor := newCursorAtIndex(b.seq, 0, true)
-	return &BlobReader{b.seq, cursor, nil, 0}
+	return &BlobReader{b, 0}
+}
+
+func (b Blob) Copy(w io.Writer) (n int64) {
+	return b.CopyReadAhead(w, 1<<23 /* 8MB */, 6)
+}
+
+func (b Blob) CopyReadAhead(w io.Writer, chunkSize uint64, concurrency int) (n int64) {
+	bChan := make(chan chan []byte, concurrency)
+
+	go func() {
+		idx := uint64(0)
+		for idx < b.Len() {
+			bc := make(chan []byte)
+			bChan <- bc
+
+			start := idx
+			len := b.Len() - start
+			if len > chunkSize {
+				len = chunkSize
+			}
+			idx += len
+
+			go func() {
+				buff := make([]byte, len)
+				b.ReadAt(buff, int64(start))
+				bc <- buff
+			}()
+		}
+		close(bChan)
+	}()
+
+	// Ensure read-ahead goroutines can exit
+	defer func() {
+		for _ = range bChan {
+		}
+	}()
+
+	for b := range bChan {
+		ln, err := w.Write(<-b)
+		n += int64(ln)
+		if err != nil {
+			return
+		}
+	}
+	return
 }
 
 func (b Blob) Splice(idx uint64, deleteCount uint64, data []byte) Blob {
@@ -124,62 +212,13 @@ func (b Blob) Kind() NomsKind {
 }
 
 type BlobReader struct {
-	seq           sequence
-	cursor        *sequenceCursor
-	currentReader io.ReadSeeker
-	pos           uint64
+	b   Blob
+	pos int64
 }
 
 func (cbr *BlobReader) Read(p []byte) (n int, err error) {
-	if cbr.currentReader == nil {
-		cbr.updateReader()
-	}
-
-	n, err = cbr.currentReader.Read(p)
-	for i := 0; i < n; i++ {
-		cbr.pos++
-		cbr.cursor.advance()
-	}
-	if err == io.EOF && cbr.cursor.idx < cbr.cursor.seq.seqLen() {
-		cbr.currentReader = nil
-		err = nil
-	}
-
-	return
-}
-
-func (cbr BlobReader) Copy(w io.Writer) (n int64) {
-	if cbr.cursor.parent == nil {
-		data := cbr.cursor.seq.(blobLeafSequence).data
-		n, err := io.Copy(w, bytes.NewReader(data))
-		d.Chk.NoError(err)
-		d.Chk.True(n == int64(len(data)))
-		return n
-	}
-
-	curChan := make(chan chan *sequenceCursor, 30)
-	stopChan := make(chan struct{})
-
-	go func() {
-		readAheadLeafCursors(cbr.cursor, curChan, stopChan)
-		close(curChan)
-	}()
-
-	// Copy the bytes of each leaf
-	for ch := range curChan {
-		leafCur := <-ch
-		parentCur := leafCur.parent
-		d.Chk.NotNil(parentCur.childSeqs)
-		// This is hacky, but iterating over the each of these preloaded cursors actual dramatically
-		// degrades perf. Just reach in and grab the leaf sequences
-		for _, leaf := range parentCur.childSeqs {
-			data := leaf.(blobLeafSequence).data
-			n, err := io.Copy(w, bytes.NewReader(data))
-			d.Chk.NoError(err)
-			d.Chk.True(n == int64(len(data)))
-		}
-	}
-
+	n, err = cbr.b.ReadAt(p, cbr.pos)
+	cbr.pos += int64(n)
 	return
 }
 
@@ -192,7 +231,7 @@ func (cbr *BlobReader) Seek(offset int64, whence int) (int64, error) {
 	case 1:
 		abs += offset
 	case 2:
-		abs = int64(cbr.seq.numLeaves()) + offset
+		abs = int64(cbr.b.Len()) + offset
 	default:
 		return 0, errors.New("Blob.Reader.Seek: invalid whence")
 	}
@@ -201,15 +240,8 @@ func (cbr *BlobReader) Seek(offset int64, whence int) (int64, error) {
 		return 0, errors.New("Blob.Reader.Seek: negative position")
 	}
 
-	cbr.pos = uint64(abs)
-	cbr.cursor = newCursorAtIndex(cbr.seq, cbr.pos, true)
-	cbr.currentReader = nil
+	cbr.pos = int64(abs)
 	return abs, nil
-}
-
-func (cbr *BlobReader) updateReader() {
-	cbr.currentReader = bytes.NewReader(cbr.cursor.seq.(blobLeafSequence).data)
-	cbr.currentReader.Seek(int64(cbr.cursor.idx), 0)
 }
 
 func makeBlobLeafChunkFn(vr ValueReader) makeChunkFn {
