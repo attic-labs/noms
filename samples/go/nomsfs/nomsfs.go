@@ -25,6 +25,8 @@ import (
 	"github.com/attic-labs/noms/go/nomdl"
 	"github.com/attic-labs/noms/go/types"
 
+	"io"
+
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/hanwen/go-fuse/fuse/nodefs"
 	"github.com/hanwen/go-fuse/fuse/pathfs"
@@ -450,11 +452,13 @@ func (nfile nomsFile) Read(dest []byte, off int64) (fuse.ReadResult, fuse.Status
 	blob := ref.TargetValue(nfile.fs.db).(types.Blob)
 
 	n, err := blob.ReadAt(dest, off)
-	if err != nil {
-		return fuse.ReadResultData(dest[:n]), fuse.EIO
+	if err == nil || err == io.EOF && uint64(off)+uint64(n) == blob.Len() {
+		// Blob.ReadAt returns IOF if the end of the buffer is reached with this read
+		return fuse.ReadResultData(dest[:n]), fuse.OK
+
 	}
 
-	return fuse.ReadResultData(dest[:n]), fuse.OK
+	return fuse.ReadResultData(dest[:n]), fuse.EIO
 }
 
 func (nfile nomsFile) Write(data []byte, off int64) (uint32, fuse.Status) {
