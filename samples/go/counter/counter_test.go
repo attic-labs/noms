@@ -7,9 +7,9 @@ package main
 import (
 	"testing"
 
+	"github.com/attic-labs/testify/suite"
 	"gopkg.in/attic-labs/noms.v7/go/spec"
 	"gopkg.in/attic-labs/noms.v7/go/util/clienttest"
-	"github.com/attic-labs/testify/suite"
 )
 
 func TestCounter(t *testing.T) {

@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"os"
 
+	flag "github.com/juju/gnuflag"
 	"gopkg.in/attic-labs/noms.v7/go/config"
 	"gopkg.in/attic-labs/noms.v7/go/d"
 	"gopkg.in/attic-labs/noms.v7/go/types"
 	"gopkg.in/attic-labs/noms.v7/go/util/profile"
 	"gopkg.in/attic-labs/noms.v7/go/util/verbose"
 	"gopkg.in/attic-labs/noms.v7/samples/go/csv"
-	flag "github.com/juju/gnuflag"
 )
 
 func main() {

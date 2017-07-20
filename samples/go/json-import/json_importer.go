@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-humanize"
+	flag "github.com/juju/gnuflag"
 	"gopkg.in/attic-labs/noms.v7/go/config"
 	"gopkg.in/attic-labs/noms.v7/go/d"
 	"gopkg.in/attic-labs/noms.v7/go/datas"
@@ -23,8 +25,6 @@ import (
 	"gopkg.in/attic-labs/noms.v7/go/util/progressreader"
 	"gopkg.in/attic-labs/noms.v7/go/util/status"
 	"gopkg.in/attic-labs/noms.v7/go/util/verbose"
-	"github.com/dustin/go-humanize"
-	flag "github.com/juju/gnuflag"
 )
 
 func main() {

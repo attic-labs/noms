@@ -11,9 +11,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/attic-labs/testify/suite"
 	"gopkg.in/attic-labs/noms.v7/go/d"
 	"gopkg.in/attic-labs/noms.v7/go/util/clienttest"
-	"github.com/attic-labs/testify/suite"
 )
 
 func TestCSVAnalyze(t *testing.T) {

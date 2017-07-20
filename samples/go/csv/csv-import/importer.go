@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	humanize "github.com/dustin/go-humanize"
+	flag "github.com/juju/gnuflag"
 	"gopkg.in/attic-labs/noms.v7/go/config"
 	"gopkg.in/attic-labs/noms.v7/go/d"
 	"gopkg.in/attic-labs/noms.v7/go/datas"
@@ -22,8 +24,6 @@ import (
 	"gopkg.in/attic-labs/noms.v7/go/util/status"
 	"gopkg.in/attic-labs/noms.v7/go/util/verbose"
 	"gopkg.in/attic-labs/noms.v7/samples/go/csv"
-	humanize "github.com/dustin/go-humanize"
-	flag "github.com/juju/gnuflag"
 )
 
 const (

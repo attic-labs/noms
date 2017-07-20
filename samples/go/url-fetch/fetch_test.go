@@ -10,11 +10,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/attic-labs/testify/suite"
 	"gopkg.in/attic-labs/noms.v7/go/datas"
 	"gopkg.in/attic-labs/noms.v7/go/spec"
 	"gopkg.in/attic-labs/noms.v7/go/types"
 	"gopkg.in/attic-labs/noms.v7/go/util/clienttest"
-	"github.com/attic-labs/testify/suite"
 )
 
 func TestFetch(t *testing.T) {

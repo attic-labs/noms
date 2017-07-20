@@ -7,8 +7,8 @@ package main
 import (
 	"testing"
 
-	"gopkg.in/attic-labs/noms.v7/go/types"
 	"github.com/attic-labs/testify/assert"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 )
 
 const nilHolder = -1000000

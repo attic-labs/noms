@@ -9,10 +9,10 @@ import (
 	"os"
 	"path"
 
+	flag "github.com/juju/gnuflag"
 	"gopkg.in/attic-labs/noms.v7/cmd/util"
 	"gopkg.in/attic-labs/noms.v7/go/d"
 	"gopkg.in/attic-labs/noms.v7/go/util/exit"
-	flag "github.com/juju/gnuflag"
 )
 
 var commands = []*util.Command{

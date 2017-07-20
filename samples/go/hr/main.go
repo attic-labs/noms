@@ -9,12 +9,12 @@ import (
 	"os"
 	"strconv"
 
+	flag "github.com/juju/gnuflag"
 	"gopkg.in/attic-labs/noms.v7/go/config"
 	"gopkg.in/attic-labs/noms.v7/go/datas"
 	"gopkg.in/attic-labs/noms.v7/go/marshal"
 	"gopkg.in/attic-labs/noms.v7/go/types"
 	"gopkg.in/attic-labs/noms.v7/go/util/verbose"
-	flag "github.com/juju/gnuflag"
 )
 
 func main() {

@@ -12,6 +12,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	humanize "github.com/dustin/go-humanize"
+	flag "github.com/juju/gnuflag"
 	"gopkg.in/attic-labs/noms.v7/cmd/util"
 	"gopkg.in/attic-labs/noms.v7/go/config"
 	"gopkg.in/attic-labs/noms.v7/go/d"
@@ -21,8 +23,6 @@ import (
 	"gopkg.in/attic-labs/noms.v7/go/util/profile"
 	"gopkg.in/attic-labs/noms.v7/go/util/status"
 	"gopkg.in/attic-labs/noms.v7/go/util/verbose"
-	humanize "github.com/dustin/go-humanize"
-	flag "github.com/juju/gnuflag"
 )
 
 var (

@@ -14,6 +14,8 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/clbanning/mxj"
+	flag "github.com/juju/gnuflag"
 	"gopkg.in/attic-labs/noms.v7/go/config"
 	"gopkg.in/attic-labs/noms.v7/go/d"
 	"gopkg.in/attic-labs/noms.v7/go/datas"
@@ -22,8 +24,6 @@ import (
 	"gopkg.in/attic-labs/noms.v7/go/util/jsontonoms"
 	"gopkg.in/attic-labs/noms.v7/go/util/profile"
 	"gopkg.in/attic-labs/noms.v7/go/util/verbose"
-	"github.com/clbanning/mxj"
-	flag "github.com/juju/gnuflag"
 )
 
 var (

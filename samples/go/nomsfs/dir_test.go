@@ -9,9 +9,9 @@ import (
 	"sort"
 	"testing"
 
-	"gopkg.in/attic-labs/noms.v7/go/spec"
 	"github.com/attic-labs/testify/assert"
 	"github.com/attic-labs/testify/suite"
+	"gopkg.in/attic-labs/noms.v7/go/spec"
 
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/hanwen/go-fuse/fuse/pathfs"

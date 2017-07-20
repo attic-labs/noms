@@ -9,13 +9,13 @@ import (
 	"io"
 	"os"
 
+	flag "github.com/juju/gnuflag"
 	"gopkg.in/attic-labs/noms.v7/cmd/util"
 	"gopkg.in/attic-labs/noms.v7/go/config"
 	"gopkg.in/attic-labs/noms.v7/go/datas"
 	"gopkg.in/attic-labs/noms.v7/go/types"
 	"gopkg.in/attic-labs/noms.v7/go/util/outputpager"
 	"gopkg.in/attic-labs/noms.v7/go/util/verbose"
-	flag "github.com/juju/gnuflag"
 )
 
 var longFindHelp = `'nomdex find' retrieves and prints objects that satisfy the 'query' argument.

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"testing"
 
-	"gopkg.in/attic-labs/noms.v7/go/types"
 	"github.com/attic-labs/testify/assert"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 )
 
 func TestSchemaDetection(t *testing.T) {

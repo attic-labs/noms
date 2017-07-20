@@ -8,13 +8,13 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/attic-labs/testify/assert"
+	"github.com/attic-labs/testify/suite"
 	"gopkg.in/attic-labs/noms.v7/go/datas"
 	"gopkg.in/attic-labs/noms.v7/go/marshal"
 	"gopkg.in/attic-labs/noms.v7/go/nbs"
 	"gopkg.in/attic-labs/noms.v7/go/spec"
 	"gopkg.in/attic-labs/noms.v7/go/util/clienttest"
-	"github.com/attic-labs/testify/assert"
-	"github.com/attic-labs/testify/suite"
 )
 
 type TestObj struct {

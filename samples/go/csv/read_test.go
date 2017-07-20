@@ -9,10 +9,10 @@ import (
 	"encoding/csv"
 	"testing"
 
+	"github.com/attic-labs/testify/assert"
 	"gopkg.in/attic-labs/noms.v7/go/chunks"
 	"gopkg.in/attic-labs/noms.v7/go/datas"
 	"gopkg.in/attic-labs/noms.v7/go/types"
-	"github.com/attic-labs/testify/assert"
 )
 
 func TestReadToList(t *testing.T) {
