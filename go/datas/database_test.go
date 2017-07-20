@@ -7,10 +7,10 @@ package datas
 import (
 	"testing"
 
-	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/hash"
-	"github.com/attic-labs/noms/go/merge"
-	"github.com/attic-labs/noms/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/chunks"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/merge"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 	"github.com/attic-labs/testify/assert"
 	"github.com/attic-labs/testify/suite"
 )

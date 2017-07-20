@@ -9,8 +9,8 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/chunks"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
 	"github.com/dustin/go-humanize"
 )
 

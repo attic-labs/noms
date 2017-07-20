@@ -5,7 +5,7 @@
 package types
 
 import (
-	"github.com/attic-labs/noms/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/d"
 )
 
 // SetIterator defines methods that can be used to efficiently iterate through a set in 'Noms-defined'

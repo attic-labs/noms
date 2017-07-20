@@ -4,7 +4,7 @@
 
 package types
 
-import "github.com/attic-labs/noms/go/d"
+import "gopkg.in/attic-labs/noms.v7/go/d"
 
 type hashValueBytesFn func(item sequenceItem, rv *rollingValueHasher)
 

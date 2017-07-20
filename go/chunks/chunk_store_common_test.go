@@ -7,8 +7,8 @@ package chunks
 import (
 	"github.com/attic-labs/testify/suite"
 
-	"github.com/attic-labs/noms/go/constants"
-	"github.com/attic-labs/noms/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/constants"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
 )
 
 type ChunkStoreTestSuite struct {

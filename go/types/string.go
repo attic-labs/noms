@@ -4,7 +4,7 @@
 
 package types
 
-import "github.com/attic-labs/noms/go/hash"
+import "gopkg.in/attic-labs/noms.v7/go/hash"
 
 // String is a Noms Value wrapper around the primitive string type.
 type String string

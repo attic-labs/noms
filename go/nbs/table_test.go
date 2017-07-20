@@ -12,9 +12,9 @@ import (
 
 	"sync"
 
-	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/chunks"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
 	"github.com/attic-labs/testify/assert"
 )
 

@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	"github.com/attic-labs/noms/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/d"
 	flag "github.com/juju/gnuflag"
 )
 

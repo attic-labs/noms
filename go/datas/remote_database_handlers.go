@@ -17,13 +17,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/constants"
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/hash"
-	"github.com/attic-labs/noms/go/ngql"
-	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"gopkg.in/attic-labs/noms.v7/go/chunks"
+	"gopkg.in/attic-labs/noms.v7/go/constants"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/ngql"
+	"gopkg.in/attic-labs/noms.v7/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/util/verbose"
 	"github.com/golang/snappy"
 )
 

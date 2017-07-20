@@ -13,8 +13,8 @@ import (
 	"math/rand"
 	"os"
 
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
 	"github.com/dustin/go-humanize"
 )
 

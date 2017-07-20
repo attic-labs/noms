@@ -7,7 +7,7 @@ package types
 import (
 	"testing"
 
-	"github.com/attic-labs/noms/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
 	"github.com/attic-labs/testify/assert"
 )
 

@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/attic-labs/noms/go/spec"
-	"github.com/attic-labs/noms/go/util/clienttest"
+	"gopkg.in/attic-labs/noms.v7/go/spec"
+	"gopkg.in/attic-labs/noms.v7/go/util/clienttest"
 	"github.com/attic-labs/testify/suite"
 )
 

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/datas"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 	flag "github.com/juju/gnuflag"
 )
 

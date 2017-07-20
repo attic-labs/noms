@@ -7,9 +7,9 @@ package diff
 import (
 	"fmt"
 
-	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/status"
+	"gopkg.in/attic-labs/noms.v7/go/datas"
+	"gopkg.in/attic-labs/noms.v7/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/util/status"
 	humanize "github.com/dustin/go-humanize"
 )
 

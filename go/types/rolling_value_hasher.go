@@ -8,7 +8,7 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"github.com/attic-labs/noms/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
 	"github.com/kch42/buzhash"
 )
 

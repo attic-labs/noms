@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/hash"
-	"github.com/attic-labs/noms/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/datas"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 )
 
 var datasetCapturePrefixRe = regexp.MustCompile("^(" + datas.DatasetRe.String() + ")")

@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/attic-labs/noms/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/d"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/jpillora/backoff"

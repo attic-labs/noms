@@ -7,8 +7,8 @@ package diff
 import (
 	"io"
 
-	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/writers"
+	"gopkg.in/attic-labs/noms.v7/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/util/writers"
 	"github.com/dustin/go-humanize"
 )
 

@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/util/verbose"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 )

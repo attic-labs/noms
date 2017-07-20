@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/attic-labs/graphql"
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 )
 
 // TypeConverter provides functions to convert between Noms types and GraphQL

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/attic-labs/noms/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/golang/snappy"
 )

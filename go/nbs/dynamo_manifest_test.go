@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/attic-labs/noms/go/constants"
-	"github.com/attic-labs/noms/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/constants"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
 	"github.com/attic-labs/testify/assert"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"

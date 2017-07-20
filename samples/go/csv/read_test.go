@@ -9,9 +9,9 @@ import (
 	"encoding/csv"
 	"testing"
 
-	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/chunks"
+	"gopkg.in/attic-labs/noms.v7/go/datas"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 	"github.com/attic-labs/testify/assert"
 )
 

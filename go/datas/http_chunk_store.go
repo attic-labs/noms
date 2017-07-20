@@ -17,12 +17,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/constants"
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/hash"
-	"github.com/attic-labs/noms/go/nbs"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"gopkg.in/attic-labs/noms.v7/go/chunks"
+	"gopkg.in/attic-labs/noms.v7/go/constants"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/nbs"
+	"gopkg.in/attic-labs/noms.v7/go/util/verbose"
 	"github.com/golang/snappy"
 	"github.com/julienschmidt/httprouter"
 )

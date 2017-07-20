@@ -9,11 +9,11 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/attic-labs/noms/go/config"
-	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/marshal"
-	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"gopkg.in/attic-labs/noms.v7/go/config"
+	"gopkg.in/attic-labs/noms.v7/go/datas"
+	"gopkg.in/attic-labs/noms.v7/go/marshal"
+	"gopkg.in/attic-labs/noms.v7/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 )
 

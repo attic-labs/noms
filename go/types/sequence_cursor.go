@@ -4,7 +4,7 @@
 
 package types
 
-import "github.com/attic-labs/noms/go/d"
+import "gopkg.in/attic-labs/noms.v7/go/d"
 import "fmt"
 
 // sequenceCursor explores a tree of sequence items.

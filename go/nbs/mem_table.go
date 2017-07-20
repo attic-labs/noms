@@ -8,8 +8,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/chunks"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
 )
 
 type memTable struct {

@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/attic-labs/noms/go/perf/suite"
+	"gopkg.in/attic-labs/noms.v7/go/perf/suite"
 )
 
 type perfSuite struct {
@@ -44,7 +44,7 @@ func (s *perfSuite) SetupSuite() {
 	exeFile.Close()
 	os.Remove(s.urlFetchExe)
 
-	err = exec.Command("go", "build", "-o", s.urlFetchExe, "github.com/attic-labs/noms/samples/go/url-fetch").Run()
+	err = exec.Command("go", "build", "-o", s.urlFetchExe, "gopkg.in/attic-labs/noms.v7/samples/go/url-fetch").Run()
 	assert.NoError(err)
 }
 

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/attic-labs/noms/go/chunks"
+	"gopkg.in/attic-labs/noms.v7/go/chunks"
 	"github.com/attic-labs/testify/assert"
 	"github.com/attic-labs/testify/suite"
 )

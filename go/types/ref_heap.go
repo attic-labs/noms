@@ -7,7 +7,7 @@ package types
 import (
 	"sort"
 
-	"github.com/attic-labs/noms/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
 )
 
 // RefByHeight implements sort.Interface to order by increasing HeightOrder(). It uses increasing order because this causes repeated pushes and pops of the 'tallest' Refs to re-use memory, avoiding reallocations.

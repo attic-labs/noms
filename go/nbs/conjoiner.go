@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/attic-labs/noms/go/constants"
-	"github.com/attic-labs/noms/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/constants"
+	"gopkg.in/attic-labs/noms.v7/go/d"
 )
 
 type conjoiner interface {

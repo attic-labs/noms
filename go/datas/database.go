@@ -8,8 +8,8 @@ package datas
 import (
 	"io"
 
-	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/chunks"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 )
 
 // Database provides versioned storage for noms values. While Values can be

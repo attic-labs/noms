@@ -10,7 +10,7 @@ import (
 	"io"
 	"sort"
 
-	"github.com/attic-labs/noms/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 )
 
 type bound struct {

@@ -7,8 +7,8 @@ package types
 import (
 	"sync"
 
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/util/functions"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/util/functions"
 )
 
 type DiffChangeType uint8

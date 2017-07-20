@@ -67,8 +67,8 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
 	"github.com/syndtr/goleveldb/leveldb"
 	ldbIterator "github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"

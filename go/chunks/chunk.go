@@ -8,8 +8,8 @@ package chunks
 import (
 	"bytes"
 
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
 )
 
 // Chunk is a unit of stored data in noms

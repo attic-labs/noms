@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/nbs/benchmarks/gen"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/nbs/benchmarks/gen"
 	"github.com/dustin/go-humanize"
 	flag "github.com/juju/gnuflag"
 )

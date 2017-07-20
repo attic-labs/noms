@@ -10,8 +10,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/attic-labs/noms/go/marshal"
-	"github.com/attic-labs/noms/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/marshal"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 )
 
 // DateTime implements marshaling of time.Time to and from Noms.

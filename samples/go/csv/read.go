@@ -11,8 +11,8 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 )
 
 // StringToKind maps names of valid NomsKinds (e.g. Bool, Number, etc) to their associated types.NomsKind

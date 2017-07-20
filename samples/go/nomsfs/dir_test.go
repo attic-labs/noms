@@ -9,7 +9,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/attic-labs/noms/go/spec"
+	"gopkg.in/attic-labs/noms.v7/go/spec"
 	"github.com/attic-labs/testify/assert"
 	"github.com/attic-labs/testify/suite"
 

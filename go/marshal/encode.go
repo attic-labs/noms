@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/attic-labs/noms/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 )
 
 // Marshal converts a Go value to a Noms value.

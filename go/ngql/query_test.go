@@ -12,10 +12,10 @@ import (
 	"testing"
 
 	"github.com/attic-labs/graphql"
-	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/marshal"
-	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/test"
+	"gopkg.in/attic-labs/noms.v7/go/chunks"
+	"gopkg.in/attic-labs/noms.v7/go/marshal"
+	"gopkg.in/attic-labs/noms.v7/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/util/test"
 	"github.com/attic-labs/testify/assert"
 	"github.com/attic-labs/testify/suite"
 )

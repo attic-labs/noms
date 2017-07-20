@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/attic-labs/noms/go/util/exit"
+	"gopkg.in/attic-labs/noms.v7/go/util/exit"
 	flag "github.com/juju/gnuflag"
 )
 

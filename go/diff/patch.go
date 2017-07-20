@@ -7,7 +7,7 @@ package diff
 import (
 	"bytes"
 
-	"github.com/attic-labs/noms/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 )
 
 // Patch is a list of difference objects that can be applied to a graph

@@ -18,12 +18,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/attic-labs/noms/go/config"
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/hash"
-	"github.com/attic-labs/noms/go/nomdl"
-	"github.com/attic-labs/noms/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/config"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/datas"
+	"gopkg.in/attic-labs/noms.v7/go/hash"
+	"gopkg.in/attic-labs/noms.v7/go/nomdl"
+	"gopkg.in/attic-labs/noms.v7/go/types"
 
 	"io"
 

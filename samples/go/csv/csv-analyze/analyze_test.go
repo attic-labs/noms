@@ -11,8 +11,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/util/clienttest"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/util/clienttest"
 	"github.com/attic-labs/testify/suite"
 )
 

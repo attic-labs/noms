@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/attic-labs/noms/go/config"
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/profile"
-	"github.com/attic-labs/noms/go/util/verbose"
-	"github.com/attic-labs/noms/samples/go/csv"
+	"gopkg.in/attic-labs/noms.v7/go/config"
+	"gopkg.in/attic-labs/noms.v7/go/d"
+	"gopkg.in/attic-labs/noms.v7/go/types"
+	"gopkg.in/attic-labs/noms.v7/go/util/profile"
+	"gopkg.in/attic-labs/noms.v7/go/util/verbose"
+	"gopkg.in/attic-labs/noms.v7/samples/go/csv"
 	flag "github.com/juju/gnuflag"
 )
 

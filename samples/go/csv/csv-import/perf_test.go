@@ -12,9 +12,9 @@ import (
 	"path"
 	"testing"
 
-	"github.com/attic-labs/noms/go/perf/suite"
-	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/samples/go/csv"
+	"gopkg.in/attic-labs/noms.v7/go/perf/suite"
+	"gopkg.in/attic-labs/noms.v7/go/types"
+	"gopkg.in/attic-labs/noms.v7/samples/go/csv"
 	"github.com/attic-labs/testify/assert"
 	humanize "github.com/dustin/go-humanize"
 )
@@ -33,7 +33,7 @@ func (s *perfSuite) SetupSuite() {
 	os.Remove(f.Name())
 
 	s.csvImportExe = f.Name()
-	err := exec.Command("go", "build", "-o", s.csvImportExe, "github.com/attic-labs/noms/samples/go/csv/csv-import").Run()
+	err := exec.Command("go", "build", "-o", s.csvImportExe, "gopkg.in/attic-labs/noms.v7/samples/go/csv/csv-import").Run()
 	assert.NoError(s.T, err)
 }
 
