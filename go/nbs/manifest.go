@@ -81,51 +81,43 @@ type manifestLocks struct {
 }
 
 func (ml *manifestLocks) lockForFetch(db string) {
-	ml.cond.L.Lock()
-	defer ml.cond.L.Unlock()
-
-	for {
-		if _, inProgress := ml.fetching[db]; !inProgress {
-			ml.fetching[db] = struct{}{}
-			break
-		}
-		ml.cond.Wait()
-	}
+	lockByName(db, ml.cond, ml.fetching)
 }
 
 func (ml *manifestLocks) unlockForFetch(db string) {
-	ml.cond.L.Lock()
-	defer ml.cond.L.Unlock()
-
-	_, ok := ml.fetching[db]
-	d.PanicIfFalse(ok)
-	delete(ml.fetching, db)
-
-	ml.cond.Broadcast()
+	unlockByName(db, ml.cond, ml.fetching)
 }
 
 func (ml *manifestLocks) lockForUpdate(db string) {
-	ml.cond.L.Lock()
-	defer ml.cond.L.Unlock()
-
-	for {
-		if _, updateInProgress := ml.updating[db]; !updateInProgress {
-			ml.updating[db] = struct{}{}
-			break
-		}
-		ml.cond.Wait()
-	}
+	lockByName(db, ml.cond, ml.updating)
 }
 
 func (ml *manifestLocks) unlockForUpdate(db string) {
-	ml.cond.L.Lock()
-	defer ml.cond.L.Unlock()
+	unlockByName(db, ml.cond, ml.updating)
+}
 
-	_, ok := ml.updating[db]
+func lockByName(db string, c *sync.Cond, locks map[string]struct{}) {
+	c.L.Lock()
+	defer c.L.Unlock()
+
+	for {
+		if _, inProgress := locks[db]; !inProgress {
+			locks[db] = struct{}{}
+			break
+		}
+		c.Wait()
+	}
+}
+
+func unlockByName(db string, c *sync.Cond, locks map[string]struct{}) {
+	c.L.Lock()
+	defer c.L.Unlock()
+
+	_, ok := locks[db]
 	d.PanicIfFalse(ok)
-	delete(ml.updating, db)
+	delete(locks, db)
 
-	ml.cond.Broadcast()
+	c.Broadcast()
 }
 
 type manifestManager struct {
@@ -162,8 +154,8 @@ func (mm manifestManager) updateWillFail(lastLock addr) (cached manifestContents
 func (mm manifestManager) Fetch(stats *Stats) (exists bool, contents manifestContents) {
 	entryTime := time.Now()
 
-	mm.locks.lockForFetch(mm.Name())
-	defer mm.locks.unlockForFetch(mm.Name())
+	mm.LockOutFetch()
+	defer mm.AllowFetch()
 
 	cached, t, hit := mm.cache.Get(mm.Name())
 
@@ -178,6 +170,9 @@ func (mm manifestManager) Fetch(stats *Stats) (exists bool, contents manifestCon
 	return
 }
 
+// Callers MUST protect uses of Update with Lock/UnlockForUpdate.
+// Update does not call Lock/UnlockForUpdate() on its own because it is
+// intended to be used in a larger critical section along with updateWillFail.
 func (mm manifestManager) Update(lastLock addr, newContents manifestContents, stats *Stats, writeHook func()) manifestContents {
 	if upstream, _, hit := mm.cache.Get(mm.Name()); hit {
 		if lastLock != upstream.lock {

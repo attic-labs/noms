@@ -45,7 +45,6 @@ func conjoin(upstream manifestContents, mm manifestUpdater, p tablePersister, st
 	var conjoined tableSpec
 	var conjoinees, keepers []tableSpec
 
-Retry:
 	for {
 		if conjoinees == nil {
 			conjoined, conjoinees, keepers = conjoinTables(p, upstream.specs, stats)
@@ -63,7 +62,7 @@ Retry:
 		upstream = mm.Update(upstream.lock, newContents, stats, nil)
 
 		if newContents.lock == upstream.lock {
-			break Retry
+			return upstream // Success!
 		}
 		// Optimistic lock failure. Someone else moved to the root, the set of tables, or both out from under us.
 		// If we can re-use the conjoin we already performed, we want to try again. Currently, we will only do so if ALL conjoinees are still present upstream. If we can't re-use...then someone else almost certainly landed a conjoin upstream. In this case, bail and let clients ask again if they think they still can't proceed.
@@ -74,7 +73,7 @@ Retry:
 		}
 		for _, c := range conjoinees {
 			if _, present := upstreamNames[c.name]; !present {
-				break Retry // Bail!
+				return upstream // Bail!
 			}
 			conjoineeSet[c.name] = struct{}{}
 		}
@@ -87,7 +86,7 @@ Retry:
 			}
 		}
 	}
-	return upstream
+	panic("Not Reached")
 }
 
 func conjoinTables(p tablePersister, upstream []tableSpec, stats *Stats) (conjoined tableSpec, conjoinees, keepers []tableSpec) {
