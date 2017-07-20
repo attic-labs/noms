@@ -4,4 +4,4 @@
 
 // Package migration provides functions to convert Noms values between
 // different Noms format versions.
-package migration
+package migrate

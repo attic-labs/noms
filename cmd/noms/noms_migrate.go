@@ -7,15 +7,16 @@ package main
 import (
 	"fmt"
 
+	v7datas "gopkg.in/attic-labs/noms.v7/go/datas"
+	v7spec "gopkg.in/attic-labs/noms.v7/go/spec"
+	v7types "gopkg.in/attic-labs/noms.v7/go/types"
+
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
-	v7datas "github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/migration"
+	"github.com/attic-labs/noms/go/migrate"
 	"github.com/attic-labs/noms/go/spec"
-	v7spec "github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
-	v7types "github.com/attic-labs/noms/go/types"
 	flag "github.com/juju/gnuflag"
 )
 
@@ -60,9 +61,9 @@ func runMigrate(args []string) int {
 		// Need to migrate both value and meta fields.
 		sourceCommit := sourceValue.(v7types.Struct)
 
-		sinkValue, err := migration.MigrateFromVersion7(sourceCommit.Get("value"), sourceDb, sinkDb)
+		sinkValue, err := migrate.Conv(sourceCommit.Get("value"), sourceDb, sinkDb)
 		d.CheckError(err)
-		sinkMeta, err := migration.MigrateFromVersion7(sourceCommit.Get("meta"), sourceDb, sinkDb)
+		sinkMeta, err := migrate.Conv(sourceCommit.Get("meta"), sourceDb, sinkDb)
 		d.CheckError(err)
 
 		// Commit will assert that we got a Commit struct.
@@ -71,7 +72,7 @@ func runMigrate(args []string) int {
 		})
 		d.CheckError(err)
 	} else {
-		sinkValue, err := migration.MigrateFromVersion7(sourceValue, sourceDb, sinkDb)
+		sinkValue, err := migrate.Conv(sourceValue, sourceDb, sinkDb)
 		d.CheckError(err)
 
 		_, err = sinkDb.CommitValue(sinkDataset, sinkValue)
