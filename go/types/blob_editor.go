@@ -44,32 +44,23 @@ func (be *BlobEditor) Blob(vrw ValueReadWriter) Blob {
 		vr = vrw
 	}
 
-	cursChan := make(chan chan *sequenceCursor)
-	spliceChan := make(chan blobEdit)
+	curs := make([]chan *sequenceCursor, 0)
+	for edit := be.edits; edit != nil; edit = edit.next {
+		edit := edit
 
-	go func() {
-		for edit := be.edits; edit != nil; edit = edit.next {
-			edit := edit
-
-			// TODO: Use ReadMany
-			cc := make(chan *sequenceCursor, 1)
-			cursChan <- cc
-
-			go func() {
-				cc <- newCursorAtIndex(seq, edit.idx, false)
-			}()
-
-			spliceChan <- *edit
-		}
-
-		close(cursChan)
-		close(spliceChan)
-	}()
+		// TODO: Use ReadMany
+		cc := make(chan *sequenceCursor, 1)
+		curs = append(curs, cc)
+		go func() {
+			cc <- newCursorAtIndex(seq, edit.idx, false)
+		}()
+	}
 
 	var ch *sequenceChunker
-	for cc := range cursChan {
-		cur := <-cc
-		sp := <-spliceChan
+	idx := 0
+	for edit := be.edits; edit != nil; edit = edit.next {
+		cur := <-curs[idx]
+		idx++
 
 		if ch == nil {
 			ch = newSequenceChunker(cur, 0, vr, vrw, makeBlobLeafChunkFn(vr), newIndexedMetaSequenceChunkFn(BlobKind, vr), hashValueByte)
@@ -77,13 +68,13 @@ func (be *BlobEditor) Blob(vrw ValueReadWriter) Blob {
 			ch.advanceTo(cur)
 		}
 
-		dc := sp.removed
+		dc := edit.removed
 		for dc > 0 {
 			ch.Skip()
 			dc--
 		}
 
-		for _, v := range sp.inserted {
+		for _, v := range edit.inserted {
 			ch.Append(v)
 		}
 	}
