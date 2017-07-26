@@ -17,10 +17,13 @@ type Stats struct {
 	GetLatency   metrics.Histogram
 	ChunksPerGet metrics.Histogram
 
-	FileReadLatency    metrics.Histogram
-	FileBytesPerRead   metrics.Histogram
-	S3ReadLatency      metrics.Histogram
-	S3BytesPerRead     metrics.Histogram
+	FileReadLatency  metrics.Histogram
+	FileBytesPerRead metrics.Histogram
+	S3ReadLatency    metrics.Histogram
+	S3BytesPerRead   metrics.Histogram
+
+	MemReadLatency     metrics.Histogram
+	MemBytesPerRead    metrics.Histogram
 	DynamoReadLatency  metrics.Histogram
 	DynamoBytesPerRead metrics.Histogram
 
@@ -51,6 +54,8 @@ func NewStats() *Stats {
 		FileBytesPerRead:     metrics.NewByteHistogram(),
 		S3ReadLatency:        metrics.NewTimeHistogram(),
 		S3BytesPerRead:       metrics.NewByteHistogram(),
+		MemReadLatency:       metrics.NewTimeHistogram(),
+		MemBytesPerRead:      metrics.NewByteHistogram(),
 		DynamoReadLatency:    metrics.NewTimeHistogram(),
 		DynamoBytesPerRead:   metrics.NewByteHistogram(),
 		HasLatency:           metrics.NewTimeHistogram(),
@@ -76,6 +81,9 @@ func (s *Stats) Add(other Stats) {
 
 	s.S3ReadLatency.Add(other.S3ReadLatency)
 	s.S3BytesPerRead.Add(other.S3BytesPerRead)
+
+	s.MemReadLatency.Add(other.MemReadLatency)
+	s.MemBytesPerRead.Add(other.MemBytesPerRead)
 
 	s.DynamoReadLatency.Add(other.DynamoReadLatency)
 	s.DynamoBytesPerRead.Add(other.DynamoBytesPerRead)
@@ -109,6 +117,9 @@ func (s Stats) Delta(other Stats) Stats {
 		s.S3ReadLatency.Delta(other.S3ReadLatency),
 		s.S3BytesPerRead.Delta(other.S3BytesPerRead),
 
+		s.MemReadLatency.Delta(other.MemReadLatency),
+		s.MemBytesPerRead.Delta(other.MemBytesPerRead),
+
 		s.DynamoReadLatency.Delta(other.DynamoReadLatency),
 		s.DynamoBytesPerRead.Delta(other.DynamoBytesPerRead),
 
@@ -141,6 +152,8 @@ FileReadLatency:      %s
 FileBytesPerRead:     %s
 S3ReadLatency:        %s
 S3BytesPerRead:       %s
+MemReadLatency:    %s
+MemBytesPerRead:   %s
 DynamoReadLatency:    %s
 DynamoBytesPerRead:   %s
 HasLatency:           %s
@@ -167,6 +180,9 @@ WriteManifestLatency: %s
 
 		s.S3ReadLatency,
 		s.S3BytesPerRead,
+
+		s.MemReadLatency,
+		s.MemBytesPerRead,
 
 		s.DynamoReadLatency,
 		s.DynamoBytesPerRead,

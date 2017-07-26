@@ -85,11 +85,8 @@ func (s3p awsTablePersister) Persist(mt *memTable, haver chunkReader, stats *Sta
 	if chunkCount == 0 {
 		return emptyChunkSource{}
 	}
-	t1 := time.Now()
 	if s3p.limits.tableFitsInDynamo(name, data, chunkCount) {
 		dynamoTableWrite(s3p.ddb, s3p.table, name, data)
-		verbose.Log("Persisted table of %d Kb to DynamoDB in %s", len(data)/1024, time.Since(t1))
-
 		dynamoTableCacheMaybeAdd(s3p.dynamoTC, name, data)
 		return newDynamoTableReader(s3p.ddb, s3p.table, name, chunkCount, data, s3p.indexCache, s3p.dynamoTC)
 	}
@@ -98,7 +95,6 @@ func (s3p awsTablePersister) Persist(mt *memTable, haver chunkReader, stats *Sta
 		go s3p.tc.store(name, bytes.NewReader(data), uint64(len(data)))
 	}
 	s3p.multipartUpload(data, name.String())
-	verbose.Log("Persisted table of %d Kb in %s", len(data)/1024, time.Since(t1))
 	return s3p.newReaderFromIndexData(data, name)
 }
 

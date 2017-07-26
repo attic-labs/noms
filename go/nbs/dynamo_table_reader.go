@@ -66,7 +66,12 @@ func (dtr *dynamoTableReader) hash() addr {
 }
 
 func (dtr *dynamoTableReader) ReadAtWithStats(p []byte, off int64, stats *Stats) (n int, err error) {
+	t1 := time.Now()
 	if data, present := dynamoTableCacheMaybeGet(dtr.tc, dtr.hash()); present {
+		defer func() {
+			stats.MemBytesPerRead.Sample(uint64(len(p)))
+			stats.MemReadLatency.SampleTimeSince(t1)
+		}()
 		n = copy(p, data[off:])
 		if n < len(p) {
 			err = io.ErrUnexpectedEOF
@@ -74,7 +79,6 @@ func (dtr *dynamoTableReader) ReadAtWithStats(p []byte, off int64, stats *Stats)
 		return
 	}
 
-	t1 := time.Now()
 	defer func() {
 		stats.DynamoBytesPerRead.Sample(uint64(len(p)))
 		stats.DynamoReadLatency.SampleTimeSince(t1)
