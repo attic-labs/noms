@@ -142,21 +142,21 @@ func TestFlushOrder(t *testing.T) {
 	n := Number(42)
 	sr, nr := vs.WriteValue(s), vs.WriteValue(n)
 	ccs.expect(sr, nr)
-	ml := NewList(sr, nr)
+	ml := NewList(vs, sr, nr)
 
-	b := NewEmptyBlob()
+	b := NewEmptyBlob(vs)
 	br, mlr := vs.WriteValue(b), vs.WriteValue(ml)
 	ccs.expect(br, mlr)
-	ml1 := NewList(br, mlr)
+	ml1 := NewList(vs, br, mlr)
 
 	f := Bool(false)
 	fr := vs.WriteValue(f)
 	ccs.expect(fr)
-	ml2 := NewList(fr)
+	ml2 := NewList(vs, fr)
 
 	ml1r, ml2r := vs.WriteValue(ml1), vs.WriteValue(ml2)
 	ccs.expect(ml1r, ml2r)
-	l := NewList(ml1r, ml2r)
+	l := NewList(vs, ml1r, ml2r)
 
 	r := vs.WriteValue(l)
 	ccs.expect(r)
@@ -171,7 +171,7 @@ func TestFlushOverSize(t *testing.T) {
 
 	s := String("oy")
 	sr := vs.WriteValue(s)
-	l := NewList(sr)
+	l := NewList(vs, sr)
 	ccs.expect(sr, NewRef(l))
 
 	vs.WriteValue(l)
@@ -193,11 +193,11 @@ func TestTolerateTopDown(t *testing.T) {
 	sr := vs.WriteValue(S)
 	ccs.expect(sr)
 
-	ML := NewList(sr)
+	ML := NewList(vs, sr)
 	mlr := vs.WriteValue(ML)
 	ccs.expect(mlr)
 
-	L := NewList(mlr)
+	L := NewList(vs, mlr)
 	lr := vs.WriteValue(L)
 	ccs.expect(lr)
 
@@ -225,7 +225,7 @@ func TestPanicOnBadVersion(t *testing.T) {
 	t.Run("Write", func(t *testing.T) {
 		cvs := NewValueStore(&badVersionStore{ChunkStore: storage.NewView()})
 		assert.Panics(t, func() {
-			cvs.WriteValue(NewEmptyBlob())
+			cvs.WriteValue(NewEmptyBlob(cvs))
 			cvs.Commit(cvs.Root(), cvs.Root())
 		})
 	})
@@ -236,7 +236,7 @@ func TestPanicIfDangling(t *testing.T) {
 	vs := newTestValueStore()
 
 	r := NewRef(Bool(true))
-	l := NewList(r)
+	l := NewList(vs, r)
 	vs.WriteValue(l)
 
 	assert.Panics(func() {
@@ -249,7 +249,7 @@ func TestSkipEnforceCompleteness(t *testing.T) {
 	vs.SetEnforceCompleteness(false)
 
 	r := NewRef(Bool(true))
-	l := NewList(r)
+	l := NewList(vs, r)
 	vs.WriteValue(l)
 
 	vs.Commit(vs.Root(), vs.Root())

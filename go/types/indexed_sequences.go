@@ -9,12 +9,12 @@ import (
 	"github.com/attic-labs/noms/go/hash"
 )
 
-func newListMetaSequence(level uint64, tuples []metaTuple, vr ValueReader) metaSequence {
-	return newMetaSequence(ListKind, level, tuples, vr)
+func newListMetaSequence(level uint64, tuples []metaTuple, vrw ValueReadWriter) metaSequence {
+	return newMetaSequence(ListKind, level, tuples, vrw)
 }
 
-func newBlobMetaSequence(level uint64, tuples []metaTuple, vr ValueReader) metaSequence {
-	return newMetaSequence(BlobKind, level, tuples, vr)
+func newBlobMetaSequence(level uint64, tuples []metaTuple, vrw ValueReadWriter) metaSequence {
+	return newMetaSequence(BlobKind, level, tuples, vrw)
 }
 
 // advanceCursorToOffset advances the cursor as close as possible to idx
@@ -51,7 +51,7 @@ func advanceCursorToOffset(cur *sequenceCursor, idx uint64) uint64 {
 
 // If |sink| is not nil, chunks will be eagerly written as they're created. Otherwise they are
 // written when the root is written.
-func newIndexedMetaSequenceChunkFn(kind NomsKind, source ValueReader) makeChunkFn {
+func newIndexedMetaSequenceChunkFn(kind NomsKind, source ValueReadWriter) makeChunkFn {
 	return func(level uint64, items []sequenceItem) (Collection, orderedKey, uint64) {
 		tuples := make([]metaTuple, len(items))
 		numLeaves := uint64(0)
@@ -121,13 +121,11 @@ func loadLeafNodes(cols []Collection, startIdx, endIdx uint64) ([]Collection, ui
 
 	hs := hash.HashSet{}
 	for _, mt := range childTuples {
-		if mt.child != nil {
-			continue
-		}
 		hs.Insert(mt.ref.TargetHash())
 	}
 
 	// Fetch committed child sequences in a single batch
+<<<<<<< HEAD
 	fetched := make(map[hash.Hash]Collection, len(hs))
 	if len(hs) > 0 {
 		valueChan := make(chan Value, len(hs))
@@ -139,16 +137,31 @@ func loadLeafNodes(cols []Collection, startIdx, endIdx uint64) ([]Collection, ui
 		for value := range valueChan {
 			fetched[value.Hash()] = value.(Collection)
 		}
+=======
+	fetched := make(map[hash.Hash]sequence, len(hs))
+	valueChan := make(chan Value, len(hs))
+	go func() {
+		d.PanicIfTrue(vr == nil)
+		vr.ReadManyValues(hs, valueChan)
+		close(valueChan)
+	}()
+	for value := range valueChan {
+		fetched[value.Hash()] = value.(Collection).sequence()
+>>>>>>> types (nearly) passing tests
 	}
 
 	childCols := make([]Collection, len(childTuples))
 	for i, mt := range childTuples {
+<<<<<<< HEAD
 		if mt.child != nil {
 			childCols[i] = mt.child.(Collection)
 			continue
 		}
 
 		childCols[i] = fetched[mt.ref.TargetHash()]
+=======
+		childSeqs[i] = fetched[mt.ref.TargetHash()]
+>>>>>>> types (nearly) passing tests
 	}
 
 	return loadLeafNodes(childCols, startIdx, endIdx)

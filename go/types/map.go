@@ -27,9 +27,9 @@ func mapHashValueBytes(item sequenceItem, rv *rollingValueHasher) {
 	hashValueBytes(entry.value, rv)
 }
 
-func NewMap(kv ...Value) Map {
+func NewMap(vrw ValueReadWriter, kv ...Value) Map {
 	entries := buildMapData(kv)
-	ch := newEmptyMapSequenceChunker(nil, nil)
+	ch := newEmptyMapSequenceChunker(vrw)
 
 	for _, entry := range entries {
 		ch.Append(entry)
@@ -61,7 +61,7 @@ func newStreamingMap(vrw ValueReadWriter, kvs <-chan Value, readFunc streamingMa
 
 func readMapInput(vrw ValueReadWriter, kvs <-chan Value, outChan chan<- Map) {
 	defer close(outChan)
-	ch := newEmptyMapSequenceChunker(vrw, vrw)
+	ch := newEmptyMapSequenceChunker(vrw)
 	var lastK Value
 	nextIsKey := true
 	var k Value
@@ -127,7 +127,7 @@ func (m Map) hashPointer() *hash.Hash {
 }
 
 // Value interface
-func (m Map) Value(vrw ValueReadWriter) Value {
+func (m Map) Value() Value {
 	return m
 }
 
@@ -317,7 +317,7 @@ func buildMapData(values []Value) mapEntrySlice {
 
 // If |vw| is not nil, chunks will be eagerly written as they're created. Otherwise they are
 // written when the root is written.
-func makeMapLeafChunkFn(vr ValueReader) makeChunkFn {
+func makeMapLeafChunkFn(vrw ValueReadWriter) makeChunkFn {
 	return func(level uint64, items []sequenceItem) (Collection, orderedKey, uint64) {
 		d.PanicIfFalse(level == 0)
 		mapData := make([]mapEntry, len(items), len(items))
@@ -330,7 +330,7 @@ func makeMapLeafChunkFn(vr ValueReader) makeChunkFn {
 			mapData[i] = entry
 		}
 
-		m := newMap(newMapLeafSequence(vr, mapData...))
+		m := newMap(newMapLeafSequence(vrw, mapData...))
 		var key orderedKey
 		if len(mapData) > 0 {
 			key = newOrderedKey(mapData[len(mapData)-1].key)
@@ -339,6 +339,6 @@ func makeMapLeafChunkFn(vr ValueReader) makeChunkFn {
 	}
 }
 
-func newEmptyMapSequenceChunker(vr ValueReader, vw ValueWriter) *sequenceChunker {
-	return newEmptySequenceChunker(vr, vw, makeMapLeafChunkFn(vr), newOrderedMetaSequenceChunkFn(MapKind, vr), mapHashValueBytes)
+func newEmptyMapSequenceChunker(vrw ValueReadWriter) *sequenceChunker {
+	return newEmptySequenceChunker(vrw, makeMapLeafChunkFn(vrw), newOrderedMetaSequenceChunkFn(MapKind, vrw), mapHashValueBytes)
 }
