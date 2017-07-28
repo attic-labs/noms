@@ -7,6 +7,7 @@ package nbs
 import (
 	"fmt"
 	"io"
+	"log"
 	"time"
 
 	"github.com/attic-labs/noms/go/d"
@@ -135,6 +136,7 @@ func tryDynamoTableRead(ddb ddbsvc, table string, name addr) (data []byte, err e
 	}
 	data, err = try(&input)
 	if _, isNotFound := err.(tableNotInDynamoErr); isNotFound {
+		log.Printf("Eventually consistent read for %s failed; trying fully-consistent", name)
 		input.ConsistentRead = aws.Bool(true)
 		return try(&input)
 	}
