@@ -45,11 +45,11 @@ type awsLimits struct {
 	chunkMax                     uint32
 }
 
-func (al awsLimits) tableFitsInDynamo(name addr, data []byte, chunkCount uint32) bool {
-	calcItemSize := func(n addr, d []byte) int {
-		return len(dbAttr) + len(tablePrefix) + len(n.String()) + len(dataAttr) + len(d)
+func (al awsLimits) tableFitsInDynamo(name addr, dataLen int, chunkCount uint32) bool {
+	calcItemSize := func(n addr, dataLen int) int {
+		return len(dbAttr) + len(tablePrefix) + len(n.String()) + len(dataAttr) + dataLen
 	}
-	return chunkCount <= al.chunkMax && calcItemSize(name, data) < al.itemMax
+	return chunkCount <= al.chunkMax && calcItemSize(name, dataLen) < al.itemMax
 }
 
 func (al awsLimits) tableMayBeInDynamo(chunkCount uint32) bool {
@@ -58,16 +58,14 @@ func (al awsLimits) tableMayBeInDynamo(chunkCount uint32) bool {
 
 func (s3p awsTablePersister) Open(name addr, chunkCount uint32, stats *Stats) chunkSource {
 	return newAWSChunkSource(
-		&oneShotTableQuery{
-			al:         s3p.limits,
-			ddb:        s3p.ddb,
-			s3:         &s3ObjectReader{s3: s3p.s3, bucket: s3p.bucket, readRl: s3p.readRl, tc: s3p.tc},
-			name:       name,
-			chunkCount: chunkCount,
-		},
+		s3p.ddb,
+		&s3ObjectReader{s3: s3p.s3, bucket: s3p.bucket, readRl: s3p.readRl, tc: s3p.tc},
+		s3p.limits,
 		name,
+		chunkCount,
 		s3p.indexCache,
-		stats)
+		stats,
+	)
 }
 
 type s3UploadedPart struct {
@@ -80,10 +78,9 @@ func (s3p awsTablePersister) Persist(mt *memTable, haver chunkReader, stats *Sta
 	if chunkCount == 0 {
 		return emptyChunkSource{}
 	}
-	if s3p.limits.tableFitsInDynamo(name, data, chunkCount) {
+	if s3p.limits.tableFitsInDynamo(name, len(data), chunkCount) {
 		s3p.ddb.Write(name, data)
-		tra := &dynamoTableReaderAt{ddb: s3p.ddb, h: name}
-		return s3p.newReaderFromIndexData(data, name, tra)
+		return s3p.newReaderFromIndexData(data, name, &dynamoTableReaderAt{ddb: s3p.ddb, h: name})
 	}
 
 	if s3p.tc != nil {
@@ -101,7 +98,7 @@ func (s3p awsTablePersister) newReaderFromIndexData(idxData []byte, name addr, t
 		defer s3p.indexCache.unlockEntry(name)
 		s3p.indexCache.put(name, index)
 	}
-	return &awsChunkSource{newTableReader(index, tra, s3BlockSize), trivialTableAccessor{tra}, name}
+	return &awsChunkSource{newTableReader(index, tra, s3BlockSize), name}
 }
 
 func (s3p awsTablePersister) multipartUpload(data []byte, key string) {

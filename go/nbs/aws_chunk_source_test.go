@@ -26,14 +26,11 @@ func TestAWSChunkSource(t *testing.T) {
 
 	makeSrc := func(chunkMax int, ic *indexCache) chunkSource {
 		return newAWSChunkSource(
-			&oneShotTableQuery{
-				al:         awsLimits{itemMax: maxDynamoItemSize, chunkMax: uint32(chunkMax)},
-				ddb:        dts,
-				s3:         s3or,
-				name:       h,
-				chunkCount: uint32(len(chunks)),
-			},
+			dts,
+			s3or,
+			awsLimits{itemMax: maxDynamoItemSize, chunkMax: uint32(chunkMax)},
 			h,
+			uint32(len(chunks)),
 			ic,
 			&Stats{},
 		)
