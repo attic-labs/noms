@@ -9,12 +9,12 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"path"
 	"time"
 
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/util/exit"
 	flag "github.com/juju/gnuflag"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var commands = []*util.Command{
@@ -29,6 +29,13 @@ var commands = []*util.Command{
 	nomsShow,
 	nomsSync,
 	nomsVersion,
+}
+
+type kCommandHandler func() (exitCode int)
+type kCommand func(*kingpin.Application) (*kingpin.CmdClause, kCommandHandler)
+
+var kCommands = []kCommand{
+	nomsBlob,
 }
 
 var actions = []string{
@@ -50,21 +57,31 @@ func usageString() string {
 }
 
 func main() {
-	util.InitHelp(path.Base(os.Args[0]), commands, usageString())
+	// allow short (-h) help
+	kingpin.CommandLine.HelpFlag.Short('h')
+	noms := kingpin.New("noms", usageString())
 
-	flag.Usage = util.Usage
+	// set up docs for non-kingpin commands
+	addNomsDocs(noms)
+
+	kHandlers := map[string]kCommandHandler{}
+
+	// install kingpin handlers
+	for _, cmdFunction := range kCommands {
+		command, handler := cmdFunction(noms)
+		kHandlers[command.FullCommand()] = handler
+	}
+
+	input := kingpin.MustParse(noms.Parse(os.Args[1:]))
+	if handler := kHandlers[input]; handler != nil {
+		handler()
+	}
+
+	// fall back to previous (non-kingpin) noms commands
+
 	flag.Parse(false)
 
 	args := flag.Args()
-	if len(args) < 1 {
-		util.Usage()
-		return
-	}
-
-	if args[0] == "help" {
-		util.Help(args[1:])
-		return
-	}
 
 	// Don't prefix log messages with timestamp when running interactively
 	log.SetFlags(0)
