@@ -63,9 +63,13 @@ func main() {
 	// allow short (-h) help
 	kingpin.CommandLine.HelpFlag.Short('h')
 	noms := kingpin.New("noms", usageString())
+
+	// global flags
 	cpuProfileVal := noms.Flag("cpuprofile", "write cpu profile to file").String()
 	memProfileVal := noms.Flag("memprofile", "write memory profile to file").String()
 	blockProfileVal := noms.Flag("blockprofile", "write block profile to file").String()
+	verboseVal := noms.Flag("verbose", "show more").Short('v').Bool()
+	quietVal := noms.Flag("quiet", "show less").Short('q').Bool()
 
 	// set up docs for non-kingpin commands
 	addNomsDocs(noms)
@@ -83,7 +87,10 @@ func main() {
 		handler(input)
 	}
 
+	// apply global flags
 	profile.ApplyProfileFlags(cpuProfileVal, memProfileVal, blockProfileVal)
+	verbose.SetVerbose(*verboseVal)
+	verbose.SetQuiet(*quietVal)
 
 	// fall back to previous (non-kingpin) noms commands
 
@@ -113,23 +120,6 @@ func main() {
 	}
 }
 
-// addVerboseFlags adds --verbose and --quiet flags to the passed command
-func addVerboseFlags(cmd *kingpin.CmdClause) (verboseFlag *bool, quietFlag *bool) {
-	verboseFlag = cmd.Flag("verbose", "show more").Short('v').Bool()
-	quietFlag = cmd.Flag("quiet", "show less").Short('q').Bool()
-	return
-}
-
-// applyVerbosity - run when commands are invoked to apply the verbosity arguments configured in addVerboseFlags
-func applyVerbosity(verboseFlag *bool, quietFlag *bool) {
-	if verboseFlag != nil {
-		verbose.SetVerbose(*verboseFlag)
-	}
-	if quietFlag != nil {
-		verbose.SetQuiet(*quietFlag)
-	}
-}
-
 // addDatabaseArg adds a "database" arg to the passed command
 func addDatabaseArg(cmd *kingpin.CmdClause) (arg *string) {
 	return cmd.Arg("database", "a noms database path").Required().String() // TODO: custom parser for noms db URL?
@@ -146,7 +136,6 @@ If absolute-path is not provided, then it is read from stdin. See Spelling Objec
 	commit.Flag("message", "alias for -meta 'message=<message>'").String()
 	commit.Flag("meta", "'<key>=<value>' - creates a metadata field called 'key' set to 'value'. Value should be human-readable encoded.").String()
 	commit.Flag("meta-p", "'<key>=<path>' - creates a metadata field called 'key' set to the value at <path>").String()
-	addVerboseFlags(commit)
 	commit.Arg("absolute-path", "the path to read data from").String()
 	// TODO: this should be required, but kingpin does not allow required args after non-required ones. Perhaps a custom type would fix that?
 	commit.Arg("database", "a noms database path").String()
@@ -159,7 +148,6 @@ If absolute-path is not provided, then it is read from stdin. See Spelling Objec
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object arguments.
 `)
 	diff.Flag("summarize", "Writes a summary of the changes instead").Short('s').Bool()
-	addVerboseFlags(diff)
 	diff.Arg("object1", "").Required().String()
 	diff.Arg("object2", "").Required().String()
 
@@ -168,7 +156,6 @@ See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spell
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
 `)
 	ds.Flag("delete", "dataset to delete").Short('d').String()
-	addVerboseFlags(ds)
 	ds.Arg("database", "a noms database path").String()
 
 	// log
@@ -181,7 +168,6 @@ See Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelli
 	log.Flag("oneline", "show a summary of each commit on a single line").Bool()
 	log.Flag("graph", "show ascii-based commit hierarchy on left side of output").Bool()
 	log.Flag("show-value", "show commit value rather than diff information").Bool()
-	addVerboseFlags(log)
 	log.Arg("path-spec", "").Required().String()
 
 	// merge
@@ -190,7 +176,6 @@ See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spell
 You must provide a working database and the names of two Datasets you want to merge. The values at the heads of these Datasets will be merged, put into a new Commit object, and set as the Head of the third provided Dataset name.
 `)
 	merge.Flag("policy", "conflict resolution policy for merging. Defaults to 'n', which means no resolution strategy will be applied. Supported values are 'l' (left), 'r' (right) and 'p' (prompt). 'prompt' will bring up a simple command-line prompt allowing you to resolve conflicts by choosing between 'l' or 'r' on a case-by-case basis.").Default("n").Enum("n", "r", "l", "p")
-	addVerboseFlags(merge)
 	addDatabaseArg(merge)
 	merge.Arg("left-dataset-name", "a dataset").Required().String()
 	merge.Arg("right-dataset-name", "a dataset").Required().String()
@@ -201,7 +186,6 @@ You must provide a working database and the names of two Datasets you want to me
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
 `)
 	root.Flag("update", "Replaces the entire database with the one with the given hash").String()
-	addVerboseFlags(root)
 	addDatabaseArg(root)
 
 	// serve
@@ -217,14 +201,12 @@ See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spell
 `)
 	show.Flag("raw", "If true, dumps the raw binary version of the data").Bool()
 	show.Flag("stats", "If true, reports statistics related to the value").Bool()
-	addVerboseFlags(show)
 	show.Arg("object", "a noms object").Required().String()
 
 	sync := noms.Command("sync", `Moves datasets between or within databases
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object and dataset arguments.
 `)
 	sync.Flag("parallelism", "").Short('p').Default("512").Int()
-	addVerboseFlags(sync)
 	sync.Arg("source-object", "a noms source object").Required().String()
 	sync.Arg("dest-dataset", "a noms dataset").Required().String()
 

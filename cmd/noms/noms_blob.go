@@ -16,7 +16,6 @@ func nomsBlob(noms *kingpin.Application) (*kingpin.CmdClause, commandHandler) {
 	blob := noms.Command("blob", "interact with blobs in a dataset")
 
 	blobPut := blob.Command("put", "imports a blob to a dataset")
-	putVerbose, putQuiet := addVerboseFlags(blobPut)
 	concurrency := blobPut.Flag("concurrency", "number of concurrent HTTP calls to retrieve remote resources").Default(strconv.Itoa(runtime.NumCPU())).Int()
 	putFile := blobPut.Arg("url-or-file", "a url or file to import").Required().String()
 	putDs := blobPut.Arg("dataset", "the path to import to").Required().String()
@@ -24,15 +23,12 @@ func nomsBlob(noms *kingpin.Application) (*kingpin.CmdClause, commandHandler) {
 	blobGet := blob.Command("export", "exports a blob from a dataset")
 	getDs := blobGet.Arg("dataset", "the dataset to export").Required().String()
 	getPath := blobGet.Arg("file", "an optional file to save the blob to").String()
-	getVerbose, getQuiet := addVerboseFlags(blobGet)
 
 	return blob, func(input string) int {
 		switch input {
 		case blobPut.FullCommand():
-			applyVerbosity(putVerbose, putQuiet)
 			return nomsBlobPut(*putFile, *putDs, *concurrency)
 		case blobGet.FullCommand():
-			applyVerbosity(getVerbose, getQuiet)
 			return nomsBlobGet(*getDs, *getPath)
 		}
 		d.Panic("notreached")
