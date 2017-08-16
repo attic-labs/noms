@@ -9,10 +9,12 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/util/exit"
+	"github.com/attic-labs/noms/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -31,7 +33,7 @@ var commands = []*util.Command{
 	nomsVersion,
 }
 
-type kCommandHandler func() (exitCode int)
+type kCommandHandler func(input string) (exitCode int)
 type kCommand func(*kingpin.Application) (*kingpin.CmdClause, kCommandHandler)
 
 var kCommands = []kCommand{
@@ -73,8 +75,8 @@ func main() {
 	}
 
 	input := kingpin.MustParse(noms.Parse(os.Args[1:]))
-	if handler := kHandlers[input]; handler != nil {
-		handler()
+	if handler := kHandlers[strings.Split(input, " ")[0]]; handler != nil {
+		handler(input)
 	}
 
 	// fall back to previous (non-kingpin) noms commands
@@ -105,11 +107,26 @@ func main() {
 	}
 }
 
+var (
+	verboseFlag *bool
+	quietFlag   *bool
+)
+
 // addVerboseFlags adds --verbose and --quiet flags to the passed command
 func addVerboseFlags(cmd *kingpin.CmdClause) (verboseFlag *bool, quietFlag *bool) {
 	verboseFlag = cmd.Flag("verbose", "show more").Short('v').Bool()
 	quietFlag = cmd.Flag("quiet", "show less").Short('q').Bool()
 	return
+}
+
+// applyVerbosity - run when commands are invoked to apply the verbosity arguments configured in addVerboseFlags
+func applyVerbosity() {
+	if verboseFlag != nil {
+		verbose.SetVerbose(*verboseFlag)
+	}
+	if quietFlag != nil {
+		verbose.SetQuiet(*quietFlag)
+	}
 }
 
 // addDatabaseArg adds a "database" arg to the passed command
