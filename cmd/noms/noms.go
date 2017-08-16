@@ -14,6 +14,7 @@ import (
 
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/util/exit"
+	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/verbose"
 	flag "github.com/juju/gnuflag"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -62,6 +63,9 @@ func main() {
 	// allow short (-h) help
 	kingpin.CommandLine.HelpFlag.Short('h')
 	noms := kingpin.New("noms", usageString())
+	cpuProfileVal := noms.Flag("cpuprofile", "write cpu profile to file").String()
+	memProfileVal := noms.Flag("memprofile", "write memory profile to file").String()
+	blockProfileVal := noms.Flag("blockprofile", "write block profile to file").String()
 
 	// set up docs for non-kingpin commands
 	addNomsDocs(noms)
@@ -78,6 +82,8 @@ func main() {
 	if handler := handlers[strings.Split(input, " ")[0]]; handler != nil {
 		handler(input)
 	}
+
+	profile.ApplyProfileFlags(cpuProfileVal, memProfileVal, blockProfileVal)
 
 	// fall back to previous (non-kingpin) noms commands
 
