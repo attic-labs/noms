@@ -35,14 +35,14 @@ func RegisterProfileFlags(flags *flag.FlagSet) {
 	}
 }
 
-func KAddProfileFlags(cmd *kingpin.CmdClause) {
+func AddProfileFlags(cmd *kingpin.CmdClause) {
 	cpuProfileVal = cmd.Flag("cpuprofile", "write cpu profile to file").String()
 	memProfileVal = cmd.Flag("memprofile", "write memory profile to file").String()
 	blockProfileVal = cmd.Flag("blockprofile", "write block profile to file").String()
 	flagsRegistered = true
 }
 
-func KApplyProfileFlags() {
+func ApplyProfileFlags() {
 	if cpuProfileVal != nil {
 		cpuProfile = *cpuProfileVal
 	}

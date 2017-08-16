@@ -33,10 +33,10 @@ var commands = []*util.Command{
 	nomsVersion,
 }
 
-type kCommandHandler func(input string) (exitCode int)
-type kCommand func(*kingpin.Application) (*kingpin.CmdClause, kCommandHandler)
+type commandHandler func(input string) (exitCode int)
+type command func(*kingpin.Application) (*kingpin.CmdClause, commandHandler)
 
-var kCommands = []kCommand{
+var kingpinCommands = []command{
 	nomsBlob,
 }
 
@@ -66,16 +66,16 @@ func main() {
 	// set up docs for non-kingpin commands
 	addNomsDocs(noms)
 
-	kHandlers := map[string]kCommandHandler{}
+	handlers := map[string]commandHandler{}
 
 	// install kingpin handlers
-	for _, cmdFunction := range kCommands {
+	for _, cmdFunction := range kingpinCommands {
 		command, handler := cmdFunction(noms)
-		kHandlers[command.FullCommand()] = handler
+		handlers[command.FullCommand()] = handler
 	}
 
 	input := kingpin.MustParse(noms.Parse(os.Args[1:]))
-	if handler := kHandlers[strings.Split(input, " ")[0]]; handler != nil {
+	if handler := handlers[strings.Split(input, " ")[0]]; handler != nil {
 		handler(input)
 	}
 
@@ -107,11 +107,6 @@ func main() {
 	}
 }
 
-var (
-	verboseFlag *bool
-	quietFlag   *bool
-)
-
 // addVerboseFlags adds --verbose and --quiet flags to the passed command
 func addVerboseFlags(cmd *kingpin.CmdClause) (verboseFlag *bool, quietFlag *bool) {
 	verboseFlag = cmd.Flag("verbose", "show more").Short('v').Bool()
@@ -120,7 +115,7 @@ func addVerboseFlags(cmd *kingpin.CmdClause) (verboseFlag *bool, quietFlag *bool
 }
 
 // applyVerbosity - run when commands are invoked to apply the verbosity arguments configured in addVerboseFlags
-func applyVerbosity() {
+func applyVerbosity(verboseFlag *bool, quietFlag *bool) {
 	if verboseFlag != nil {
 		verbose.SetVerbose(*verboseFlag)
 	}
