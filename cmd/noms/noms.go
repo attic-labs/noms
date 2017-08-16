@@ -103,7 +103,108 @@ func main() {
 			return
 		}
 	}
+}
 
-	fmt.Fprintf(os.Stderr, "noms: unknown command %q\n", args[0])
-	util.Usage()
+// addVerboseFlags adds --verbose and --quiet flags to the passed command
+func addVerboseFlags(cmd *kingpin.CmdClause) (verboseFlag *bool, quietFlag *bool) {
+	verboseFlag = cmd.Flag("verbose", "show more").Short('v').Bool()
+	quietFlag = cmd.Flag("quiet", "show less").Short('q').Bool()
+	return
+}
+
+// addDatabaseArg adds a "database" arg to the passed command
+func addDatabaseArg(cmd *kingpin.CmdClause) (arg *string) {
+	return cmd.Arg("database", "a noms database path").Required().String() // TODO: custom parser for noms db URL?
+}
+
+// addNomsDocs - adds documentation (docs only, not commands) for existing (pre-kingpin) commands.
+func addNomsDocs(noms *kingpin.Application) {
+	// commmit
+	commit := noms.Command("commit", `Commits a specified value as head of the dataset
+If absolute-path is not provided, then it is read from stdin. See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the dataset and absolute-path arguments.
+`)
+	commit.Flag("allow-dupe", "creates a new commit, even if it would be identical (modulo metadata and parents) to the existing HEAD.").Default("false").Bool()
+	addVerboseFlags(commit)
+	addDatabaseArg(commit)
+	commit.Arg("absolute-path", "the path to read data from").String()
+
+	// config
+	noms.Command("config", "Prints the active configuration if a .nomsconfig file is present")
+
+	// diff
+	diff := noms.Command("diff", `Shows the difference between two objects
+See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object arguments.
+`)
+	diff.Flag("summarize", "Writes a summary of the changes instead").Short('s').Bool()
+	addVerboseFlags(diff)
+	diff.Arg("object1", "").Required().String()
+	diff.Arg("object2", "").Required().String()
+
+	// ds
+	ds := noms.Command("ds", `Noms dataset management
+See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
+`)
+	ds.Flag("delete", "dataset to delete").Short('d').String()
+	addVerboseFlags(ds)
+	ds.Arg("database", "a noms database path").String()
+
+	// log
+	log := noms.Command("log", `Displays the history of a path
+See Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the <path-spec> parameter.
+`)
+	log.Flag("color", "value of 1 forces color on, 0 forces color off").Default("-1").Int()
+	log.Flag("max-lines", "max number of lines to show per commit (-1 for all lines)").Default("9").Int()
+	log.Flag("max-commits", "max number of commits to display (0 for all commits)").Short('n').Default("0").Int()
+	log.Flag("oneline", "show a summary of each commit on a single line").Bool()
+	log.Flag("ascii", "show ascii-based commit hierarchy on left side of output").Bool()
+	log.Flag("show-value", "show commit value rather than diff information").Bool()
+	addVerboseFlags(log)
+	log.Arg("path-spec", "").Required().String()
+
+	// merge
+	merge := noms.Command("merge", `Merges and commits the head values of two named datasets
+See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
+You must provide a working database and the names of two Datasets you want to merge. The values at the heads of these Datasets will be merged, put into a new Commit object, and set as the Head of the third provided Dataset name.
+`)
+	merge.Flag("policy", "conflict resolution policy for merging. Defaults to 'n', which means no resolution strategy will be applied. Supported values are 'l' (left), 'r' (right) and 'p' (prompt). 'prompt' will bring up a simple command-line prompt allowing you to resolve conflicts by choosing between 'l' or 'r' on a case-by-case basis.").Default("n").Enum("n", "r", "l", "p")
+	addVerboseFlags(merge)
+	addDatabaseArg(merge)
+	merge.Arg("left-dataset-name", "a dataset").Required().String()
+	merge.Arg("right-dataset-name", "a dataset").Required().String()
+	merge.Arg("output-dataset-name", "a dataset").Required().String()
+
+	// root
+	root := noms.Command("root", `Get or set the current root hash of the entire database
+See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
+`)
+	root.Flag("update", "Replaces the entire database with the one with the given hash").String()
+	addVerboseFlags(root)
+	addDatabaseArg(root)
+
+	// serve
+	serve := noms.Command("serve", `Serves a Noms database over HTTP
+See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
+`)
+	serve.Flag("port", "port to listen on for HTTP requests").Default("8000").Int()
+	addDatabaseArg(serve)
+
+	// show
+	show := noms.Command("show", `Shows a serialization of a Noms object
+See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object argument.
+`)
+	show.Flag("raw", "If true, dumps the raw binary version of the data").Bool()
+	show.Flag("stats", "If true, reports statistics related to the value").Bool()
+	addVerboseFlags(show)
+	show.Arg("object", "a noms object").Required().String()
+
+	sync := noms.Command("sync", `Moves datasets between or within databases
+See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object and dataset arguments.
+`)
+	sync.Flag("parallelism", "").Short('p').Default("512").Int()
+	addVerboseFlags(sync)
+	sync.Arg("source-object", "a noms source object").Required().String()
+	sync.Arg("dest-dataset", "a noms dataset").Required().String()
+
+	// version
+	noms.Command("version", "Print the noms version")
 }
