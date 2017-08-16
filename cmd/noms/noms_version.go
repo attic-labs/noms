@@ -13,8 +13,7 @@ import (
 	"github.com/attic-labs/noms/go/constants"
 )
 
-// NomsVersion - the noms version command
-func NomsVersion(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+func nomsVersion(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
 	version := noms.Command("version", "Print the noms version")
 
 	return version, func() int {

@@ -37,8 +37,7 @@ var (
 	showValue bool
 )
 
-// NomsLog - the noms log command
-func NomsLog(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+func nomsLog(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
 	log := noms.Command("log", `Displays the history of a path
 
 See Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the <path-spec> parameter.

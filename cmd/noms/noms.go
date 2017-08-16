@@ -29,7 +29,6 @@ var actions = []string{
 	"nomming on",
 }
 
-// CommandHandler - a callback passed to commands
 type CommandHandler func() (exitCode int)
 
 var (
@@ -37,15 +36,15 @@ var (
 	quietFlag   *bool
 )
 
-// AddVerboseFlags adds --verbose and --quiet flags to the passed command
-func AddVerboseFlags(cmd *kingpin.CmdClause) (verboseFlag *bool, quietFlag *bool) {
+// addVerboseFlags adds --verbose and --quiet flags to the passed command
+func addVerboseFlags(cmd *kingpin.CmdClause) (verboseFlag *bool, quietFlag *bool) {
 	verboseFlag = cmd.Flag("verbose", "show more").Short('v').Bool()
 	quietFlag = cmd.Flag("quiet", "show less").Short('q').Bool()
 	return
 }
 
-// ApplyVerbosity - run when commands are invoked to apply the verbosity arguments configured in AddVerboseFlags
-func ApplyVerbosity() {
+// applyVerbosity - run when commands are invoked to apply the verbosity arguments configured in addVerboseFlags
+func applyVerbosity() {
 	verbose.SetVerbose(*verboseFlag)
 	verbose.SetQuiet(*quietFlag)
 }
@@ -55,30 +54,31 @@ func AddDatabaseArg(cmd *kingpin.CmdClause) (arg *string) {
 	return cmd.Arg("database", "a noms database path").Required().String() // TODO: custom parser for noms db URL?
 }
 
+type NomsCommand func(*kingpin.Application) (*kingpin.CmdClause, CommandHandler)
+
 // Commands, in order of preference
-var commands = []func(*kingpin.Application) (*kingpin.CmdClause, CommandHandler){
-	NomsCommit,
-	NomsConfig,
-	NomsDiff,
-	NomsDs,
-	NomsLog,
-	NomsMerge,
-	NomsRoot,
-	NomsServe,
-	NomsShow,
-	NomsSync,
-	NomsVersion,
+var commands = []NomsCommand{
+	nomsCommit,
+	nomsConfig,
+	nomsDiff,
+	nomsDs,
+	nomsLog,
+	nomsMerge,
+	nomsRoot,
+	nomsServe,
+	nomsShow,
+	nomsSync,
+	nomsVersion,
 }
 
 func main() {
 	// allow short (-h) help
 	kingpin.CommandLine.HelpFlag.Short('h')
 
-	// TODO: is there a way to dynamically generate help text other than re-initializing this every time?
 	i := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(len(actions))
 	noms := kingpin.New("noms", fmt.Sprintf(`Noms is a tool for %s Noms data.`, actions[i]))
 
-	handlers := make(map[string]CommandHandler)
+	handlers := map[string]CommandHandler{}
 
 	// install handlers
 	for _, cmdFunction := range commands {

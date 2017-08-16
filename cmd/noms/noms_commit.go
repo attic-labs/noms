@@ -17,8 +17,7 @@ import (
 	"github.com/attic-labs/noms/go/spec"
 )
 
-// NomsCommit - the noms commit command
-func NomsCommit(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+func nomsCommit(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
 	commit := noms.Command("commit", `Commits a specified value as head of the dataset
 
 If absolute-path is not provided, then it is read from stdin. See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the dataset and absolute-path arguments.

@@ -14,8 +14,7 @@ import (
 	"github.com/attic-labs/noms/go/d"
 )
 
-// NomsConfig - the noms config command
-func NomsConfig(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+func nomsConfig(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
 	configCmd := noms.Command("config", "Prints the active configuration if a .nomsconfig file is present")
 
 	return configCmd, func() int {

@@ -21,8 +21,7 @@ import (
 	"github.com/attic-labs/noms/go/util/verbose"
 )
 
-// NomsMerge - the noms merge command
-func NomsMerge(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+func nomsMerge(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
 	merge := noms.Command("merge", `Merges and commits the head values of two named datasets
 
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.

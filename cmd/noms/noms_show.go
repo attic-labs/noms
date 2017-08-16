@@ -18,8 +18,7 @@ import (
 	"github.com/attic-labs/noms/go/util/outputpager"
 )
 
-// NomsShow - the noms show command
-func NomsShow(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+func nomsShow(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
 	show := noms.Command("show", `Shows a serialization of a Noms object
 
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object argument.

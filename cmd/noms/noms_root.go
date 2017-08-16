@@ -19,8 +19,7 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
-// NomsRoot - the noms root command
-func NomsRoot(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+func nomsRoot(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
 	root := noms.Command("root", `Get or set the current root hash of the entire database
 
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.

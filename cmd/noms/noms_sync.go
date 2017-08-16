@@ -20,8 +20,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
-// NomsSync - the noms sync command
-func NomsSync(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+func nomsSync(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
 	sync := noms.Command("sync", `Moves datasets between or within databases
 
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object and dataset arguments.

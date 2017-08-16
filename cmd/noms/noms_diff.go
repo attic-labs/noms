@@ -15,8 +15,7 @@ import (
 	"github.com/attic-labs/noms/go/util/outputpager"
 )
 
-// NomsDiff - the noms diff command
-func NomsDiff(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+func nomsDiff(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
 	diffCmd := noms.Command("diff", `Shows the difference between two objects
 
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object arguments.

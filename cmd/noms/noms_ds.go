@@ -14,8 +14,7 @@ import (
 	"github.com/attic-labs/noms/go/types"
 )
 
-// NomsDs - the noms ds (dataset) command
-func NomsDs(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+func nomsDs(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
 	ds := noms.Command("ds", `Noms dataset management
 
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.

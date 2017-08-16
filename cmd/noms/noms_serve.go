@@ -17,8 +17,7 @@ import (
 	"github.com/attic-labs/noms/go/util/profile"
 )
 
-// NomsServe - the noms serve command
-func NomsServe(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+func nomsServe(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
 	serve := noms.Command("serve", `Serves a Noms database over HTTP
 
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
