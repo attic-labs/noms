@@ -12,7 +12,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/attic-labs/noms/cmd/util"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
+
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
@@ -22,115 +23,111 @@ import (
 	"github.com/attic-labs/noms/go/util/datetime"
 	"github.com/attic-labs/noms/go/util/functions"
 	"github.com/attic-labs/noms/go/util/outputpager"
-	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/attic-labs/noms/go/util/writers"
-	flag "github.com/juju/gnuflag"
 	"github.com/mgutz/ansi"
-)
-
-var (
-	useColor   = false
-	color      int
-	maxLines   int
-	maxCommits int
-	oneline    bool
-	showGraph  bool
-	showValue  bool
 )
 
 const parallelism = 16
 
-var nomsLog = &util.Command{
-	Run:       runLog,
-	UsageLine: "log [options] <path-spec>",
-	Short:     "Displays the history of a path",
-	Long:      "Displays the history of a path. See Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the <path-spec> parameter.",
-	Flags:     setupLogFlags,
-	Nargs:     1,
-}
+var (
+	useColor  = false
+	maxLines  int
+	oneline   bool
+	showGraph bool
+	showValue bool
+)
 
-func setupLogFlags() *flag.FlagSet {
-	logFlagSet := flag.NewFlagSet("log", flag.ExitOnError)
-	logFlagSet.IntVar(&color, "color", -1, "value of 1 forces color on, 0 forces color off")
-	logFlagSet.IntVar(&maxLines, "max-lines", 9, "max number of lines to show per commit (-1 for all lines)")
-	logFlagSet.IntVar(&maxCommits, "n", 0, "max number of commits to display (0 for all commits)")
-	logFlagSet.BoolVar(&oneline, "oneline", false, "show a summary of each commit on a single line")
-	logFlagSet.BoolVar(&showGraph, "graph", false, "show ascii-based commit hierarchy on left side of output")
-	logFlagSet.BoolVar(&showValue, "show-value", false, "show commit value rather than diff information")
-	outputpager.RegisterOutputpagerFlags(logFlagSet)
-	verbose.RegisterVerboseFlags(logFlagSet)
-	return logFlagSet
-}
+func nomsLog(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+	log := noms.Command("log", `Displays the history of a path
 
-func runLog(args []string) int {
-	useColor = shouldUseColor()
-	cfg := config.NewResolver()
+See Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the <path-spec> parameter.
+`)
+	color := log.Flag("color", "value of 1 forces color on, 0 forces color off").Default("-1").Int()
+	maxLinesVal := log.Flag("max-lines", "max number of lines to show per commit (-1 for all lines)").Default("9").Int()
+	maxCommitsVal := log.Flag("max-commits", "max number of commits to display (0 for all commits)").Short('n').Default("0").Int()
+	onelineVal := log.Flag("oneline", "show a summary of each commit on a single line").Bool()
+	showGraphVal := log.Flag("ascii", "show ascii-based commit hierarchy on left side of output").Bool()
+	showValueVal := log.Flag("show-value", "show commit value rather than diff information").Bool()
+	AddVerboseFlags(log)
 
-	resolved := cfg.ResolvePathSpec(args[0])
-	sp, err := spec.ForPath(resolved)
-	d.CheckErrorNoUsage(err)
-	defer sp.Close()
+	pathSpec := log.Arg("path-spec", "").Required().String()
 
-	pinned, ok := sp.Pin()
-	if !ok {
-		fmt.Fprintf(os.Stderr, "Cannot resolve spec: %s\n", args[0])
-		return 1
-	}
-	defer pinned.Close()
-	database := pinned.GetDatabase()
+	return log, func() int {
+		maxCommits := *maxCommitsVal
+		maxLines = *maxLinesVal
+		oneline = *onelineVal
+		showGraph = *showGraphVal
+		showValue = *showValueVal
+		ApplyVerbosity()
+		useColor = shouldUseColor(*color)
+		cfg := config.NewResolver()
 
-	absPath := pinned.Path
-	path := absPath.Path
-	if len(path) == 0 {
-		path = types.MustParsePath(".value")
-	}
+		resolved := cfg.ResolvePathSpec(*pathSpec)
+		sp, err := spec.ForPath(resolved)
+		d.CheckErrorNoUsage(err)
+		defer sp.Close()
 
-	origCommit, ok := database.ReadValue(absPath.Hash).(types.Struct)
-	if !ok || !datas.IsCommit(origCommit) {
-		d.CheckError(fmt.Errorf("%s does not reference a Commit object", args[0]))
-	}
-
-	iter := NewCommitIterator(database, origCommit)
-	displayed := 0
-	if maxCommits <= 0 {
-		maxCommits = math.MaxInt32
-	}
-
-	bytesChan := make(chan chan []byte, parallelism)
-
-	var done = false
-
-	go func() {
-		for ln, ok := iter.Next(); !done && ok && displayed < maxCommits; ln, ok = iter.Next() {
-			ch := make(chan []byte)
-			bytesChan <- ch
-
-			go func(ch chan []byte, node LogNode) {
-				buff := &bytes.Buffer{}
-				printCommit(node, path, buff, database)
-				ch <- buff.Bytes()
-			}(ch, ln)
-
-			displayed++
+		pinned, ok := sp.Pin()
+		if !ok {
+			fmt.Fprintf(os.Stderr, "Cannot resolve spec: %s\n", *pathSpec)
+			return 1
 		}
-		close(bytesChan)
-	}()
+		defer pinned.Close()
+		database := pinned.GetDatabase()
 
-	pgr := outputpager.Start()
-	defer pgr.Stop()
+		absPath := pinned.Path
+		path := absPath.Path
+		if len(path) == 0 {
+			path = types.MustParsePath(".value")
+		}
 
-	for ch := range bytesChan {
-		commitBuff := <-ch
-		_, err := io.Copy(pgr.Writer, bytes.NewReader(commitBuff))
-		if err != nil {
-			done = true
-			for range bytesChan {
-				// drain the output
+		origCommit, ok := database.ReadValue(absPath.Hash).(types.Struct)
+		if !ok || !datas.IsCommit(origCommit) {
+			d.CheckError(fmt.Errorf("%s does not reference a Commit object", *pathSpec))
+		}
+
+		iter := NewCommitIterator(database, origCommit)
+		displayed := 0
+		if maxCommits <= 0 {
+			maxCommits = math.MaxInt32
+		}
+
+		bytesChan := make(chan chan []byte, parallelism)
+
+		var done = false
+
+		go func() {
+			for ln, ok := iter.Next(); !done && ok && displayed < maxCommits; ln, ok = iter.Next() {
+				ch := make(chan []byte)
+				bytesChan <- ch
+
+				go func(ch chan []byte, node LogNode) {
+					buff := &bytes.Buffer{}
+					printCommit(node, path, buff, database)
+					ch <- buff.Bytes()
+				}(ch, ln)
+
+				displayed++
+			}
+			close(bytesChan)
+		}()
+
+		pgr := outputpager.Start()
+		defer pgr.Stop()
+
+		for ch := range bytesChan {
+			commitBuff := <-ch
+			_, err := io.Copy(pgr.Writer, bytes.NewReader(commitBuff))
+			if err != nil {
+				done = true
+				for range bytesChan {
+					// drain the output
+				}
 			}
 		}
-	}
 
-	return 0
+		return 0
+	}
 }
 
 // Prints the information for one commit in the log, including ascii graph on left side of commits if
@@ -354,7 +351,7 @@ func writeDiffLines(node LogNode, path types.Path, db datas.Database, maxLines, 
 	return int(pw.NumLines), err
 }
 
-func shouldUseColor() bool {
+func shouldUseColor(color int) bool {
 	if color != 1 && color != 0 {
 		return outputpager.IsStdoutTty()
 	}

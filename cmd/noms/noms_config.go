@@ -8,32 +8,23 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/attic-labs/noms/cmd/util"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
+
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
-	flag "github.com/juju/gnuflag"
 )
 
-var nomsConfig = &util.Command{
-	Run:       runConfig,
-	UsageLine: "config ",
-	Short:     "Display noms config info",
-	Long:      "Prints the active configuration if a .nomsconfig file is present",
-	Flags:     setupConfigFlags,
-	Nargs:     0,
-}
+func nomsConfig(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+	configCmd := noms.Command("config", "Prints the active configuration if a .nomsconfig file is present")
 
-func setupConfigFlags() *flag.FlagSet {
-	return flag.NewFlagSet("config", flag.ExitOnError)
-}
-
-func runConfig(args []string) int {
-	c, err := config.FindNomsConfig()
-	if err == config.NoConfig {
-		fmt.Fprintf(os.Stdout, "no config active\n")
-	} else {
-		d.CheckError(err)
-		fmt.Fprintf(os.Stdout, "%s\n", c.String())
+	return configCmd, func() int {
+		c, err := config.FindNomsConfig()
+		if err == config.NoConfig {
+			fmt.Fprintf(os.Stdout, "no config active\n")
+		} else {
+			d.CheckError(err)
+			fmt.Fprintf(os.Stdout, "%s\n", c.String())
+		}
+		return 0
 	}
-	return 0
 }

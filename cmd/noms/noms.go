@@ -9,27 +9,12 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"path"
 	"time"
 
-	"github.com/attic-labs/noms/cmd/util"
-	"github.com/attic-labs/noms/go/util/exit"
-	flag "github.com/juju/gnuflag"
-)
+	"github.com/attic-labs/noms/go/util/verbose"
 
-var commands = []*util.Command{
-	nomsCommit,
-	nomsConfig,
-	nomsDiff,
-	nomsDs,
-	nomsLog,
-	nomsMerge,
-	nomsRoot,
-	nomsServe,
-	nomsShow,
-	nomsSync,
-	nomsVersion,
-}
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
+)
 
 var actions = []string{
 	"interacting with",
@@ -44,49 +29,70 @@ var actions = []string{
 	"nomming on",
 }
 
-func usageString() string {
-	i := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(len(actions))
-	return fmt.Sprintf(`Noms is a tool for %s Noms data.`, actions[i])
+type CommandHandler func() (exitCode int)
+
+var (
+	verboseFlag *bool
+	quietFlag   *bool
+)
+
+// addVerboseFlags adds --verbose and --quiet flags to the passed command
+func addVerboseFlags(cmd *kingpin.CmdClause) (verboseFlag *bool, quietFlag *bool) {
+	verboseFlag = cmd.Flag("verbose", "show more").Short('v').Bool()
+	quietFlag = cmd.Flag("quiet", "show less").Short('q').Bool()
+	return
+}
+
+// applyVerbosity - run when commands are invoked to apply the verbosity arguments configured in addVerboseFlags
+func applyVerbosity() {
+	verbose.SetVerbose(*verboseFlag)
+	verbose.SetQuiet(*quietFlag)
+}
+
+// AddDatabaseArg adds a "database" arg to the passed command
+func AddDatabaseArg(cmd *kingpin.CmdClause) (arg *string) {
+	return cmd.Arg("database", "a noms database path").Required().String() // TODO: custom parser for noms db URL?
+}
+
+type NomsCommand func(*kingpin.Application) (*kingpin.CmdClause, CommandHandler)
+
+// Commands, in order of preference
+var commands = []NomsCommand{
+	nomsCommit,
+	nomsConfig,
+	nomsDiff,
+	nomsDs,
+	nomsLog,
+	nomsMerge,
+	nomsRoot,
+	nomsServe,
+	nomsShow,
+	nomsSync,
+	nomsVersion,
 }
 
 func main() {
-	util.InitHelp(path.Base(os.Args[0]), commands, usageString())
+	// allow short (-h) help
+	kingpin.CommandLine.HelpFlag.Short('h')
 
-	flag.Usage = util.Usage
-	flag.Parse(false)
+	i := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(len(actions))
+	noms := kingpin.New("noms", fmt.Sprintf(`Noms is a tool for %s Noms data.`, actions[i]))
 
-	args := flag.Args()
-	if len(args) < 1 {
-		util.Usage()
-		return
+	handlers := map[string]CommandHandler{}
+
+	// install handlers
+	for _, cmdFunction := range commands {
+		command, handler := cmdFunction(noms)
+		handlers[command.FullCommand()] = handler
 	}
 
-	if args[0] == "help" {
-		util.Help(args[1:])
-		return
-	}
+	// parse our input
+	input := kingpin.MustParse(noms.Parse(os.Args[1:]))
 
 	// Don't prefix log messages with timestamp when running interactively
 	log.SetFlags(0)
 
-	for _, cmd := range commands {
-		if cmd.Name() == args[0] {
-			flags := cmd.Flags()
-			flags.Usage = cmd.Usage
-
-			flags.Parse(true, args[1:])
-			args = flags.Args()
-			if cmd.Nargs != 0 && len(args) < cmd.Nargs {
-				cmd.Usage()
-			}
-			exitCode := cmd.Run(args)
-			if exitCode != 0 {
-				exit.Exit(exitCode)
-			}
-			return
-		}
+	if handler := handlers[input]; handler != nil {
+		handler()
 	}
-
-	fmt.Fprintf(os.Stderr, "noms: unknown command %q\n", args[0])
-	util.Usage()
 }
