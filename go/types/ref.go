@@ -7,26 +7,53 @@ package types
 import "github.com/attic-labs/noms/go/hash"
 
 type Ref struct {
-	target     hash.Hash
-	targetType *Type
-	height     uint64
-	h          *hash.Hash
+	r nomsReader
+	h *hash.Hash
 }
 
 func NewRef(v Value) Ref {
 	// TODO: Taking the hash will duplicate the work of computing the type
-	return Ref{v.Hash(), TypeOf(v), maxChunkHeight(v) + 1, &hash.Hash{}}
+	return constructRef(v.Hash(), TypeOf(v), maxChunkHeight(v)+1)
 }
 
 // ToRefOfValue returns a new Ref that points to the same target as |r|, but
 // with the type 'Ref<Value>'.
 func ToRefOfValue(r Ref) Ref {
-	return Ref{r.TargetHash(), ValueType, r.Height(), &hash.Hash{}}
+	return constructRef(r.TargetHash(), ValueType, r.Height())
 }
 
-// Constructs a Ref directly from struct properties. This should not be used outside decoding and testing within the types package.
-func constructRef(target hash.Hash, targetType *Type, height uint64) Ref {
-	return Ref{target, targetType, height, &hash.Hash{}}
+func constructRef(targetHash hash.Hash, targetType *Type, height uint64) Ref {
+	w := newBinaryNomsWriter()
+	enc := newValueEncoder(w, false)
+	writeRefPartsToEncoder(enc, targetHash, targetType, height)
+	return Ref{w.reader(), &hash.Hash{}}
+}
+
+// readRef reads the data provided by a decoder and moves the decoder forward.
+func readRef(dec *valueDecoder) Ref {
+	start := dec.pos()
+	dec.skipHash()  // targetHash
+	dec.skipType()  // targetType
+	dec.skipCount() // height
+	end := dec.pos()
+	return Ref{dec.slice(start, end), &hash.Hash{}}
+}
+
+func (r Ref) writeTo(enc *valueEncoder) {
+	// The NomsKind has already been written.
+	if !enc.forRollingHash && enc.canWriteRaw(r.r) {
+		enc.writeRaw(r.r)
+	} else {
+		writeRefPartsToEncoder(enc, r.TargetHash(), r.TargetType(), r.Height())
+	}
+}
+
+func writeRefPartsToEncoder(enc *valueEncoder, targetHash hash.Hash, targetType *Type, height uint64) {
+	enc.writeHash(targetHash)
+	if !enc.forRollingHash {
+		enc.writeType(targetType, map[string]*Type{})
+	}
+	enc.writeCount(height)
 }
 
 func maxChunkHeight(v Value) (max uint64) {
@@ -39,19 +66,29 @@ func maxChunkHeight(v Value) (max uint64) {
 }
 
 func (r Ref) TargetHash() hash.Hash {
-	return r.target
+	br := r.r.clone()
+	dec := newValueDecoder(br, nil)
+	return dec.readHash()
 }
 
 func (r Ref) Height() uint64 {
-	return r.height
+	br := r.r.clone()
+	dec := newValueDecoder(br, nil)
+	dec.skipHash()
+	dec.skipType()
+	return dec.readCount()
 }
 
 func (r Ref) TargetValue(vr ValueReader) Value {
-	return vr.ReadValue(r.target)
+	return vr.ReadValue(r.TargetHash())
 }
 
 func (r Ref) TargetType() *Type {
-	return r.targetType
+	br := r.r.clone()
+	dec := newValueDecoder(br, nil)
+	// dec.skipKind()
+	dec.skipHash()
+	return dec.readType()
 }
 
 // Value interface
@@ -83,7 +120,7 @@ func (r Ref) WalkRefs(cb RefCallback) {
 }
 
 func (r Ref) typeOf() *Type {
-	return makeCompoundType(RefKind, r.targetType)
+	return makeCompoundType(RefKind, r.TargetType())
 }
 
 func (r Ref) Kind() NomsKind {

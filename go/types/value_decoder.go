@@ -30,11 +30,12 @@ func (r *valueDecoder) readKind() NomsKind {
 	return NomsKind(r.readUint8())
 }
 
+func (r *valueDecoder) skipKind() {
+	r.skipUint8()
+}
+
 func (r *valueDecoder) readRef() Ref {
-	h := r.readHash()
-	targetType := r.readType()
-	height := r.readCount()
-	return constructRef(h, targetType, height)
+	return readRef(r)
 }
 
 func (r *valueDecoder) readType() *Type {
@@ -43,6 +44,14 @@ func (r *valueDecoder) readType() *Type {
 		validateType(t)
 	}
 	return t
+}
+
+func (r *valueDecoder) skipType() {
+	if r.validating {
+		r.readType()
+		return
+	}
+	r.skipTypeInner()
 }
 
 func (r *valueDecoder) readTypeInner(seenStructs map[string]*Type) *Type {
@@ -70,6 +79,25 @@ func (r *valueDecoder) readTypeInner(seenStructs map[string]*Type) *Type {
 
 	d.PanicIfFalse(IsPrimitiveKind(k))
 	return MakePrimitiveType(k)
+}
+
+func (r *valueDecoder) skipTypeInner() {
+	k := r.readKind()
+	switch k {
+	case ListKind, RefKind, SetKind:
+		r.skipTypeInner()
+	case MapKind:
+		r.skipTypeInner()
+		r.skipTypeInner()
+	case StructKind:
+		r.skipStructType()
+	case UnionKind:
+		r.skipUnionType()
+	case CycleKind:
+		r.skipString()
+	default:
+		d.PanicIfFalse(IsPrimitiveKind(k))
+	}
 }
 
 func (r *valueDecoder) readBlobLeafSequence() sequence {
@@ -226,6 +254,21 @@ func (r *valueDecoder) readStructType(seenStructs map[string]*Type) *Type {
 	return t
 }
 
+func (r *valueDecoder) skipStructType() {
+	r.skipString() // name
+	count := r.readCount()
+
+	for i := uint64(0); i < count; i++ {
+		r.skipString() // name
+	}
+	for i := uint64(0); i < count; i++ {
+		r.skipTypeInner()
+	}
+	for i := uint64(0); i < count; i++ {
+		r.skipBool() // optional
+	}
+}
+
 func (r *valueDecoder) readUnionType(seenStructs map[string]*Type) *Type {
 	l := r.readCount()
 	ts := make(typeSlice, l)
@@ -233,4 +276,11 @@ func (r *valueDecoder) readUnionType(seenStructs map[string]*Type) *Type {
 		ts[i] = r.readTypeInner(seenStructs)
 	}
 	return makeCompoundType(UnionKind, ts...)
+}
+
+func (r *valueDecoder) skipUnionType() {
+	l := r.readCount()
+	for i := uint64(0); i < l; i++ {
+		r.skipTypeInner()
+	}
 }

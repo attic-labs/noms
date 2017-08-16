@@ -24,9 +24,7 @@ func (w *valueEncoder) writeKind(kind NomsKind) {
 }
 
 func (w *valueEncoder) writeRef(r Ref) {
-	w.writeHash(r.TargetHash())
-	w.writeType(r.TargetType(), map[string]*Type{})
-	w.writeCount(r.Height())
+	r.writeTo(w)
 }
 
 func (w *valueEncoder) writeType(t *Type, seenStructs map[string]*Type) {

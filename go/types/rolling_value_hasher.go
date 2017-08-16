@@ -102,3 +102,16 @@ func (rv *rollingValueHasher) HashValue(v Value) {
 	rv.enc.writeValue(v)
 	rv.sl.Update(rv.bw.data())
 }
+
+func (rv *rollingValueHasher) reader() nomsReader {
+	panic("unreachable")
+}
+
+func (rv *rollingValueHasher) writeRaw(r nomsReader) {
+	rv.writeBytes(r.(*binaryNomsReader).buff)
+}
+
+func (rv *rollingValueHasher) canWriteRaw(r nomsReader) bool {
+	_, ok := r.(*binaryNomsReader)
+	return ok
+}

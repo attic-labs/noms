@@ -31,6 +31,10 @@ func (r *nomsTestReader) read() interface{} {
 	return v
 }
 
+func (r *nomsTestReader) skip() {
+	r.i++
+}
+
 func (r *nomsTestReader) atEnd() bool {
 	return r.i >= len(r.a)
 }
@@ -39,16 +43,32 @@ func (r *nomsTestReader) readString() string {
 	return r.read().(string)
 }
 
+func (r *nomsTestReader) skipString() {
+	r.skip()
+}
+
 func (r *nomsTestReader) readBool() bool {
 	return r.read().(bool)
+}
+
+func (r *nomsTestReader) skipBool() {
+	r.skip()
 }
 
 func (r *nomsTestReader) readUint8() uint8 {
 	return r.read().(uint8)
 }
 
+func (r *nomsTestReader) skipUint8() {
+	r.skip()
+}
+
 func (r *nomsTestReader) readCount() uint64 {
 	return r.read().(uint64)
+}
+
+func (r *nomsTestReader) skipCount() {
+	r.skip()
 }
 
 func (r *nomsTestReader) readNumber() Number {
@@ -61,6 +81,18 @@ func (r *nomsTestReader) readBytes() []byte {
 
 func (r *nomsTestReader) readHash() hash.Hash {
 	return hash.Parse(r.readString())
+}
+
+func (r *nomsTestReader) skipHash() {
+	r.skipString()
+}
+
+func (r *nomsTestReader) slice(start, end uint32) nomsReader {
+	return &nomsTestReader{r.a[start:end], 0}
+}
+
+func (r *nomsTestReader) clone() nomsReader {
+	return &nomsTestReader{r.a, r.i}
 }
 
 type nomsTestWriter struct {
@@ -97,6 +129,22 @@ func (w *nomsTestWriter) writeBytes(v []byte) {
 
 func (w *nomsTestWriter) writeHash(h hash.Hash) {
 	w.writeString(h.String())
+}
+
+func (w *nomsTestWriter) reader() nomsReader {
+	return &nomsTestReader{w.a, 0}
+}
+
+func (w *nomsTestWriter) writeRaw(r nomsReader) {
+	tr := r.(*nomsTestReader)
+	for i := 0; i < len(tr.a); i++ {
+		w.write(tr.a[i])
+	}
+}
+
+func (w *nomsTestWriter) canWriteRaw(r nomsReader) bool {
+	_, ok := r.(*nomsTestReader)
+	return ok
 }
 
 func assertEncoding(t *testing.T, expect []interface{}, v Value) {
