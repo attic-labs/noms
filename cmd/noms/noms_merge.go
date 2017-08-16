@@ -10,7 +10,8 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/attic-labs/noms/cmd/util"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
+
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
@@ -18,61 +19,58 @@ import (
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/status"
 	"github.com/attic-labs/noms/go/util/verbose"
-	flag "github.com/juju/gnuflag"
 )
+
+// NomsMerge - the noms merge command
+func NomsMerge(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+	merge := noms.Command("merge", `Merges and commits the head values of two named datasets
+
+See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
+
+You must provide a working database and the names of two Datasets you want to merge. The values at the heads of these Datasets will be merged, put into a new Commit object, and set as the Head of the third provided Dataset name.
+`)
+
+	policyVal := merge.Flag("policy", "conflict resolution policy for merging. Defaults to 'n', which means no resolution strategy will be applied. Supported values are 'l' (left), 'r' (right) and 'p' (prompt). 'prompt' will bring up a simple command-line prompt allowing you to resolve conflicts by choosing between 'l' or 'r' on a case-by-case basis.").Default("n").Enum("n", "r", "l", "p")
+	AddVerboseFlags(merge)
+	database := AddDatabaseArg(merge)
+	leftDataset := merge.Arg("left-dataset-name", "a dataset").Required().String()
+	rightDataset := merge.Arg("right-dataset-name", "a dataset").Required().String()
+	outputDataset := merge.Arg("output-dataset-name", "a dataset").Required().String()
+
+	return merge, func() int {
+		ApplyVerbosity()
+		cfg := config.NewResolver()
+		db, err := cfg.GetDatabase(*database)
+		d.CheckError(err)
+		defer db.Close()
+
+		leftDS, rightDS, outDS := resolveDatasets(db, *leftDataset, *rightDataset, *outputDataset)
+		left, right, ancestor := getMergeCandidates(db, leftDS, rightDS)
+		policy := decidePolicy(*policyVal)
+		pc := newMergeProgressChan()
+		merged, err := policy(left, right, ancestor, db, pc)
+		d.CheckErrorNoUsage(err)
+		close(pc)
+
+		_, err = db.SetHead(outDS, db.WriteValue(datas.NewCommit(merged, types.NewSet(leftDS.HeadRef(), rightDS.HeadRef()), types.EmptyStruct)))
+		d.PanicIfError(err)
+		if !verbose.Quiet() {
+			status.Printf("Done")
+			status.Done()
+		}
+		return 0
+	}
+}
 
 var (
-	resolver string
-
-	nomsMerge = &util.Command{
-		Run:       runMerge,
-		UsageLine: "merge [options] <database> <left-dataset-name> <right-dataset-name> <output-dataset-name>",
-		Short:     "Merges and commits the head values of two named datasets",
-		Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.\nYu must provide a working database and the names of two Datasets you want to merge. The values at the heads of these Datasets will be merged, put into a new Commit object, and set as the Head of the third provided Dataset name.",
-		Flags:     setupMergeFlags,
-		Nargs:     1, // if absolute-path not present we read it from stdin
-	}
+	resolver  string
 	datasetRe = regexp.MustCompile("^" + datas.DatasetRe.String() + "$")
 )
-
-func setupMergeFlags() *flag.FlagSet {
-	commitFlagSet := flag.NewFlagSet("merge", flag.ExitOnError)
-	commitFlagSet.StringVar(&resolver, "policy", "n", "conflict resolution policy for merging. Defaults to 'n', which means no resolution strategy will be applied. Supported values are 'l' (left), 'r' (right) and 'p' (prompt). 'prompt' will bring up a simple command-line prompt allowing you to resolve conflicts by choosing between 'l' or 'r' on a case-by-case basis.")
-	verbose.RegisterVerboseFlags(commitFlagSet)
-	return commitFlagSet
-}
 
 func checkIfTrue(b bool, format string, args ...interface{}) {
 	if b {
 		d.CheckErrorNoUsage(fmt.Errorf(format, args...))
 	}
-}
-
-func runMerge(args []string) int {
-	cfg := config.NewResolver()
-
-	if len(args) != 4 {
-		d.CheckErrorNoUsage(fmt.Errorf("Incorrect number of arguments"))
-	}
-	db, err := cfg.GetDatabase(args[0])
-	d.CheckError(err)
-	defer db.Close()
-
-	leftDS, rightDS, outDS := resolveDatasets(db, args[1], args[2], args[3])
-	left, right, ancestor := getMergeCandidates(db, leftDS, rightDS)
-	policy := decidePolicy(resolver)
-	pc := newMergeProgressChan()
-	merged, err := policy(left, right, ancestor, db, pc)
-	d.CheckErrorNoUsage(err)
-	close(pc)
-
-	_, err = db.SetHead(outDS, db.WriteValue(datas.NewCommit(merged, types.NewSet(leftDS.HeadRef(), rightDS.HeadRef()), types.EmptyStruct)))
-	d.PanicIfError(err)
-	if !verbose.Quiet() {
-		status.Printf("Done")
-		status.Done()
-	}
-	return 0
 }
 
 func resolveDatasets(db datas.Database, leftName, rightName, outName string) (leftDS, rightDS, outDS datas.Dataset) {
@@ -142,7 +140,7 @@ func decidePolicy(policy string) merge.Policy {
 			return cliResolve(os.Stdin, os.Stdout, aType, bType, a, b, path)
 		}
 	default:
-		d.CheckErrorNoUsage(fmt.Errorf("Unsupported merge policy: %s. Choices are n, l, r and a.", policy))
+		d.CheckErrorNoUsage(fmt.Errorf("unsupported merge policy: %s", policy))
 	}
 	return merge.NewThreeWay(resolve)
 }

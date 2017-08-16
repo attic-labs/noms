@@ -8,26 +8,18 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/attic-labs/noms/cmd/util"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
+
 	"github.com/attic-labs/noms/go/constants"
-	flag "github.com/juju/gnuflag"
 )
 
-var nomsVersion = &util.Command{
-	Run:       runVersion,
-	UsageLine: "version ",
-	Short:     "Display noms version",
-	Long:      "version prints the Noms data version and build identifier",
-	Flags:     setupVersionFlags,
-	Nargs:     0,
-}
+// NomsVersion - the noms version command
+func NomsVersion(noms *kingpin.Application) (*kingpin.CmdClause, CommandHandler) {
+	version := noms.Command("version", "Print the noms version")
 
-func setupVersionFlags() *flag.FlagSet {
-	return flag.NewFlagSet("version", flag.ExitOnError)
-}
-
-func runVersion(args []string) int {
-	fmt.Fprintf(os.Stdout, "format version: %v\n", constants.NomsVersion)
-	fmt.Fprintf(os.Stdout, "built from %v\n", constants.NomsGitSHA)
-	return 0
+	return version, func() int {
+		fmt.Fprintf(os.Stdout, "format version: %v\n", constants.NomsVersion)
+		fmt.Fprintf(os.Stdout, "built from %v\n", constants.NomsGitSHA)
+		return 0
+	}
 }
