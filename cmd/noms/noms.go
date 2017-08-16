@@ -140,10 +140,15 @@ func addNomsDocs(noms *kingpin.Application) {
 	commit := noms.Command("commit", `Commits a specified value as head of the dataset
 If absolute-path is not provided, then it is read from stdin. See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the dataset and absolute-path arguments.
 `)
-	commit.Flag("allow-dupe", "creates a new commit, even if it would be identical (modulo metadata and parents) to the existing HEAD.").Default("false").Bool()
+	commit.Flag("allow-dupe", "creates a new commit, even if it would be identical (modulo metadata and parents) to the existing HEAD.").Default("0").Int()
+	commit.Flag("date", "alias for -meta 'date=<date>'. '<date>' must be iso8601-formatted. If '<date>' is empty, it defaults to the current date.").String()
+	commit.Flag("message", "alias for -meta 'message=<message>'").String()
+	commit.Flag("meta", "'<key>=<value>' - creates a metadata field called 'key' set to 'value'. Value should be human-readable encoded.").String()
+	commit.Flag("meta-p", "'<key>=<path>' - creates a metadata field called 'key' set to the value at <path>").String()
 	addVerboseFlags(commit)
-	addDatabaseArg(commit)
 	commit.Arg("absolute-path", "the path to read data from").String()
+	// TODO: this should be required, but kingpin does not allow required args after non-required ones. Perhaps a custom type would fix that?
+	commit.Arg("database", "a noms database path").String()
 
 	// config
 	noms.Command("config", "Prints the active configuration if a .nomsconfig file is present")
@@ -173,7 +178,7 @@ See Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelli
 	log.Flag("max-lines", "max number of lines to show per commit (-1 for all lines)").Default("9").Int()
 	log.Flag("max-commits", "max number of commits to display (0 for all commits)").Short('n').Default("0").Int()
 	log.Flag("oneline", "show a summary of each commit on a single line").Bool()
-	log.Flag("ascii", "show ascii-based commit hierarchy on left side of output").Bool()
+	log.Flag("graph", "show ascii-based commit hierarchy on left side of output").Bool()
 	log.Flag("show-value", "show commit value rather than diff information").Bool()
 	addVerboseFlags(log)
 	log.Arg("path-spec", "").Required().String()
