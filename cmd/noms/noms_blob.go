@@ -15,27 +15,27 @@ import (
 func nomsBlob(noms *kingpin.Application) (*kingpin.CmdClause, kCommandHandler) {
 	blob := noms.Command("blob", "interact with blobs in a dataset")
 
-	blobImport := blob.Command("import", "imports a blob to a dataset")
-	addVerboseFlags(blobImport)
-	profile.KAddProfileFlags(blobImport)
-	concurrency := blobImport.Flag("concurrency", "number of concurrent HTTP calls to retrieve remote resources").Default(strconv.Itoa(runtime.NumCPU())).Int()
-	importFile := blobImport.Arg("url-or-file", "a url or file to import").Required().String()
-	importDs := blobImport.Arg("dataset", "the path to import to").Required().String()
+	blobPut := blob.Command("put", "imports a blob to a dataset")
+	addVerboseFlags(blobPut)
+	profile.KAddProfileFlags(blobPut)
+	concurrency := blobPut.Flag("concurrency", "number of concurrent HTTP calls to retrieve remote resources").Default(strconv.Itoa(runtime.NumCPU())).Int()
+	putFile := blobPut.Arg("url-or-file", "a url or file to import").Required().String()
+	putDs := blobPut.Arg("dataset", "the path to import to").Required().String()
 
-	blobExport := blob.Command("export", "exports a blob from a dataset")
-	exportDs := blobExport.Arg("dataset", "the dataset to export").Required().String()
-	exportPath := blobExport.Arg("file", "an optional file to save the blob to").String()
-	addVerboseFlags(blobExport)
-	profile.KAddProfileFlags(blobExport)
+	blobGet := blob.Command("export", "exports a blob from a dataset")
+	getDs := blobGet.Arg("dataset", "the dataset to export").Required().String()
+	getPath := blobGet.Arg("file", "an optional file to save the blob to").String()
+	addVerboseFlags(blobGet)
+	profile.KAddProfileFlags(blobGet)
 
 	return blob, func(input string) int {
 		applyVerbosity()
 		profile.KApplyProfileFlags()
 		switch input {
-		case blobImport.FullCommand():
-			return nomsBlobImport(*importFile, *importDs, *concurrency)
-		case blobExport.FullCommand():
-			return nomsBlobExport(*exportDs, *exportPath)
+		case blobPut.FullCommand():
+			return nomsBlobPut(*putFile, *putDs, *concurrency)
+		case blobGet.FullCommand():
+			return nomsBlobGet(*getDs, *getPath)
 		}
 		// unreachable
 		return 1

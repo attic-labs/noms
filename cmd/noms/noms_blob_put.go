@@ -16,7 +16,7 @@ import (
 	"github.com/attic-labs/noms/go/util/profile"
 )
 
-func nomsBlobImport(filePath string, dsPath string, concurrency int) int {
+func nomsBlobPut(filePath string, dsPath string, concurrency int) int {
 	info, err := os.Stat(filePath)
 	if err != nil {
 		d.CheckError(errors.New("couldn't stat file"))

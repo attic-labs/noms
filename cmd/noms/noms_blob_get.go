@@ -19,7 +19,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
-func nomsBlobExport(ds string, filePath string) int {
+func nomsBlobGet(ds string, filePath string) int {
 	cfg := config.NewResolver()
 	var blob types.Blob
 	if db, val, err := cfg.GetPath(ds); err != nil {

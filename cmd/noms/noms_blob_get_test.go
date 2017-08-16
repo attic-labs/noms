@@ -17,7 +17,7 @@ import (
 	"github.com/attic-labs/testify/suite"
 )
 
-func TestNomsBlobExport(t *testing.T) {
+func TestNomsBlobGet(t *testing.T) {
 	suite.Run(t, &nbeSuite{})
 }
 
@@ -25,7 +25,7 @@ type nbeSuite struct {
 	clienttest.ClientTestSuite
 }
 
-func (s *nbeSuite) TestNomsBlobExport() {
+func (s *nbeSuite) TestNomsBlobGet() {
 	blobBytes := []byte("hello")
 	blob := types.NewBlob(bytes.NewBuffer(blobBytes))
 
