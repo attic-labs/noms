@@ -16,47 +16,90 @@ import (
 )
 
 var EmptyStructType = MakeStructType("")
-var EmptyStruct = Struct{"", []string{}, []Value{}, &hash.Hash{}}
+var EmptyStruct = newStruct("", nil, nil)
 
 type StructData map[string]Value
 
 type Struct struct {
-	name       string
-	fieldNames []string
-	values     []Value
-	h          *hash.Hash
+	r nomsReader
+	h *hash.Hash
+}
+
+// readStruct reads the data provided by a decoder and moves the decoder forward.
+func readStruct(dec *valueDecoder) Struct {
+	start := dec.pos()
+	skipStruct(dec)
+	end := dec.pos()
+	return Struct{dec.slice(start, end), &hash.Hash{}}
+}
+
+func skipStruct(dec *valueDecoder) {
+	dec.skipString() // name
+	count := dec.readCount()
+	for i := uint64(0); i < count; i++ {
+		dec.skipString()
+		dec.skipValue()
+	}
+}
+
+func (s Struct) writeTo(enc *valueEncoder) {
+	// The NomsKind has already been written.
+	if !enc.forRollingHash && enc.canWriteRaw(s.r) {
+		enc.writeRaw(s.r)
+	} else {
+		dec := s.decoder()
+		enc.writeString(dec.readString())
+		count := dec.readCount()
+		enc.writeCount(count)
+
+		for i := uint64(0); i < count; i++ {
+			enc.writeString(dec.readString())
+			enc.writeValue(dec.readValue())
+		}
+	}
 }
 
 func validateStruct(s Struct) Struct {
-	verifyStructName(s.name)
+	dec := s.decoder()
+	name := dec.readString()
+	verifyStructName(name)
 
-	d.PanicIfFalse(len(s.fieldNames) == len(s.values))
+	var last string
+	count := dec.readCount()
 
-	if len(s.fieldNames) == 0 {
-		return s
+	for i := uint64(0); i < count; i++ {
+		name := dec.readString()
+		verifyFieldName(name)
+		if i > 0 {
+			d.PanicIfFalse(name > last)
+		}
+		last = name
+		dec.skipValue()
 	}
 
-	verifyFieldName(s.fieldNames[0])
-	d.PanicIfTrue(s.values[0] == nil)
-
-	for i := 1; i < len(s.fieldNames); i++ {
-		verifyFieldName(s.fieldNames[i])
-		d.PanicIfFalse(s.fieldNames[i] > s.fieldNames[i-1])
-		d.PanicIfTrue(s.values[i] == nil)
-	}
 	return s
 }
 
 func newStruct(name string, fieldNames []string, values []Value) Struct {
-	return Struct{name, fieldNames, values, &hash.Hash{}}
+	w := newBinaryNomsWriter()
+	enc := newValueEncoder(w, false)
+	enc.writeString(name)
+	enc.writeCount(uint64(len(fieldNames)))
+	for i := 0; i < len(fieldNames); i++ {
+		enc.writeString(fieldNames[i])
+		enc.writeValue(values[i])
+	}
+	return Struct{w.reader(), &hash.Hash{}}
 }
 
 func NewStruct(name string, data StructData) Struct {
+	verifyStructName(name)
 	fieldNames := make([]string, len(data))
 	values := make([]Value, len(data))
 
 	i := 0
-	for name, _ := range data {
+	for name := range data {
+		verifyFieldName(name)
 		fieldNames[i] = name
 		i++
 	}
@@ -66,7 +109,7 @@ func NewStruct(name string, data StructData) Struct {
 		values[i] = data[fieldNames[i]]
 	}
 
-	return validateStruct(newStruct(name, fieldNames, values))
+	return newStruct(name, fieldNames, values)
 }
 
 // StructTemplate allows creating a template for structs with a known shape
@@ -102,7 +145,7 @@ func (st StructTemplate) NewStruct(values []Value) Struct {
 }
 
 func (s Struct) Empty() bool {
-	return len(s.fieldNames) == 0
+	return s.Len() == 0
 }
 
 func (s Struct) hashPointer() *hash.Hash {
@@ -131,45 +174,84 @@ func (s Struct) Hash() hash.Hash {
 }
 
 func (s Struct) WalkValues(cb ValueCallback) {
-	for _, v := range s.values {
-		cb(v)
+	dec, count := s.decoderSkipToFields()
+	for i := uint64(0); i < count; i++ {
+		dec.skipString()
+		cb(dec.readValue())
 	}
 }
 
 func (s Struct) WalkRefs(cb RefCallback) {
-	for _, v := range s.values {
+	s.WalkValues(func(v Value) {
 		v.WalkRefs(cb)
-	}
+	})
 }
 
 func (s Struct) typeOf() *Type {
-	typeFields := make(structTypeFields, len(s.fieldNames))
-	for i := 0; i < len(s.fieldNames); i++ {
+	dec := s.decoder()
+	name := dec.readString()
+	count := dec.readCount()
+	typeFields := make(structTypeFields, count)
+	for i := uint64(0); i < count; i++ {
 		typeFields[i] = StructField{
-			Name:     s.fieldNames[i],
+			Name:     dec.readString(),
 			Optional: false,
-			Type:     s.values[i].typeOf(),
+			Type:     dec.readValue().typeOf(),
 		}
 	}
-	return makeStructTypeQuickly(s.name, typeFields)
+	return makeStructTypeQuickly(name, typeFields)
+}
+
+func (s Struct) decoder() *valueDecoder {
+	return newValueDecoder(s.r.clone(), nil)
+}
+
+func (s Struct) decoderSkipToFields() (*valueDecoder, uint64) {
+	dec := s.decoder()
+	dec.skipString()
+	count := dec.readCount()
+	return dec, count
 }
 
 // Len is the number of fields in the struct.
 func (s Struct) Len() int {
-	return len(s.fieldNames)
+	dec := s.decoder()
+	dec.skipString()
+	return int(dec.readCount())
 }
 
 // Name is the name of the struct.
 func (s Struct) Name() string {
-	return s.name
+	return s.decoder().readString()
 }
 
 // IterFields iterates over the fields, calling cb for every field in the
 // struct.
 func (s Struct) IterFields(cb func(name string, value Value)) {
-	for i := 0; i < len(s.fieldNames); i++ {
-		cb(s.fieldNames[i], s.values[i])
+	dec, count := s.decoderSkipToFields()
+	for i := uint64(0); i < count; i++ {
+		cb(dec.readString(), dec.readValue())
 	}
+}
+
+type structPartCallbacks interface {
+	name(n string)
+	count(c uint64)
+	fieldName(n string)
+	fieldValue(v Value)
+	end()
+}
+
+func (s Struct) iterParts(cbs structPartCallbacks) {
+	dec := s.decoder()
+	cbs.name(dec.readString())
+	count := dec.readCount()
+	cbs.count(count)
+	for i := uint64(0); i < count; i++ {
+		cbs.fieldName(dec.readString())
+		cbs.fieldValue(dec.readValue())
+	}
+	cbs.end()
 }
 
 func (s Struct) Kind() NomsKind {
@@ -178,113 +260,161 @@ func (s Struct) Kind() NomsKind {
 
 // MaybeGet returns the value of a field in the struct. If the struct does not a have a field with
 // the name name then this returns (nil, false).
-func (s Struct) MaybeGet(n string) (Value, bool) {
-	i := s.findField(n)
-	if i == -1 {
-		return nil, false
+func (s Struct) MaybeGet(n string) (v Value, found bool) {
+	dec, count := s.decoderSkipToFields()
+	for i := uint64(0); i < count; i++ {
+		name := dec.readString()
+		if name == n {
+			found = true
+			v = dec.readValue()
+			return
+		}
+		if name > n {
+			return
+		}
+		dec.skipValue()
 	}
 
-	return s.values[i], true
-}
-
-func (s Struct) searchField(name string) int {
-	return sort.Search(len(s.fieldNames), func(i int) bool { return s.fieldNames[i] >= name })
-}
-
-func (s Struct) findField(name string) int {
-	i := s.searchField(name)
-	if i == len(s.fieldNames) || s.fieldNames[i] != name {
-		return -1
-	}
-	return i
+	return
 }
 
 // Get returns the value of a field in the struct. If the struct does not a have a field with the
 // name name then this panics.
 func (s Struct) Get(n string) Value {
-	i := s.findField(n)
-	if i == -1 {
+	v, ok := s.MaybeGet(n)
+	if !ok {
 		d.Chk.Fail(fmt.Sprintf(`Struct has no field "%s"`, n))
 	}
-	return s.values[i]
+	return v
 }
 
 // Set returns a new struct where the field name has been set to value. If name is not an
 // existing field in the struct or the type of value is different from the old value of the
 // struct field a new struct type is created.
 func (s Struct) Set(n string, v Value) Struct {
-	i := s.searchField(n)
+	return s.set(n, v, 0)
+}
 
-	if i != len(s.fieldNames) && s.fieldNames[i] == n {
-		// Found
-		values := make([]Value, len(s.fieldNames))
-		copy(values, s.values)
-		values[i] = v
+func (s Struct) set(n string, v Value, addedCount int) Struct {
+	// TODO: Reuse bytes if we end up adding a field
+	dec := s.decoder()
+	w := newBinaryNomsWriter()
+	enc := newValueEncoder(w, false)
+	dec.copyString(enc)
+	count := dec.readCount()
+	enc.writeCount(count + uint64(addedCount))
 
-		// No need to validate
-		return newStruct(s.name, s.fieldNames, values)
+	newFieldHandled := false
+
+	for i := uint64(0); i < count; i++ {
+		name := dec.readString()
+
+		if n == name {
+			enc.writeString(name)
+			enc.writeValue(v)
+			dec.skipValue()
+			newFieldHandled = true
+			continue
+		}
+		if !newFieldHandled && n < name {
+			verifyFieldName(n)
+			if addedCount == 0 {
+				return s.set(n, v, 1)
+			}
+			enc.writeString(n)
+			enc.writeValue(v)
+			newFieldHandled = true
+		}
+		enc.writeString(name)
+		dec.copyValue(enc)
 	}
 
-	fieldNames := make([]string, len(s.fieldNames)+1)
-	copy(fieldNames[:i], s.fieldNames[:i])
-	fieldNames[i] = n
-	copy(fieldNames[i+1:], s.fieldNames[i:])
+	if !newFieldHandled {
+		if addedCount == 1 {
+			// Already adjusted the count
+			enc.writeString(n)
+			enc.writeValue(v)
+		} else {
+			return s.set(n, v, 1)
+		}
+	}
 
-	values := make([]Value, len(s.fieldNames)+1)
-	copy(values[:i], s.values[:i])
-	values[i] = v
-	copy(values[i+1:], s.values[i:])
-
-	return validateStruct(newStruct(s.name, fieldNames, values))
+	return Struct{w.reader(), &hash.Hash{}}
 }
 
 // IsZeroValue can be used to test if a struct is the same as Struct{}.
 func (s Struct) IsZeroValue() bool {
-	return s.fieldNames == nil && s.values == nil && s.name == "" && s.h == nil
+	return s.r == nil
 }
 
 // Delete returns a new struct where the field name has been removed.
 // If name is not an existing field in the struct then the current struct is returned.
 func (s Struct) Delete(n string) Struct {
-	i := s.findField(n)
-	if i == -1 {
-		return s
+	dec := s.decoder()
+	w := newBinaryNomsWriter()
+	enc := newValueEncoder(w, false)
+
+	dec.copyString(enc)
+	count := dec.readCount()
+	enc.writeCount(count - 1) // If not found we just return s
+
+	found := false
+	for i := uint64(0); i < count; i++ {
+		name := dec.readString()
+
+		if n == name {
+			dec.skipValue()
+			found = true
+		} else {
+			enc.writeString(name)
+			dec.copyValue(enc)
+		}
 	}
 
-	fieldNames := make([]string, len(s.fieldNames)-1)
-	copy(fieldNames[:i], s.fieldNames[:i])
-	copy(fieldNames[i:], s.fieldNames[i+1:])
+	if found {
+		return Struct{w.reader(), &hash.Hash{}}
+	}
 
-	values := make([]Value, len(s.fieldNames)-1)
-	copy(values[:i], s.values[:i])
-	copy(values[i:], s.values[i+1:])
-
-	// No need to validate
-	return newStruct(s.name, fieldNames, values)
+	return s
 }
 
 func (s Struct) Diff(last Struct, changes chan<- ValueChanged, closeChan <-chan struct{}) {
 	if s.Equals(last) {
 		return
 	}
-	fn1, fn2 := s.fieldNames, last.fieldNames
-	i1, i2 := 0, 0
-	for i1 < len(fn1) && i2 < len(fn2) {
-		fn1, fn2 := fn1[i1], fn2[i2]
+	dec1, dec2 := s.decoder(), last.decoder()
+	dec1.skipString() // Ignore names
+	dec2.skipString()
+	count1, count2 := dec1.readCount(), dec2.readCount()
+	i1, i2 := uint64(0), uint64(0)
+	var fn1, fn2 string
 
+	for i1 < count1 && i2 < count2 {
+		if fn1 == "" {
+			fn1 = dec1.readString()
+		}
+		if fn2 == "" {
+			fn2 = dec2.readString()
+		}
 		var change ValueChanged
 		if fn1 == fn2 {
-			if !s.values[i1].Equals(last.values[i2]) {
-				change = ValueChanged{DiffChangeModified, String(fn1), last.values[i2], s.values[i1]}
+			v1, v2 := dec1.readValue(), dec2.readValue()
+			if !v1.Equals(v2) {
+				change = ValueChanged{DiffChangeModified, String(fn1), v2, v1}
 			}
 			i1++
 			i2++
+			fn1, fn2 = "", ""
 		} else if fn1 < fn2 {
-			change = ValueChanged{DiffChangeAdded, String(fn1), nil, s.values[i1]}
+			v1 := dec1.readValue()
+			change = ValueChanged{DiffChangeAdded, String(fn1), nil, v1}
 			i1++
+			fn1 = ""
 		} else {
-			change = ValueChanged{DiffChangeRemoved, String(fn2), last.values[i2], nil}
+			v2 := dec2.readValue()
+			change = ValueChanged{DiffChangeRemoved, String(fn2), v2, nil}
 			i2++
+			fn2 = ""
 		}
 
 		if change != (ValueChanged{}) && !sendChange(changes, closeChan, change) {
@@ -292,14 +422,22 @@ func (s Struct) Diff(last Struct, changes chan<- ValueChanged, closeChan <-chan 
 		}
 	}
 
-	for ; i1 < len(fn1); i1++ {
-		if !sendChange(changes, closeChan, ValueChanged{DiffChangeAdded, String(fn1[i1]), nil, s.values[i1]}) {
+	for ; i1 < count1; i1++ {
+		if fn1 == "" {
+			fn1 = dec1.readString()
+		}
+		v1 := dec1.readValue()
+		if !sendChange(changes, closeChan, ValueChanged{DiffChangeAdded, String(fn1), nil, v1}) {
 			return
 		}
 	}
 
-	for ; i2 < len(fn2); i2++ {
-		if !sendChange(changes, closeChan, ValueChanged{DiffChangeRemoved, String(fn2[i2]), last.values[i2], nil}) {
+	for ; i2 < count2; i2++ {
+		if fn2 == "" {
+			fn2 = dec2.readString()
+		}
+		v2 := dec2.readValue()
+		if !sendChange(changes, closeChan, ValueChanged{DiffChangeRemoved, String(fn2), v2, nil}) {
 			return
 		}
 	}

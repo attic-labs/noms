@@ -270,7 +270,7 @@ func isValueSubtypeOfDetails(v Value, t *Type, hasExtra bool) (bool, bool) {
 				hasExtra = hasExtra || hasMore
 			}
 		}
-		if len(s.fieldNames)+missingOptionalFieldCnt > len(desc.fields) {
+		if s.Len()+missingOptionalFieldCnt > len(desc.fields) {
 			hasExtra = true
 		}
 		return true, hasExtra

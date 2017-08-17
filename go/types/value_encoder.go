@@ -169,13 +169,7 @@ func (w *valueEncoder) writeValue(v Value) {
 }
 
 func (w *valueEncoder) writeStruct(s Struct) {
-	w.writeString(s.name)
-	w.writeCount(uint64(len(s.fieldNames)))
-
-	for i, name := range s.fieldNames {
-		w.writeString(name)
-		w.writeValue(s.values[i])
-	}
+	s.writeTo(w)
 }
 
 func (w *valueEncoder) writeStructType(t *Type, seenStructs map[string]*Type) {

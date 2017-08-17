@@ -32,11 +32,16 @@ func constructRef(targetHash hash.Hash, targetType *Type, height uint64) Ref {
 // readRef reads the data provided by a decoder and moves the decoder forward.
 func readRef(dec *valueDecoder) Ref {
 	start := dec.pos()
+	skipRef(dec)
+	end := dec.pos()
+	return Ref{dec.slice(start, end), &hash.Hash{}}
+}
+
+// readRef reads the data provided by a decoder and moves the decoder forward.
+func skipRef(dec *valueDecoder) {
 	dec.skipHash()  // targetHash
 	dec.skipType()  // targetType
 	dec.skipCount() // height
-	end := dec.pos()
-	return Ref{dec.slice(start, end), &hash.Hash{}}
 }
 
 func (r Ref) writeTo(enc *valueEncoder) {
@@ -65,15 +70,16 @@ func maxChunkHeight(v Value) (max uint64) {
 	return
 }
 
+func (r Ref) decoder() *valueDecoder {
+	return newValueDecoder(r.r.clone(), nil)
+}
+
 func (r Ref) TargetHash() hash.Hash {
-	br := r.r.clone()
-	dec := newValueDecoder(br, nil)
-	return dec.readHash()
+	return r.decoder().readHash()
 }
 
 func (r Ref) Height() uint64 {
-	br := r.r.clone()
-	dec := newValueDecoder(br, nil)
+	dec := r.decoder()
 	dec.skipHash()
 	dec.skipType()
 	return dec.readCount()
@@ -84,9 +90,7 @@ func (r Ref) TargetValue(vr ValueReader) Value {
 }
 
 func (r Ref) TargetType() *Type {
-	br := r.r.clone()
-	dec := newValueDecoder(br, nil)
-	// dec.skipKind()
+	dec := r.decoder()
 	dec.skipHash()
 	return dec.readType()
 }

@@ -75,8 +75,16 @@ func (r *nomsTestReader) readNumber() Number {
 	return r.read().(Number)
 }
 
+func (r *nomsTestReader) skipNumber() {
+	r.skip()
+}
+
 func (r *nomsTestReader) readBytes() []byte {
 	return r.read().([]byte)
+}
+
+func (r *nomsTestReader) skipBytes() {
+	r.skip()
 }
 
 func (r *nomsTestReader) readHash() hash.Hash {

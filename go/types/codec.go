@@ -66,8 +66,10 @@ type nomsReader interface {
 	readUint8() uint8
 
 	skipBool()
+	skipBytes()
 	skipCount()
 	skipHash()
+	skipNumber()
 	skipString()
 	skipUint8()
 
@@ -107,6 +109,11 @@ func (b *binaryNomsReader) readBytes() []byte {
 	return buff
 }
 
+func (b *binaryNomsReader) skipBytes() {
+	size := b.readCount()
+	b.offset += uint32(size)
+}
+
 func (b *binaryNomsReader) readUint8() uint8 {
 	v := uint8(b.buff[b.offset])
 	b.offset++
@@ -135,6 +142,13 @@ func (b *binaryNomsReader) readNumber() Number {
 	exp, count2 := binary.Varint(b.buff[b.offset:])
 	b.offset += uint32(count2)
 	return Number(fracExpToFloat(i, int(exp)))
+}
+
+func (b *binaryNomsReader) skipNumber() {
+	_, count := binary.Varint(b.buff[b.offset:])
+	b.offset += uint32(count)
+	_, count2 := binary.Varint(b.buff[b.offset:])
+	b.offset += uint32(count2)
 }
 
 func (b *binaryNomsReader) readBool() bool {

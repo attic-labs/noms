@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/hash"
 )
 
 type valueDecoder struct {
@@ -26,6 +25,17 @@ func newValueDecoderWithValidation(nr nomsReader, vrw ValueReadWriter) *valueDec
 	return &valueDecoder{nr, vrw, true}
 }
 
+func (r *valueDecoder) copyString(w nomsWriter) {
+	if w.canWriteRaw(r) {
+		start := r.pos()
+		r.skipString()
+		end := r.pos()
+		w.writeRaw(r.slice(start, end))
+	} else {
+		w.writeString(r.readString())
+	}
+}
+
 func (r *valueDecoder) readKind() NomsKind {
 	return NomsKind(r.readUint8())
 }
@@ -36,6 +46,10 @@ func (r *valueDecoder) skipKind() {
 
 func (r *valueDecoder) readRef() Ref {
 	return readRef(r)
+}
+
+func (r *valueDecoder) skipRef() {
+	skipRef(r)
 }
 
 func (r *valueDecoder) readType() *Type {
@@ -105,6 +119,10 @@ func (r *valueDecoder) readBlobLeafSequence() sequence {
 	return newBlobLeafSequence(r.vrw, b)
 }
 
+func (r *valueDecoder) skipBlobLeafSequence() {
+	r.skipBytes()
+}
+
 func (r *valueDecoder) readValueSequence() ValueSlice {
 	count := uint32(r.readCount())
 
@@ -117,14 +135,29 @@ func (r *valueDecoder) readValueSequence() ValueSlice {
 	return data
 }
 
+func (r *valueDecoder) skipValueSequence() {
+	count := r.readCount()
+	for i := uint64(0); i < count; i++ {
+		r.skipValue()
+	}
+}
+
 func (r *valueDecoder) readListLeafSequence() sequence {
 	data := r.readValueSequence()
 	return listLeafSequence{leafSequence{r.vrw, len(data), ListKind}, data}
 }
 
+func (r *valueDecoder) skipListLeafSequence() {
+	r.skipValueSequence()
+}
+
 func (r *valueDecoder) readSetLeafSequence() orderedSequence {
 	data := r.readValueSequence()
 	return setLeafSequence{leafSequence{r.vrw, len(data), SetKind}, data}
+}
+
+func (r *valueDecoder) skipSetLeafSequence() {
+	r.skipValueSequence()
 }
 
 func (r *valueDecoder) readMapLeafSequence() orderedSequence {
@@ -137,6 +170,14 @@ func (r *valueDecoder) readMapLeafSequence() orderedSequence {
 	}
 
 	return mapLeafSequence{leafSequence{r.vrw, len(data), MapKind}, data}
+}
+
+func (r *valueDecoder) skipMapLeafSequence() {
+	count := r.readCount()
+	for i := uint64(0); i < count; i++ {
+		r.skipValue() // k
+		r.skipValue() // v
+	}
 }
 
 func (r *valueDecoder) readMetaSequence(k NomsKind, level uint64) metaSequence {
@@ -158,6 +199,15 @@ func (r *valueDecoder) readMetaSequence(k NomsKind, level uint64) metaSequence {
 	}
 
 	return newMetaSequence(k, level, data, r.vrw)
+}
+
+func (r *valueDecoder) skipMetaSequence(k NomsKind, level uint64) {
+	count := r.readCount()
+	for i := uint64(0); i < count; i++ {
+		r.skipValue() // ref
+		r.skipValue() // v
+		r.skipCount() // numLeaves
+	}
 }
 
 func (r *valueDecoder) readValue() Value {
@@ -210,18 +260,73 @@ func (r *valueDecoder) readValue() Value {
 	panic("not reachable")
 }
 
-func (r *valueDecoder) readStruct() Value {
-	name := r.readString()
-	count := r.readCount()
-
-	fieldNames := make([]string, count)
-	values := make([]Value, count)
-	for i := uint64(0); i < count; i++ {
-		fieldNames[i] = r.readString()
-		values[i] = r.readValue()
+func (r *valueDecoder) skipValue() {
+	k := r.readKind()
+	switch k {
+	case BlobKind:
+		level := r.readCount()
+		if level > 0 {
+			r.skipMetaSequence(k, level)
+		} else {
+			r.skipBlobLeafSequence()
+		}
+	case BoolKind:
+		r.skipBool()
+	case NumberKind:
+		r.skipNumber()
+	case StringKind:
+		r.skipString()
+	case ListKind:
+		level := r.readCount()
+		if level > 0 {
+			r.skipMetaSequence(k, level)
+		} else {
+			r.skipListLeafSequence()
+		}
+	case MapKind:
+		level := r.readCount()
+		if level > 0 {
+			r.skipMetaSequence(k, level)
+		} else {
+			r.skipMapLeafSequence()
+		}
+	case RefKind:
+		r.skipRef()
+	case SetKind:
+		level := r.readCount()
+		if level > 0 {
+			r.skipMetaSequence(k, level)
+		} else {
+			r.skipSetLeafSequence()
+		}
+	case StructKind:
+		r.skipStruct()
+	case TypeKind:
+		r.skipType()
+	case CycleKind, UnionKind, ValueKind:
+		d.Chk.Fail(fmt.Sprintf("A value instance can never have type %s", k))
+	default:
+		panic("not reachable")
 	}
+}
 
-	return Struct{name, fieldNames, values, &hash.Hash{}}
+func (r *valueDecoder) copyValue(enc *valueEncoder) {
+	if enc.canWriteRaw(r) {
+		start := r.pos()
+		r.skipValue()
+		end := r.pos()
+		enc.writeRaw(r.slice(start, end))
+	} else {
+		enc.writeValue(r.readValue())
+	}
+}
+
+func (r *valueDecoder) readStruct() Value {
+	return readStruct(r)
+}
+
+func (r *valueDecoder) skipStruct() {
+	skipStruct(r)
 }
 
 func boolToUint32(b bool) uint32 {
