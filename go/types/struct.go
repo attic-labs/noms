@@ -292,6 +292,7 @@ func (s Struct) Get(n string) Value {
 // existing field in the struct or the type of value is different from the old value of the
 // struct field a new struct type is created.
 func (s Struct) Set(n string, v Value) Struct {
+	verifyFieldName(n)
 	return s.set(n, v, 0)
 }
 
@@ -317,7 +318,6 @@ func (s Struct) set(n string, v Value, addedCount int) Struct {
 			continue
 		}
 		if !newFieldHandled && n < name {
-			verifyFieldName(n)
 			if addedCount == 0 {
 				return s.set(n, v, 1)
 			}

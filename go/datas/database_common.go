@@ -102,9 +102,12 @@ func (db *database) FastForward(ds Dataset, newHeadRef types.Ref) (Dataset, erro
 }
 
 func (db *database) doFastForward(ds Dataset, newHeadRef types.Ref) error {
-	if currentHeadRef, ok := ds.MaybeHeadRef(); ok && newHeadRef == currentHeadRef {
+	currentHeadRef, ok := ds.MaybeHeadRef()
+	if ok && newHeadRef.Equals(currentHeadRef) {
 		return nil
-	} else if newHeadRef.Height() <= currentHeadRef.Height() {
+	}
+	newHeadRefHeight := newHeadRef.Height()
+	if ok && newHeadRefHeight <= currentHeadRef.Height() || newHeadRefHeight == 0 {
 		return ErrMergeNeeded
 	}
 
