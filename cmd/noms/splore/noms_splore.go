@@ -253,12 +253,13 @@ func nodeName(v types.Value) string {
 //
 // This isn't exposed directly on the API but for now just guess it:
 // - If there are no chunks, it must be a leaf.
-// - If there are MORE chunks than the length of the list then it can only
-//   be a leaf with multiple ref values per entry.
+// - If there are MORE chunks than the length of the blob/collection then it
+//   can only be a leaf with multiple ref values per entry.
 // - If there are EQUAL then it could be either, but heuristically assume
-//   that it's a leaf with a ref value per entry.
-// - If there are LESS then it could be either, but heuristically assume
-//   that's a meta.
+//   that it's a leaf with a ref value per entry. It's highly unlikely that a
+//   blob/collection will chunk with single elements.
+// - If there are LESS then it could be either a chunked blob/collection or a
+//   collection of mixed types, but heuristically assume that's it's chunked.
 func getMetaChildren(v types.Value) (children []nodeChild) {
 	var l uint64
 	if col, ok := v.(types.Collection); ok {
@@ -267,17 +268,17 @@ func getMetaChildren(v types.Value) (children []nodeChild) {
 		l = v.(types.Blob).Len()
 	}
 
-	var refs []types.Ref
-	v.WalkRefs(func(r types.Ref) { refs = append(refs, r) })
-	if len(refs) == 0 || uint64(len(refs)) >= l {
-		return
-	}
-
-	children = make([]nodeChild, len(refs))
-	for i, r := range refs {
-		children[i] = nodeChild{
-			Value: info(r, "#"+r.TargetHash().String()),
+	vKind := types.TypeOf(v).Desc.Kind()
+	v.WalkRefs(func(r types.Ref) {
+		if r.TargetType().Desc.Kind() == vKind {
+			children = append(children, nodeChild{
+				Value: info(r, "#"+r.TargetHash().String()),
+			})
 		}
+	})
+
+	if uint64(len(children)) >= l {
+		children = nil
 	}
 	return
 }

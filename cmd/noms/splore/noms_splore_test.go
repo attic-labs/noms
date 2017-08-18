@@ -13,7 +13,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/verbose"
@@ -27,6 +29,10 @@ func TestNomsSplore(t *testing.T) {
 	d.PanicIfError(err)
 	defer os.RemoveAll(dir)
 
+	quiet := verbose.Quiet()
+	defer verbose.SetQuiet(quiet)
+	verbose.SetQuiet(true)
+
 	getNode := func(id string) string {
 		lchan := make(chan net.Listener)
 		httpServe = func(l net.Listener, h http.Handler) error {
@@ -36,9 +42,6 @@ func TestNomsSplore(t *testing.T) {
 		}
 
 		go func() {
-			quiet := verbose.Quiet()
-			defer verbose.SetQuiet(quiet)
-			verbose.SetQuiet(true)
 			mux = &http.ServeMux{} // reset mux each run to clear http.Handle calls
 			run([]string{"nbs:" + dir})
 		}()
@@ -50,14 +53,6 @@ func TestNomsSplore(t *testing.T) {
 		defer r.Body.Close()
 		body, err := ioutil.ReadAll(r.Body)
 		return string(body)
-	}
-
-	test := func(expectJSON string, id string) {
-		// The dataset head hash changes whenever the test data changes, so instead
-		// of updating it all the time, use string replacement.
-		dsHash := sp.GetDataset().HeadRef().TargetHash().String()
-		expectJSON = strings.Replace(expectJSON, "{{dsHash}}", dsHash, -1)
-		assert.JSONEq(expectJSON, getNode(id))
 	}
 
 	// No data yet:
@@ -86,6 +81,14 @@ func TestNomsSplore(t *testing.T) {
 		"string": types.String("hello world"),
 	})
 	sp.GetDatabase().CommitValue(sp.GetDataset(), strct)
+
+	// The dataset head hash changes whenever the test data changes, so instead
+	// of updating it all the time, use string replacement.
+	dsHash := sp.GetDataset().HeadRef().TargetHash().String()
+	test := func(expectJSON string, id string) {
+		expectJSON = strings.Replace(expectJSON, "{{dsHash}}", dsHash, -1)
+		assert.JSONEq(expectJSON, getNode(id))
+	}
 
 	// Root => datasets:
 	test(`{
@@ -132,7 +135,9 @@ func TestNomsSplore(t *testing.T) {
 	}`, "@at(0)")
 
 	// ds head ref => ds head:
-	test(`{
+	// There is a %s replacement here for the ID root, because this expectation
+	// is used both for fetching via @at(0)@target and as an absolute ref.
+	expectDSHeadFmt := `{
 		"children": [
 		{
 			"key": {
@@ -143,7 +148,7 @@ func TestNomsSplore(t *testing.T) {
 			"label": "meta",
 			"value": {
 				"hasChildren": false,
-				"id": "@at(0)@target.meta",
+				"id": "%[1]s.meta",
 				"name": "Struct{\u2026}"
 			}
 		},
@@ -156,7 +161,7 @@ func TestNomsSplore(t *testing.T) {
 			"label": "parents",
 			"value": {
 				"hasChildren": false,
-				"id": "@at(0)@target.parents",
+				"id": "%[1]s.parents",
 				"name": "Set(0)"
 			}
 		},
@@ -169,15 +174,18 @@ func TestNomsSplore(t *testing.T) {
 			"label": "value",
 			"value": {
 				"hasChildren": true,
-				"id": "@at(0)@target.value",
+				"id": "%[1]s.value",
 				"name": "StructName"
 			}
 		}
 		],
 		"hasChildren": true,
-		"id": "@at(0)@target",
+		"id": "%[1]s",
 		"name": "Commit"
-	}`, "@at(0)@target")
+	}`
+
+	test(fmt.Sprintf(expectDSHeadFmt, "@at(0)@target"), "@at(0)@target")
+	test(fmt.Sprintf(expectDSHeadFmt, "#"+dsHash), "%23"+dsHash)
 
 	// ds head value => strct.
 	test(`{
@@ -450,4 +458,86 @@ func TestNomsSplore(t *testing.T) {
 		"id": "@at(0)@target.value.string",
 		"name": "\"hello world\""
 	}`, "@at(0)@target.value.string")
+}
+
+func TestNomsSploreGetMetaChildren(t *testing.T) {
+	assert := assert.New(t)
+
+	storage := &chunks.TestStorage{}
+	db := datas.NewDatabase(storage.NewView())
+	defer db.Close()
+
+	// A bunch of lists with just numbers or ref<number>s in them. None of these
+	// should be detected as meta sequences:
+
+	l1 := types.NewList()
+	assert.Nil(getMetaChildren(l1))
+
+	l2 := types.NewList(types.Number(1))
+	assert.Nil(getMetaChildren(l2))
+
+	l3 := types.NewList(types.Number(1), types.Number(2))
+	assert.Nil(getMetaChildren(l3))
+
+	l4 := types.NewList(db.WriteValue(types.Number(1)))
+	assert.Nil(getMetaChildren(l4))
+
+	l5 := types.NewList(db.WriteValue(types.Number(1)), types.Number(2))
+	assert.Nil(getMetaChildren(l5))
+
+	l6 := types.NewList(db.WriteValue(types.Number(1)), db.WriteValue(types.Number(2)))
+	assert.Nil(getMetaChildren(l6))
+
+	l7 := types.NewList(l1)
+	assert.Nil(getMetaChildren(l7))
+
+	l8 := types.NewList(l4)
+	assert.Nil(getMetaChildren(l8))
+
+	// List with more or equal ref<list> than elements. This can't possibly be a meta
+	// sequence, because there are no empty leaf sequences:
+
+	l1Ref := db.WriteValue(l1)
+	l2Ref := db.WriteValue(l2)
+	l3Ref := db.WriteValue(l3)
+	listRefList := types.NewList(l1Ref, l2Ref, l3Ref)
+
+	l9 := types.NewList(listRefList)
+	assert.Nil(getMetaChildren(l9))
+
+	l10 := types.NewList(types.Number(1), listRefList)
+	assert.Nil(getMetaChildren(l10))
+
+	l11 := listRefList
+	assert.Nil(getMetaChildren(l11))
+
+	l12 := types.NewList(types.Number(1), types.Number(2), listRefList)
+	assert.Nil(getMetaChildren(l12))
+
+	l13 := types.NewList(types.Number(1), db.WriteValue(types.Number(2)), listRefList)
+	assert.Nil(getMetaChildren(l13))
+
+	// List with fewer ref<list> as children. For now this is the closet
+	// approximation for detecting meta sequences:
+
+	l1Hash := "#" + l1Ref.TargetHash().String()
+	l2Hash := "#" + l2Ref.TargetHash().String()
+	l3Hash := "#" + l3Ref.TargetHash().String()
+	expectNodeChildren := []nodeChild{
+		nodeChild{Value: nodeInfo{HasChildren: true, ID: l1Hash, Name: "List" + l1Hash}},
+		nodeChild{Value: nodeInfo{HasChildren: true, ID: l2Hash, Name: "List" + l2Hash}},
+		nodeChild{Value: nodeInfo{HasChildren: true, ID: l3Hash, Name: "List" + l3Hash}},
+	}
+
+	l14 := types.NewList(types.Number(1), types.Number(2), types.Number(3), listRefList)
+	assert.Equal(expectNodeChildren, getMetaChildren(l14))
+
+	l15 := types.NewList(types.Number(1), types.Number(2), db.WriteValue(types.Number(3)), listRefList)
+	assert.Equal(expectNodeChildren, getMetaChildren(l15))
+
+	l16 := types.NewList(types.Number(1), types.Number(2), types.Number(3), types.Number(4), listRefList)
+	assert.Equal(expectNodeChildren, getMetaChildren(l16))
+
+	l17 := types.NewList(types.Number(1), types.Number(2), db.WriteValue(types.Number(3)), db.WriteValue(types.Number(4)), listRefList)
+	assert.Equal(expectNodeChildren, getMetaChildren(l17))
 }
