@@ -318,14 +318,11 @@ func extractHashes(req *http.Request) hash.HashSlice {
 	return deserializeHashes(reader)
 }
 
-// Contents of the returned io.ReadCloser are snappy-compressed.
 func buildHashesRequest(batch chunks.ReadBatch) io.ReadCloser {
 	body, pw := io.Pipe()
 	go func() {
-		sw := snappy.NewBufferedWriter(pw)
 		defer checkClose(pw)
-		defer checkClose(sw)
-		serializeHashes(sw, batch)
+		serializeHashes(pw, batch)
 	}()
 	return body
 }

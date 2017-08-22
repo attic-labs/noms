@@ -5,7 +5,6 @@
 package datas
 
 import (
-	"bytes"
 	"encoding/binary"
 	"io"
 
@@ -23,9 +22,8 @@ func serializeHashes(w io.Writer, batch chunks.ReadBatch) {
 }
 
 func serializeHash(w io.Writer, h hash.Hash) {
-	n, err := io.Copy(w, bytes.NewReader(h[:]))
+	_, err := w.Write(h[:])
 	d.PanicIfError(err)
-	d.PanicIfFalse(int64(hash.ByteLen) == n)
 }
 
 func deserializeHashes(reader io.Reader) hash.HashSlice {

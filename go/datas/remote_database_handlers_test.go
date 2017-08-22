@@ -140,7 +140,7 @@ func TestBuildHashesRequest(t *testing.T) {
 	}
 	r := buildHashesRequest(batch)
 	defer r.Close()
-	requested := deserializeHashes(snappy.NewReader(r))
+	requested := deserializeHashes(r)
 
 	for _, h := range requested {
 		_, present := batch[h]
@@ -168,8 +168,7 @@ func TestHandleGetRefs(t *testing.T) {
 	HandleGetRefs(
 		w,
 		newRequest("POST", "", "", body, http.Header{
-			"Content-Encoding": {"x-snappy-framed"},
-			"Content-Type":     {"application/octet-stream"},
+			"Content-Type": {"application/octet-stream"},
 		}),
 		params{},
 		storage.NewView(),
@@ -279,8 +278,7 @@ func TestHandleHasRefs(t *testing.T) {
 	HandleHasRefs(
 		w,
 		newRequest("POST", "", "", body, http.Header{
-			"Content-Encoding": {"x-snappy-framed"},
-			"Content-Type":     {"application/octet-stream"},
+			"Content-Type": {"application/octet-stream"},
 		}),
 		params{},
 		storage.NewView(),

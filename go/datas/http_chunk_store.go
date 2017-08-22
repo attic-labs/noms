@@ -283,9 +283,8 @@ func (hcs *httpChunkStore) getRefs(batch chunks.ReadBatch) {
 	u.RawQuery = q
 
 	req := newRequest("POST", hcs.auth, u.String(), buildHashesRequest(batch), http.Header{
-		"Accept-Encoding":  {"x-snappy-framed"},
-		"Content-Encoding": {"x-snappy-framed"},
-		"Content-Type":     {"application/octet-stream"},
+		"Accept-Encoding": {"x-snappy-framed"},
+		"Content-Type":    {"application/octet-stream"},
 	})
 
 	res, err := hcs.httpClient.Do(req)
@@ -317,9 +316,8 @@ func (hcs *httpChunkStore) hasRefs(batch chunks.ReadBatch) {
 	u.Path = httprouter.CleanPath(hcs.host.Path + constants.HasRefsPath)
 
 	req := newRequest("POST", hcs.auth, u.String(), buildHashesRequest(batch), http.Header{
-		"Accept-Encoding":  {"x-snappy-framed"},
-		"Content-Encoding": {"x-snappy-framed"},
-		"Content-Type":     {"application/octet-stream"},
+		"Accept-Encoding": {"x-snappy-framed"},
+		"Content-Type":    {"application/octet-stream"},
 	})
 
 	res, err := hcs.httpClient.Do(req)
