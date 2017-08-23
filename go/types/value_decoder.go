@@ -35,6 +35,10 @@ func (r *valueDecoder) copyString(w nomsWriter) {
 	}
 }
 
+func (r *valueDecoder) peekKind() NomsKind {
+	return NomsKind(r.peekUint8())
+}
+
 func (r *valueDecoder) readKind() NomsKind {
 	return NomsKind(r.readUint8())
 }
@@ -210,9 +214,10 @@ func (r *valueDecoder) skipMetaSequence(k NomsKind, level uint64) {
 }
 
 func (r *valueDecoder) readValue() Value {
-	k := r.readKind()
+	k := r.peekKind()
 	switch k {
 	case BlobKind:
+		r.skipKind()
 		level := r.readCount()
 		if level > 0 {
 			return newBlob(r.readMetaSequence(k, level))
@@ -220,12 +225,16 @@ func (r *valueDecoder) readValue() Value {
 
 		return newBlob(r.readBlobLeafSequence())
 	case BoolKind:
+		r.skipKind()
 		return Bool(r.readBool())
 	case NumberKind:
+		r.skipKind()
 		return r.readNumber()
 	case StringKind:
+		r.skipKind()
 		return String(r.readString())
 	case ListKind:
+		r.skipKind()
 		level := r.readCount()
 		if level > 0 {
 			return newList(r.readMetaSequence(k, level))
@@ -233,6 +242,7 @@ func (r *valueDecoder) readValue() Value {
 
 		return newList(r.readListLeafSequence())
 	case MapKind:
+		r.skipKind()
 		level := r.readCount()
 		if level > 0 {
 			return newMap(r.readMetaSequence(k, level))
@@ -242,6 +252,7 @@ func (r *valueDecoder) readValue() Value {
 	case RefKind:
 		return r.readRef()
 	case SetKind:
+		r.skipKind()
 		level := r.readCount()
 		if level > 0 {
 			return newSet(r.readMetaSequence(k, level))
@@ -251,6 +262,7 @@ func (r *valueDecoder) readValue() Value {
 	case StructKind:
 		return r.readStruct()
 	case TypeKind:
+		r.skipKind()
 		return r.readType()
 	case CycleKind, UnionKind, ValueKind:
 		d.Chk.Fail(fmt.Sprintf("A value instance can never have type %s", k))
@@ -260,9 +272,10 @@ func (r *valueDecoder) readValue() Value {
 }
 
 func (r *valueDecoder) skipValue() {
-	k := r.readKind()
+	k := r.peekKind()
 	switch k {
 	case BlobKind:
+		r.skipKind()
 		level := r.readCount()
 		if level > 0 {
 			r.skipMetaSequence(k, level)
@@ -270,12 +283,16 @@ func (r *valueDecoder) skipValue() {
 			r.skipBlobLeafSequence()
 		}
 	case BoolKind:
+		r.skipKind()
 		r.skipBool()
 	case NumberKind:
+		r.skipKind()
 		r.skipNumber()
 	case StringKind:
+		r.skipKind()
 		r.skipString()
 	case ListKind:
+		r.skipKind()
 		level := r.readCount()
 		if level > 0 {
 			r.skipMetaSequence(k, level)
@@ -283,6 +300,7 @@ func (r *valueDecoder) skipValue() {
 			r.skipListLeafSequence()
 		}
 	case MapKind:
+		r.skipKind()
 		level := r.readCount()
 		if level > 0 {
 			r.skipMetaSequence(k, level)
@@ -292,6 +310,7 @@ func (r *valueDecoder) skipValue() {
 	case RefKind:
 		r.skipRef()
 	case SetKind:
+		r.skipKind()
 		level := r.readCount()
 		if level > 0 {
 			r.skipMetaSequence(k, level)
@@ -301,6 +320,7 @@ func (r *valueDecoder) skipValue() {
 	case StructKind:
 		r.skipStruct()
 	case TypeKind:
+		r.skipKind()
 		r.skipType()
 	case CycleKind, UnionKind, ValueKind:
 		d.Chk.Fail(fmt.Sprintf("A value instance can never have type %s", k))

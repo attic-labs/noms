@@ -4,30 +4,31 @@
 
 package types
 
-import "github.com/attic-labs/noms/go/hash"
+import (
+	"github.com/attic-labs/noms/go/hash"
+)
 
 type Ref struct {
-	r  nomsReader
-	vr ValueReader
-	h  *hash.Hash
+	r nomsReader
+	h *hash.Hash
 }
 
 func NewRef(v Value) Ref {
 	// TODO: Taking the hash will duplicate the work of computing the type
-	return constructRef(v.Hash(), TypeOf(v), maxChunkHeight(v)+1, nil)
+	return constructRef(v.Hash(), TypeOf(v), maxChunkHeight(v)+1)
 }
 
 // ToRefOfValue returns a new Ref that points to the same target as |r|, but
 // with the type 'Ref<Value>'.
 func ToRefOfValue(r Ref) Ref {
-	return constructRef(r.TargetHash(), ValueType, r.Height(), r.vr)
+	return constructRef(r.TargetHash(), ValueType, r.Height())
 }
 
-func constructRef(targetHash hash.Hash, targetType *Type, height uint64, vr ValueReader) Ref {
+func constructRef(targetHash hash.Hash, targetType *Type, height uint64) Ref {
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w, false)
 	writeRefPartsToEncoder(enc, targetHash, targetType, height)
-	return Ref{w.reader(), vr, &hash.Hash{}}
+	return Ref{w.reader(), &hash.Hash{}}
 }
 
 // readRef reads the data provided by a decoder and moves the decoder forward.
@@ -35,11 +36,12 @@ func readRef(dec *valueDecoder) Ref {
 	start := dec.pos()
 	skipRef(dec)
 	end := dec.pos()
-	return Ref{dec.slice(start, end), dec.vr, &hash.Hash{}}
+	return Ref{dec.slice(start, end), &hash.Hash{}}
 }
 
 // readRef reads the data provided by a decoder and moves the decoder forward.
 func skipRef(dec *valueDecoder) {
+	dec.skipKind()
 	dec.skipHash()  // targetHash
 	dec.skipType()  // targetType
 	dec.skipCount() // height
@@ -55,6 +57,7 @@ func (r Ref) writeTo(enc *valueEncoder) {
 }
 
 func writeRefPartsToEncoder(enc *valueEncoder, targetHash hash.Hash, targetType *Type, height uint64) {
+	enc.writeKind(RefKind)
 	enc.writeHash(targetHash)
 	if !enc.forRollingHash {
 		enc.writeType(targetType, map[string]*Type{})
@@ -76,11 +79,14 @@ func (r Ref) decoder() *valueDecoder {
 }
 
 func (r Ref) TargetHash() hash.Hash {
-	return r.decoder().readHash()
+	dec := r.decoder()
+	dec.skipKind()
+	return dec.readHash()
 }
 
 func (r Ref) Height() uint64 {
 	dec := r.decoder()
+	dec.skipKind()
 	dec.skipHash()
 	dec.skipType()
 	return dec.readCount()
@@ -92,6 +98,7 @@ func (r Ref) TargetValue(vr ValueReader) Value {
 
 func (r Ref) TargetType() *Type {
 	dec := r.decoder()
+	dec.skipKind()
 	dec.skipHash()
 	return dec.readType()
 }

@@ -255,7 +255,7 @@ func metaHashValueBytes(item sequenceItem, rv *rollingValueHasher) {
 	if !mt.key.isOrderedByValue {
 		// See https://github.com/attic-labs/noms/issues/1688#issuecomment-227528987
 		d.PanicIfTrue(mt.key.h.IsEmpty())
-		v = constructRef(mt.key.h, BoolType, 0, nil)
+		v = constructRef(mt.key.h, BoolType, 0)
 	}
 
 	hashValueBytes(mt.ref, rv)

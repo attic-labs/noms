@@ -103,7 +103,7 @@ func (w *valueEncoder) maybeWriteMetaSequence(seq sequence) bool {
 		if !tuple.key.isOrderedByValue {
 			// See https://github.com/attic-labs/noms/issues/1688#issuecomment-227528987
 			d.PanicIfTrue(tuple.key.h.IsEmpty())
-			v = constructRef(tuple.key.h, BoolType, 0, seq.valueReader())
+			v = constructRef(tuple.key.h, BoolType, 0)
 		}
 		w.writeValue(v)
 		w.writeCount(tuple.numLeaves)
@@ -113,10 +113,10 @@ func (w *valueEncoder) maybeWriteMetaSequence(seq sequence) bool {
 
 func (w *valueEncoder) writeValue(v Value) {
 	k := v.Kind()
-	w.writeKind(k)
 
 	switch k {
 	case BlobKind:
+		w.writeKind(k)
 		seq := v.(Blob).sequence()
 		if w.maybeWriteMetaSequence(seq) {
 			return
@@ -124,8 +124,10 @@ func (w *valueEncoder) writeValue(v Value) {
 
 		w.writeBlobLeafSequence(seq.(blobLeafSequence))
 	case BoolKind:
+		w.writeKind(k)
 		w.writeBool(bool(v.(Bool)))
 	case NumberKind:
+		w.writeKind(k)
 		n := v.(Number)
 		f := float64(n)
 		if math.IsNaN(f) || math.IsInf(f, 0) {
@@ -133,6 +135,7 @@ func (w *valueEncoder) writeValue(v Value) {
 		}
 		w.writeNumber(n)
 	case ListKind:
+		w.writeKind(k)
 		seq := v.(List).sequence()
 		if w.maybeWriteMetaSequence(seq) {
 			return
@@ -140,6 +143,7 @@ func (w *valueEncoder) writeValue(v Value) {
 
 		w.writeListLeafSequence(seq.(listLeafSequence))
 	case MapKind:
+		w.writeKind(k)
 		seq := v.(Map).sequence()
 		if w.maybeWriteMetaSequence(seq) {
 			return
@@ -149,6 +153,7 @@ func (w *valueEncoder) writeValue(v Value) {
 	case RefKind:
 		w.writeRef(v.(Ref))
 	case SetKind:
+		w.writeKind(k)
 		seq := v.(Set).sequence()
 		if w.maybeWriteMetaSequence(seq) {
 			return
@@ -156,8 +161,10 @@ func (w *valueEncoder) writeValue(v Value) {
 
 		w.writeSetLeafSequence(seq.(setLeafSequence))
 	case StringKind:
+		w.writeKind(k)
 		w.writeString(string(v.(String)))
 	case TypeKind:
+		w.writeKind(k)
 		w.writeType(v.(*Type), map[string]*Type{})
 	case StructKind:
 		w.writeStruct(v.(Struct))

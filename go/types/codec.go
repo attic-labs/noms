@@ -65,6 +65,8 @@ type nomsReader interface {
 	readString() string
 	readUint8() uint8
 
+	peekUint8() uint8
+
 	skipBool()
 	skipBytes()
 	skipCount()
@@ -118,6 +120,10 @@ func (b *binaryNomsReader) readUint8() uint8 {
 	v := uint8(b.buff[b.offset])
 	b.offset++
 	return v
+}
+
+func (b *binaryNomsReader) peekUint8() uint8 {
+	return uint8(b.buff[b.offset])
 }
 
 func (b *binaryNomsReader) skipUint8() {

@@ -21,9 +21,8 @@ var EmptyStruct = newStruct("", nil, nil)
 type StructData map[string]Value
 
 type Struct struct {
-	r  nomsReader
-	vr ValueReader
-	h  *hash.Hash
+	r nomsReader
+	h *hash.Hash
 }
 
 // readStruct reads the data provided by a decoder and moves the decoder forward.
@@ -31,10 +30,11 @@ func readStruct(dec *valueDecoder) Struct {
 	start := dec.pos()
 	skipStruct(dec)
 	end := dec.pos()
-	return Struct{dec.slice(start, end), dec.vr, &hash.Hash{}}
+	return Struct{dec.slice(start, end), &hash.Hash{}}
 }
 
 func skipStruct(dec *valueDecoder) {
+	dec.skipKind()
 	dec.skipString() // name
 	count := dec.readCount()
 	for i := uint64(0); i < count; i++ {
@@ -49,6 +49,7 @@ func (s Struct) writeTo(enc *valueEncoder) {
 		enc.writeRaw(s.r)
 	} else {
 		dec := s.decoder()
+		enc.writeKind(dec.readKind())
 		enc.writeString(dec.readString())
 		count := dec.readCount()
 		enc.writeCount(count)
@@ -62,6 +63,7 @@ func (s Struct) writeTo(enc *valueEncoder) {
 
 func validateStruct(s Struct) Struct {
 	dec := s.decoder()
+	dec.skipKind()
 	name := dec.readString()
 	verifyStructName(name)
 
@@ -84,13 +86,14 @@ func validateStruct(s Struct) Struct {
 func newStruct(name string, fieldNames []string, values []Value) Struct {
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w, false)
+	enc.writeKind(StructKind)
 	enc.writeString(name)
 	enc.writeCount(uint64(len(fieldNames)))
 	for i := 0; i < len(fieldNames); i++ {
 		enc.writeString(fieldNames[i])
 		enc.writeValue(values[i])
 	}
-	return Struct{w.reader(), nil, &hash.Hash{}}
+	return Struct{w.reader(), &hash.Hash{}}
 }
 
 func NewStruct(name string, data StructData) Struct {
@@ -190,6 +193,7 @@ func (s Struct) WalkRefs(cb RefCallback) {
 
 func (s Struct) typeOf() *Type {
 	dec := s.decoder()
+	dec.skipKind()
 	name := dec.readString()
 	count := dec.readCount()
 	typeFields := make(structTypeFields, count)
@@ -204,12 +208,12 @@ func (s Struct) typeOf() *Type {
 }
 
 func (s Struct) decoder() *valueDecoder {
-	// d.PanicIfTrue(s.vr == nil)
-	return newValueDecoder(s.r.clone(), s.vr)
+	return newValueDecoder(s.r.clone(), nil)
 }
 
 func (s Struct) decoderSkipToFields() (*valueDecoder, uint64) {
 	dec := s.decoder()
+	dec.skipKind()
 	dec.skipString()
 	count := dec.readCount()
 	return dec, count
@@ -218,13 +222,16 @@ func (s Struct) decoderSkipToFields() (*valueDecoder, uint64) {
 // Len is the number of fields in the struct.
 func (s Struct) Len() int {
 	dec := s.decoder()
+	dec.skipKind()
 	dec.skipString()
 	return int(dec.readCount())
 }
 
 // Name is the name of the struct.
 func (s Struct) Name() string {
-	return s.decoder().readString()
+	dec := s.decoder()
+	dec.skipKind()
+	return dec.readString()
 }
 
 // IterFields iterates over the fields, calling cb for every field in the
@@ -246,6 +253,7 @@ type structPartCallbacks interface {
 
 func (s Struct) iterParts(cbs structPartCallbacks) {
 	dec := s.decoder()
+	dec.skipKind()
 	cbs.name(dec.readString())
 	count := dec.readCount()
 	cbs.count(count)
@@ -303,6 +311,8 @@ func (s Struct) set(n string, v Value, addedCount int) Struct {
 	dec := s.decoder()
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w, false)
+	enc.writeKind(StructKind)
+	dec.skipKind()
 	dec.copyString(enc)
 	count := dec.readCount()
 	enc.writeCount(count + uint64(addedCount))
@@ -341,7 +351,7 @@ func (s Struct) set(n string, v Value, addedCount int) Struct {
 		}
 	}
 
-	return Struct{w.reader(), s.vr, &hash.Hash{}}
+	return Struct{w.reader(), &hash.Hash{}}
 }
 
 // IsZeroValue can be used to test if a struct is the same as Struct{}.
@@ -355,7 +365,8 @@ func (s Struct) Delete(n string) Struct {
 	dec := s.decoder()
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w, false)
-
+	enc.writeKind(StructKind)
+	dec.skipKind()
 	dec.copyString(enc)
 	count := dec.readCount()
 	enc.writeCount(count - 1) // If not found we just return s
@@ -374,7 +385,7 @@ func (s Struct) Delete(n string) Struct {
 	}
 
 	if found {
-		return Struct{w.reader(), s.vr, &hash.Hash{}}
+		return Struct{w.reader(), &hash.Hash{}}
 	}
 
 	return s
@@ -385,6 +396,8 @@ func (s Struct) Diff(last Struct, changes chan<- ValueChanged, closeChan <-chan 
 		return
 	}
 	dec1, dec2 := s.decoder(), last.decoder()
+	dec1.skipKind()
+	dec2.skipKind()
 	dec1.skipString() // Ignore names
 	dec2.skipString()
 	count1, count2 := dec1.readCount(), dec2.readCount()

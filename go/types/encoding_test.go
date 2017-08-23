@@ -31,6 +31,10 @@ func (r *nomsTestReader) read() interface{} {
 	return v
 }
 
+func (r *nomsTestReader) peek() interface{} {
+	return r.a[r.i]
+}
+
 func (r *nomsTestReader) skip() {
 	r.i++
 }
@@ -57,6 +61,10 @@ func (r *nomsTestReader) skipBool() {
 
 func (r *nomsTestReader) readUint8() uint8 {
 	return r.read().(uint8)
+}
+
+func (r *nomsTestReader) peekUint8() uint8 {
+	return r.peek().(uint8)
 }
 
 func (r *nomsTestReader) skipUint8() {
