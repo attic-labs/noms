@@ -7,26 +7,27 @@ package types
 import "github.com/attic-labs/noms/go/hash"
 
 type Ref struct {
-	r nomsReader
-	h *hash.Hash
+	r  nomsReader
+	vr ValueReader
+	h  *hash.Hash
 }
 
 func NewRef(v Value) Ref {
 	// TODO: Taking the hash will duplicate the work of computing the type
-	return constructRef(v.Hash(), TypeOf(v), maxChunkHeight(v)+1)
+	return constructRef(v.Hash(), TypeOf(v), maxChunkHeight(v)+1, nil)
 }
 
 // ToRefOfValue returns a new Ref that points to the same target as |r|, but
 // with the type 'Ref<Value>'.
 func ToRefOfValue(r Ref) Ref {
-	return constructRef(r.TargetHash(), ValueType, r.Height())
+	return constructRef(r.TargetHash(), ValueType, r.Height(), r.vr)
 }
 
-func constructRef(targetHash hash.Hash, targetType *Type, height uint64) Ref {
+func constructRef(targetHash hash.Hash, targetType *Type, height uint64, vr ValueReader) Ref {
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w, false)
 	writeRefPartsToEncoder(enc, targetHash, targetType, height)
-	return Ref{w.reader(), &hash.Hash{}}
+	return Ref{w.reader(), vr, &hash.Hash{}}
 }
 
 // readRef reads the data provided by a decoder and moves the decoder forward.
@@ -34,7 +35,7 @@ func readRef(dec *valueDecoder) Ref {
 	start := dec.pos()
 	skipRef(dec)
 	end := dec.pos()
-	return Ref{dec.slice(start, end), &hash.Hash{}}
+	return Ref{dec.slice(start, end), dec.vr, &hash.Hash{}}
 }
 
 // readRef reads the data provided by a decoder and moves the decoder forward.

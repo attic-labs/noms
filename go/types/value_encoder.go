@@ -103,7 +103,7 @@ func (w *valueEncoder) maybeWriteMetaSequence(seq sequence) bool {
 		if !tuple.key.isOrderedByValue {
 			// See https://github.com/attic-labs/noms/issues/1688#issuecomment-227528987
 			d.PanicIfTrue(tuple.key.h.IsEmpty())
-			v = constructRef(tuple.key.h, BoolType, 0)
+			v = constructRef(tuple.key.h, BoolType, 0, seq.valueReader())
 		}
 		w.writeValue(v)
 		w.writeCount(tuple.numLeaves)

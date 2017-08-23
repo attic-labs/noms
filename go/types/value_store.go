@@ -206,7 +206,7 @@ func (lvs *ValueStore) WriteValue(v Value) Ref {
 	d.PanicIfTrue(c.IsEmpty())
 	h := c.Hash()
 	height := maxChunkHeight(v) + 1
-	r := constructRef(h, TypeOf(v), height)
+	r := constructRef(h, TypeOf(v), height, lvs)
 	lvs.bufferChunk(v, c, height)
 	return r
 }

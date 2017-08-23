@@ -21,8 +21,9 @@ var EmptyStruct = newStruct("", nil, nil)
 type StructData map[string]Value
 
 type Struct struct {
-	r nomsReader
-	h *hash.Hash
+	r  nomsReader
+	vr ValueReader
+	h  *hash.Hash
 }
 
 // readStruct reads the data provided by a decoder and moves the decoder forward.
@@ -30,7 +31,7 @@ func readStruct(dec *valueDecoder) Struct {
 	start := dec.pos()
 	skipStruct(dec)
 	end := dec.pos()
-	return Struct{dec.slice(start, end), &hash.Hash{}}
+	return Struct{dec.slice(start, end), dec.vr, &hash.Hash{}}
 }
 
 func skipStruct(dec *valueDecoder) {
@@ -89,7 +90,7 @@ func newStruct(name string, fieldNames []string, values []Value) Struct {
 		enc.writeString(fieldNames[i])
 		enc.writeValue(values[i])
 	}
-	return Struct{w.reader(), &hash.Hash{}}
+	return Struct{w.reader(), nil, &hash.Hash{}}
 }
 
 func NewStruct(name string, data StructData) Struct {
@@ -203,7 +204,8 @@ func (s Struct) typeOf() *Type {
 }
 
 func (s Struct) decoder() *valueDecoder {
-	return newValueDecoder(s.r.clone(), nil)
+	// d.PanicIfTrue(s.vr == nil)
+	return newValueDecoder(s.r.clone(), s.vr)
 }
 
 func (s Struct) decoderSkipToFields() (*valueDecoder, uint64) {
@@ -339,7 +341,7 @@ func (s Struct) set(n string, v Value, addedCount int) Struct {
 		}
 	}
 
-	return Struct{w.reader(), &hash.Hash{}}
+	return Struct{w.reader(), s.vr, &hash.Hash{}}
 }
 
 // IsZeroValue can be used to test if a struct is the same as Struct{}.
@@ -372,7 +374,7 @@ func (s Struct) Delete(n string) Struct {
 	}
 
 	if found {
-		return Struct{w.reader(), &hash.Hash{}}
+		return Struct{w.reader(), s.vr, &hash.Hash{}}
 	}
 
 	return s

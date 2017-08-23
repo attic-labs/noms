@@ -16,7 +16,6 @@ type valueDecoder struct {
 	validating bool
 }
 
-// |tc| must be locked as long as the valueDecoder is being used
 func newValueDecoder(nr nomsReader, vrw ValueReadWriter) *valueDecoder {
 	return &valueDecoder{nr, vrw, false}
 }
