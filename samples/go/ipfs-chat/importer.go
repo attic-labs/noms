@@ -18,16 +18,15 @@ import (
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/datetime"
-	"github.com/attic-labs/noms/samples/go/ipfs-chat/lib"
 	"golang.org/x/net/html"
 )
 
 var (
 	character = ""
-	msgs      = []lib.Message{}
+	msgs      = []Message{}
 )
 
-func importScript(dir string, dsSpec string) error {
+func runImport(dir, dsSpec string) error {
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if path == dir {
 			return nil
@@ -53,7 +52,7 @@ func importScript(dir string, dsSpec string) error {
 	sp, err := spec.ForDataset(dsSpec)
 	d.CheckErrorNoUsage(err)
 	ds := sp.GetDataset()
-	ds, err = lib.InitDatabase(ds)
+	ds, err = InitDatabase(ds)
 	d.PanicIfError(err)
 
 	fmt.Println("Creating msg map")
@@ -64,14 +63,14 @@ func importScript(dir string, dsSpec string) error {
 	m := types.NewMap(kvPairs...)
 
 	fmt.Println("Creating index")
-	ti := lib.NewTermIndex(types.NewMap()).Edit()
+	ti := NewTermIndex(types.NewMap()).Edit()
 	for _, msg := range msgs {
-		ti.InsertAll(lib.GetTerms(msg), types.String(msg.ID()))
+		ti.InsertAll(GetTerms(msg), types.String(msg.ID()))
 	}
 	termDocs := ti.Value(nil).TermDocs
 
 	fmt.Println("Committing data")
-	root := lib.Root{Messages: m, Index: termDocs}
+	root := Root{Messages: m, Index: termDocs}
 	_, err = ds.Database().CommitValue(ds, marshal.MustMarshal(root))
 	return err
 }
@@ -84,7 +83,7 @@ func extractDialog(n *html.Node) {
 	}
 	if character != "" && n.Type == html.TextNode {
 		//fmt.Println("Dialog:", strings.TrimSpace(n.Data))
-		msg := lib.Message{
+		msg := Message{
 			Ordinal:    uint64(len(msgs)),
 			Author:     character,
 			Body:       strings.TrimSpace(n.Data),
