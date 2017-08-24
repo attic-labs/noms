@@ -131,26 +131,6 @@ func (b Blob) CopyReadAhead(w io.Writer, chunkSize uint64, concurrency int) (n i
 	return
 }
 
-func (b Blob) Splice(idx uint64, deleteCount uint64, data []byte) Blob {
-	if deleteCount == 0 && len(data) == 0 {
-		return b
-	}
-
-	d.PanicIfFalse(idx <= b.Len())
-	d.PanicIfFalse(idx+deleteCount <= b.Len())
-
-	ch := b.newChunker(newCursorAtIndex(b.seq, idx, false), b.seq.valueReadWriter())
-	for deleteCount > 0 {
-		ch.Skip()
-		deleteCount--
-	}
-
-	for _, v := range data {
-		ch.Append(v)
-	}
-	return newBlob(ch.Done())
-}
-
 // Concat returns a new Blob comprised of this joined with other. It only needs
 // to visit the rightmost prolly tree chunks of this Blob, and the leftmost
 // prolly tree chunks of other, so it's efficient.
