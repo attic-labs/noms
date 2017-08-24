@@ -47,6 +47,7 @@ func NewStreamingSet(vrw ValueReadWriter, vChan <-chan Value) <-chan Set {
 type streamingSetReadFunc func(vrw ValueReadWriter, vChan <-chan Value, outChan chan<- Set)
 
 func newStreamingSet(vrw ValueReadWriter, vChan <-chan Value, readFunc streamingSetReadFunc) <-chan Set {
+	d.PanicIfTrue(vrw == nil)
 	outChan := make(chan Set, 1)
 	readFunc(vrw, vChan, outChan)
 	return outChan

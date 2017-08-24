@@ -84,7 +84,8 @@ func orderedKeyFromSum(msd []metaTuple) orderedKey {
 // loads the set of leaf nodes which contain the items [startIdx -> endIdx).
 // Returns the set of nodes and the offset within the first sequence which corresponds to |startIdx|.
 func loadLeafNodes(cols []Collection, startIdx, endIdx uint64) ([]Collection, uint64) {
-	vr := cols[0].sequence().valueReader()
+	vrw := cols[0].sequence().valueReadWriter()
+	d.PanicIfTrue(vrw == nil)
 
 	if cols[0].sequence().isLeaf() {
 		for _, c := range cols {
@@ -125,43 +126,21 @@ func loadLeafNodes(cols []Collection, startIdx, endIdx uint64) ([]Collection, ui
 	}
 
 	// Fetch committed child sequences in a single batch
-<<<<<<< HEAD
 	fetched := make(map[hash.Hash]Collection, len(hs))
 	if len(hs) > 0 {
 		valueChan := make(chan Value, len(hs))
 		go func() {
-			d.PanicIfTrue(vr == nil)
-			vr.ReadManyValues(hs, valueChan)
+			vrw.ReadManyValues(hs, valueChan)
 			close(valueChan)
 		}()
 		for value := range valueChan {
 			fetched[value.Hash()] = value.(Collection)
 		}
-=======
-	fetched := make(map[hash.Hash]sequence, len(hs))
-	valueChan := make(chan Value, len(hs))
-	go func() {
-		d.PanicIfTrue(vr == nil)
-		vr.ReadManyValues(hs, valueChan)
-		close(valueChan)
-	}()
-	for value := range valueChan {
-		fetched[value.Hash()] = value.(Collection).sequence()
->>>>>>> types (nearly) passing tests
 	}
 
 	childCols := make([]Collection, len(childTuples))
 	for i, mt := range childTuples {
-<<<<<<< HEAD
-		if mt.child != nil {
-			childCols[i] = mt.child.(Collection)
-			continue
-		}
-
 		childCols[i] = fetched[mt.ref.TargetHash()]
-=======
-		childSeqs[i] = fetched[mt.ref.TargetHash()]
->>>>>>> types (nearly) passing tests
 	}
 
 	return loadLeafNodes(childCols, startIdx, endIdx)

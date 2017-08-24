@@ -46,6 +46,7 @@ func NewMap(vrw ValueReadWriter, kv ...Value) Map {
 // closed by the caller, a finished Map will be sent to the output channel. See
 // graph_builder.go for building collections with values that are not in order.
 func NewStreamingMap(vrw ValueReadWriter, kvs <-chan Value) <-chan Map {
+	d.PanicIfTrue(vrw == nil)
 	return newStreamingMap(vrw, kvs, func(vrw ValueReadWriter, kvs <-chan Value, outChan chan<- Map) {
 		go readMapInput(vrw, kvs, outChan)
 	})

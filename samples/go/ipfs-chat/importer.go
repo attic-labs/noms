@@ -45,30 +45,30 @@ func runImport(dir, dsSpec string) error {
 
 	if len(msgs) == 0 {
 		return errors.New("Failed to import any data")
-	} else {
-		fmt.Println("Imported", len(msgs), "messages")
 	}
+	fmt.Println("Imported", len(msgs), "messages")
 
 	sp, err := spec.ForDataset(dsSpec)
 	d.CheckErrorNoUsage(err)
 	ds := sp.GetDataset()
 	ds, err = InitDatabase(ds)
 	d.PanicIfError(err)
+	db := ds.Database()
 
 	fmt.Println("Creating msg map")
 	kvPairs := []types.Value{}
 	for _, msg := range msgs {
-		kvPairs = append(kvPairs, types.String(msg.ID()), marshal.MustMarshal(msg))
+		kvPairs = append(kvPairs, types.String(msg.ID()), marshal.MustMarshal(db, msg))
 	}
-	m := types.NewMap(kvPairs...)
+	m := types.NewMap(db, kvPairs...)
 
 	fmt.Println("Creating index")
-	ti := NewTermIndex(types.NewMap()).Edit()
+	ti := NewTermIndex(db, types.NewMap(db)).Edit()
 	for _, msg := range msgs {
 		terms := GetTerms(msg)
 		ti.InsertAll(terms, types.String(msg.ID()))
 	}
-	termDocs := ti.Value(nil).TermDocs
+	termDocs := ti.Value().TermDocs
 
 	userpat := regexp.MustCompile(`^[a-zA-Z][a-zA-Z\s]*\d*$`)
 	fmt.Println("Creating users")
@@ -83,13 +83,14 @@ outer:
 	}
 
 	users := []string{}
-	for k, _ := range usermap {
+	for k := range usermap {
 		users = append(users, k)
 	}
 	sort.Strings(users)
 	fmt.Println("Committing data")
 	root := Root{Messages: m, Index: termDocs, Users: users}
-	_, err = ds.Database().CommitValue(ds, marshal.MustMarshal(root))
+	db = ds.Database()
+	_, err = db.CommitValue(ds, marshal.MustMarshal(db, root))
 	return err
 }
 

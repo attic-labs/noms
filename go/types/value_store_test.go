@@ -5,6 +5,7 @@
 package types
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -112,6 +113,7 @@ func (cbs *checkingChunkStore) expect(rs ...Ref) {
 }
 
 func (cbs *checkingChunkStore) Put(c chunks.Chunk) {
+	fmt.Println("Put", c.Hash().String())
 	if cbs.a.NotZero(len(cbs.expectedOrder), "Unexpected Put of %s", c.Hash()) {
 		cbs.a.Equal(cbs.expectedOrder[0], c.Hash())
 		cbs.expectedOrder = cbs.expectedOrder[1:]
@@ -167,15 +169,12 @@ func TestFlushOverSize(t *testing.T) {
 	assert := assert.New(t)
 	storage := &chunks.TestStorage{}
 	ccs := &checkingChunkStore{storage.NewView(), assert, nil}
-	vs := newValueStoreWithCacheAndPending(ccs, 0, 10)
+	vs := newValueStoreWithCacheAndPending(ccs, 0, 30)
 
 	s := String("oy")
 	sr := vs.WriteValue(s)
-	l := NewList(vs, sr)
-	ccs.expect(sr, NewRef(l))
-
-	vs.WriteValue(l)
-	vs.Commit(vs.Root(), vs.Root())
+	ccs.expect(sr)
+	NewList(vs, sr) // will write the root chunk
 }
 
 func TestTolerateTopDown(t *testing.T) {
