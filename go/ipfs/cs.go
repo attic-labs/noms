@@ -195,7 +195,7 @@ func (cs *chunkStore) Put(c chunks.Chunk) {
 
 func (cs *chunkStore) Version() string {
 	// TODO: Store this someplace in the DB root
-	return "7.13"
+	return "7.14"
 }
 
 func (cs *chunkStore) Rebase() {
