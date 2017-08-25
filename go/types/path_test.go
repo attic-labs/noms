@@ -129,7 +129,7 @@ func TestPathIndexType(t *testing.T) {
 	st := MakeSetType(NumberType)
 	lt := MakeListType(st)
 	mt := MakeMapType(st, lt)
-	ut := MakeUnionType(st, lt, mt)
+	ut := MakeUnionType(lt, mt, st)
 
 	assertResolvesTo(assert, NumberType, st, "[0]")
 	assertResolvesTo(assert, NumberType, st, "[-1]")
@@ -153,8 +153,6 @@ func TestPathIndexType(t *testing.T) {
 	assertResolvesTo(assert, nil, mt, "[2]")
 	assertResolvesTo(assert, nil, mt, "[-3]")
 
-	// simplifyType is reordering the types from (st, lt, mt) to (lt, mt, st), so
-	// the indices here are not what you'd expect :-(
 	assertResolvesTo(assert, lt, ut, "[0]")
 	assertResolvesTo(assert, lt, ut, "[-3]")
 	assertResolvesTo(assert, mt, ut, "[1]")
