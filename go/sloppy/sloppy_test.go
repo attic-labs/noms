@@ -94,17 +94,19 @@ func TestSloppySimple(t *testing.T) {
 			}},
 	}
 
-	for _, c := range tc {
-		tt := &testSloppyEncoder{
-			[]byte{},
-			[]interface{}{},
-		}
-		maxOffset = c.max
-		sl := New(nil)
-		sl.enc = tt
-		sl.Update([]byte(c.pt))
-		tt.emitString()
-		assert.Equal(t, c.enc, tt.enc)
+	for i, c := range tc {
+		t.Run(fmt.Sprintf("Case %d", i), func(t *testing.T) {
+			tt := &testSloppyEncoder{
+				[]byte{},
+				[]interface{}{},
+			}
+			maxOffset = c.max
+			sl := New(nil)
+			sl.enc = tt
+			sl.Update([]byte(c.pt))
+			tt.emitString()
+			assert.Equal(t, c.enc, tt.enc)
+		})
 	}
 }
 
@@ -136,19 +138,21 @@ func TestSloppyContinuation(t *testing.T) {
 		{8, "xABCDABCD", "xABCDABCDxxxx", []interface{}{"xABCD", uint16(4), uint16(4), "x"}},
 	}
 
-	for _, c := range tc {
-		tt := &testSloppyEncoder{
-			[]byte{},
-			[]interface{}{},
-		}
-		maxOffset = c.max
-		sl := New(nil)
-		sl.enc = tt
+	for i, c := range tc {
+		t.Run(fmt.Sprintf("Case %d", i), func(t *testing.T) {
+			tt := &testSloppyEncoder{
+				[]byte{},
+				[]interface{}{},
+			}
+			maxOffset = c.max
+			sl := New(nil)
+			sl.enc = tt
 
-		sl.Update([]byte(c.pt))
-		sl.Update([]byte(c.pt2))
-		tt.emitString()
-		assert.Equal(t, c.enc, tt.enc)
+			sl.Update([]byte(c.pt))
+			sl.Update([]byte(c.pt2))
+			tt.emitString()
+			assert.Equal(t, c.enc, tt.enc)
+		})
 	}
 }
 

@@ -6,13 +6,26 @@ package sloppy
 
 import "github.com/attic-labs/noms/go/d"
 
+const (
+	maxOffsetPOT = uint16(12)
+	maxTableSize = 1 << 14
+	maxLength    = 1<<12 - 1
+	tableMask    = maxTableSize - 1
+	shift        = uint32(20)
+)
+
+// TODO: Make this configurable
+var maxOffset = int(1<<maxOffsetPOT - 1)
+
 // Sloppy is a logical variant of Snappy. Its purpose to provide a kind of
 // estimate of how a given byte sequence *will be* compressed by Snappy. It is
 // useful when a byte stream is fed into a rolling hash with the goal of
 // achieving a given average chunk byte length *after compression*. Sloppy is
 // logically similar to snappy, but prefers "copies" which are closer to the
 // repeated byte sequence (snappy prefers to refer to the *first* instance of a
-// repeated byte sequence).
+// repeated byte sequence). This is important for mitigating the likelihood that
+// altering any byte in an input stream will cause chunk boundaries to be
+// redrawn downstream.
 //
 // The high-level approach is to maintain a logical mapping between four-byte
 // sequences which have been observed in the stream so-far and the integer
@@ -28,9 +41,8 @@ import "github.com/attic-labs/noms/go/d"
 // is that Sloppy would like match the most recent occurence as it moves
 // forward.
 //
-// Lastly, sloppy implements two novel heuristics, both aimed at mitigating
-// the liklihood that altering any byte in an input stream will cause chunk
-// boundaries to be redrawn downstream.
+// Lastly, Sloppy adds two novel heuritics, both aimed at further mitigating
+// the chance of chunk boundaries being redrawn because of byte value changes:
 //
 // 1) During the first 2 bytes of match, it *continues* to look for closer
 // matches (effectively prefering a closer but shorter copy to a further but
@@ -46,18 +58,6 @@ import "github.com/attic-labs/noms/go/d"
 //
 // 2) Sloppy will only emit copies which are "worth it". I.e. The longer the
 // reference back, the longer the length of the copy must be.
-
-const (
-	maxOffsetPOT = uint16(12)
-	maxTableSize = 1 << 14
-	maxLength    = 1<<12 - 1
-	tableMask    = maxTableSize - 1
-	shift        = uint32(20)
-)
-
-// TODO: Make this configurable
-var maxOffset = int(1<<maxOffsetPOT - 1)
-
 type Sloppy struct {
 	enc                      encoder
 	idx                      int
@@ -88,11 +88,11 @@ func New(f func(b byte) bool) *Sloppy {
 func (sl *Sloppy) Update(src []byte) {
 	// Only consume up to the point that a "look-ahead" can include 4 bytes.
 	for ; sl.idx < len(src)-3; sl.idx++ {
-		nextHash := fbhash(load32(src, sl.idx), shift)
+		nextHash := fbhash(load32(src, sl.idx))
 
 		if sl.matching && (sl.matchLength > maxLength || src[sl.idx] != src[sl.matchOffset+sl.matchLength]) {
 			// End Match
-			if sl.maybeCopy(src, sl.idx) {
+			if sl.maybeCopy(src) {
 				return // terminate if consumer has "closed"
 			}
 		}
@@ -180,14 +180,14 @@ func (sl *Sloppy) dontCopy(src []byte, from, to int) bool {
 }
 
 // Emit a copy if the length is sufficient for a given offset
-func (sl *Sloppy) maybeCopy(src []byte, i int) bool {
-	off, len := uint16(i-(sl.matchOffset+sl.matchLength)), uint16(sl.matchLength)
+func (sl *Sloppy) maybeCopy(src []byte) bool {
+	off, len := uint16(sl.idx-(sl.matchOffset+sl.matchLength)), uint16(sl.matchLength)
 	sl.matching = false
 	sl.matchOffset = 0
 	sl.matchLength = 0
 
 	if !copyLongEnough(off, len) {
-		return sl.dontCopy(src, i-int(len), i)
+		return sl.dontCopy(src, sl.idx-int(len), sl.idx)
 	}
 
 	return sl.enc.emitCopy(off, len)
@@ -228,7 +228,7 @@ func (be binaryEncoder) emitCopy(offset, length uint16) bool {
 	return false
 }
 
-func fbhash(u, shift uint32) uint32 {
+func fbhash(u uint32) uint32 {
 	return (u * 0x1e35a7bd) >> shift
 }
 

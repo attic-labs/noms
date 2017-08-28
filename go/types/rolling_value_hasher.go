@@ -78,7 +78,7 @@ func newRollingValueHasher(salt byte) *rollingValueHasher {
 		salt:    salt,
 	}
 
-	rv.sl = sloppy.New(func(b byte) bool { return rv.HashByte(b) })
+	rv.sl = sloppy.New(rv.HashByte)
 
 	return rv
 }
