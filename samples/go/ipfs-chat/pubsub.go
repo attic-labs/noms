@@ -8,8 +8,6 @@ import (
 	"context"
 	"encoding/base64"
 
-	floodsub "gx/ipfs/QmZdsQf8BiCpAj61nz9NgqVeRUkw9vATvCs7UHFTxoUMDb/floodsub"
-
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/hash"
@@ -17,16 +15,22 @@ import (
 	"github.com/attic-labs/noms/go/merge"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/samples/go/ipfs-chat/dbg"
+	"gx/ipfs/QmZdsQf8BiCpAj61nz9NgqVeRUkw9vATvCs7UHFTxoUMDb/floodsub"
 )
 
 func Replicate(sub *floodsub.Subscription, source, dest datas.Dataset, didChange func(ds datas.Dataset)) {
+	lastHash := ""
 	for {
 		dbg.Debug("looking for msgs")
 		msg, err := sub.Next(context.Background())
 		d.PanicIfError(err)
 		h := hash.Parse(string(msg.Data))
-		dbg.Debug("got update: %s from %s", h.String(), base64.StdEncoding.EncodeToString(msg.From))
+		if lastHash == h.String() {
+			continue
+		}
+		lastHash = h.String()
 
+		dbg.Debug("got update: %s from %s", h.String(), base64.StdEncoding.EncodeToString(msg.From))
 		destDB := dest.Database()
 		destDB.Rebase()
 		dest = destDB.GetDataset(dest.ID())

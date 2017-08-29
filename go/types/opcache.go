@@ -338,7 +338,7 @@ func decodeValue(bs []byte, asValue bool, vrw ValueReadWriter) ([]byte, Value) {
 func encToSlice(v Value, initBuf []byte) []byte {
 	// TODO: Are there enough calls to this that it's worth re-using a nomsWriter and valueEncoder?
 	w := &binaryNomsWriter{initBuf, 0}
-	enc := newValueEncoder(w, false)
+	enc := newValueEncoder(w)
 	enc.writeValue(v)
 	return w.data()
 }

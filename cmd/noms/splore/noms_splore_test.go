@@ -69,14 +69,17 @@ func TestNomsSplore(t *testing.T) {
 	defer sp.Close()
 	db := sp.GetDatabase()
 	strct := types.NewStruct("StructName", types.StructData{
-		"blob":   types.NewBlob(db),
-		"bool":   types.Bool(true),
-		"list":   types.NewList(db, types.Number(1), types.Number(2)),
-		"map":    types.NewMap(db, types.String("a"), types.String("b"), types.String("c"), types.String("d")),
-		"number": types.Number(42),
-		"ref":    db.WriteValue(types.Bool(true)),
-		"set":    types.NewSet(db, types.Number(3), types.Number(4)),
-		"string": types.String("hello world"),
+		"blob":          types.NewBlob(db),
+		"bool":          types.Bool(true),
+		"list":          types.NewList(db, types.Number(1), types.Number(2)),
+		"map":           types.NewMap(db, types.String("a"), types.String("b"), types.String("c"), types.String("d")),
+		"number":        types.Number(42),
+		"ref":           db.WriteValue(types.Bool(true)),
+		"set":           types.NewSet(db, types.Number(3), types.Number(4)),
+		"string":        types.String("hello world"),
+		"typeCompound":  types.MakeMapType(types.StringType, types.MakeListType(types.BoolType)),
+		"typePrimitive": types.NumberType,
+		"typeStruct":    types.MakeStructType("StructType", types.StructField{Name: "x", Type: types.StringType}, types.StructField{Name: "y", Type: types.MakeStructType("")}),
 	})
 	sp.GetDatabase().CommitValue(sp.GetDataset(), strct)
 
@@ -147,7 +150,7 @@ func TestNomsSplore(t *testing.T) {
 			"value": {
 				"hasChildren": false,
 				"id": "%[1]s.meta",
-				"name": "Struct{\u2026}"
+				"name": "{}"
 			}
 		},
 		{
@@ -290,6 +293,45 @@ func TestNomsSplore(t *testing.T) {
 				"hasChildren": false,
 				"id": "@at(0)@target.value.string",
 				"name": "\"hello world\""
+			}
+		},
+		{
+			"key": {
+				"hasChildren": false,
+				"id": "",
+				"name": ""
+			},
+			"label": "typeCompound",
+			"value": {
+				"hasChildren": true,
+				"id": "@at(0)@target.value.typeCompound",
+				"name": "Map"
+			}
+		},
+		{
+			"key": {
+				"hasChildren": false,
+				"id": "",
+				"name": ""
+			},
+			"label": "typePrimitive",
+			"value": {
+				"hasChildren": false,
+				"id": "@at(0)@target.value.typePrimitive",
+				"name": "Number"
+			}
+		},
+		{
+			"key": {
+				"hasChildren": false,
+				"id": "",
+				"name": ""
+			},
+			"label": "typeStruct",
+			"value": {
+				"hasChildren": true,
+				"id": "@at(0)@target.value.typeStruct",
+				"name": "struct StructType"
 			}
 		}
 		],
@@ -456,6 +498,84 @@ func TestNomsSplore(t *testing.T) {
 		"id": "@at(0)@target.value.string",
 		"name": "\"hello world\""
 	}`, "@at(0)@target.value.string")
+
+	// strct.typeCompound:
+	test(`{
+		"children": [
+		{
+			"key": {
+				"hasChildren": false,
+				"id": "",
+				"name": ""
+			},
+			"label": "",
+			"value": {
+				"hasChildren": false,
+				"id": "@at(0)@target.value.typeCompound[0]",
+				"name": "String"
+			}
+		},
+		{
+			"key": {
+				"hasChildren": false,
+				"id": "",
+				"name": ""
+			},
+			"label": "",
+			"value": {
+				"hasChildren": true,
+				"id": "@at(0)@target.value.typeCompound[1]",
+				"name": "List"
+			}
+		}
+		],
+		"hasChildren": true,
+		"id": "@at(0)@target.value.typeCompound",
+		"name": "Map"
+	}`, "@at(0)@target.value.typeCompound")
+
+	// strct.typePrimitive:
+	test(`{
+		"children": [],
+		"hasChildren": false,
+		"id": "@at(0)@target.value.typePrimitive",
+		"name": "Number"
+	}`, "@at(0)@target.value.typePrimitive")
+
+	// strct.typeStruct:
+	test(`{
+		"children": [
+		{
+			"key": {
+				"hasChildren": false,
+				"id": "",
+				"name": ""
+			},
+			"label": "x",
+			"value": {
+				"hasChildren": false,
+				"id": "@at(0)@target.value.typeStruct.x",
+				"name": "String"
+			}
+		},
+		{
+			"key": {
+				"hasChildren": false,
+				"id": "",
+				"name": ""
+			},
+			"label": "y",
+			"value": {
+				"hasChildren": false,
+				"id": "@at(0)@target.value.typeStruct.y",
+				"name": "struct {}"
+			}
+		}
+		],
+		"hasChildren": true,
+		"id": "@at(0)@target.value.typeStruct",
+		"name": "struct StructType"
+	}`, "@at(0)@target.value.typeStruct")
 }
 
 func TestNomsSploreGetMetaChildren(t *testing.T) {
