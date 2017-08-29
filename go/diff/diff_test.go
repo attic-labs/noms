@@ -70,12 +70,12 @@ func createList(kv ...interface{}) types.List {
 	return types.NewList(vs, keyValues...)
 }
 
-func createStruct(name string, kv ...interface{}) types.Struct {
+func createStruct(vrw types.ValueReadWriter, name string, kv ...interface{}) types.Struct {
 	fields := types.StructData{}
 	for i := 0; i < len(kv); i += 2 {
 		fields[kv[i].(string)] = valToTypesValue(kv[i+1])
 	}
-	return types.NewStruct(name, fields)
+	return types.NewStruct(vrw, name, fields)
 }
 
 func pathsFromDiff(v1, v2 types.Value, leftRight bool) []string {
@@ -238,6 +238,9 @@ func TestNomsDiffPrintStop(t *testing.T) {
 func TestNomsDiffPrintStruct(t *testing.T) {
 	assert := assert.New(t)
 
+	vs := newTestValueStore()
+	defer vs.Close()
+
 	expected1 := `(root) {
 -   "four": "four"
 +   "four": "four-diff"
@@ -274,12 +277,12 @@ func TestNomsDiffPrintStruct(t *testing.T) {
 		`.three.field4`,
 	}
 
-	s1 := createStruct("TestData",
+	s1 := createStruct(vs, "TestData",
 		"field1", "field1-data",
 		"field2", "field2-data",
 		"field3", "field3-data",
 	)
-	s2 := createStruct("TestData",
+	s2 := createStruct(vs, "TestData",
 		"field2", "field2-data",
 		"field3", "field3-data-diff",
 		"field4", "field4-data",
@@ -288,8 +291,8 @@ func TestNomsDiffPrintStruct(t *testing.T) {
 	m1 := createMap("one", 1, "two", 2, "three", s1, "four", "four")
 	m2 := createMap("one", 1, "two", 2, "three", s2, "four", "four-diff")
 
-	s3 := createStruct("", "one", 1, "two", 2, "three", s1, "four", "four")
-	s4 := createStruct("", "one", 1, "two", 2, "three", s2, "four", "four-diff")
+	s3 := createStruct(vs, "", "one", 1, "two", 2, "three", s1, "four", "four")
+	s4 := createStruct(vs, "", "one", 1, "two", 2, "three", s2, "four", "four-diff")
 
 	tf := func(leftRight bool) {
 		buf := &bytes.Buffer{}
@@ -317,7 +320,7 @@ func TestNomsDiffPrintMapWithStructKeys(t *testing.T) {
 	vs := newTestValueStore()
 	defer vs.Close()
 
-	k1 := createStruct("TestKey", "name", "n1", "label", "l1")
+	k1 := createStruct(vs, "TestKey", "name", "n1", "label", "l1")
 
 	expected1 := `(root) {
 -   struct TestKey {

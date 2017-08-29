@@ -61,7 +61,7 @@ func (suite *QueryGraphQLSuite) TestScalars() {
 }
 
 func (suite *QueryGraphQLSuite) TestStructBasic() {
-	s1 := types.NewStruct("Foo", types.StructData{
+	s1 := types.NewStruct(suite.vs, "Foo", types.StructData{
 		"a": types.String("aaa"),
 		"b": types.Bool(true),
 		"c": types.Number(0.1),
@@ -74,15 +74,15 @@ func (suite *QueryGraphQLSuite) TestStructBasic() {
 }
 
 func (suite *QueryGraphQLSuite) TestEmptyStruct() {
-	s1 := types.NewStruct("", types.StructData{})
+	s1 := types.NewStruct(suite.vs, "", types.StructData{})
 
 	suite.assertQueryResult(s1, "{root{hash}}", `{"data":{"root":{"hash":"0123456789abcdefghijklmnopqrstuv"}}}`)
 }
 
 func (suite *QueryGraphQLSuite) TestEmbeddedStruct() {
-	s1 := types.NewStruct("Foo", types.StructData{
+	s1 := types.NewStruct(suite.vs, "Foo", types.StructData{
 		"a": types.String("aaa"),
-		"b": types.NewStruct("Bar", types.StructData{
+		"b": types.NewStruct(suite.vs, "Bar", types.StructData{
 			"c": types.Bool(true),
 			"d": types.Number(0.1),
 		}),
@@ -125,15 +125,15 @@ func (suite *QueryGraphQLSuite) TestListBasic() {
 
 func (suite *QueryGraphQLSuite) TestListOfStruct() {
 	list := types.NewList(suite.vs,
-		types.NewStruct("Foo", types.StructData{
+		types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(28),
 			"b": types.String("foo"),
 		}),
-		types.NewStruct("Foo", types.StructData{
+		types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(-20.102),
 			"b": types.String("bar"),
 		}),
-		types.NewStruct("Foo", types.StructData{
+		types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(5),
 			"b": types.String("baz"),
 		}),
@@ -146,10 +146,10 @@ func (suite *QueryGraphQLSuite) TestListOfStruct() {
 
 func (suite *QueryGraphQLSuite) TestListOfStructWithOptionalFields() {
 	list := types.NewList(suite.vs,
-		types.NewStruct("Foo", types.StructData{
+		types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(1),
 		}),
-		types.NewStruct("Foo", types.StructData{
+		types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(2),
 			"b": types.String("bar"),
 		}),
@@ -205,15 +205,15 @@ func (suite *QueryGraphQLSuite) TestSetBasic() {
 
 func (suite *QueryGraphQLSuite) TestSetOfStruct() {
 	set := types.NewSet(suite.vs,
-		types.NewStruct("Foo", types.StructData{
+		types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(28),
 			"b": types.String("foo"),
 		}),
-		types.NewStruct("Foo", types.StructData{
+		types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(-20.102),
 			"b": types.String("bar"),
 		}),
-		types.NewStruct("Foo", types.StructData{
+		types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(5),
 			"b": types.String("baz"),
 		}),
@@ -245,15 +245,15 @@ func (suite *QueryGraphQLSuite) TestMapBasic() {
 
 func (suite *QueryGraphQLSuite) TestMapOfStruct() {
 	m := types.NewMap(suite.vs,
-		types.String("foo"), types.NewStruct("Foo", types.StructData{
+		types.String("foo"), types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(28),
 			"b": types.String("foo"),
 		}),
-		types.String("bar"), types.NewStruct("Foo", types.StructData{
+		types.String("bar"), types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(-20.102),
 			"b": types.String("bar"),
 		}),
-		types.String("baz"), types.NewStruct("Foo", types.StructData{
+		types.String("baz"), types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(5),
 			"b": types.String("baz"),
 		}),
@@ -271,7 +271,7 @@ func (suite *QueryGraphQLSuite) TestRef() {
 	suite.assertQueryResult(r, "{root{targetHash}}", `{"data":{"root":{"targetHash":"0123456789abcdefghijklmnopqrstuv"}}}`)
 	suite.assertQueryResult(r, "{root{targetValue targetHash}}", `{"data":{"root":{"targetHash":"0123456789abcdefghijklmnopqrstuv","targetValue":100}}}`)
 
-	r = suite.vs.WriteValue(types.NewStruct("Foo", types.StructData{
+	r = suite.vs.WriteValue(types.NewStruct(suite.vs, "Foo", types.StructData{
 		"a": types.Number(28),
 		"b": types.String("foo"),
 	}))
@@ -287,14 +287,14 @@ func (suite *QueryGraphQLSuite) TestRef() {
 
 func (suite *QueryGraphQLSuite) TestListOfUnionOfStructs() {
 	list := types.NewList(suite.vs,
-		types.NewStruct("Foo", types.StructData{
+		types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(28),
 			"b": types.String("baz"),
 		}),
-		types.NewStruct("Bar", types.StructData{
+		types.NewStruct(suite.vs, "Bar", types.StructData{
 			"b": types.String("bar"),
 		}),
-		types.NewStruct("Baz", types.StructData{
+		types.NewStruct(suite.vs, "Baz", types.StructData{
 			"c": types.Bool(true),
 		}),
 	)
@@ -309,13 +309,13 @@ func (suite *QueryGraphQLSuite) TestListOfUnionOfStructs() {
 
 func (suite *QueryGraphQLSuite) TestListOfUnionOfStructsConflictingFieldTypes() {
 	list := types.NewList(suite.vs,
-		types.NewStruct("Foo", types.StructData{
+		types.NewStruct(suite.vs, "Foo", types.StructData{
 			"a": types.Number(28),
 		}),
-		types.NewStruct("Bar", types.StructData{
+		types.NewStruct(suite.vs, "Bar", types.StructData{
 			"a": types.String("bar"),
 		}),
-		types.NewStruct("Baz", types.StructData{
+		types.NewStruct(suite.vs, "Baz", types.StructData{
 			"a": types.Bool(true),
 		}),
 	)
@@ -347,10 +347,10 @@ func (suite *QueryGraphQLSuite) TestCyclicStructs() {
 	//  })
 	// }
 
-	s1 := types.NewStruct("A", types.StructData{
+	s1 := types.NewStruct(suite.vs, "A", types.StructData{
 		"a": types.String("aaa"),
 		"b": types.NewSet(suite.vs,
-			types.NewStruct("A", types.StructData{
+			types.NewStruct(suite.vs, "A", types.StructData{
 				"a": types.String("bbb"),
 				"b": types.NewSet(suite.vs),
 			})),
@@ -373,9 +373,9 @@ func (suite *QueryGraphQLSuite) TestCyclicStructsWithUnion() {
 	//   b: Number | Cycle<A>,
 	// }
 
-	s1 := types.NewStruct("A", types.StructData{
+	s1 := types.NewStruct(suite.vs, "A", types.StructData{
 		"a": types.String("aaa"),
-		"b": types.NewStruct("A", types.StructData{
+		"b": types.NewStruct(suite.vs, "A", types.StructData{
 			"a": types.String("bbb"),
 			"b": types.Number(42),
 		}),
@@ -880,7 +880,7 @@ func (suite *QueryGraphQLSuite) TestMapNullable() {
 
 func (suite *QueryGraphQLSuite) TestStructWithOptionalField() {
 	tm := NewTypeMap()
-	rootValue := types.NewStruct("", types.StructData{
+	rootValue := types.NewStruct(suite.vs, "", types.StructData{
 		"n": types.Number(42),
 	})
 	rootType := NomsTypeToGraphQLType(types.MakeStructType("",
@@ -1051,16 +1051,16 @@ func (suite *QueryGraphQLSuite) TestMapWithComplexKeys() {
         }}`)
 
 	m2 := types.NewMap(suite.vs,
-		types.NewStruct("", types.StructData{
+		types.NewStruct(suite.vs, "", types.StructData{
 			"n": types.String("a"),
 		}), types.Number(1),
-		types.NewStruct("", types.StructData{
+		types.NewStruct(suite.vs, "", types.StructData{
 			"n": types.String("c"),
 		}), types.Number(2),
-		types.NewStruct("", types.StructData{
+		types.NewStruct(suite.vs, "", types.StructData{
 			"n": types.String("e"),
 		}), types.Number(3),
-		types.NewStruct("", types.StructData{
+		types.NewStruct(suite.vs, "", types.StructData{
 			"n": types.String("g"),
 		}), types.Number(4),
 	)
@@ -1091,16 +1091,16 @@ func (suite *QueryGraphQLSuite) TestSetWithComplexKeys() {
 		`{"data":{"root":{"values":[{"values":["g"]},{"values":["a"]},{"values":["c"]}]}}}`)
 
 	s2 := types.NewSet(suite.vs,
-		types.NewStruct("", types.StructData{
+		types.NewStruct(suite.vs, "", types.StructData{
 			"n": types.String("a"),
 		}),
-		types.NewStruct("", types.StructData{
+		types.NewStruct(suite.vs, "", types.StructData{
 			"n": types.String("c"),
 		}),
-		types.NewStruct("", types.StructData{
+		types.NewStruct(suite.vs, "", types.StructData{
 			"n": types.String("e"),
 		}),
-		types.NewStruct("", types.StructData{
+		types.NewStruct(suite.vs, "", types.StructData{
 			"n": types.String("g"),
 		}),
 	)
@@ -1152,22 +1152,22 @@ func (suite *QueryGraphQLSuite) TestInputToNomsValue() {
 	})
 
 	test(types.NewMap(suite.vs,
-		types.NewStruct("S", types.StructData{"a": types.Number(1)}), types.Number(11),
-		types.NewStruct("S", types.StructData{"a": types.Number(2)}), types.Number(22),
+		types.NewStruct(suite.vs, "S", types.StructData{"a": types.Number(1)}), types.Number(11),
+		types.NewStruct(suite.vs, "S", types.StructData{"a": types.Number(2)}), types.Number(22),
 	), []interface{}{
 		map[string]interface{}{"key": map[string]interface{}{"a": float64(1)}, "value": 11},
 		map[string]interface{}{"key": map[string]interface{}{"a": float64(2)}, "value": 22},
 	})
 
 	test(types.NewSet(suite.vs,
-		types.NewStruct("S", types.StructData{"a": types.Number(1)}),
-		types.NewStruct("S", types.StructData{"a": types.Number(2)}),
+		types.NewStruct(suite.vs, "S", types.StructData{"a": types.Number(1)}),
+		types.NewStruct(suite.vs, "S", types.StructData{"a": types.Number(2)}),
 	), []interface{}{
 		map[string]interface{}{"a": float64(1)},
 		map[string]interface{}{"a": float64(2)},
 	})
 
-	expected := types.NewStruct("S", types.StructData{
+	expected := types.NewStruct(suite.vs, "S", types.StructData{
 		"x": types.Number(42),
 	})
 	expectedType := types.MakeStructType("S",
@@ -1265,10 +1265,10 @@ func (suite *QueryGraphQLSuite) TestVariables() {
 		})
 
 	m2 := types.NewMap(suite.vs,
-		types.NewStruct("S", types.StructData{"n": types.String("a")}), types.Number(0),
-		types.NewStruct("S", types.StructData{"n": types.String("b")}), types.Number(1),
-		types.NewStruct("S", types.StructData{"n": types.String("c")}), types.Number(2),
-		types.NewStruct("S", types.StructData{"n": types.String("d")}), types.Number(3),
+		types.NewStruct(suite.vs, "S", types.StructData{"n": types.String("a")}), types.Number(0),
+		types.NewStruct(suite.vs, "S", types.StructData{"n": types.String("b")}), types.Number(1),
+		types.NewStruct(suite.vs, "S", types.StructData{"n": types.String("c")}), types.Number(2),
+		types.NewStruct(suite.vs, "S", types.StructData{"n": types.String("d")}), types.Number(3),
 	)
 	keyType := types.TypeOf(m2).Desc.(types.CompoundDesc).ElemTypes[0]
 	q := fmt.Sprintf(`query Test($k: %s) { root { values(key: $k) } }`, GetInputTypeName(keyType))
@@ -1401,10 +1401,10 @@ func (suite *QueryGraphQLSuite) TestNameFunc() {
 		suite.JSONEq(expected, string(b))
 	}
 
-	aVal := types.NewStruct("A", types.StructData{
+	aVal := types.NewStruct(suite.vs, "A", types.StructData{
 		"a": types.Number(1),
 	})
-	bVal := types.NewStruct("B", types.StructData{
+	bVal := types.NewStruct(suite.vs, "B", types.StructData{
 		"b": types.Number(2),
 	})
 
@@ -1446,10 +1446,10 @@ func (suite *QueryGraphQLSuite) TestNameFunc() {
 	test(tc, list, expected, query, nil)
 
 	set := types.NewSet(suite.vs, aVal,
-		types.NewStruct("A", types.StructData{
+		types.NewStruct(suite.vs, "A", types.StructData{
 			"a": types.Number(2),
 		}),
-		types.NewStruct("A", types.StructData{
+		types.NewStruct(suite.vs, "A", types.StructData{
 			"a": types.Number(3),
 		}),
 	)

@@ -135,13 +135,13 @@ func TestDecode(tt *testing.T) {
 		C string
 	}
 	var ts TestStruct
-	t(types.NewStruct("TestStruct", types.StructData{
+	t(types.NewStruct(vs, "TestStruct", types.StructData{
 		"b": types.Bool(true),
 		"a": types.Number(42),
 		"c": types.String("hi"),
 	}), &ts, TestStruct{true, 42, "hi"})
 	// again to test the caching
-	t(types.NewStruct("TestStruct", types.StructData{
+	t(types.NewStruct(vs, "TestStruct", types.StructData{
 		"b": types.Bool(false),
 		"a": types.Number(555),
 		"c": types.String("hello"),
@@ -151,7 +151,7 @@ func TestDecode(tt *testing.T) {
 		X int32
 		Y bool
 	}
-	t(types.NewStruct("", types.StructData{
+	t(types.NewStruct(vs, "", types.StructData{
 		"y": types.Bool(true),
 		"x": types.Number(42),
 	}), &as, struct {
@@ -167,8 +167,8 @@ func TestDecode(tt *testing.T) {
 		Def types.List
 	}
 	var t2 T2
-	t(types.NewStruct("T2", types.StructData{
-		"abc": types.NewStruct("TestStruct", types.StructData{
+	t(types.NewStruct(vs, "T2", types.StructData{
+		"abc": types.NewStruct(vs, "TestStruct", types.StructData{
 			"a": types.Number(1),
 			"b": types.Bool(false),
 			"c": types.String("bye"),
@@ -184,7 +184,7 @@ func TestDecode(tt *testing.T) {
 		B string
 	}
 	var t3 T3
-	t(types.NewStruct("T3", types.StructData{
+	t(types.NewStruct(vs, "T3", types.StructData{
 		"b": types.String("abc"),
 		"a": types.Number(42),
 	}), &t3, T3{"abc"})
@@ -194,10 +194,10 @@ func TestDecode(tt *testing.T) {
 		E bool
 	}
 	var t4 aBc
-	t(types.NewStruct("abc", types.StructData{
+	t(types.NewStruct(vs, "abc", types.StructData{
 		"e": types.Bool(true),
 	}), &t4, aBc{true})
-	t(types.NewStruct("Abc", types.StructData{
+	t(types.NewStruct(vs, "Abc", types.StructData{
 		"e": types.Bool(false),
 	}), &t4, aBc{false})
 
@@ -206,19 +206,19 @@ func TestDecode(tt *testing.T) {
 		A int
 	}
 	var t5 SomeOtherName
-	t(types.NewStruct("aeiou", types.StructData{
+	t(types.NewStruct(vs, "aeiou", types.StructData{
 		"a": types.Number(42),
 	}), &t5, SomeOtherName{42})
 
 	var t6 SomeOtherName
-	t(types.NewStruct("SomeOtherName", types.StructData{
+	t(types.NewStruct(vs, "SomeOtherName", types.StructData{
 		"a": types.Number(42),
 	}), &t6, SomeOtherName{42})
 
 	var t7 struct {
 		A int
 	}
-	t(types.NewStruct("SomeOtherName", types.StructData{
+	t(types.NewStruct(vs, "SomeOtherName", types.StructData{
 		"a": types.Number(42),
 	}), &t7, struct{ A int }{42})
 }
@@ -259,7 +259,7 @@ func TestDecodeTypeMismatch(t *testing.T) {
 	}
 	var s S
 	assertDecodeErrorMessage(t, types.String("hi!"), &s, "Cannot unmarshal String into Go value of type marshal.S, expected struct")
-	assertDecodeErrorMessage(t, types.NewStruct("S", types.StructData{
+	assertDecodeErrorMessage(t, types.NewStruct(vs, "S", types.StructData{
 		"x": types.String("hi"),
 	}), &s, "Cannot unmarshal String into Go value of type int")
 }
@@ -320,18 +320,21 @@ func TestDecodeOverflows(tt *testing.T) {
 }
 
 func TestDecodeMissingField(t *testing.T) {
+	vs := newTestValueStore()
 	type S struct {
 		A int32
 		B bool
 	}
 	var s S
-	assertDecodeErrorMessage(t, types.NewStruct("S", types.StructData{
+	assertDecodeErrorMessage(t, types.NewStruct(vs, "S", types.StructData{
 		"a": types.Number(42),
 	}), &s, "Cannot unmarshal Struct S {\n  a: Number,\n} into Go value of type marshal.S, missing field \"b\"")
 }
 
 func TestDecodeEmbeddedStruct(tt *testing.T) {
 	assert := assert.New(tt)
+
+	vs := newTestValueStore()
 
 	type EmbeddedStruct struct {
 		X int
@@ -340,7 +343,7 @@ func TestDecodeEmbeddedStruct(tt *testing.T) {
 		EmbeddedStruct
 	}
 	var ts TestStruct
-	err := Unmarshal(types.NewStruct("S", types.StructData{
+	err := Unmarshal(types.NewStruct(vs, "S", types.StructData{
 		"x": types.Number(1),
 	}), &ts)
 	assert.NoError(err)
@@ -351,7 +354,7 @@ func TestDecodeEmbeddedStruct(tt *testing.T) {
 		TestStruct
 	}
 	var ts2 OuterTest
-	err = Unmarshal(types.NewStruct("S", types.StructData{
+	err = Unmarshal(types.NewStruct(vs, "S", types.StructData{
 		"x": types.Number(2),
 		"y": types.Bool(true),
 	}), &ts2)
@@ -362,6 +365,8 @@ func TestDecodeEmbeddedStruct(tt *testing.T) {
 func TestDecodeEmbeddedStructSkip(tt *testing.T) {
 	assert := assert.New(tt)
 
+	vs := newTestValueStore()
+
 	type EmbeddedStruct struct {
 		X int
 	}
@@ -370,7 +375,7 @@ func TestDecodeEmbeddedStructSkip(tt *testing.T) {
 		Y              int
 	}
 	ts := TestStruct{EmbeddedStruct: EmbeddedStruct{42}}
-	err := Unmarshal(types.NewStruct("S", types.StructData{
+	err := Unmarshal(types.NewStruct(vs, "S", types.StructData{
 		"y": types.Number(2),
 	}), &ts)
 	assert.NoError(err)
@@ -380,6 +385,8 @@ func TestDecodeEmbeddedStructSkip(tt *testing.T) {
 func TestDecodeEmbeddedStructNamed(tt *testing.T) {
 	assert := assert.New(tt)
 
+	vs := newTestValueStore()
+
 	type EmbeddedStruct struct {
 		X int
 	}
@@ -388,8 +395,8 @@ func TestDecodeEmbeddedStructNamed(tt *testing.T) {
 		Y              int
 	}
 	ts := TestStruct{EmbeddedStruct: EmbeddedStruct{42}}
-	err := Unmarshal(types.NewStruct("S", types.StructData{
-		"em": types.NewStruct("S", types.StructData{
+	err := Unmarshal(types.NewStruct(vs, "S", types.StructData{
+		"em": types.NewStruct(vs, "S", types.StructData{
 			"x": types.Number(1),
 		}),
 		"y": types.Number(2),
@@ -401,6 +408,8 @@ func TestDecodeEmbeddedStructNamed(tt *testing.T) {
 func TestDecodeEmbeddedStructOriginal(tt *testing.T) {
 	assert := assert.New(tt)
 
+	vs := newTestValueStore()
+
 	type EmbeddedStruct struct {
 		X int
 		O types.Struct `noms:",original"`
@@ -409,7 +418,7 @@ func TestDecodeEmbeddedStructOriginal(tt *testing.T) {
 		EmbeddedStruct
 	}
 	var ts TestStruct
-	nomsStruct := types.NewStruct("S", types.StructData{
+	nomsStruct := types.NewStruct(vs, "S", types.StructData{
 		"x": types.Number(1),
 	})
 	err := Unmarshal(nomsStruct, &ts)
@@ -434,26 +443,28 @@ func TestDecodeNonExportedField(tt *testing.T) {
 func TestDecodeTaggingSkip(t *testing.T) {
 	assert := assert.New(t)
 
+	vs := newTestValueStore()
+
 	type S struct {
 		A int32 `noms:"-"`
 		B bool
 	}
 	var s S
-	err := Unmarshal(types.NewStruct("S", types.StructData{
+	err := Unmarshal(types.NewStruct(vs, "S", types.StructData{
 		"b": types.Bool(true),
 	}), &s)
 	assert.NoError(err)
 	assert.Equal(S{0, true}, s)
 
 	var s2 S
-	Unmarshal(types.NewStruct("S", types.StructData{
+	Unmarshal(types.NewStruct(vs, "S", types.StructData{
 		"a": types.Number(42),
 		"b": types.Bool(true),
 	}), &s2)
 	assert.Equal(S{0, true}, s2)
 
 	s3 := S{555, true}
-	err = Unmarshal(types.NewStruct("S", types.StructData{
+	err = Unmarshal(types.NewStruct(vs, "S", types.StructData{
 		"a": types.Number(42),
 		"b": types.Bool(false),
 	}), &s3)
@@ -464,13 +475,15 @@ func TestDecodeTaggingSkip(t *testing.T) {
 func TestDecodeNamedFields(t *testing.T) {
 	assert := assert.New(t)
 
+	vs := newTestValueStore()
+
 	type S struct {
 		Aaa int  `noms:"a"`
 		Bbb bool `noms:"B"`
 		Ccc string
 	}
 	var s S
-	err := Unmarshal(types.NewStruct("S", types.StructData{
+	err := Unmarshal(types.NewStruct(vs, "S", types.StructData{
 		"a":   types.Number(42),
 		"B":   types.Bool(true),
 		"ccc": types.String("Hi"),
@@ -480,11 +493,13 @@ func TestDecodeNamedFields(t *testing.T) {
 }
 
 func TestDecodeInvalidNamedFields(t *testing.T) {
+	vs := newTestValueStore()
+
 	type S struct {
 		A int `noms:"1a"`
 	}
 	var s S
-	assertDecodeErrorMessage(t, types.NewStruct("S", types.StructData{
+	assertDecodeErrorMessage(t, types.NewStruct(vs, "S", types.StructData{
 		"a": types.Number(42),
 	}), &s, "Invalid struct field name: 1a")
 }
@@ -497,13 +512,15 @@ func TestDecodeInvalidNomsType(t *testing.T) {
 		A types.List
 	}
 	var s S
-	assertDecodeErrorMessage(t, types.NewStruct("S", types.StructData{
+	assertDecodeErrorMessage(t, types.NewStruct(vs, "S", types.StructData{
 		"a": types.NewMap(vs, types.String("A"), types.Number(1)),
 	}), &s, "Cannot unmarshal Map<String, Number> into Go value of type types.List")
 }
 
 func TestDecodeNomsTypePtr(t *testing.T) {
 	assert := assert.New(t)
+
+	vs := newTestValueStore()
 
 	testUnmarshal := func(v types.Value, dest interface{}, expected interface{}) {
 		err := Unmarshal(v, dest)
@@ -515,7 +532,7 @@ func TestDecodeNomsTypePtr(t *testing.T) {
 	var s S
 
 	primitive := types.StringType
-	testUnmarshal(types.NewStruct("S", types.StructData{"type": primitive}), &s, &S{primitive})
+	testUnmarshal(types.NewStruct(vs, "S", types.StructData{"type": primitive}), &s, &S{primitive})
 
 	complex := types.MakeStructType("Complex",
 		types.StructField{
@@ -523,16 +540,18 @@ func TestDecodeNomsTypePtr(t *testing.T) {
 			Type: types.StringType,
 		},
 	)
-	testUnmarshal(types.NewStruct("S", types.StructData{"type": complex}), &s, &S{complex})
+	testUnmarshal(types.NewStruct(vs, "S", types.StructData{"type": complex}), &s, &S{complex})
 }
 
 func ExampleUnmarshal() {
+	vs := newTestValueStore()
+
 	type Person struct {
 		Given string
 		Male  bool
 	}
 	var rickon Person
-	err := Unmarshal(types.NewStruct("Person", types.StructData{
+	err := Unmarshal(types.NewStruct(vs, "Person", types.StructData{
 		"given": types.String("Rickon"),
 		"male":  types.Bool(true),
 	}), &rickon)
@@ -651,13 +670,13 @@ func TestDecodeStructWithSlice(t *testing.T) {
 		List []int
 	}
 	var s S
-	err := Unmarshal(types.NewStruct("S", types.StructData{
+	err := Unmarshal(types.NewStruct(vs, "S", types.StructData{
 		"list": types.NewList(vs, types.Number(1), types.Number(2), types.Number(3)),
 	}), &s)
 	assert.NoError(err)
 	assert.Equal(S{[]int{1, 2, 3}}, s)
 
-	err = Unmarshal(types.NewStruct("S", types.StructData{
+	err = Unmarshal(types.NewStruct(vs, "S", types.StructData{
 		"list": types.NewSet(vs, types.Number(1), types.Number(2), types.Number(3)),
 	}), &s)
 	assert.NoError(err)
@@ -674,7 +693,7 @@ func TestDecodeStructWithArrayOfNomsValue(t *testing.T) {
 		List [1]types.Set
 	}
 	var s S
-	err := Unmarshal(types.NewStruct("S", types.StructData{
+	err := Unmarshal(types.NewStruct(vs, "S", types.StructData{
 		"list": types.NewList(vs, types.NewSet(vs, types.Bool(true))),
 	}), &s)
 	assert.NoError(err)
@@ -732,14 +751,14 @@ func TestDecodeRecursive(t *testing.T) {
 		Children []Node
 	}
 
-	v := types.NewStruct("Node", types.StructData{
+	v := types.NewStruct(vs, "Node", types.StructData{
 		"children": types.NewList(
 			vs,
-			types.NewStruct("Node", types.StructData{
+			types.NewStruct(vs, "Node", types.StructData{
 				"children": types.NewList(vs),
 				"value":    types.Number(2),
 			}),
-			types.NewStruct("Node", types.StructData{
+			types.NewStruct(vs, "Node", types.StructData{
 				"children": types.NewList(vs),
 				"value":    types.Number(3),
 			}),
@@ -792,8 +811,8 @@ func TestDecodeMap(t *testing.T) {
 	var m2 map[S]bool
 	err = Unmarshal(types.NewMap(
 		vs,
-		types.NewStruct("S", types.StructData{"n": types.String("Yes")}), types.Bool(true),
-		types.NewStruct("S", types.StructData{"n": types.String("No")}), types.Bool(false)), &m2)
+		types.NewStruct(vs, "S", types.StructData{"n": types.String("Yes")}), types.Bool(true),
+		types.NewStruct(vs, "S", types.StructData{"n": types.String("No")}), types.Bool(false)), &m2)
 	assert.NoError(err)
 	assert.Equal(map[S]bool{S{"Yes"}: true, S{"No"}: false}, m2)
 }
@@ -868,9 +887,10 @@ func TestDecodeOntoNonSupportedInterface(t *testing.T) {
 }
 
 func TestDecodeOntoInterfaceStruct(t *testing.T) {
+	vs := newTestValueStore()
 	// Not implemented because it requires Go 1.7.
 	var i interface{}
-	assertDecodeErrorMessage(t, types.NewStruct("", types.StructData{}), &i, "Cannot unmarshal Struct {} into Go value of type interface {}")
+	assertDecodeErrorMessage(t, types.NewStruct(vs, "", types.StructData{}), &i, "Cannot unmarshal Struct {} into Go value of type interface {}")
 }
 
 func TestDecodeSet(t *testing.T) {
@@ -889,7 +909,7 @@ func TestDecodeSet(t *testing.T) {
 		G []int
 	}
 
-	ns := types.NewStruct("T", types.StructData{
+	ns := types.NewStruct(vs, "T", types.StructData{
 		"a": types.NewSet(vs, types.Number(0), types.Number(1), types.Number(2)),
 		"b": types.NewMap(vs, types.Number(3), types.EmptyStruct, types.Number(4), types.EmptyStruct, types.Number(5), types.EmptyStruct),
 		"c": types.NewSet(vs, types.String("0"), types.String("1"), types.String("2")),
@@ -911,7 +931,7 @@ func TestDecodeSet(t *testing.T) {
 		G: []int{12, 13, 14},
 	}, gs)
 
-	ns2 := types.NewStruct("T", types.StructData{
+	ns2 := types.NewStruct(vs, "T", types.StructData{
 		"a": types.NewSet(vs),
 		"b": types.NewMap(vs),
 		"c": types.NewSet(vs),
@@ -994,7 +1014,7 @@ func TestDecodeNamedSet(t *testing.T) {
 		A map[int]struct{} `noms:"foo,set"`
 	}
 
-	ns := types.NewStruct("T", types.StructData{
+	ns := types.NewStruct(vs, "T", types.StructData{
 		"a":   types.NewSet(vs, types.Number(0)),
 		"foo": types.NewSet(vs, types.Number(1)),
 	})
@@ -1016,7 +1036,7 @@ func TestDecodeSetWrongMapType(t *testing.T) {
 		A map[int]int `noms:",set"`
 	}
 
-	err := Unmarshal(types.NewStruct("T1", types.StructData{
+	err := Unmarshal(types.NewStruct(vs, "T1", types.StructData{
 		"a": types.NewSet(vs, types.Number(0)),
 	}), &T1{})
 	assert.Error(err)
@@ -1026,7 +1046,7 @@ func TestDecodeSetWrongMapType(t *testing.T) {
 		A map[int]struct{}
 	}
 
-	err = Unmarshal(types.NewStruct("T2", types.StructData{
+	err = Unmarshal(types.NewStruct(vs, "T2", types.StructData{
 		"a": types.NewSet(vs, types.Number(0)),
 	}), &T2{})
 	assert.Error(err)
@@ -1036,7 +1056,7 @@ func TestDecodeSetWrongMapType(t *testing.T) {
 		A map[int]struct{} `noms:",set"`
 	}
 
-	err = Unmarshal(types.NewStruct("T3", types.StructData{
+	err = Unmarshal(types.NewStruct(vs, "T3", types.StructData{
 		"a": types.NewMap(vs, types.Number(0), types.EmptyStruct),
 	}), &T3{})
 	assert.Error(err)
@@ -1045,6 +1065,8 @@ func TestDecodeSetWrongMapType(t *testing.T) {
 
 func TestDecodeOmitEmpty(t *testing.T) {
 	assert := assert.New(t)
+
+	vs := newTestValueStore()
 
 	type S struct {
 		Foo int `noms:",omitempty"`
@@ -1062,8 +1084,8 @@ func TestDecodeOmitEmpty(t *testing.T) {
 		},
 	}
 	var actual S
-	err := Unmarshal(types.NewStruct("S", types.StructData{
-		"bar": types.NewStruct("", types.StructData{
+	err := Unmarshal(types.NewStruct(vs, "S", types.StructData{
+		"bar": types.NewStruct(vs, "", types.StructData{
 			"baz": types.Number(42),
 		}),
 	}), &actual)
@@ -1074,12 +1096,14 @@ func TestDecodeOmitEmpty(t *testing.T) {
 func TestDecodeOriginal(t *testing.T) {
 	assert := assert.New(t)
 
+	vs := newTestValueStore()
+
 	type S struct {
 		Foo int          `noms:",omitempty"`
 		Bar types.Struct `noms:",original"`
 		Baz types.Struct `noms:",original"`
 	}
-	input := types.NewStruct("S", types.StructData{
+	input := types.NewStruct(vs, "S", types.StructData{
 		"foo": types.Number(42),
 	})
 	expected := S{
@@ -1096,10 +1120,12 @@ func TestDecodeOriginal(t *testing.T) {
 func TestDecodeOriginalReceiveTypeError(t *testing.T) {
 	assert := assert.New(t)
 
+	vs := newTestValueStore()
+
 	type S struct {
 		Foo types.Value `noms:",original"`
 	}
-	input := types.NewStruct("S", types.StructData{})
+	input := types.NewStruct(vs, "S", types.StructData{})
 	var actual S
 	err := Unmarshal(input, &actual)
 	assert.Error(err)
@@ -1109,12 +1135,14 @@ func TestDecodeOriginalReceiveTypeError(t *testing.T) {
 func TestDecodeCanSkipUnexportedField(t *testing.T) {
 	assert := assert.New(t)
 
+	vs := newTestValueStore()
+
 	type S struct {
 		Abc         int
 		notExported bool `noms:"-"`
 	}
 	var s S
-	err := Unmarshal(types.NewStruct("S", types.StructData{
+	err := Unmarshal(types.NewStruct(vs, "S", types.StructData{
 		"abc": types.Number(42),
 	}), &s)
 	assert.NoError(err)
@@ -1236,7 +1264,7 @@ func TestUnmarshalerComplexStructType(t *testing.T) {
 
 	s := "foo|bar"
 	r := regexp.MustCompile(s)
-	v := types.NewStruct("TestComplexStructType", types.StructData{
+	v := types.NewStruct(vs, "TestComplexStructType", types.StructData{
 		"p":       types.Number(43),
 		"ps":      types.NewList(vs, types.Number(2), types.Number(3)),
 		"pm":      types.NewMap(vs, types.String("x"), types.Number(101), types.String("y"), types.Number(102)),

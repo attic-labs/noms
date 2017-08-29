@@ -86,10 +86,10 @@ func testValues(vrw types.ValueReadWriter) map[string]types.Value {
 			"l4":      mustMarshal([]string{"two", "three", "four"}),
 			"l5":      mustMarshal([]string{"one", "two", "three", "four", "five"}),
 			"l6":      mustMarshal([]string{"one", "four"}),
-			"struct1": types.NewStruct("test1", types.StructData{"f1": types.Number(1), "f2": types.Number(2)}),
-			"struct2": types.NewStruct("test1", types.StructData{"f1": types.Number(11111), "f2": types.Number(2)}),
-			"struct3": types.NewStruct("test1", types.StructData{"f1": types.Number(1), "f2": types.Number(2), "f3": types.Number(3)}),
-			"struct4": types.NewStruct("test1", types.StructData{"f2": types.Number(2)}),
+			"struct1": types.NewStruct(vrw, "test1", types.StructData{"f1": types.Number(1), "f2": types.Number(2)}),
+			"struct2": types.NewStruct(vrw, "test1", types.StructData{"f1": types.Number(11111), "f2": types.Number(2)}),
+			"struct3": types.NewStruct(vrw, "test1", types.StructData{"f1": types.Number(1), "f2": types.Number(2), "f3": types.Number(3)}),
+			"struct4": types.NewStruct(vrw, "test1", types.StructData{"f2": types.Number(2)}),
 			"m1":      mustMarshal(map[string]int{}),
 			"m2":      mustMarshal(map[string]int{"k1": 1, "k2": 2, "k3": 3}),
 			"m3":      mustMarshal(map[string]int{"k2": 2, "k3": 3, "k4": 4}),
@@ -191,7 +191,7 @@ func TestUpdateNode(t *testing.T) {
 	oldVal := types.String("Yo")
 	newVal := types.String("YooHoo")
 
-	s1 := types.NewStruct("TestStruct", types.StructData{"f1": types.Number(1), "f2": oldVal})
+	s1 := types.NewStruct(vs, "TestStruct", types.StructData{"f1": types.Number(1), "f2": oldVal})
 	pp = types.FieldPath{Name: "f2"}
 	doTest(pp, s1, oldVal, newVal, newVal, func(parent types.Value) types.Value {
 		return parent.(types.Struct).Get("f2")
@@ -209,7 +209,7 @@ func TestUpdateNode(t *testing.T) {
 		return parent.(types.Map).Get(types.String("k2"))
 	})
 
-	k1 := types.NewStruct("Sizes", types.StructData{"height": types.Number(200), "width": types.Number(300)})
+	k1 := types.NewStruct(vs, "Sizes", types.StructData{"height": types.Number(200), "width": types.Number(300)})
 	vs.WriteValue(k1)
 	m1 = types.NewMap(vs, k1, oldVal)
 	pp = types.HashIndexPath{Hash: k1.Hash()}
@@ -224,7 +224,7 @@ func TestUpdateNode(t *testing.T) {
 		return parent
 	})
 
-	k2 := types.NewStruct("Sizes", types.StructData{"height": types.Number(300), "width": types.Number(500)})
+	k2 := types.NewStruct(vs, "Sizes", types.StructData{"height": types.Number(300), "width": types.Number(500)})
 	set1 = types.NewSet(vs, oldVal, k1)
 	pp = types.HashIndexPath{Hash: k1.Hash()}
 	exp = types.NewSet(vs, oldVal, k2)
@@ -321,12 +321,15 @@ func TestUpdateMap(t *testing.T) {
 func TestUpdateStruct(t *testing.T) {
 	a := assert.New(t)
 
-	a1 := types.NewStruct("tStruct", types.StructData{
+	vs := newTestValueStore()
+	defer vs.Close()
+
+	a1 := types.NewStruct(vs, "tStruct", types.StructData{
 		"f1": types.Number(1),
 		"f2": types.String("two"),
 		"f3": mustMarshal([]string{"one", "two", "three"}),
 	})
-	a2 := types.NewStruct("tStruct", types.StructData{
+	a2 := types.NewStruct(vs, "tStruct", types.StructData{
 		"f1": types.Number(2),
 		"f2": types.String("twotwo"),
 		"f3": mustMarshal([]interface{}{0, "one", 1, "two", 2, "three", 3}),
@@ -334,7 +337,7 @@ func TestUpdateStruct(t *testing.T) {
 	checkApplyDiffs(a, a1, a2, true)
 	checkApplyDiffs(a, a1, a2, false)
 
-	a2 = types.NewStruct("tStruct", types.StructData{
+	a2 = types.NewStruct(vs, "tStruct", types.StructData{
 		"f1": types.Number(2),
 		"f2": types.String("two"),
 		"f3": mustMarshal([]interface{}{0, "one", 1, "two", 2, "three", 3}),

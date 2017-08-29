@@ -164,7 +164,7 @@ func (db *database) doCommit(datasetID string, commit types.Struct, mergePolicy 
 					if err != nil {
 						return err
 					}
-					commitRef = db.WriteValue(NewCommit(merged, types.NewSet(db, commitRef, currentHeadRef), types.EmptyStruct))
+					commitRef = db.WriteValue(NewCommit(db, merged, types.NewSet(db, commitRef, currentHeadRef), types.EmptyStruct))
 				}
 			}
 		}
@@ -229,8 +229,9 @@ func (db *database) validateRefAsCommit(r types.Ref) types.Struct {
 
 func buildNewCommit(ds Dataset, v types.Value, opts CommitOptions) types.Struct {
 	parents := opts.Parents
+	db := ds.Database()
 	if (parents == types.Set{}) {
-		parents = types.NewSet(ds.Database())
+		parents = types.NewSet(db)
 		if headRef, ok := ds.MaybeHeadRef(); ok {
 			parents = parents.Edit().Insert(headRef).Set()
 		}
@@ -240,7 +241,7 @@ func buildNewCommit(ds Dataset, v types.Value, opts CommitOptions) types.Struct 
 	if meta.IsZeroValue() {
 		meta = types.EmptyStruct
 	}
-	return NewCommit(v, parents, meta)
+	return NewCommit(db, v, parents, meta)
 }
 
 func (db *database) doHeadUpdate(ds Dataset, updateFunc func(ds Dataset) error) (Dataset, error) {

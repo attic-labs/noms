@@ -208,7 +208,7 @@ func (m *merger) threeWay(a, b, parent types.Value, path types.Path) (merged typ
 		}
 
 	case types.StructKind:
-		if aStruct, bStruct, pStruct, ok := structAssert(a, b, parent); ok {
+		if aStruct, bStruct, pStruct, ok := structAssert(m.vrw, a, b, parent); ok {
 			return m.threeWayStructMerge(aStruct, bStruct, pStruct, path)
 		}
 	}
@@ -266,7 +266,7 @@ func (m *merger) threeWayStructMerge(a, b, parent types.Struct, path types.Path)
 			if change.ChangeType == types.DiffChangeAdded || change.ChangeType == types.DiffChangeModified {
 				data[field] = newVal
 			}
-			return structCandidate{types.NewStruct(targetVal.Name(), data)}
+			return structCandidate{types.NewStruct(m.vrw, targetVal.Name(), data)}
 		}
 		panic(fmt.Errorf("Bad key type in diff: %s", types.TypeOf(change.Key).Describe()))
 	}
@@ -330,7 +330,7 @@ func setAssert(vrw types.ValueReadWriter, a, b, parent types.Value) (aSet, bSet,
 	return aSet, bSet, pSet, aOk && bOk && pOk
 }
 
-func structAssert(a, b, parent types.Value) (aStruct, bStruct, pStruct types.Struct, ok bool) {
+func structAssert(vrw types.ValueReadWriter, a, b, parent types.Value) (aStruct, bStruct, pStruct types.Struct, ok bool) {
 	var aOk, bOk, pOk bool
 	aStruct, aOk = a.(types.Struct)
 	bStruct, bOk = b.(types.Struct)
@@ -339,7 +339,7 @@ func structAssert(a, b, parent types.Value) (aStruct, bStruct, pStruct types.Str
 			if parent != nil {
 				pStruct, pOk = parent.(types.Struct)
 			} else {
-				pStruct, pOk = types.NewStruct(aStruct.Name(), nil), true
+				pStruct, pOk = types.NewStruct(vrw, aStruct.Name(), nil), true
 			}
 			return aStruct, bStruct, pStruct, pOk
 		}

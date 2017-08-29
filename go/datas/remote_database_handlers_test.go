@@ -383,7 +383,7 @@ func buildPostRootURL(current, last hash.Hash) string {
 }
 
 func buildTestCommit(vrw types.ValueReadWriter, v types.Value, parents ...types.Value) types.Struct {
-	return NewCommit(v, types.NewSet(vrw, parents...), types.NewStruct("Meta", types.StructData{}))
+	return NewCommit(vrw, v, types.NewSet(vrw, parents...), types.NewStruct(vrw, "Meta", types.StructData{}))
 }
 
 func TestRejectPostRoot(t *testing.T) {
