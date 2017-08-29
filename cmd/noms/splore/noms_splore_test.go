@@ -68,7 +68,7 @@ func TestNomsSplore(t *testing.T) {
 	d.PanicIfError(err)
 	defer sp.Close()
 	db := sp.GetDatabase()
-	strct := types.NewStruct("StructName", types.StructData{
+	strct := types.NewStruct(db, "StructName", types.StructData{
 		"blob":          types.NewBlob(db),
 		"bool":          types.Bool(true),
 		"list":          types.NewList(db, types.Number(1), types.Number(2)),
