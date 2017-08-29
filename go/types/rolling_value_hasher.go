@@ -108,7 +108,7 @@ func (rv *rollingValueHasher) reader() nomsReader {
 }
 
 func (rv *rollingValueHasher) writeRaw(r nomsReader) {
-	rv.writeBytes(r.(*binaryNomsReader).buff)
+	rv.bw.writeBytes(r.(*binaryNomsReader).buff)
 }
 
 func (rv *rollingValueHasher) canWriteRaw(r nomsReader) bool {

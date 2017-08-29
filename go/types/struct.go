@@ -16,13 +16,14 @@ import (
 )
 
 var EmptyStructType = MakeStructType("")
-var EmptyStruct = newStruct("", nil, nil)
+var EmptyStruct = newStruct(nil, "", nil, nil)
 
 type StructData map[string]Value
 
 type Struct struct {
-	r nomsReader
-	h *hash.Hash
+	vrw ValueReadWriter
+	r   nomsReader
+	h   *hash.Hash
 }
 
 // readStruct reads the data provided by a decoder and moves the decoder forward.
@@ -30,7 +31,7 @@ func readStruct(dec *valueDecoder) Struct {
 	start := dec.pos()
 	skipStruct(dec)
 	end := dec.pos()
-	return Struct{dec.slice(start, end), &hash.Hash{}}
+	return Struct{dec.vrw, dec.slice(start, end), &hash.Hash{}}
 }
 
 func skipStruct(dec *valueDecoder) {
@@ -45,7 +46,7 @@ func skipStruct(dec *valueDecoder) {
 
 func (s Struct) writeTo(enc *valueEncoder) {
 	// The NomsKind has already been written.
-	if !enc.forRollingHash && enc.canWriteRaw(s.r) {
+	if enc.canWriteRaw(s.r) {
 		enc.writeRaw(s.r)
 	} else {
 		dec := s.decoder()
@@ -83,9 +84,9 @@ func validateStruct(s Struct) Struct {
 	return s
 }
 
-func newStruct(name string, fieldNames []string, values []Value) Struct {
+func newStruct(vrw ValueReadWriter, name string, fieldNames []string, values []Value) Struct {
 	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w, false)
+	enc := newValueEncoder(w)
 	enc.writeKind(StructKind)
 	enc.writeString(name)
 	enc.writeCount(uint64(len(fieldNames)))
@@ -93,10 +94,10 @@ func newStruct(name string, fieldNames []string, values []Value) Struct {
 		enc.writeString(fieldNames[i])
 		enc.writeValue(values[i])
 	}
-	return Struct{w.reader(), &hash.Hash{}}
+	return Struct{vrw, w.reader(), &hash.Hash{}}
 }
 
-func NewStruct(name string, data StructData) Struct {
+func NewStruct(vrw ValueReadWriter, name string, data StructData) Struct {
 	verifyStructName(name)
 	fieldNames := make([]string, len(data))
 	values := make([]Value, len(data))
@@ -113,7 +114,7 @@ func NewStruct(name string, data StructData) Struct {
 		values[i] = data[fieldNames[i]]
 	}
 
-	return newStruct(name, fieldNames, values)
+	return newStruct(vrw, name, fieldNames, values)
 }
 
 // StructTemplate allows creating a template for structs with a known shape
@@ -143,9 +144,9 @@ func MakeStructTemplate(name string, fieldNames []string) (t StructTemplate) {
 
 // NewStruct creates a new Struct from the StructTemplate. The order of the
 // values must match the order of the field names of the StructTemplate.
-func (st StructTemplate) NewStruct(values []Value) Struct {
+func (st StructTemplate) NewStruct(vrw ValueReadWriter, values []Value) Struct {
 	d.PanicIfFalse(len(st.fieldNames) == len(values))
-	return newStruct(st.name, st.fieldNames, values)
+	return newStruct(vrw, st.name, st.fieldNames, values)
 }
 
 func (s Struct) Empty() bool {
@@ -208,7 +209,7 @@ func (s Struct) typeOf() *Type {
 }
 
 func (s Struct) decoder() *valueDecoder {
-	return newValueDecoder(s.r.clone(), nil)
+	return newValueDecoder(s.r.clone(), s.vrw)
 }
 
 func (s Struct) decoderSkipToFields() (*valueDecoder, uint64) {
@@ -310,7 +311,7 @@ func (s Struct) set(n string, v Value, addedCount int) Struct {
 	// TODO: Reuse bytes if we end up adding a field
 	dec := s.decoder()
 	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w, false)
+	enc := newValueEncoder(w)
 	enc.writeKind(StructKind)
 	dec.skipKind()
 	dec.copyString(enc)
@@ -351,7 +352,7 @@ func (s Struct) set(n string, v Value, addedCount int) Struct {
 		}
 	}
 
-	return Struct{w.reader(), &hash.Hash{}}
+	return Struct{s.vrw, w.reader(), &hash.Hash{}}
 }
 
 // IsZeroValue can be used to test if a struct is the same as Struct{}.
@@ -364,7 +365,7 @@ func (s Struct) IsZeroValue() bool {
 func (s Struct) Delete(n string) Struct {
 	dec := s.decoder()
 	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w, false)
+	enc := newValueEncoder(w)
 	enc.writeKind(StructKind)
 	dec.skipKind()
 	dec.copyString(enc)
@@ -385,7 +386,7 @@ func (s Struct) Delete(n string) Struct {
 	}
 
 	if found {
-		return Struct{w.reader(), &hash.Hash{}}
+		return Struct{s.vrw, w.reader(), &hash.Hash{}}
 	}
 
 	return s

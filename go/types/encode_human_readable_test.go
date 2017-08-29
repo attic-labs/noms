@@ -114,7 +114,8 @@ func TestWriteHumanReadableNested(t *testing.T) {
 }
 
 func TestWriteHumanReadableStruct(t *testing.T) {
-	str := NewStruct("S1", StructData{
+	vrw := newTestValueStore()
+	str := NewStruct(vrw, "S1", StructData{
 		"x": Number(1),
 		"y": Number(2),
 	})
@@ -124,13 +125,13 @@ func TestWriteHumanReadableStruct(t *testing.T) {
 func TestWriteHumanReadableListOfStruct(t *testing.T) {
 	vrw := newTestValueStore()
 
-	str1 := NewStruct("S3", StructData{
+	str1 := NewStruct(vrw, "S3", StructData{
 		"x": Number(1),
 	})
-	str2 := NewStruct("S3", StructData{
+	str2 := NewStruct(vrw, "S3", StructData{
 		"x": Number(2),
 	})
-	str3 := NewStruct("S3", StructData{
+	str3 := NewStruct(vrw, "S3", StructData{
 		"x": Number(3),
 	})
 	l := NewList(vrw, str1, str2, str3)
@@ -291,7 +292,7 @@ func TestEmptyCollections(t *testing.T) {
 
 	a := MakeStructType("Nothing")
 	assertWriteHRSEqual(t, "Struct Nothing {}", a)
-	b := NewStruct("Rien", StructData{})
+	b := NewStruct(vrw, "Rien", StructData{})
 	assertWriteHRSEqual(t, "struct Rien {}", b)
 	c := MakeMapType(BlobType, NumberType)
 	assertWriteHRSEqual(t, "Map<Blob, Number>", c)
@@ -307,7 +308,7 @@ func TestEncodedValueMaxLines(t *testing.T) {
 	assert := assert.New(t)
 	vrw := newTestValueStore()
 
-	l1 := NewList(vrw, generateNumbersAsValues(11)...)
+	l1 := NewList(vrw, generateNumbersAsValues(vrw, 11)...)
 	expected := strings.Join(strings.SplitAfterN(EncodedValue(l1), "\n", 6)[:5], "")
 	assert.Equal(expected, EncodedValueMaxLines(l1, 5))
 

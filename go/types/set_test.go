@@ -20,6 +20,8 @@ const testSetSize = 5000
 
 type testSet ValueSlice
 
+type toTestSetFunc func(scale int, vrw ValueReadWriter) testSet
+
 func (ts testSet) Remove(from, to int) testSet {
 	values := make(testSet, 0, len(ts)-(to-from))
 	values = append(values, ts[:from]...)
@@ -73,9 +75,9 @@ func (ts testSet) toSet(vrw ValueReadWriter) Set {
 	return NewSet(vrw, ts...)
 }
 
-func newSortedTestSet(length int, gen genValueFn) (values testSet) {
+func newSortedTestSet(vrw ValueReadWriter, length int, gen genValueFn) (values testSet) {
 	for i := 0; i < length; i++ {
-		values = append(values, gen(i))
+		values = append(values, gen(vrw, i))
 	}
 	return
 }
@@ -88,7 +90,7 @@ func newTestSetFromSet(s Set) testSet {
 	return values
 }
 
-func newRandomTestSet(length int, gen genValueFn) testSet {
+func newRandomTestSet(vrw ValueReadWriter, length int, gen genValueFn) testSet {
 	s := rand.NewSource(4242)
 	used := map[int]bool{}
 
@@ -96,7 +98,7 @@ func newRandomTestSet(length int, gen genValueFn) testSet {
 	for len(values) < length {
 		v := int(s.Int63()) & 0xffffff
 		if _, ok := used[v]; !ok {
-			values = append(values, gen(v))
+			values = append(values, gen(vrw, v))
 			used[v] = true
 		}
 	}
@@ -119,13 +121,13 @@ type setTestSuite struct {
 }
 
 func newSetTestSuite(size uint, expectChunkCount int, expectPrependChunkDiff int, expectAppendChunkDiff int, gen genValueFn) *setTestSuite {
-	vs := newTestValueStore()
+	vrw := newTestValueStore()
 
 	length := 1 << size
-	elemType := TypeOf(gen(0))
-	elems := newSortedTestSet(length, gen)
+	elemType := TypeOf(gen(vrw, 0))
+	elems := newSortedTestSet(vrw, length, gen)
 	tr := MakeSetType(elemType)
-	set := NewSet(vs, elems...)
+	set := NewSet(vrw, elems...)
 	return &setTestSuite{
 		collectionTestSuite: collectionTestSuite{
 			col:                    set,
@@ -151,13 +153,13 @@ func newSetTestSuite(size uint, expectChunkCount int, expectPrependChunkDiff int
 				dup := make([]Value, length+1)
 				dup[0] = Number(-1)
 				copy(dup[1:], elems)
-				return NewSet(vs, dup...)
+				return NewSet(vrw, dup...)
 			},
 			appendOne: func() Collection {
 				dup := make([]Value, length+1)
 				copy(dup, elems)
 				dup[len(dup)-1] = Number(length + 1)
-				return NewSet(vs, dup...)
+				return NewSet(vrw, dup...)
 			},
 		},
 		elems: elems,
@@ -241,22 +243,22 @@ func TestSetSuite4KStructs(t *testing.T) {
 	suite.Run(t, newSetTestSuite(12, 2, 2, 2, newNumberStruct))
 }
 
-func getTestNativeOrderSet(scale int) testSet {
-	return newRandomTestSet(64*scale, newNumber)
+func getTestNativeOrderSet(scale int, vrw ValueReadWriter) testSet {
+	return newRandomTestSet(vrw, 64*scale, newNumber)
 }
 
-func getTestRefValueOrderSet(scale int) testSet {
-	return newRandomTestSet(64*scale, newNumber)
+func getTestRefValueOrderSet(scale int, vrw ValueReadWriter) testSet {
+	return newRandomTestSet(vrw, 64*scale, newNumber)
 }
 
-func getTestRefToNativeOrderSet(scale int, vw ValueWriter) testSet {
-	return newRandomTestSet(64*scale, func(v int) Value {
-		return vw.WriteValue(Number(v))
+func getTestRefToNativeOrderSet(scale int, vrw ValueReadWriter) testSet {
+	return newRandomTestSet(vrw, 64*scale, func(vrw ValueReadWriter, v int) Value {
+		return vrw.WriteValue(Number(v))
 	})
 }
 
 func getTestRefToValueOrderSet(scale int, vrw ValueReadWriter) testSet {
-	return newRandomTestSet(64*scale, func(v int) Value {
+	return newRandomTestSet(vrw, 64*scale, func(vrw ValueReadWriter, v int) Value {
 		return vrw.WriteValue(NewSet(vrw, Number(v)))
 	})
 }
@@ -433,11 +435,12 @@ func TestSetHas2(t *testing.T) {
 	defer normalProductionChunks()
 
 	assert := assert.New(t)
-	vs := newTestValueStore()
 
-	doTest := func(ts testSet) {
-		set := ts.toSet(vs)
-		set2 := vs.ReadValue(vs.WriteValue(set).TargetHash()).(Set)
+	doTest := func(toTestSet toTestSetFunc, scale int) {
+		vrw := newTestValueStore()
+		ts := toTestSet(scale, vrw)
+		set := ts.toSet(vrw)
+		set2 := vrw.ReadValue(vrw.WriteValue(set).TargetHash()).(Set)
 		for _, v := range ts {
 			assert.True(set.Has(v))
 			assert.True(set2.Has(v))
@@ -445,10 +448,10 @@ func TestSetHas2(t *testing.T) {
 		diffSetTest(assert, set, set2, 0, 0)
 	}
 
-	doTest(getTestNativeOrderSet(16))
-	doTest(getTestRefValueOrderSet(2))
-	doTest(getTestRefToNativeOrderSet(2, vs))
-	doTest(getTestRefToValueOrderSet(2, vs))
+	doTest(getTestNativeOrderSet, 16)
+	doTest(getTestRefValueOrderSet, 2)
+	doTest(getTestRefToNativeOrderSet, 2)
+	doTest(getTestRefToValueOrderSet, 2)
 }
 
 func validateSetInsertion(t *testing.T, vrw ValueReadWriter, values ValueSlice) {
@@ -469,7 +472,7 @@ func TestSetValidateInsertAscending(t *testing.T) {
 
 	vs := newTestValueStore()
 
-	validateSetInsertion(t, vs, generateNumbersAsValues(300))
+	validateSetInsertion(t, vs, generateNumbersAsValues(vs, 300))
 }
 
 func TestSetInsert(t *testing.T) {
@@ -505,12 +508,13 @@ func TestSetInsert2(t *testing.T) {
 	defer normalProductionChunks()
 
 	assert := assert.New(t)
-	vs := newTestValueStore()
 
-	doTest := func(incr, offset int, ts testSet) {
-		expected := ts.toSet(vs)
+	doTest := func(incr, offset int, toTestSet toTestSetFunc, scale int) {
+		vrw := newTestValueStore()
+		ts := toTestSet(scale, vrw)
+		expected := ts.toSet(vrw)
 		run := func(from, to int) {
-			actual := ts.Remove(from, to).toSet(vs).Edit().Insert(ts[from:to]...).Set()
+			actual := ts.Remove(from, to).toSet(vrw).Edit().Insert(ts[from:to]...).Set()
 			assert.Equal(expected.Len(), actual.Len())
 			assert.True(expected.Equals(actual))
 			diffSetTest(assert, expected, actual, 0, 0)
@@ -521,11 +525,11 @@ func TestSetInsert2(t *testing.T) {
 		run(len(ts)-offset, len(ts))
 	}
 
-	doTest(18, 3, getTestNativeOrderSet(9))
-	doTest(64, 1, getTestNativeOrderSet(32))
-	doTest(32, 1, getTestRefValueOrderSet(4))
-	doTest(32, 1, getTestRefToNativeOrderSet(4, newTestValueStore()))
-	doTest(32, 1, getTestRefToValueOrderSet(4, newTestValueStore()))
+	doTest(18, 3, getTestNativeOrderSet, 9)
+	doTest(64, 1, getTestNativeOrderSet, 32)
+	doTest(32, 1, getTestRefValueOrderSet, 4)
+	doTest(32, 1, getTestRefToNativeOrderSet, 4)
+	doTest(32, 1, getTestRefToValueOrderSet, 4)
 }
 
 func TestSetInsertExistingValue(t *testing.T) {
@@ -536,7 +540,7 @@ func TestSetInsertExistingValue(t *testing.T) {
 
 	vs := newTestValueStore()
 
-	ts := getTestNativeOrderSet(2)
+	ts := getTestNativeOrderSet(2, vs)
 	original := ts.toSet(vs)
 	actual := original.Edit().Insert(ts[0]).Set()
 
@@ -577,12 +581,13 @@ func TestSetRemove2(t *testing.T) {
 	defer normalProductionChunks()
 
 	assert := assert.New(t)
-	vs := newTestValueStore()
 
-	doTest := func(incr, offset int, ts testSet) {
-		whole := ts.toSet(vs)
+	doTest := func(incr, offset int, toTestSet toTestSetFunc, scale int) {
+		vrw := newTestValueStore()
+		ts := toTestSet(scale, vrw)
+		whole := ts.toSet(vrw)
 		run := func(from, to int) {
-			expected := ts.Remove(from, to).toSet(vs)
+			expected := ts.Remove(from, to).toSet(vrw)
 			actual := whole.Edit().Remove(ts[from:to]...).Set()
 			assert.Equal(expected.Len(), actual.Len())
 			assert.True(expected.Equals(actual))
@@ -594,18 +599,18 @@ func TestSetRemove2(t *testing.T) {
 		run(len(ts)-offset, len(ts))
 	}
 
-	doTest(18, 3, getTestNativeOrderSet(9))
-	doTest(64, 1, getTestNativeOrderSet(32))
-	doTest(32, 1, getTestRefValueOrderSet(4))
-	doTest(32, 1, getTestRefToNativeOrderSet(4, newTestValueStore()))
-	doTest(32, 1, getTestRefToValueOrderSet(4, newTestValueStore()))
+	doTest(18, 3, getTestNativeOrderSet, 9)
+	doTest(64, 1, getTestNativeOrderSet, 32)
+	doTest(32, 1, getTestRefValueOrderSet, 4)
+	doTest(32, 1, getTestRefToNativeOrderSet, 4)
+	doTest(32, 1, getTestRefToValueOrderSet, 4)
 }
 
 func TestSetRemoveNonexistentValue(t *testing.T) {
 	assert := assert.New(t)
 	vs := newTestValueStore()
 
-	ts := getTestNativeOrderSet(2)
+	ts := getTestNativeOrderSet(2, vs)
 	original := ts.toSet(vs)
 	actual := original.Edit().Remove(Number(-1)).Set() // rand.Int63 returns non-negative values.
 
@@ -635,7 +640,7 @@ func TestSetOfStruct(t *testing.T) {
 
 	elems := []Value{}
 	for i := 0; i < 200; i++ {
-		elems = append(elems, NewStruct("S1", StructData{"o": Number(i)}))
+		elems = append(elems, NewStruct(vs, "S1", StructData{"o": Number(i)}))
 	}
 
 	s := NewSet(vs, elems...)
@@ -667,13 +672,14 @@ func TestSetIter(t *testing.T) {
 
 func TestSetIter2(t *testing.T) {
 	assert := assert.New(t)
-	vs := newTestValueStore()
 
 	smallTestChunks()
 	defer normalProductionChunks()
 
-	doTest := func(ts testSet) {
-		set := ts.toSet(vs)
+	doTest := func(toTestSet toTestSetFunc, scale int) {
+		vrw := newTestValueStore()
+		ts := toTestSet(scale, vrw)
+		set := ts.toSet(vrw)
 		sort.Sort(ValueSlice(ts))
 		idx := uint64(0)
 		endAt := uint64(64)
@@ -690,10 +696,10 @@ func TestSetIter2(t *testing.T) {
 		assert.Equal(endAt, idx-1)
 	}
 
-	doTest(getTestNativeOrderSet(16))
-	doTest(getTestRefValueOrderSet(2))
-	doTest(getTestRefToNativeOrderSet(2, newTestValueStore()))
-	doTest(getTestRefToValueOrderSet(2, newTestValueStore()))
+	doTest(getTestNativeOrderSet, 16)
+	doTest(getTestRefValueOrderSet, 2)
+	doTest(getTestRefToNativeOrderSet, 2)
+	doTest(getTestRefToValueOrderSet, 2)
 }
 
 func TestSetIterAll(t *testing.T) {
@@ -712,13 +718,14 @@ func TestSetIterAll(t *testing.T) {
 
 func TestSetIterAll2(t *testing.T) {
 	assert := assert.New(t)
-	vs := newTestValueStore()
 
 	smallTestChunks()
 	defer normalProductionChunks()
 
-	doTest := func(ts testSet) {
-		set := ts.toSet(vs)
+	doTest := func(toTestSet toTestSetFunc, scale int) {
+		vrw := newTestValueStore()
+		ts := toTestSet(scale, vrw)
+		set := ts.toSet(vrw)
 		sort.Sort(ValueSlice(ts))
 		idx := uint64(0)
 
@@ -728,10 +735,10 @@ func TestSetIterAll2(t *testing.T) {
 		})
 	}
 
-	doTest(getTestNativeOrderSet(16))
-	doTest(getTestRefValueOrderSet(2))
-	doTest(getTestRefToNativeOrderSet(2, newTestValueStore()))
-	doTest(getTestRefToValueOrderSet(2, newTestValueStore()))
+	doTest(getTestNativeOrderSet, 16)
+	doTest(getTestRefValueOrderSet, 2)
+	doTest(getTestRefToNativeOrderSet, 2)
+	doTest(getTestRefToValueOrderSet, 2)
 }
 
 func testSetOrder(assert *assert.Assertions, vrw ValueReadWriter, valueType *Type, value []Value, expectOrdering []Value) {
@@ -904,26 +911,27 @@ func TestSetChunks2(t *testing.T) {
 	smallTestChunks()
 	defer normalProductionChunks()
 
-	vs := newTestValueStore()
-	doTest := func(ts testSet) {
-		set := ts.toSet(vs)
-		set2chunks := getChunks(vs.ReadValue(vs.WriteValue(set).TargetHash()))
+	doTest := func(toTestSet toTestSetFunc, scale int) {
+		vrw := newTestValueStore()
+		ts := toTestSet(scale, vrw)
+		set := ts.toSet(vrw)
+		set2chunks := getChunks(vrw.ReadValue(vrw.WriteValue(set).TargetHash()))
 		for i, r := range getChunks(set) {
 			assert.True(TypeOf(r).Equals(TypeOf(set2chunks[i])), "%s != %s", TypeOf(r).Describe(), TypeOf(set2chunks[i]).Describe())
 		}
 	}
 
-	doTest(getTestNativeOrderSet(16))
-	doTest(getTestRefValueOrderSet(2))
-	doTest(getTestRefToNativeOrderSet(2, vs))
-	doTest(getTestRefToValueOrderSet(2, vs))
+	doTest(getTestNativeOrderSet, 16)
+	doTest(getTestRefValueOrderSet, 2)
+	doTest(getTestRefToNativeOrderSet, 2)
+	doTest(getTestRefToValueOrderSet, 2)
 }
 
 func TestSetFirstNNumbers(t *testing.T) {
 	assert := assert.New(t)
 	vs := newTestValueStore()
 
-	nums := generateNumbersAsValues(testSetSize)
+	nums := generateNumbersAsValues(vs, testSetSize)
 	s := NewSet(vs, nums...)
 	assert.Equal(deriveCollectionHeight(s), getRefHeightOfCollection(s))
 }
@@ -935,7 +943,7 @@ func TestSetRefOfStructFirstNNumbers(t *testing.T) {
 	assert := assert.New(t)
 	vs := newTestValueStore()
 
-	nums := generateNumbersAsRefOfStructs(testSetSize)
+	nums := generateNumbersAsRefOfStructs(vs, testSetSize)
 	s := NewSet(vs, nums...)
 	// height + 1 because the leaves are Ref values (with height 1).
 	assert.Equal(deriveCollectionHeight(s)+1, getRefHeightOfCollection(s))
@@ -947,7 +955,7 @@ func TestSetModifyAfterRead(t *testing.T) {
 
 	assert := assert.New(t)
 	vs := newTestValueStore()
-	set := getTestNativeOrderSet(2).toSet(vs)
+	set := getTestNativeOrderSet(2, vs).toSet(vs)
 	// Drop chunk values.
 	set = vs.ReadValue(vs.WriteValue(set).TargetHash()).(Set)
 	// Modify/query. Once upon a time this would crash.
@@ -961,13 +969,13 @@ func TestSetModifyAfterRead(t *testing.T) {
 
 func TestSetTypeAfterMutations(t *testing.T) {
 	assert := assert.New(t)
-	vs := newTestValueStore()
 
 	smallTestChunks()
 	defer normalProductionChunks()
 
 	test := func(n int, c interface{}) {
-		values := generateNumbersAsValues(n)
+		vs := newTestValueStore()
+		values := generateNumbersAsValues(vs, n)
 
 		s := NewSet(vs, values...)
 		assert.Equal(s.Len(), uint64(n))
@@ -1005,7 +1013,7 @@ func TestChunkedSetWithValuesOfEveryType(t *testing.T) {
 		NewSet(vs, Bool(true)),
 		NewList(vs, Bool(true)),
 		NewMap(vs, Bool(true), Number(0)),
-		NewStruct("", StructData{"field": Bool(true)}),
+		NewStruct(vs, "", StructData{"field": Bool(true)}),
 		// Refs of values
 		NewRef(Bool(true)),
 		NewRef(Number(0)),
@@ -1014,7 +1022,7 @@ func TestChunkedSetWithValuesOfEveryType(t *testing.T) {
 		NewRef(NewSet(vs, Bool(true))),
 		NewRef(NewList(vs, Bool(true))),
 		NewRef(NewMap(vs, Bool(true), Number(0))),
-		NewRef(NewStruct("", StructData{"field": Bool(true)})),
+		NewRef(NewStruct(vs, "", StructData{"field": Bool(true)})),
 	}
 
 	s := NewSet(vs, vals...)
@@ -1051,7 +1059,7 @@ func TestSetRemoveLastWhenNotLoaded(t *testing.T) {
 		return vs.ReadValue(vs.WriteValue(s).TargetHash()).(Set)
 	}
 
-	ts := getTestNativeOrderSet(8)
+	ts := getTestNativeOrderSet(8, vs)
 	ns := ts.toSet(vs)
 
 	for len(ts) > 0 {
@@ -1083,10 +1091,10 @@ func TestSetWithStructShouldHaveOptionalFields(t *testing.T) {
 	vs := newTestValueStore()
 
 	list := NewSet(vs,
-		NewStruct("Foo", StructData{
+		NewStruct(vs, "Foo", StructData{
 			"a": Number(1),
 		}),
-		NewStruct("Foo", StructData{
+		NewStruct(vs, "Foo", StructData{
 			"a": Number(2),
 			"b": String("bar"),
 		}),

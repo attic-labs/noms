@@ -16,7 +16,7 @@ func TestSetIterator(t *testing.T) {
 
 	vs := newTestValueStore()
 
-	numbers := append(generateNumbersAsValues(10), Number(20), Number(25))
+	numbers := append(generateNumbersAsValues(vs, 10), Number(20), Number(25))
 	s := NewSet(vs, numbers...)
 	i := s.Iterator()
 	vals := iterToSlice(i)
@@ -62,7 +62,7 @@ func TestSetIteratorAt(t *testing.T) {
 
 	vs := newTestValueStore()
 
-	numbers := append(generateNumbersAsValues(5), Number(10))
+	numbers := append(generateNumbersAsValues(vs, 5), Number(10))
 	s := NewSet(vs, numbers...)
 	i := s.IteratorAt(0)
 	vals := iterToSlice(i)
@@ -82,7 +82,7 @@ func TestSetIteratorFrom(t *testing.T) {
 
 	vs := newTestValueStore()
 
-	numbers := append(generateNumbersAsValues(5), Number(10), Number(20))
+	numbers := append(generateNumbersAsValues(vs, 5), Number(10), Number(20))
 	s := NewSet(vs, numbers...)
 	i := s.IteratorFrom(Number(0))
 	vals := iterToSlice(i)
@@ -115,21 +115,21 @@ func TestUnionIterator(t *testing.T) {
 
 	vs := newTestValueStore()
 
-	set1 := NewSet(vs, generateNumbersAsValuesFromToBy(0, 10, 1)...)
-	set2 := NewSet(vs, generateNumbersAsValuesFromToBy(5, 15, 1)...)
-	set3 := NewSet(vs, generateNumbersAsValuesFromToBy(10, 20, 1)...)
-	set4 := NewSet(vs, generateNumbersAsValuesFromToBy(15, 25, 1)...)
+	set1 := NewSet(vs, generateNumbersAsValuesFromToBy(vs, 0, 10, 1)...)
+	set2 := NewSet(vs, generateNumbersAsValuesFromToBy(vs, 5, 15, 1)...)
+	set3 := NewSet(vs, generateNumbersAsValuesFromToBy(vs, 10, 20, 1)...)
+	set4 := NewSet(vs, generateNumbersAsValuesFromToBy(vs, 15, 25, 1)...)
 
 	ui1 := NewUnionIterator(set1.Iterator(), set2.Iterator())
 	vals := iterToSlice(ui1)
-	expectedRes := generateNumbersAsValues(15)
+	expectedRes := generateNumbersAsValues(vs, 15)
 	assert.True(vals.Equals(expectedRes), "Expected: %v != actual: %v", expectedRes, vs)
 
 	ui1 = NewUnionIterator(set1.Iterator(), set4.Iterator())
 	ui2 := NewUnionIterator(set3.Iterator(), set2.Iterator())
 	ui3 := NewUnionIterator(ui1, ui2)
 	vals = iterToSlice(ui3)
-	expectedRes = generateNumbersAsValues(25)
+	expectedRes = generateNumbersAsValues(vs, 25)
 	assert.True(vals.Equals(expectedRes), "Expected: %v != actual: %v", expectedRes, vs)
 
 	ui1 = NewUnionIterator(set1.Iterator(), set4.Iterator())
@@ -164,19 +164,19 @@ func TestIntersectionIterator(t *testing.T) {
 
 	vs := newTestValueStore()
 
-	byTwos := NewSet(vs, generateNumbersAsValuesFromToBy(0, 200, 2)...)
-	byThrees := NewSet(vs, generateNumbersAsValuesFromToBy(0, 200, 3)...)
-	byFives := NewSet(vs, generateNumbersAsValuesFromToBy(0, 200, 5)...)
+	byTwos := NewSet(vs, generateNumbersAsValuesFromToBy(vs, 0, 200, 2)...)
+	byThrees := NewSet(vs, generateNumbersAsValuesFromToBy(vs, 0, 200, 3)...)
+	byFives := NewSet(vs, generateNumbersAsValuesFromToBy(vs, 0, 200, 5)...)
 
 	i1 := NewIntersectionIterator(byTwos.Iterator(), byThrees.Iterator())
 	vals := iterToSlice(i1)
-	expectedRes := generateNumbersAsValuesFromToBy(0, 200, 6)
+	expectedRes := generateNumbersAsValuesFromToBy(vs, 0, 200, 6)
 	assert.True(vals.Equals(expectedRes), "Expected: %v != actual: %v", expectedRes, vs)
 
 	it1 := NewIntersectionIterator(byTwos.Iterator(), byThrees.Iterator())
 	it2 := NewIntersectionIterator(it1, byFives.Iterator())
 	vals = iterToSlice(it2)
-	expectedRes = generateNumbersAsValuesFromToBy(0, 200, 30)
+	expectedRes = generateNumbersAsValuesFromToBy(vs, 0, 200, 30)
 	assert.True(vals.Equals(expectedRes), "Expected: %v != actual: %v", expectedRes, vs)
 
 	it1 = NewIntersectionIterator(byThrees.Iterator(), byFives.Iterator())
@@ -196,10 +196,10 @@ func TestCombinationIterator(t *testing.T) {
 
 	vs := newTestValueStore()
 
-	byTwos := NewSet(vs, generateNumbersAsValuesFromToBy(0, 70, 2)...)
-	byThrees := NewSet(vs, generateNumbersAsValuesFromToBy(0, 70, 3)...)
-	byFives := NewSet(vs, generateNumbersAsValuesFromToBy(0, 70, 5)...)
-	bySevens := NewSet(vs, generateNumbersAsValuesFromToBy(0, 70, 7)...)
+	byTwos := NewSet(vs, generateNumbersAsValuesFromToBy(vs, 0, 70, 2)...)
+	byThrees := NewSet(vs, generateNumbersAsValuesFromToBy(vs, 0, 70, 3)...)
+	byFives := NewSet(vs, generateNumbersAsValuesFromToBy(vs, 0, 70, 5)...)
+	bySevens := NewSet(vs, generateNumbersAsValuesFromToBy(vs, 0, 70, 7)...)
 
 	it1 := NewIntersectionIterator(byTwos.Iterator(), bySevens.Iterator())
 	it2 := NewIntersectionIterator(byFives.Iterator(), byThrees.Iterator())
@@ -253,14 +253,14 @@ func TestUnionComplexity(t *testing.T) {
 	callCount1 := 0
 	iter := iterize(createSetsWithDistinctNumbers(vs, numSets, numElemsPerSet), NewUnionTestIterator, &callCount1)
 	vals := iterToSlice(iter)
-	expected := generateNumbersAsValueSlice(numSets * numElemsPerSet)
+	expected := generateNumbersAsValueSlice(vs, numSets*numElemsPerSet)
 	assert.True(expected.Equals(vals), "expected: %v != actual: %v", expected, vals)
 	assert.True(expectedMax > callCount1, "callCount: %d exceeds expectedMax: %d", callCount1, expectedMax)
 
 	callCount2 := 0
 	iter = iterize(createSetsWithSameNumbers(vs, numSets, numElemsPerSet), NewUnionTestIterator, &callCount2)
 	vals = iterToSlice(iter)
-	expected = generateNumbersAsValueSlice(numElemsPerSet)
+	expected = generateNumbersAsValueSlice(vs, numElemsPerSet)
 	assert.True(expected.Equals(vals), "expected: %v != actual: %v", expected, vals)
 	assert.True(expectedMax > callCount2, "callCount: %d exceeds expectedMax: %d", callCount2, expectedMax)
 }
@@ -309,7 +309,7 @@ func TestIntersectComplexity(t *testing.T) {
 	callCount2 := 0
 	iter = iterize(createSetsWithSameNumbers(vs, numSets, numElemsPerSet), NewIntersectionTestIterator, &callCount2)
 	vals = iterToSlice(iter)
-	expected = generateNumbersAsValueSlice(numElemsPerSet)
+	expected = generateNumbersAsValueSlice(vs, numElemsPerSet)
 	assert.True(expected.Equals(vals), "expected: %v != actual: %v", expected, vals)
 	assert.True(expectedMax > callCount2, "callCount: %d exceeds expectedMax: %d", callCount2, expectedMax)
 }

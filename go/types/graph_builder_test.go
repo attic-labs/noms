@@ -61,7 +61,7 @@ func TestGraphBuilderEncodeDecodeAsKey(t *testing.T) {
 	vrw := newTestValueStore()
 	defer vrw.Close()
 
-	struct1 := NewStruct("teststruct", StructData{
+	struct1 := NewStruct(vrw, "teststruct", StructData{
 		"f1": String("v1"),
 		"f2": String("v2"),
 	})
@@ -97,7 +97,7 @@ func TestGraphBuilderEncodeDecodeAsValue(t *testing.T) {
 	vrw := newTestValueStore()
 	defer vrw.Close()
 
-	struct1 := NewStruct("teststruct", StructData{
+	struct1 := NewStruct(vrw, "teststruct", StructData{
 		"f1": String("v1"),
 		"f2": String("v2"),
 	})
@@ -132,7 +132,7 @@ func TestGraphBuilderMapSetGraphOp(t *testing.T) {
 	opc := opcStore.opCache()
 	defer opcStore.destroy()
 
-	struct1 := NewStruct("teststruct", StructData{
+	struct1 := NewStruct(vs, "teststruct", StructData{
 		"f1": String("v1"),
 		"f2": String("v2"),
 	})
@@ -175,7 +175,7 @@ func createTestMap(vrw ValueReadWriter, levels, avgSize int, valGen func() Value
 		switch rand.Int31() % 3 {
 		case 0:
 			if numElems%2 != 0 {
-				numElems -= 1
+				numElems--
 			}
 			return NewMap(vrw, elems[:numElems]...)
 		case 1:
@@ -210,7 +210,7 @@ func createTestMap(vrw ValueReadWriter, levels, avgSize int, valGen func() Value
 }
 
 // valGen() creates a random String, Number, or Struct Value
-func valGen() Value {
+func valGen(vrw ValueReadWriter) Value {
 	num := rand.Int31() % 1000000
 	switch rand.Int31() % 4 {
 	case 0:
@@ -218,9 +218,9 @@ func valGen() Value {
 	case 1:
 		return Number(num)
 	case 2:
-		return NewStruct("teststruct", map[string]Value{"f1": Number(num)})
+		return NewStruct(vrw, "teststruct", map[string]Value{"f1": Number(num)})
 	case 3:
-		return NewStruct("teststruct", map[string]Value{"f1": String(fmt.Sprintf("%d", num))})
+		return NewStruct(vrw, "teststruct", map[string]Value{"f1": String(fmt.Sprintf("%d", num))})
 	}
 	panic("unreachable")
 }
@@ -247,7 +247,9 @@ func TestGraphBuilderNestedMapSet(t *testing.T) {
 	vs := newTestValueStore()
 	defer vs.Close()
 
-	expected := createTestMap(vs, 3, 4, valGen)
+	expected := createTestMap(vs, 3, 4, func() Value {
+		return valGen(vs)
+	})
 	b := NewGraphBuilder(vs, MapKind)
 
 	ops := []testGraphOp{}

@@ -210,6 +210,10 @@ func (b *binaryNomsWriter) data() []byte {
 	return b.buff[0:b.offset]
 }
 
+func (b *binaryNomsWriter) reset() {
+	b.offset = 0
+}
+
 func (b *binaryNomsWriter) reader() nomsReader {
 	return &binaryNomsReader{b.buff[0:b.offset], 0}
 }

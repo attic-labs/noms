@@ -59,8 +59,8 @@ func (tl testList) toList(vrw ValueReadWriter) List {
 	return NewList(vrw, tl...)
 }
 
-func newTestList(length int) testList {
-	return generateNumbersAsValues(length)
+func newTestList(vrw ValueReadWriter, length int) testList {
+	return generateNumbersAsValues(vrw, length)
 }
 
 func newTestListFromList(list List) testList {
@@ -89,7 +89,7 @@ func newListTestSuite(size uint, expectChunkCount int, expectPrependChunkDiff in
 	vrw := newTestValueStore()
 
 	length := 1 << size
-	elems := newTestList(length)
+	elems := newTestList(vrw, length)
 	tr := MakeListType(NumberType)
 	list := NewList(vrw, elems...)
 	return &listTestSuite{
@@ -175,7 +175,7 @@ func TestListInsert(t *testing.T) {
 
 	assert := assert.New(t)
 
-	tl := newTestList(1024)
+	tl := newTestList(vrw, 1024)
 	list := tl.toList(vrw)
 
 	for i := 0; i < len(tl); i += 16 {
@@ -194,7 +194,7 @@ func TestListRemove(t *testing.T) {
 
 	assert := assert.New(t)
 
-	tl := newTestList(1024)
+	tl := newTestList(vrw, 1024)
 	list := tl.toList(vrw)
 
 	for i := len(tl) - 16; i >= 0; i -= 16 {
@@ -358,7 +358,7 @@ func TestListValidateInsertAscending(t *testing.T) {
 
 	vrw := newTestValueStore()
 
-	values := generateNumbersAsValues(1000)
+	values := generateNumbersAsValues(vrw, 1000)
 
 	s := NewList(vrw)
 	for i, v := range values {
@@ -377,7 +377,7 @@ func TestListValidateInsertAtZero(t *testing.T) {
 
 	vrw := newTestValueStore()
 
-	values := generateNumbersAsValues(1000)
+	values := generateNumbersAsValues(vrw, 1000)
 	s := NewList(vrw)
 	count := len(values)
 	for count > 0 {
@@ -693,7 +693,7 @@ func TestListSet(t *testing.T) {
 func TestListFirstNNumbers(t *testing.T) {
 	vrw := newTestValueStore()
 
-	nums := generateNumbersAsValues(testListSize)
+	nums := generateNumbersAsValues(vrw, testListSize)
 	NewList(vrw, nums...)
 }
 
@@ -703,7 +703,7 @@ func TestListRefOfStructFirstNNumbers(t *testing.T) {
 	}
 	vrw := newTestValueStore()
 
-	nums := generateNumbersAsRefOfStructs(testListSize)
+	nums := generateNumbersAsRefOfStructs(vrw, testListSize)
 	NewList(vrw, nums...)
 }
 
@@ -758,7 +758,7 @@ func TestListDiffIdentical(t *testing.T) {
 	vrw := newTestValueStore()
 
 	assert := assert.New(t)
-	nums := generateNumbersAsValues(5)
+	nums := generateNumbersAsValues(vrw, 5)
 	l1 := NewList(vrw, nums...)
 	l2 := NewList(vrw, nums...)
 
@@ -776,7 +776,7 @@ func TestListDiffVersusEmpty(t *testing.T) {
 	vrw := newTestValueStore()
 
 	assert := assert.New(t)
-	nums1 := generateNumbersAsValues(5)
+	nums1 := generateNumbersAsValues(vrw, 5)
 	l1 := NewList(vrw, nums1...)
 	l2 := NewList(vrw)
 
@@ -800,7 +800,7 @@ func TestListDiffReverse(t *testing.T) {
 	vrw := newTestValueStore()
 
 	assert := assert.New(t)
-	nums1 := generateNumbersAsValues(5000)
+	nums1 := generateNumbersAsValues(vrw, 5000)
 	nums2 := reverseValues(nums1)
 	l1 := NewList(vrw, nums1...)
 	l2 := NewList(vrw, nums2...)
@@ -826,7 +826,7 @@ func TestListDiffReverseWithLargerLimit(t *testing.T) {
 	vrw := newTestValueStore()
 
 	assert := assert.New(t)
-	nums1 := generateNumbersAsValues(5000)
+	nums1 := generateNumbersAsValues(vrw, 5000)
 	nums2 := reverseValues(nums1)
 	l1 := NewList(vrw, nums1...)
 	l2 := NewList(vrw, nums2...)
@@ -854,8 +854,8 @@ func TestListDiffRemove5x100(t *testing.T) {
 	vrw := newTestValueStore()
 
 	assert := assert.New(t)
-	nums1 := generateNumbersAsValues(5000)
-	nums2 := generateNumbersAsValues(5000)
+	nums1 := generateNumbersAsValues(vrw, 5000)
+	nums2 := generateNumbersAsValues(vrw, 5000)
 	for count := 5; count > 0; count-- {
 		nums2 = spliceValues(nums2, (count-1)*1000, 100)
 	}
@@ -887,8 +887,8 @@ func TestListDiffAdd5x5(t *testing.T) {
 	vrw := newTestValueStore()
 
 	assert := assert.New(t)
-	nums1 := generateNumbersAsValues(5000)
-	nums2 := generateNumbersAsValues(5000)
+	nums1 := generateNumbersAsValues(vrw, 5000)
+	nums2 := generateNumbersAsValues(vrw, 5000)
 	for count := 5; count > 0; count-- {
 		nums2 = spliceValues(nums2, (count-1)*1000, 0, Number(0), Number(1), Number(2), Number(3), Number(4))
 	}
@@ -920,8 +920,8 @@ func TestListDiffReplaceReverse5x100(t *testing.T) {
 	vrw := newTestValueStore()
 
 	assert := assert.New(t)
-	nums1 := generateNumbersAsValues(5000)
-	nums2 := generateNumbersAsValues(5000)
+	nums1 := generateNumbersAsValues(vrw, 5000)
+	nums2 := generateNumbersAsValues(vrw, 5000)
 	for count := 5; count > 0; count-- {
 		out := reverseValues(nums2[(count-1)*1000 : (count-1)*1000+100])
 		nums2 = spliceValues(nums2, (count-1)*1000, 100, out...)
@@ -1010,7 +1010,7 @@ func TestListDiffLargeWithSameMiddle(t *testing.T) {
 
 	cs1 := storage.NewView()
 	vs1 := NewValueStore(cs1)
-	nums1 := generateNumbersAsValues(4000)
+	nums1 := generateNumbersAsValues(vs1, 4000)
 	l1 := NewList(vs1, nums1...)
 	hash1 := vs1.WriteValue(l1).TargetHash()
 	vs1.Commit(vs1.Root(), vs1.Root())
@@ -1019,7 +1019,7 @@ func TestListDiffLargeWithSameMiddle(t *testing.T) {
 
 	cs2 := storage.NewView()
 	vs2 := NewValueStore(cs2)
-	nums2 := generateNumbersAsValuesFromToBy(5, 3550, 1)
+	nums2 := generateNumbersAsValuesFromToBy(vs2, 5, 3550, 1)
 	l2 := NewList(vs2, nums2...)
 	hash2 := vs2.WriteValue(l2).TargetHash()
 	vs2.Commit(vs1.Root(), vs1.Root())
@@ -1075,10 +1075,10 @@ func TestListTypeAfterMutations(t *testing.T) {
 	defer normalProductionChunks()
 
 	assert := assert.New(t)
-	vrw := newTestValueStore()
 
 	test := func(n int, c interface{}) {
-		values := generateNumbersAsValues(n)
+		vrw := newTestValueStore()
+		values := generateNumbersAsValues(vrw, n)
 
 		l := NewList(vrw, values...)
 		assert.Equal(l.Len(), uint64(n))
@@ -1111,7 +1111,7 @@ func TestListRemoveLastWhenNotLoaded(t *testing.T) {
 		return vs.ReadValue(vs.WriteValue(l).TargetHash()).(List)
 	}
 
-	tl := newTestList(1024)
+	tl := newTestList(vs, 1024)
 	nl := tl.toList(vs)
 
 	for len(tl) > 0 {
@@ -1173,8 +1173,8 @@ func TestListConcatDifferentTypes(t *testing.T) {
 
 	vrw := newTestValueStore()
 
-	fst := generateNumbersAsValuesFromToBy(0, testListSize/2, 1)
-	snd := generateNumbersAsStructsFromToBy(testListSize/2, testListSize, 1)
+	fst := generateNumbersAsValuesFromToBy(vrw, 0, testListSize/2, 1)
+	snd := generateNumbersAsStructsFromToBy(vrw, testListSize/2, testListSize, 1)
 
 	var whole ValueSlice
 	whole = append(whole, fst...)
@@ -1189,10 +1189,10 @@ func TestListWithStructShouldHaveOptionalFields(t *testing.T) {
 	vrw := newTestValueStore()
 
 	list := NewList(vrw,
-		NewStruct("Foo", StructData{
+		NewStruct(vrw, "Foo", StructData{
 			"a": Number(1),
 		}),
-		NewStruct("Foo", StructData{
+		NewStruct(vrw, "Foo", StructData{
 			"a": Number(2),
 			"b": String("bar"),
 		}),

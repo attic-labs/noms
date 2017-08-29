@@ -26,7 +26,7 @@ func ToRefOfValue(r Ref) Ref {
 
 func constructRef(targetHash hash.Hash, targetType *Type, height uint64) Ref {
 	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w, false)
+	enc := newValueEncoder(w)
 	writeRefPartsToEncoder(enc, targetHash, targetType, height)
 	return Ref{w.reader(), &hash.Hash{}}
 }
@@ -49,7 +49,7 @@ func skipRef(dec *valueDecoder) {
 
 func (r Ref) writeTo(enc *valueEncoder) {
 	// The NomsKind has already been written.
-	if !enc.forRollingHash && enc.canWriteRaw(r.r) {
+	if enc.canWriteRaw(r.r) {
 		enc.writeRaw(r.r)
 	} else {
 		writeRefPartsToEncoder(enc, r.TargetHash(), r.TargetType(), r.Height())
@@ -59,9 +59,7 @@ func (r Ref) writeTo(enc *valueEncoder) {
 func writeRefPartsToEncoder(enc *valueEncoder, targetHash hash.Hash, targetType *Type, height uint64) {
 	enc.writeKind(RefKind)
 	enc.writeHash(targetHash)
-	if !enc.forRollingHash {
-		enc.writeType(targetType, map[string]*Type{})
-	}
+	enc.writeType(targetType, map[string]*Type{})
 	enc.writeCount(height)
 }
 

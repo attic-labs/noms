@@ -331,7 +331,7 @@ func decodeValue(bs []byte, asValue bool, vrw ValueReadWriter) ([]byte, Value) {
 		// We cannot reuses the data since we now hold on to it.
 		data := make([]byte, encodedLen)
 		copy(data, bs[5:5+encodedLen])
-		v = DecodeFromBytes(data, vr)
+		v = DecodeFromBytes(data, vrw)
 		return bs[5+encodedLen:], v
 	}
 	return bs[1+hash.ByteLen:], nil

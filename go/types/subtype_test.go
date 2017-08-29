@@ -106,9 +106,11 @@ func TestAssertTypeType(tt *testing.T) {
 }
 
 func TestAssertTypeStruct(tt *testing.T) {
+	vs := newTestValueStore()
+
 	t := MakeStructType("Struct", StructField{"x", BoolType, false})
 
-	v := NewStruct("Struct", StructData{"x": Bool(true)})
+	v := NewStruct(vs, "Struct", StructData{"x": Bool(true)})
 	assertSubtype(t, v)
 	assertAll(tt, t, v)
 	assertSubtype(ValueType, v)
@@ -205,11 +207,12 @@ func TestAssertTypeEmptyMap(tt *testing.T) {
 }
 
 func TestAssertTypeStructSubtypeByName(tt *testing.T) {
+	vs := newTestValueStore()
 	namedT := MakeStructType("Name", StructField{"x", NumberType, false})
 	anonT := MakeStructType("", StructField{"x", NumberType, false})
-	namedV := NewStruct("Name", StructData{"x": Number(42)})
-	name2V := NewStruct("foo", StructData{"x": Number(42)})
-	anonV := NewStruct("", StructData{"x": Number(42)})
+	namedV := NewStruct(vs, "Name", StructData{"x": Number(42)})
+	name2V := NewStruct(vs, "foo", StructData{"x": Number(42)})
+	anonV := NewStruct(vs, "", StructData{"x": Number(42)})
 
 	assertSubtype(namedT, namedV)
 	assertInvalid(tt, namedT, name2V)
@@ -221,12 +224,13 @@ func TestAssertTypeStructSubtypeByName(tt *testing.T) {
 }
 
 func TestAssertTypeStructSubtypeExtraFields(tt *testing.T) {
+	vs := newTestValueStore()
 	at := MakeStructType("")
 	bt := MakeStructType("", StructField{"x", NumberType, false})
 	ct := MakeStructType("", StructField{"s", StringType, false}, StructField{"x", NumberType, false})
-	av := NewStruct("", StructData{})
-	bv := NewStruct("", StructData{"x": Number(1)})
-	cv := NewStruct("", StructData{"x": Number(2), "s": String("hi")})
+	av := NewStruct(vs, "", StructData{})
+	bv := NewStruct(vs, "", StructData{"x": Number(1)})
+	cv := NewStruct(vs, "", StructData{"x": Number(2), "s": String("hi")})
 
 	assertSubtype(at, av)
 	assertInvalid(tt, bt, av)
@@ -244,7 +248,7 @@ func TestAssertTypeStructSubtypeExtraFields(tt *testing.T) {
 func TestAssertTypeStructSubtype(tt *testing.T) {
 	vs := newTestValueStore()
 
-	c1 := NewStruct("Commit", StructData{
+	c1 := NewStruct(vs, "Commit", StructData{
 		"value":   Number(1),
 		"parents": NewSet(vs),
 	})
@@ -260,7 +264,7 @@ func TestAssertTypeStructSubtype(tt *testing.T) {
 	)
 	assertSubtype(t11, c1)
 
-	c2 := NewStruct("Commit", StructData{
+	c2 := NewStruct(vs, "Commit", StructData{
 		"value":   Number(2),
 		"parents": NewSet(vs, NewRef(c1)),
 	})
@@ -462,6 +466,7 @@ func makeTestStructTypeFromFieldNames(s string) *Type {
 }
 
 func makeTestStructFromFieldNames(s string) Struct {
+	vs := newTestValueStore()
 	t := makeTestStructTypeFromFieldNames(s)
 	fields := t.Desc.(StructDesc).fields
 	d.Chk.NotEmpty(fields)
@@ -471,11 +476,11 @@ func makeTestStructFromFieldNames(s string) Struct {
 		fieldNames[i] = field.Name
 	}
 	vals := make([]Value, len(fields))
-	for i, _ := range fields {
+	for i := range fields {
 		vals[i] = Bool(true)
 	}
 
-	return newStruct("", fieldNames, vals)
+	return newStruct(vs, "", fieldNames, vals)
 }
 
 func TestIsSubtypeDisallowExtraStructFields(tt *testing.T) {
@@ -543,7 +548,7 @@ func TestIsValueSubtypeOf(tt *testing.T) {
 		{NewSet(vs, Number(42)), MakeSetType(NumberType)},
 		{NewRef(Number(42)), MakeRefType(NumberType)},
 		{NewMap(vs, Number(42), String("a")), MakeMapType(NumberType, StringType)},
-		{NewStruct("A", StructData{}), MakeStructType("A")},
+		{NewStruct(vs, "A", StructData{}), MakeStructType("A")},
 		// Not including CycleType or Union here
 	}
 	for i, rec := range allTypes {
@@ -669,47 +674,47 @@ func TestIsValueSubtypeOf(tt *testing.T) {
 	assertFalse(NewRef(Number(1)), MakeRefType(MakeUnionType()))
 
 	assertTrue(
-		NewStruct("Struct", StructData{"x": Bool(true)}),
+		NewStruct(vs, "Struct", StructData{"x": Bool(true)}),
 		MakeStructType("Struct", StructField{"x", BoolType, false}),
 	)
 	assertTrue(
-		NewStruct("Struct", StructData{"x": Bool(true)}),
+		NewStruct(vs, "Struct", StructData{"x": Bool(true)}),
 		MakeStructType("Struct", StructField{"x", BoolType, true}),
 	)
 	assertTrue(
-		NewStruct("Struct", StructData{"x": Bool(true)}),
+		NewStruct(vs, "Struct", StructData{"x": Bool(true)}),
 		MakeStructType("Struct"),
 	)
 	assertTrue(
-		NewStruct("Struct", StructData{}),
+		NewStruct(vs, "Struct", StructData{}),
 		MakeStructType("Struct"),
 	)
 	assertFalse(
-		NewStruct("", StructData{"x": Bool(true)}),
+		NewStruct(vs, "", StructData{"x": Bool(true)}),
 		MakeStructType("Struct"),
 	)
 	assertFalse(
-		NewStruct("struct", StructData{"x": Bool(true)}), // lower case name
+		NewStruct(vs, "struct", StructData{"x": Bool(true)}), // lower case name
 		MakeStructType("Struct"),
 	)
 	assertTrue(
-		NewStruct("Struct", StructData{"x": Bool(true)}),
+		NewStruct(vs, "Struct", StructData{"x": Bool(true)}),
 		MakeStructType("Struct", StructField{"x", MakeUnionType(BoolType, NumberType), true}),
 	)
 	assertTrue(
-		NewStruct("Struct", StructData{"x": Bool(true)}),
+		NewStruct(vs, "Struct", StructData{"x": Bool(true)}),
 		MakeStructType("Struct", StructField{"y", BoolType, true}),
 	)
 	assertFalse(
-		NewStruct("Struct", StructData{"x": Bool(true)}),
+		NewStruct(vs, "Struct", StructData{"x": Bool(true)}),
 		MakeStructType("Struct", StructField{"x", StringType, true}),
 	)
 
 	assertTrue(
-		NewStruct("Node", StructData{
+		NewStruct(vs, "Node", StructData{
 			"value": Number(1),
 			"children": NewList(vs,
-				NewStruct("Node", StructData{
+				NewStruct(vs, "Node", StructData{
 					"value":    Number(2),
 					"children": NewList(vs),
 				}),
@@ -722,10 +727,10 @@ func TestIsValueSubtypeOf(tt *testing.T) {
 	)
 
 	assertFalse( // inner Node has wrong type.
-		NewStruct("Node", StructData{
+		NewStruct(vs, "Node", StructData{
 			"value": Number(1),
 			"children": NewList(vs,
-				NewStruct("Node", StructData{
+				NewStruct(vs, "Node", StructData{
 					"value":    Bool(true),
 					"children": NewList(vs),
 				}),
@@ -743,7 +748,7 @@ func TestIsValueSubtypeOf(tt *testing.T) {
 			for i, c := range children {
 				childrenAsRefs[i] = NewRef(c)
 			}
-			rv := NewStruct("Node", StructData{
+			rv := NewStruct(vs, "Node", StructData{
 				"value":    value,
 				"children": NewList(vs, childrenAsRefs...),
 			})
@@ -777,9 +782,9 @@ func TestIsValueSubtypeOf(tt *testing.T) {
 			StructField{"a", NumberType, false},
 			StructField{"b", MakeCycleType("A"), true},
 		)
-		v := NewStruct("A", StructData{
+		v := NewStruct(vs, "A", StructData{
 			"a": Number(1),
-			"b": NewStruct("A", StructData{
+			"b": NewStruct(vs, "A", StructData{
 				"a": Number(2),
 			}),
 		})
@@ -793,7 +798,7 @@ func TestIsValueSubtypeOf(tt *testing.T) {
 			StructField{"aa", NumberType, true},
 			StructField{"bb", BoolType, false},
 		)
-		v := NewStruct("A", StructData{
+		v := NewStruct(vs, "A", StructData{
 			"a": Number(1),
 			"b": Bool(true),
 		})

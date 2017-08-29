@@ -226,7 +226,7 @@ func TestRoundTrips(t *testing.T) {
 	assertRoundTrips(String("AINT NO THANG"))
 	assertRoundTrips(String("💩"))
 
-	assertRoundTrips(NewStruct("", StructData{"a": Bool(true), "b": String("foo"), "c": Number(2.3)}))
+	assertRoundTrips(NewStruct(vs, "", StructData{"a": Bool(true), "b": String("foo"), "c": Number(2.3)}))
 
 	listLeaf := newList(newListLeafSequence(vs, Number(4), Number(5), Number(6), Number(7)))
 	assertRoundTrips(listLeaf)
@@ -403,26 +403,29 @@ func TestWriteCompoundBlob(t *testing.T) {
 }
 
 func TestWriteEmptyStruct(t *testing.T) {
+	vs := newTestValueStore()
 	assertEncoding(t,
 		[]interface{}{
 			uint8(StructKind), "S", uint64(0), /* len */
 		},
-		NewStruct("S", nil),
+		NewStruct(vs, "S", nil),
 	)
 }
 
 func TestWriteStruct(t *testing.T) {
+	vs := newTestValueStore()
 	assertEncoding(t,
 		[]interface{}{
 			uint8(StructKind), "S", uint64(2), /* len */
 			"b", uint8(BoolKind), true, "x", uint8(NumberKind), Number(42),
 		},
-		NewStruct("S", StructData{"x": Number(42), "b": Bool(true)}),
+		NewStruct(vs, "S", StructData{"x": Number(42), "b": Bool(true)}),
 	)
 }
 
 func TestWriteStructTooMuchData(t *testing.T) {
-	s := NewStruct("S", StructData{"x": Number(42), "b": Bool(true)})
+	vs := newTestValueStore()
+	s := NewStruct(vs, "S", StructData{"x": Number(42), "b": Bool(true)})
 	c := EncodeValue(s)
 	data := c.Data()
 	buff := make([]byte, len(data)+1)
@@ -442,7 +445,7 @@ func TestWriteStructWithList(t *testing.T) {
 			uint8(StructKind), "S", uint64(1), /* len */
 			"l", uint8(ListKind), uint64(0), uint64(2) /* len */, uint8(StringKind), "a", uint8(StringKind), "b",
 		},
-		NewStruct("S", StructData{"l": NewList(vrw, String("a"), String("b"))}),
+		NewStruct(vrw, "S", StructData{"l": NewList(vrw, String("a"), String("b"))}),
 	)
 
 	// struct S {l: List<>}({l: []})
@@ -451,11 +454,12 @@ func TestWriteStructWithList(t *testing.T) {
 			uint8(StructKind), "S", uint64(1), /* len */
 			"l", uint8(ListKind), uint64(0), uint64(0), /* len */
 		},
-		NewStruct("S", StructData{"l": NewList(vrw)}),
+		NewStruct(vrw, "S", StructData{"l": NewList(vrw)}),
 	)
 }
 
 func TestWriteStructWithStruct(t *testing.T) {
+	vs := newTestValueStore()
 	// struct S2 {
 	//   x: Number
 	// }
@@ -469,19 +473,19 @@ func TestWriteStructWithStruct(t *testing.T) {
 			"x", uint8(NumberKind), Number(42),
 		},
 		// {s: {x: 42}}
-		NewStruct("S", StructData{"s": NewStruct("S2", StructData{"x": Number(42)})}),
+		NewStruct(vs, "S", StructData{"s": NewStruct(vs, "S2", StructData{"x": Number(42)})}),
 	)
 }
 
 func TestWriteStructWithBlob(t *testing.T) {
-	vrw := newTestValueStore()
+	vs := newTestValueStore()
 
 	assertEncoding(t,
 		[]interface{}{
 			uint8(StructKind), "S", uint64(1), /* len */
 			"b", uint8(BlobKind), uint64(0), []byte{0x00, 0x01},
 		},
-		NewStruct("S", StructData{"b": NewBlob(vrw, bytes.NewBuffer([]byte{0x00, 0x01}))}),
+		NewStruct(vs, "S", StructData{"b": NewBlob(vs, bytes.NewBuffer([]byte{0x00, 0x01}))}),
 	)
 }
 
@@ -572,14 +576,14 @@ func TestWriteListOfUnion(t *testing.T) {
 }
 
 func TestWriteListOfStruct(t *testing.T) {
-	vrw := newTestValueStore()
+	vs := newTestValueStore()
 
 	assertEncoding(t,
 		[]interface{}{
 			uint8(ListKind), uint64(0), uint64(1), /* len */
 			uint8(StructKind), "S", uint64(1) /* len */, "x", uint8(NumberKind), Number(42),
 		},
-		NewList(vrw, NewStruct("S", StructData{"x": Number(42)})),
+		NewList(vs, NewStruct(vs, "S", StructData{"x": Number(42)})),
 	)
 }
 
@@ -629,7 +633,7 @@ func TestWriteListOfTypes(t *testing.T) {
 }
 
 func nomsTestWriteRecursiveStruct(t *testing.T) {
-	vrw := newTestValueStore()
+	vs := newTestValueStore()
 
 	// struct A6 {
 	//   cs: List<A6>
@@ -642,7 +646,7 @@ func nomsTestWriteRecursiveStruct(t *testing.T) {
 			uint8(NumberKind), Number(42),
 		},
 		// {v: 42, cs: [{v: 555, cs: []}]}
-		NewStruct("A6", StructData{"cs": NewList(vrw), "v": Number(42)}),
+		NewStruct(vs, "A6", StructData{"cs": NewList(vs), "v": Number(42)}),
 	)
 }
 
