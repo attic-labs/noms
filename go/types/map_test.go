@@ -428,9 +428,9 @@ func TestMapMutationReadWriteCount(t *testing.T) {
 	for i := 0; i < 4000; i++ {
 		if i%every == 0 {
 			k := Number(i)
-			s := me.Get(Number(i)).(Struct)
-			s = s.Set("Number", Number(float64(s.Get("Number").(Number))+1))
-			me.Set(k, s)
+			se := me.Get(Number(i)).(Struct).Edit()
+			se.Set("Number", Number(float64(se.Get("Number").(Number))+1))
+			me.Set(k, se)
 		}
 		i++
 	}

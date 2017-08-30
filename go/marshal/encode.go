@@ -340,14 +340,15 @@ func structEncoder(vrw types.ValueReadWriter, t reflect.Type, seenStructs map[st
 			if ret.IsZeroValue() {
 				ret = types.NewStruct(structName, nil)
 			}
+			se := ret.Edit()
 			for _, f := range fields {
 				fv := v.FieldByIndex(f.index)
 				if !fv.IsValid() || f.omitEmpty && isEmptyValue(fv) {
 					continue
 				}
-				ret = ret.Set(f.name, f.encoder(fv))
+				se.Set(f.name, f.encoder(fv))
 			}
-			return ret
+			return se.Struct()
 		}
 	}
 

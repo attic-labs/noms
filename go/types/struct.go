@@ -20,6 +20,11 @@ var EmptyStruct = newStruct("", nil, nil)
 
 type StructData map[string]Value
 
+type structEntryBytes struct {
+	name string
+	buff []byte
+}
+
 type Struct struct {
 	vrw  ValueReadWriter
 	buff []byte
@@ -41,6 +46,21 @@ func skipStruct(dec *valueDecoder) {
 		dec.skipString()
 		dec.skipValue()
 	}
+}
+
+// structEntries returns a slice with field names and bytes for the value of
+// each field.
+func (s Struct) structEntries() []structEntryBytes {
+	dec, count := s.decoderSkipToFields()
+	entries := make([]structEntryBytes, count)
+	for i := uint64(0); i < count; i++ {
+		name := dec.readString()
+		start := dec.pos()
+		dec.skipValue()
+		end := dec.pos()
+		entries[i] = structEntryBytes{name, dec.buff[start:end]}
+	}
+	return entries
 }
 
 func (s Struct) writeTo(enc nomsWriter) {
@@ -65,6 +85,40 @@ func newStruct(name string, fieldNames []string, values []Value) Struct {
 		values[i].writeTo(&w)
 	}
 	return Struct{vrw, w.data()}
+}
+
+// structBinaryNomsWriter is used to write a struct to a binaryNomsWriter
+// without knowing the number of fields to write.
+type structBinaryNomsWriter struct {
+	mainWriter, fieldsWriter binaryNomsWriter
+	count                    uint64
+}
+
+func newStructBinaryNomsWriter(name string) structBinaryNomsWriter {
+	mainWriter := newBinaryNomsWriter()
+	StructKind.writeTo(&mainWriter)
+	mainWriter.writeString(name)
+	fieldsWriter := newBinaryNomsWriter()
+	return structBinaryNomsWriter{mainWriter, fieldsWriter, 0}
+}
+
+func (w *structBinaryNomsWriter) writeField(name string, value Value) {
+	w.fieldsWriter.writeString(name)
+	value.writeTo(&w.fieldsWriter)
+	w.count++
+
+}
+
+func (w *structBinaryNomsWriter) writeFieldRaw(name string, buff []byte) {
+	w.fieldsWriter.writeString(name)
+	w.fieldsWriter.writeRaw(buff)
+	w.count++
+}
+
+func (w *structBinaryNomsWriter) close() []byte {
+	w.mainWriter.writeCount(w.count)
+	w.mainWriter.writeRaw(w.fieldsWriter.data())
+	return w.mainWriter.data()
 }
 
 func NewStruct(name string, data StructData) Struct {
@@ -117,6 +171,10 @@ func MakeStructTemplate(name string, fieldNames []string) (t StructTemplate) {
 func (st StructTemplate) NewStruct(values []Value) Struct {
 	d.PanicIfFalse(len(st.fieldNames) == len(values))
 	return newStruct(st.name, st.fieldNames, values)
+}
+
+func (s Struct) Edit() *StructEditor {
+	return NewStructEditor(s)
 }
 
 func (s Struct) Empty() bool {
@@ -266,97 +324,9 @@ func (s Struct) Get(n string) Value {
 	return v
 }
 
-// Set returns a new struct where the field name has been set to value. If name is not an
-// existing field in the struct or the type of value is different from the old value of the
-// struct field a new struct type is created.
-func (s Struct) Set(n string, v Value) Struct {
-	verifyFieldName(n)
-	w := newBinaryNomsWriter()
-	return s.set(&w, n, v, 0)
-}
-
-func (s Struct) set(w *binaryNomsWriter, n string, v Value, addedCount int) Struct {
-	// TODO: Reuse bytes if we end up adding a field
-	dec := s.decoder()
-	StructKind.writeTo(w)
-	dec.skipKind()
-	dec.copyString(w)
-	count := dec.readCount()
-	w.writeCount(count + uint64(addedCount))
-
-	newFieldHandled := false
-
-	for i := uint64(0); i < count; i++ {
-		name := dec.readString()
-
-		if n == name {
-			w.writeString(name)
-			v.writeTo(w)
-			dec.skipValue()
-			newFieldHandled = true
-			continue
-		}
-		if !newFieldHandled && n < name {
-			if addedCount == 0 {
-				w.reset()
-				return s.set(w, n, v, 1)
-			}
-			w.writeString(n)
-			v.writeTo(w)
-			newFieldHandled = true
-		}
-		w.writeString(name)
-		dec.copyValue(w)
-	}
-
-	if !newFieldHandled {
-		if addedCount == 1 {
-			// Already adjusted the count
-			w.writeString(n)
-			v.writeTo(w)
-		} else {
-			w.reset()
-			return s.set(w, n, v, 1)
-		}
-	}
-
-	return Struct{s.vrw, w.data()}
-}
-
 // IsZeroValue can be used to test if a struct is the same as Struct{}.
 func (s Struct) IsZeroValue() bool {
 	return s.buff == nil
-}
-
-// Delete returns a new struct where the field name has been removed.
-// If name is not an existing field in the struct then the current struct is returned.
-func (s Struct) Delete(n string) Struct {
-	dec := s.decoder()
-	w := newBinaryNomsWriter()
-	StructKind.writeTo(&w)
-	dec.skipKind()
-	dec.copyString(&w)
-	count := dec.readCount()
-	w.writeCount(count - 1) // If not found we just return s
-
-	found := false
-	for i := uint64(0); i < count; i++ {
-		name := dec.readString()
-
-		if n == name {
-			dec.skipValue()
-			found = true
-		} else {
-			w.writeString(name)
-			dec.copyValue(&w)
-		}
-	}
-
-	if found {
-		return Struct{s.vrw, w.data()}
-	}
-
-	return s
 }
 
 func (s Struct) Diff(last Struct, changes chan<- ValueChanged, closeChan <-chan struct{}) {

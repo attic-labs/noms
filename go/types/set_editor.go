@@ -11,8 +11,8 @@ import (
 )
 
 // SetEditor allows for efficient editing of Set-typed prolly trees. Edits
-// are buffered to memory and can be applied via Build(), which returns a new
-// Set. Prior to Build(), Get() & Has() will return the value that the resulting
+// are buffered to memory and can be applied via Set(), which returns a new
+// Set. Prior to Set(), Get() & Has() will return the value that the resulting
 // Set would return if it were built immediately prior to the respective call.
 // Note: The implementation biases performance towards a usage which applies
 // edits in key-order.

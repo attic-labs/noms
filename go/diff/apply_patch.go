@@ -108,11 +108,11 @@ func (stack *patchStack) updateNode(top *stackElem, parent types.Value) types.Va
 	case types.FieldPath:
 		switch top.changeType {
 		case types.DiffChangeAdded:
-			return parent.(types.Struct).Set(part.Name, top.newValue)
+			return parent.(types.Struct).Edit().Set(part.Name, top.newValue).Struct()
 		case types.DiffChangeRemoved:
-			return parent.(types.Struct).Delete(part.Name)
+			return parent.(types.Struct).Edit().Delete(part.Name).Struct()
 		case types.DiffChangeModified:
-			return parent.(types.Struct).Set(part.Name, top.newValue)
+			return parent.(types.Struct).Edit().Set(part.Name, top.newValue).Struct()
 		}
 	case types.IndexPath:
 		switch el := parent.(type) {
