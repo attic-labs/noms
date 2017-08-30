@@ -45,7 +45,6 @@ func skipStruct(dec *valueDecoder) {
 }
 
 func (s Struct) writeTo(enc *valueEncoder) {
-	// The NomsKind has already been written.
 	if enc.canWriteRaw(s.r) {
 		enc.writeRaw(s.r)
 	} else {

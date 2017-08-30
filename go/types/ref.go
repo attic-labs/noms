@@ -48,7 +48,6 @@ func skipRef(dec *valueDecoder) {
 }
 
 func (r Ref) writeTo(enc *valueEncoder) {
-	// The NomsKind has already been written.
 	if enc.canWriteRaw(r.r) {
 		enc.writeRaw(r.r)
 	} else {
