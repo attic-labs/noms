@@ -63,12 +63,12 @@ b,2,false
 			types.StructField{"C", types.BoolType, false},
 		))))
 
-	assert.True(m.Get(types.String("a")).Equals(types.NewStruct("test", types.StructData{
+	assert.True(m.Get(types.String("a")).Equals(types.NewStruct(db, "test", types.StructData{
 		"A": types.String("a"),
 		"B": types.Number(1),
 		"C": types.Bool(true),
 	})))
-	assert.True(m.Get(types.String("b")).Equals(types.NewStruct("test", types.StructData{
+	assert.True(m.Get(types.String("b")).Equals(types.NewStruct(db, "test", types.StructData{
 		"A": types.String("b"),
 		"B": types.Number(2),
 		"C": types.Bool(false),

@@ -57,7 +57,7 @@ func writeCSV(w io.Writer) {
 	}
 }
 
-func validateList(s *testSuite, l types.List) {
+func (s *testSuite) validateList(l types.List) {
 	s.Equal(uint64(TEST_DATA_SIZE), l.Len())
 
 	i := uint64(0)
@@ -72,14 +72,14 @@ func validateList(s *testSuite, l types.List) {
 	})
 }
 
-func validateMap(s *testSuite, m types.Map) {
+func (s *testSuite) validateMap(vrw types.ValueReadWriter, m types.Map) {
 	// --dest-type=map:1 so key is field "a"
 	s.Equal(uint64(TEST_DATA_SIZE), m.Len())
 
 	for i := 0; i < TEST_DATA_SIZE; i++ {
 		v := m.Get(types.String(fmt.Sprintf("a%d", i))).(types.Struct)
 		s.True(v.Equals(
-			types.NewStruct("Row", types.StructData{
+			types.NewStruct(vrw, "Row", types.StructData{
 				"year": types.Number(TEST_YEAR + i%3),
 				"a":    types.String(fmt.Sprintf("a%d", i)),
 				"b":    types.Number(i),
@@ -88,14 +88,14 @@ func validateMap(s *testSuite, m types.Map) {
 	}
 }
 
-func validateNestedMap(s *testSuite, m types.Map) {
+func (s *testSuite) validateNestedMap(vrw types.ValueReadWriter, m types.Map) {
 	// --dest-type=map:0,1 so keys are fields "year", then field "a"
 	s.Equal(uint64(3), m.Len())
 
 	for i := 0; i < TEST_DATA_SIZE; i++ {
 		n := m.Get(types.Number(TEST_YEAR + i%3)).(types.Map)
 		o := n.Get(types.String(fmt.Sprintf("a%d", i))).(types.Struct)
-		s.True(o.Equals(types.NewStruct("Row", types.StructData{
+		s.True(o.Equals(types.NewStruct(vrw, "Row", types.StructData{
 			"year": types.Number(TEST_YEAR + i%3),
 			"a":    types.String(fmt.Sprintf("a%d", i)),
 			"b":    types.Number(i),
@@ -116,7 +116,7 @@ func (s *testSuite) TestCSVImporter() {
 	defer db.Close()
 	ds := db.GetDataset(setName)
 
-	validateList(s, ds.HeadValue().(types.List))
+	s.validateList(ds.HeadValue().(types.List))
 }
 
 func (s *testSuite) TestCSVImporterFromBlob() {
@@ -166,7 +166,7 @@ func (s *testSuite) TestCSVImporterToMap() {
 	ds := db.GetDataset(setName)
 
 	m := ds.HeadValue().(types.Map)
-	validateMap(s, m)
+	s.validateMap(db, m)
 }
 
 func (s *testSuite) TestCSVImporterToNestedMap() {
@@ -182,7 +182,7 @@ func (s *testSuite) TestCSVImporterToNestedMap() {
 	ds := db.GetDataset(setName)
 
 	m := ds.HeadValue().(types.Map)
-	validateNestedMap(s, m)
+	s.validateNestedMap(db, m)
 }
 
 func (s *testSuite) TestCSVImporterToNestedMapByName() {
@@ -198,7 +198,7 @@ func (s *testSuite) TestCSVImporterToNestedMapByName() {
 	ds := db.GetDataset(setName)
 
 	m := ds.HeadValue().(types.Map)
-	validateNestedMap(s, m)
+	s.validateNestedMap(db, m)
 }
 
 func (s *testSuite) TestCSVImporterWithPipe() {

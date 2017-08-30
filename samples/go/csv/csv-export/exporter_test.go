@@ -29,7 +29,7 @@ type testSuite struct {
 	payload [][]string
 }
 
-func createTestData(s *testSuite, buildAsMap bool) []types.Value {
+func (s *testSuite) createTestData(vrw types.ValueReadWriter, buildAsMap bool) []types.Value {
 	s.header = []string{"a", "b", "c"}
 	structName := "SomeStruct"
 	s.payload = [][]string{
@@ -51,13 +51,13 @@ func createTestData(s *testSuite, buildAsMap bool) []types.Value {
 		}
 		if buildAsMap {
 			structs[i*2] = fields[0]
-			structs[i*2+1] = types.NewStruct(structName, types.StructData{
+			structs[i*2+1] = types.NewStruct(vrw, structName, types.StructData{
 				"a": fields[0],
 				"b": fields[1],
 				"c": fields[2],
 			})
 		} else {
-			structs[i] = types.NewStruct(structName, types.StructData{
+			structs[i] = types.NewStruct(vrw, structName, types.StructData{
 				"a": fields[0],
 				"b": fields[1],
 				"c": fields[2],
@@ -93,7 +93,7 @@ func (s *testSuite) TestCSVExportFromList() {
 	ds := db.GetDataset(setName)
 
 	// Build data rows
-	structs := createTestData(s, false)
+	structs := s.createTestData(db, false)
 	db.CommitValue(ds, types.NewList(db, structs...))
 	db.Close()
 
@@ -113,7 +113,7 @@ func (s *testSuite) TestCSVExportFromMap() {
 	ds := db.GetDataset(setName)
 
 	// Build data rows
-	structs := createTestData(s, true)
+	structs := s.createTestData(db, true)
 	db.CommitValue(ds, types.NewMap(db, structs...))
 	db.Close()
 

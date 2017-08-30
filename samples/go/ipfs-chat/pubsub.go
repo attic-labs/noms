@@ -8,6 +8,8 @@ import (
 	"context"
 	"encoding/base64"
 
+	"gx/ipfs/QmZdsQf8BiCpAj61nz9NgqVeRUkw9vATvCs7UHFTxoUMDb/floodsub"
+
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/hash"
@@ -15,7 +17,6 @@ import (
 	"github.com/attic-labs/noms/go/merge"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/samples/go/ipfs-chat/dbg"
-	"gx/ipfs/QmZdsQf8BiCpAj61nz9NgqVeRUkw9vATvCs7UHFTxoUMDb/floodsub"
 )
 
 func Replicate(sub *floodsub.Subscription, source, dest datas.Dataset, didChange func(ds datas.Dataset)) {
@@ -72,7 +73,7 @@ func Replicate(sub *floodsub.Subscription, source, dest datas.Dataset, didChange
 			continue
 		}
 
-		dest, err = destDB.SetHead(dest, destDB.WriteValue(datas.NewCommit(merged, types.NewSet(destDB, dest.HeadRef(), sourceRef), types.EmptyStruct)))
+		dest, err = destDB.SetHead(dest, destDB.WriteValue(datas.NewCommit(destDB, merged, types.NewSet(destDB, dest.HeadRef(), sourceRef), types.EmptyStruct)))
 		if err != nil {
 			dbg.Debug("call failed to SetHead on destDB, err: %s", err)
 		}
