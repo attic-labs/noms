@@ -59,8 +59,10 @@ func accumulateOrderedSequenceDiffChanges(o1, o2 orderedSequence, df diffFn) (ad
 }
 
 func (suite *diffTestSuite) TestDiff() {
-	type valFn func(ValueReadWriter, int, int, int) ValueSlice
-	type colFn func(*ValueStore, []Value) Collection
+	vs := newTestValueStore()
+
+	type valFn func(int, int, int) ValueSlice
+	type colFn func([]Value) Collection
 
 	notNil := func(vs []Value) bool {
 		for _, v := range vs {
@@ -72,9 +74,8 @@ func (suite *diffTestSuite) TestDiff() {
 	}
 
 	runTestDf := func(name string, vf valFn, cf colFn, df diffFn) {
-		vrw := newTestValueStore()
-		col1 := cf(vrw, vf(vrw, suite.from1, suite.to1, suite.by1))
-		col2 := cf(vrw, vf(vrw, suite.from2, suite.to2, suite.by2))
+		col1 := cf(vf(suite.from1, suite.to1, suite.by1))
+		col2 := cf(vf(suite.from2, suite.to2, suite.by2))
 		suite.added, suite.removed, suite.modified = accumulateOrderedSequenceDiffChanges(
 			col1.sequence().(orderedSequence),
 			col2.sequence().(orderedSequence),
@@ -93,16 +94,16 @@ func (suite *diffTestSuite) TestDiff() {
 		runTestDf(name, vf, cf, orderedSequenceDiffBest)
 	}
 
-	newSetAsCol := func(vs *ValueStore, vals []Value) Collection { return NewSet(vs, vals...) }
-	newMapAsCol := func(vs *ValueStore, vals []Value) Collection { return NewMap(vs, vals...) }
+	newSetAsCol := func(vals []Value) Collection { return NewSet(vs, vals...) }
+	newMapAsCol := func(vals []Value) Collection { return NewMap(vs, vals...) }
 
-	rw := func(vs *ValueStore, col Collection) Collection {
+	rw := func(col Collection) Collection {
 		h := vs.WriteValue(col).TargetHash()
 		vs.Commit(vs.Root(), vs.Root())
 		return vs.ReadValue(h).(Collection)
 	}
-	newSetAsColRw := func(vs *ValueStore, col []Value) Collection { return rw(vs, newSetAsCol(vs, col)) }
-	newMapAsColRw := func(vs *ValueStore, col []Value) Collection { return rw(vs, newMapAsCol(vs, col)) }
+	newSetAsColRw := func(vs []Value) Collection { return rw(newSetAsCol(vs)) }
+	newMapAsColRw := func(vs []Value) Collection { return rw(newMapAsCol(vs)) }
 
 	runTest("set of numbers", generateNumbersAsValuesFromToBy, newSetAsCol)
 	runTest("set of numbers (rw)", generateNumbersAsValuesFromToBy, newSetAsColRw)
@@ -156,11 +157,12 @@ func TestOrderedSequencesDisjoint(t *testing.T) {
 }
 
 func TestOrderedSequencesDiffCloseWithoutReading(t *testing.T) {
+	vs := newTestValueStore()
+
 	runTest := func(df diffFn) {
-		vs := newTestValueStore()
 		s1 := NewSet(vs).seq
 		// A single item should be enough, but generate lots anyway.
-		s2 := NewSet(vs, generateNumbersAsValuesFromToBy(vs, 0, 1000, 1)...).seq
+		s2 := NewSet(vs, generateNumbersAsValuesFromToBy(0, 1000, 1)...).seq
 
 		changeChan := make(chan ValueChanged)
 		closeChan := make(chan struct{})

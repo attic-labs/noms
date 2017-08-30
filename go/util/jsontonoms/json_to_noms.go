@@ -48,7 +48,7 @@ func nomsValueFromDecodedJSONBase(vrw types.ValueReadWriter, o interface{}, useS
 					fields[k] = nv
 				}
 			}
-			v = types.NewStruct(vrw, structName, fields)
+			v = types.NewStruct(structName, fields)
 		} else {
 			kv := make([]types.Value, 0, len(o)*2)
 			for k, v := range o {

@@ -61,7 +61,7 @@ func TestGraphBuilderEncodeDecodeAsKey(t *testing.T) {
 	vrw := newTestValueStore()
 	defer vrw.Close()
 
-	struct1 := NewStruct(vrw, "teststruct", StructData{
+	struct1 := NewStruct("teststruct", StructData{
 		"f1": String("v1"),
 		"f2": String("v2"),
 	})
@@ -97,7 +97,7 @@ func TestGraphBuilderEncodeDecodeAsValue(t *testing.T) {
 	vrw := newTestValueStore()
 	defer vrw.Close()
 
-	struct1 := NewStruct(vrw, "teststruct", StructData{
+	struct1 := NewStruct("teststruct", StructData{
 		"f1": String("v1"),
 		"f2": String("v2"),
 	})
@@ -132,7 +132,7 @@ func TestGraphBuilderMapSetGraphOp(t *testing.T) {
 	opc := opcStore.opCache()
 	defer opcStore.destroy()
 
-	struct1 := NewStruct(vs, "teststruct", StructData{
+	struct1 := NewStruct("teststruct", StructData{
 		"f1": String("v1"),
 		"f2": String("v2"),
 	})
@@ -210,7 +210,7 @@ func createTestMap(vrw ValueReadWriter, levels, avgSize int, valGen func() Value
 }
 
 // valGen() creates a random String, Number, or Struct Value
-func valGen(vrw ValueReadWriter) Value {
+func valGen() Value {
 	num := rand.Int31() % 1000000
 	switch rand.Int31() % 4 {
 	case 0:
@@ -218,9 +218,9 @@ func valGen(vrw ValueReadWriter) Value {
 	case 1:
 		return Number(num)
 	case 2:
-		return NewStruct(vrw, "teststruct", map[string]Value{"f1": Number(num)})
+		return NewStruct("teststruct", map[string]Value{"f1": Number(num)})
 	case 3:
-		return NewStruct(vrw, "teststruct", map[string]Value{"f1": String(fmt.Sprintf("%d", num))})
+		return NewStruct("teststruct", map[string]Value{"f1": String(fmt.Sprintf("%d", num))})
 	}
 	panic("unreachable")
 }
@@ -248,7 +248,7 @@ func TestGraphBuilderNestedMapSet(t *testing.T) {
 	defer vs.Close()
 
 	expected := createTestMap(vs, 3, 4, func() Value {
-		return valGen(vs)
+		return valGen()
 	})
 	b := NewGraphBuilder(vs, MapKind)
 

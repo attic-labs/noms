@@ -115,7 +115,7 @@ func rate(d time.Duration, size uint64) string {
 	return fmt.Sprintf("%d ms (%.2f MB/s)", uint64(d)/1000000, float64(size)*1000/float64(d))
 }
 
-type createValueFn func(types.ValueReadWriter, uint64) types.Value
+type createValueFn func(i uint64) types.Value
 type buildCollectionFn func(vrw types.ValueReadWriter, count uint64, createFn createValueFn) types.Collection
 type readCollectionFn func(value types.Collection)
 
@@ -129,11 +129,11 @@ func makeBlobBytes(byteLength uint64) []byte {
 	return buff.Bytes()
 }
 
-func createString(vrw types.ValueReadWriter, i uint64) types.Value {
+func createString(i uint64) types.Value {
 	return types.String(fmt.Sprintf("%s%d", strPrefix, i))
 }
 
-func createNumber(vrw types.ValueReadWriter, i uint64) types.Value {
+func createNumber(i uint64) types.Value {
 	return types.Number(i)
 }
 
@@ -154,8 +154,8 @@ var structType = types.MakeStructType("S1",
 
 var structTemplate = types.MakeStructTemplate("S1", []string{"bool", "num", "str"})
 
-func createStruct(vrw types.ValueReadWriter, i uint64) types.Value {
-	return structTemplate.NewStruct(vrw, []types.Value{
+func createStruct(i uint64) types.Value {
+	return structTemplate.NewStruct([]types.Value{
 		types.Bool(i%2 == 0), // "bool"
 		types.Number(i),      // "num"
 		types.String(fmt.Sprintf("i am a 55 bytes............................%12d", i)), // "str"
@@ -165,7 +165,7 @@ func createStruct(vrw types.ValueReadWriter, i uint64) types.Value {
 func buildList(vrw types.ValueReadWriter, count uint64, createFn createValueFn) types.Collection {
 	values := make([]types.Value, count)
 	for i := uint64(0); i < count; i++ {
-		values[i] = createFn(vrw, i)
+		values[i] = createFn(i)
 	}
 
 	return types.NewList(vrw, values...)
@@ -174,7 +174,7 @@ func buildList(vrw types.ValueReadWriter, count uint64, createFn createValueFn) 
 func buildListIncrementally(vrw types.ValueReadWriter, count uint64, createFn createValueFn) types.Collection {
 	l := types.NewList(vrw).Edit()
 	for i := uint64(0); i < count; i++ {
-		l.Append(createFn(vrw, i))
+		l.Append(createFn(i))
 	}
 
 	return l.List()
@@ -188,7 +188,7 @@ func readList(c types.Collection) {
 func buildSet(vrw types.ValueReadWriter, count uint64, createFn createValueFn) types.Collection {
 	values := make([]types.Value, count)
 	for i := uint64(0); i < count; i++ {
-		values[i] = createFn(vrw, i)
+		values[i] = createFn(i)
 	}
 
 	return types.NewSet(vrw, values...)
@@ -197,7 +197,7 @@ func buildSet(vrw types.ValueReadWriter, count uint64, createFn createValueFn) t
 func buildSetIncrementally(vrw types.ValueReadWriter, count uint64, createFn createValueFn) types.Collection {
 	s := types.NewSet(vrw).Edit()
 	for i := uint64(0); i < count; i++ {
-		s.Insert(createFn(vrw, i))
+		s.Insert(createFn(i))
 	}
 
 	return s.Set()
@@ -211,7 +211,7 @@ func readSet(c types.Collection) {
 func buildMap(vrw types.ValueReadWriter, count uint64, createFn createValueFn) types.Collection {
 	values := make([]types.Value, count*2)
 	for i := uint64(0); i < count*2; i++ {
-		values[i] = createFn(vrw, i)
+		values[i] = createFn(i)
 	}
 
 	return types.NewMap(vrw, values...)
@@ -221,7 +221,7 @@ func buildMapIncrementally(vrw types.ValueReadWriter, count uint64, createFn cre
 	me := types.NewMap(vrw).Edit()
 
 	for i := uint64(0); i < count*2; i += 2 {
-		me.Set(createFn(vrw, i), createFn(vrw, i+1))
+		me.Set(createFn(i), createFn(i+1))
 	}
 
 	return me.Map()

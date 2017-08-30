@@ -33,15 +33,15 @@ func intsToValueSlice(ints ...int) ValueSlice {
 	return vs
 }
 
-func generateNumbersAsValues(vrw ValueReadWriter, n int) []Value {
-	return generateNumbersAsValuesFromToBy(vrw, 0, n, 1)
+func generateNumbersAsValues(n int) []Value {
+	return generateNumbersAsValuesFromToBy(0, n, 1)
 }
 
-func generateNumbersAsValueSlice(vrw ValueReadWriter, n int) ValueSlice {
-	return generateNumbersAsValuesFromToBy(vrw, 0, n, 1)
+func generateNumbersAsValueSlice(n int) ValueSlice {
+	return generateNumbersAsValuesFromToBy(0, n, 1)
 }
 
-func generateNumbersAsValuesFromToBy(vrw ValueReadWriter, from, to, by int) ValueSlice {
+func generateNumbersAsValuesFromToBy(from, to, by int) ValueSlice {
 	d.Chk.True(to >= from, "to must be greater than or equal to from")
 	d.Chk.True(by > 0, "must be an integer greater than zero")
 	nums := []Value{}
@@ -51,16 +51,16 @@ func generateNumbersAsValuesFromToBy(vrw ValueReadWriter, from, to, by int) Valu
 	return nums
 }
 
-func generateNumbersAsStructs(vrw ValueReadWriter, n int) ValueSlice {
-	return generateNumbersAsValuesFromToBy(vrw, 0, n, 1)
+func generateNumbersAsStructs(n int) ValueSlice {
+	return generateNumbersAsValuesFromToBy(0, n, 1)
 }
 
-func generateNumbersAsStructsFromToBy(vrw ValueReadWriter, from, to, by int) ValueSlice {
+func generateNumbersAsStructsFromToBy(from, to, by int) ValueSlice {
 	d.Chk.True(to >= from, "to must be greater than or equal to from")
 	d.Chk.True(by > 0, "must be an integer greater than zero")
 	nums := []Value{}
 	for i := from; i < to; i += by {
-		nums = append(nums, NewStruct(vrw, "num", StructData{"n": Number(i)}))
+		nums = append(nums, NewStruct("num", StructData{"n": Number(i)}))
 	}
 	return nums
 }
@@ -68,7 +68,7 @@ func generateNumbersAsStructsFromToBy(vrw ValueReadWriter, from, to, by int) Val
 func generateNumbersAsRefOfStructs(vrw ValueReadWriter, n int) []Value {
 	nums := []Value{}
 	for i := 0; i < n; i++ {
-		r := vrw.WriteValue(NewStruct(vrw, "num", StructData{"n": Number(i)}))
+		r := vrw.WriteValue(NewStruct("num", StructData{"n": Number(i)}))
 		nums = append(nums, r)
 	}
 	return nums

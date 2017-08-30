@@ -204,7 +204,7 @@ func TestTolerateTopDown(t *testing.T) {
 
 	assert.Zero(len(vs.bufferedChunks))
 
-	ST := NewStruct(vs, "", StructData{"r": mlr})
+	ST := NewStruct("", StructData{"r": mlr})
 	str := vs.WriteValue(ST) // ST into bufferedChunks
 	vs.WriteValue(S)         // S into bufferedChunks
 	vs.WriteValue(ML)        // ML into bufferedChunks AND withBufferedChunks

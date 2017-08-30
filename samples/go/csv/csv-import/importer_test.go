@@ -79,7 +79,7 @@ func (s *testSuite) validateMap(vrw types.ValueReadWriter, m types.Map) {
 	for i := 0; i < TEST_DATA_SIZE; i++ {
 		v := m.Get(types.String(fmt.Sprintf("a%d", i))).(types.Struct)
 		s.True(v.Equals(
-			types.NewStruct(vrw, "Row", types.StructData{
+			types.NewStruct("Row", types.StructData{
 				"year": types.Number(TEST_YEAR + i%3),
 				"a":    types.String(fmt.Sprintf("a%d", i)),
 				"b":    types.Number(i),
@@ -95,7 +95,7 @@ func (s *testSuite) validateNestedMap(vrw types.ValueReadWriter, m types.Map) {
 	for i := 0; i < TEST_DATA_SIZE; i++ {
 		n := m.Get(types.Number(TEST_YEAR + i%3)).(types.Map)
 		o := n.Get(types.String(fmt.Sprintf("a%d", i))).(types.Struct)
-		s.True(o.Equals(types.NewStruct(vrw, "Row", types.StructData{
+		s.True(o.Equals(types.NewStruct("Row", types.StructData{
 			"year": types.Number(TEST_YEAR + i%3),
 			"a":    types.String(fmt.Sprintf("a%d", i)),
 			"b":    types.Number(i),
@@ -136,18 +136,18 @@ func (s *testSuite) TestCSVImporterFromBlob() {
 		db.CommitValue(rawDS, types.NewBlob(db, csv))
 		db.Close()
 
-		// stdout, stderr := s.MustRun(main, []string{
-		// 	"--no-progress", "--column-types", TEST_FIELDS,
-		// 	pathFlag, spec.CreateValueSpecString("nbs", s.DBDir, "raw.value"),
-		// 	spec.CreateValueSpecString("nbs", s.DBDir, "csv"),
-		// })
-		// s.Equal("", stdout)
-		// s.Equal("", stderr)
-		//
-		// db = newDB()
-		// defer db.Close()
-		// csvDS := db.GetDataset("csv")
-		// validateList(s, csvDS.HeadValue().(types.List))
+		stdout, stderr := s.MustRun(main, []string{
+			"--no-progress", "--column-types", TEST_FIELDS,
+			pathFlag, spec.CreateValueSpecString("nbs", s.DBDir, "raw.value"),
+			spec.CreateValueSpecString("nbs", s.DBDir, "csv"),
+		})
+		s.Equal("", stdout)
+		s.Equal("", stderr)
+
+		db = newDB()
+		defer db.Close()
+		csvDS := db.GetDataset("csv")
+		s.validateList(csvDS.HeadValue().(types.List))
 	}
 	test("--path")
 	test("-p")

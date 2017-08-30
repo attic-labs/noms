@@ -243,7 +243,7 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 		for i, rep := range testReps {
 			timesSlice := types.ValueSlice{}
 			for name, info := range rep {
-				timesSlice = append(timesSlice, types.String(name), types.NewStruct(db, "", types.StructData{
+				timesSlice = append(timesSlice, types.String(name), types.NewStruct("", types.StructData{
 					"elapsed": types.Number(info.elapsed.Nanoseconds()),
 					"paused":  types.Number(info.paused.Nanoseconds()),
 					"total":   types.Number(info.total.Nanoseconds()),
@@ -252,7 +252,7 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 			reps[i] = types.NewMap(db, timesSlice...)
 		}
 
-		record := types.NewStruct(db, "", map[string]types.Value{
+		record := types.NewStruct("", map[string]types.Value{
 			"environment":      suite.getEnvironment(db),
 			"nomsRevision":     types.String(suite.getGitHead(path.Join(suite.AtticLabs, "noms"))),
 			"testdataRevision": types.String(suite.getGitHead(suite.Testdata)),

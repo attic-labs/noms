@@ -198,6 +198,10 @@ func (b Blob) Kind() NomsKind {
 	return BlobKind
 }
 
+func (b Blob) valueReadWriter() ValueReadWriter {
+	return b.seq.valueReadWriter()
+}
+
 type BlobReader struct {
 	b   Blob
 	pos int64

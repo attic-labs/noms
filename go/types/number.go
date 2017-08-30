@@ -44,3 +44,7 @@ func (v Number) typeOf() *Type {
 func (v Number) Kind() NomsKind {
 	return NumberKind
 }
+
+func (v Number) valueReadWriter() ValueReadWriter {
+	return nil
+}

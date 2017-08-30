@@ -40,7 +40,7 @@ func Now() DateTime {
 // MarshalNoms makes DateTime implement marshal.Marshaler and it makes
 // DateTime marshal into a Noms struct with type DateTimeType.
 func (dt DateTime) MarshalNoms(vrw types.ValueReadWriter) (types.Value, error) {
-	return dateTimeTemplate.NewStruct(vrw, []types.Value{types.Number(float64(dt.Unix()) + float64(dt.Nanosecond())*1e-9)}), nil
+	return dateTimeTemplate.NewStruct([]types.Value{types.Number(float64(dt.Unix()) + float64(dt.Nanosecond())*1e-9)}), nil
 }
 
 // MarshalNomsType makes DateTime implement marshal.TypeMarshaler and it

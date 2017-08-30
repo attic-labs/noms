@@ -110,7 +110,7 @@ func ReadToList(r *csv.Reader, structName string, headers []string, kinds KindSl
 		}
 
 		fields := readFieldsFromRow(row, headers, fieldOrder, kindMap)
-		valueChan <- temp.NewStruct(vrw, fields)
+		valueChan <- temp.NewStruct(fields)
 	}
 
 	return <-listChan
@@ -202,7 +202,7 @@ func ReadToMap(r *csv.Reader, structName string, headersRaw []string, primaryKey
 
 		fields := readFieldsFromRow(row, headersRaw, fieldOrder, kindMap)
 		graphKeys, mapKey := primaryKeyValuesFromFields(fields, fieldOrder, pkIndices)
-		st := temp.NewStruct(vrw, fields)
+		st := temp.NewStruct(fields)
 		gb.MapSet(graphKeys, mapKey, st)
 	}
 	return gb.Build().(types.Map)

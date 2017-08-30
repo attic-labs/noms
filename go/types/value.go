@@ -74,3 +74,7 @@ func (vs ValueSlice) Equals(other ValueSlice) bool {
 
 	return true
 }
+
+type valueReadWriter interface {
+	valueReadWriter() ValueReadWriter
+}

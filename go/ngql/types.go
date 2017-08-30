@@ -1002,7 +1002,7 @@ func InputToNomsValue(vrw types.ValueReadWriter, arg interface{}, nomsType *type
 				data[name] = InputToNomsValue(vrw, m[name], t)
 			}
 		})
-		return types.NewStruct(vrw, desc.Name, data)
+		return types.NewStruct(desc.Name, data)
 	}
 	panic("not yet implemented")
 }

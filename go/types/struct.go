@@ -16,7 +16,7 @@ import (
 )
 
 var EmptyStructType = MakeStructType("")
-var EmptyStruct = newStruct(nil, "", nil, nil)
+var EmptyStruct = newStruct("", nil, nil)
 
 type StructData map[string]Value
 
@@ -83,7 +83,8 @@ func validateStruct(s Struct) Struct {
 	return s
 }
 
-func newStruct(vrw ValueReadWriter, name string, fieldNames []string, values []Value) Struct {
+func newStruct(name string, fieldNames []string, values []Value) Struct {
+	var vrw ValueReadWriter
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w)
 	enc.writeKind(StructKind)
@@ -91,12 +92,15 @@ func newStruct(vrw ValueReadWriter, name string, fieldNames []string, values []V
 	enc.writeCount(uint64(len(fieldNames)))
 	for i := 0; i < len(fieldNames); i++ {
 		enc.writeString(fieldNames[i])
+		if vrw == nil {
+			vrw = values[i].(valueReadWriter).valueReadWriter()
+		}
 		enc.writeValue(values[i])
 	}
 	return Struct{vrw, w.reader(), &hash.Hash{}}
 }
 
-func NewStruct(vrw ValueReadWriter, name string, data StructData) Struct {
+func NewStruct(name string, data StructData) Struct {
 	verifyStructName(name)
 	fieldNames := make([]string, len(data))
 	values := make([]Value, len(data))
@@ -113,7 +117,7 @@ func NewStruct(vrw ValueReadWriter, name string, data StructData) Struct {
 		values[i] = data[fieldNames[i]]
 	}
 
-	return newStruct(vrw, name, fieldNames, values)
+	return newStruct(name, fieldNames, values)
 }
 
 // StructTemplate allows creating a template for structs with a known shape
@@ -143,9 +147,9 @@ func MakeStructTemplate(name string, fieldNames []string) (t StructTemplate) {
 
 // NewStruct creates a new Struct from the StructTemplate. The order of the
 // values must match the order of the field names of the StructTemplate.
-func (st StructTemplate) NewStruct(vrw ValueReadWriter, values []Value) Struct {
+func (st StructTemplate) NewStruct(values []Value) Struct {
 	d.PanicIfFalse(len(st.fieldNames) == len(values))
-	return newStruct(vrw, st.name, st.fieldNames, values)
+	return newStruct(st.name, st.fieldNames, values)
 }
 
 func (s Struct) Empty() bool {
@@ -456,6 +460,10 @@ func (s Struct) Diff(last Struct, changes chan<- ValueChanged, closeChan <-chan 
 			return
 		}
 	}
+}
+
+func (s Struct) valueReadWriter() ValueReadWriter {
+	return s.vrw
 }
 
 var escapeChar = "Q"

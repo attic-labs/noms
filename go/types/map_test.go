@@ -19,7 +19,7 @@ import (
 
 const testMapSize = 8000
 
-type genValueFn func(vrw ValueReadWriter, i int) Value
+type genValueFn func(i int) Value
 
 type testMap struct {
 	entries     mapEntrySlice
@@ -116,10 +116,10 @@ func (tm testMap) FlattenAll() []Value {
 	return tm.Flatten(0, len(tm.entries))
 }
 
-func newSortedTestMap(vrw ValueReadWriter, length int, gen genValueFn) testMap {
+func newSortedTestMap(length int, gen genValueFn) testMap {
 	keys := make(ValueSlice, 0, length)
 	for i := 0; i < length; i++ {
-		keys = append(keys, gen(vrw, i))
+		keys = append(keys, gen(i))
 	}
 
 	sort.Sort(keys)
@@ -140,7 +140,7 @@ func newTestMapFromMap(m Map) testMap {
 	return testMap{entries, Number(-0)}
 }
 
-func newRandomTestMap(vrw ValueReadWriter, length int, gen genValueFn) testMap {
+func newRandomTestMap(length int, gen genValueFn) testMap {
 	s := rand.NewSource(4242)
 	used := map[int]bool{}
 
@@ -149,13 +149,13 @@ func newRandomTestMap(vrw ValueReadWriter, length int, gen genValueFn) testMap {
 	for len(entries) < length {
 		v := int(s.Int63()) & mask
 		if _, ok := used[v]; !ok {
-			entry := mapEntry{gen(vrw, v), gen(vrw, v*2)}
+			entry := mapEntry{gen(v), gen(v * 2)}
 			entries = append(entries, entry)
 			used[v] = true
 		}
 	}
 
-	return testMap{entries, gen(vrw, mask+1)}
+	return testMap{entries, gen(mask + 1)}
 }
 
 func validateMap(t *testing.T, vrw ValueReadWriter, m Map, entries mapEntrySlice) {
@@ -179,8 +179,8 @@ func newMapTestSuite(size uint, expectChunkCount int, expectPrependChunkDiff int
 	vrw := newTestValueStore()
 
 	length := 1 << size
-	keyType := TypeOf(gen(vrw, 0))
-	elems := newSortedTestMap(vrw, length, gen)
+	keyType := TypeOf(gen(0))
+	elems := newSortedTestMap(length, gen)
 	tr := MakeMapType(keyType, NumberType)
 	tmap := NewMap(vrw, elems.FlattenAll()...)
 	return &mapTestSuite{
@@ -311,30 +311,30 @@ func TestMapSuite4KStructs(t *testing.T) {
 	suite.Run(t, newMapTestSuite(12, 16, 2, 2, newNumberStruct))
 }
 
-func newNumber(vrw ValueReadWriter, i int) Value {
+func newNumber(i int) Value {
 	return Number(i)
 }
 
-func newNumberStruct(vrw ValueReadWriter, i int) Value {
-	return NewStruct(vrw, "", StructData{"n": Number(i)})
+func newNumberStruct(i int) Value {
+	return NewStruct("", StructData{"n": Number(i)})
 }
 
 func getTestNativeOrderMap(scale int, vrw ValueReadWriter) testMap {
-	return newRandomTestMap(vrw, 64*scale, newNumber)
+	return newRandomTestMap(64*scale, newNumber)
 }
 
 func getTestRefValueOrderMap(scale int, vrw ValueReadWriter) testMap {
-	return newRandomTestMap(vrw, 64*scale, newNumber)
+	return newRandomTestMap(64*scale, newNumber)
 }
 
 func getTestRefToNativeOrderMap(scale int, vrw ValueReadWriter) testMap {
-	return newRandomTestMap(vrw, 64*scale, func(vrw ValueReadWriter, i int) Value {
+	return newRandomTestMap(64*scale, func(i int) Value {
 		return vrw.WriteValue(Number(i))
 	})
 }
 
 func getTestRefToValueOrderMap(scale int, vrw ValueReadWriter) testMap {
-	return newRandomTestMap(vrw, 64*scale, func(vrw ValueReadWriter, i int) Value {
+	return newRandomTestMap(64*scale, func(i int) Value {
 		return vrw.WriteValue(NewSet(vrw, Number(i)))
 	})
 }
@@ -382,8 +382,8 @@ func TestMapDiff(t *testing.T) {
 
 	vrw := newTestValueStore()
 
-	testMap1 := newRandomTestMap(vrw, 64*2, newNumber)
-	testMap2 := newRandomTestMap(vrw, 64*2, newNumber)
+	testMap1 := newRandomTestMap(64*2, newNumber)
+	testMap2 := newRandomTestMap(64*2, newNumber)
 	testMapAdded, testMapRemoved, testMapModified := testMap1.Diff(testMap2)
 	map1 := testMap1.toMap(vrw)
 	map2 := testMap2.toMap(vrw)
@@ -400,10 +400,8 @@ func TestMapMutationReadWriteCount(t *testing.T) {
 	// TODO: We are currently un-reasonable.
 	temp := MakeStructTemplate("Foo", []string{"Bool", "Number", "String1", "String2"})
 
-	vrw := newTestValueStore()
-
 	newLargeStruct := func(i int) Value {
-		return temp.NewStruct(vrw, []Value{
+		return temp.NewStruct([]Value{
 			Bool(i%2 == 0),
 			Number(i),
 			String(fmt.Sprintf("I AM A REALLY REALY REALL SUPER CALIFRAGILISTICLY CRAZY-ASSED LONGTASTIC String %d", i)),
@@ -841,8 +839,7 @@ func TestMapValidateInsertAscending(t *testing.T) {
 	smallTestChunks()
 	defer normalProductionChunks()
 
-	vrw := newTestValueStore()
-	validateMapInsertion(t, newSortedTestMap(vrw, 300, newNumber))
+	validateMapInsertion(t, newSortedTestMap(300, newNumber))
 }
 
 func TestMapSet(t *testing.T) {
@@ -1364,8 +1361,8 @@ func TestMapRefOfStructFirstNNumbers(t *testing.T) {
 
 	kvs := []Value{}
 	for i := 0; i < testMapSize; i++ {
-		k := vs.WriteValue(NewStruct(vs, "num", StructData{"n": Number(i)}))
-		v := vs.WriteValue(NewStruct(vs, "num", StructData{"n": Number(i + 1)}))
+		k := vs.WriteValue(NewStruct("num", StructData{"n": Number(i)}))
+		v := vs.WriteValue(NewStruct("num", StructData{"n": Number(i + 1)}))
 		assert.NotNil(k)
 		assert.NotNil(v)
 		kvs = append(kvs, k, v)
@@ -1445,7 +1442,7 @@ func TestCompoundMapWithValuesOfEveryType(t *testing.T) {
 		NewSet(vrw, Bool(true)), v,
 		NewList(vrw, Bool(true)), v,
 		NewMap(vrw, Bool(true), Number(0)), v,
-		NewStruct(vrw, "", StructData{"field": Bool(true)}), v,
+		NewStruct("", StructData{"field": Bool(true)}), v,
 		// Refs of values
 		NewRef(Bool(true)), v,
 		NewRef(Number(0)), v,
@@ -1454,7 +1451,7 @@ func TestCompoundMapWithValuesOfEveryType(t *testing.T) {
 		NewRef(NewSet(vrw, Bool(true))), v,
 		NewRef(NewList(vrw, Bool(true))), v,
 		NewRef(NewMap(vrw, Bool(true), Number(0))), v,
-		NewRef(NewStruct(vrw, "", StructData{"field": Bool(true)})), v,
+		NewRef(NewStruct("", StructData{"field": Bool(true)})), v,
 	}
 
 	m := NewMap(vrw, kvs...)
@@ -1528,7 +1525,7 @@ func TestMapIterFrom(t *testing.T) {
 		return res
 	}
 
-	kvs := generateNumbersAsValuesFromToBy(vrw, -50, 50, 1)
+	kvs := generateNumbersAsValuesFromToBy(-50, 50, 1)
 	m1 := NewMap(vrw, kvs...)
 	assert.True(kvs.Equals(test(m1, nil, Number(1000))))
 	assert.True(kvs.Equals(test(m1, Number(-1000), Number(1000))))
@@ -1566,11 +1563,11 @@ func TestMapWithStructShouldHaveOptionalFields(t *testing.T) {
 
 	list := NewMap(vrw,
 		String("one"),
-		NewStruct(vrw, "Foo", StructData{
+		NewStruct("Foo", StructData{
 			"a": Number(1),
 		}),
 		String("two"),
-		NewStruct(vrw, "Foo", StructData{
+		NewStruct("Foo", StructData{
 			"a": Number(2),
 			"b": String("bar"),
 		}),
@@ -1585,11 +1582,11 @@ func TestMapWithStructShouldHaveOptionalFields(t *testing.T) {
 
 	// transpose
 	list = NewMap(vrw,
-		NewStruct(vrw, "Foo", StructData{
+		NewStruct("Foo", StructData{
 			"a": Number(1),
 		}),
 		String("one"),
-		NewStruct(vrw, "Foo", StructData{
+		NewStruct("Foo", StructData{
 			"a": Number(2),
 			"b": String("bar"),
 		}),

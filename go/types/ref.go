@@ -135,3 +135,7 @@ func (r Ref) typeOf() *Type {
 func (r Ref) Kind() NomsKind {
 	return RefKind
 }
+
+func (r Ref) valueReadWriter() ValueReadWriter {
+	return nil
+}

@@ -164,7 +164,7 @@ func (db *database) doCommit(datasetID string, commit types.Struct, mergePolicy 
 					if err != nil {
 						return err
 					}
-					commitRef = db.WriteValue(NewCommit(db, merged, types.NewSet(db, commitRef, currentHeadRef), types.EmptyStruct))
+					commitRef = db.WriteValue(NewCommit(merged, types.NewSet(db, commitRef, currentHeadRef), types.EmptyStruct))
 				}
 			}
 		}
@@ -241,7 +241,7 @@ func buildNewCommit(ds Dataset, v types.Value, opts CommitOptions) types.Struct 
 	if meta.IsZeroValue() {
 		meta = types.EmptyStruct
 	}
-	return NewCommit(db, v, parents, meta)
+	return NewCommit(v, parents, meta)
 }
 
 func (db *database) doHeadUpdate(ds Dataset, updateFunc func(ds Dataset) error) (Dataset, error) {

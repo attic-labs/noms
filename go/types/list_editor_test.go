@@ -208,7 +208,7 @@ func TestListSpliceFuzzer(t *testing.T) {
 	}
 
 	for i := 0; i < rounds; i++ {
-		tl := newTestList(vrw, startCount)
+		tl := newTestList(startCount)
 		le := tl.toList(vrw).Edit()
 
 		for j := 0; j < splices; j++ {

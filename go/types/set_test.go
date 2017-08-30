@@ -75,9 +75,9 @@ func (ts testSet) toSet(vrw ValueReadWriter) Set {
 	return NewSet(vrw, ts...)
 }
 
-func newSortedTestSet(vrw ValueReadWriter, length int, gen genValueFn) (values testSet) {
+func newSortedTestSet(length int, gen genValueFn) (values testSet) {
 	for i := 0; i < length; i++ {
-		values = append(values, gen(vrw, i))
+		values = append(values, gen(i))
 	}
 	return
 }
@@ -90,7 +90,7 @@ func newTestSetFromSet(s Set) testSet {
 	return values
 }
 
-func newRandomTestSet(vrw ValueReadWriter, length int, gen genValueFn) testSet {
+func newRandomTestSet(length int, gen genValueFn) testSet {
 	s := rand.NewSource(4242)
 	used := map[int]bool{}
 
@@ -98,7 +98,7 @@ func newRandomTestSet(vrw ValueReadWriter, length int, gen genValueFn) testSet {
 	for len(values) < length {
 		v := int(s.Int63()) & 0xffffff
 		if _, ok := used[v]; !ok {
-			values = append(values, gen(vrw, v))
+			values = append(values, gen(v))
 			used[v] = true
 		}
 	}
@@ -121,13 +121,13 @@ type setTestSuite struct {
 }
 
 func newSetTestSuite(size uint, expectChunkCount int, expectPrependChunkDiff int, expectAppendChunkDiff int, gen genValueFn) *setTestSuite {
-	vrw := newTestValueStore()
+	vs := newTestValueStore()
 
 	length := 1 << size
-	elemType := TypeOf(gen(vrw, 0))
-	elems := newSortedTestSet(vrw, length, gen)
+	elemType := TypeOf(gen(0))
+	elems := newSortedTestSet(length, gen)
 	tr := MakeSetType(elemType)
-	set := NewSet(vrw, elems...)
+	set := NewSet(vs, elems...)
 	return &setTestSuite{
 		collectionTestSuite: collectionTestSuite{
 			col:                    set,
@@ -153,13 +153,13 @@ func newSetTestSuite(size uint, expectChunkCount int, expectPrependChunkDiff int
 				dup := make([]Value, length+1)
 				dup[0] = Number(-1)
 				copy(dup[1:], elems)
-				return NewSet(vrw, dup...)
+				return NewSet(vs, dup...)
 			},
 			appendOne: func() Collection {
 				dup := make([]Value, length+1)
 				copy(dup, elems)
 				dup[len(dup)-1] = Number(length + 1)
-				return NewSet(vrw, dup...)
+				return NewSet(vs, dup...)
 			},
 		},
 		elems: elems,
@@ -244,21 +244,21 @@ func TestSetSuite4KStructs(t *testing.T) {
 }
 
 func getTestNativeOrderSet(scale int, vrw ValueReadWriter) testSet {
-	return newRandomTestSet(vrw, 64*scale, newNumber)
+	return newRandomTestSet(64*scale, newNumber)
 }
 
 func getTestRefValueOrderSet(scale int, vrw ValueReadWriter) testSet {
-	return newRandomTestSet(vrw, 64*scale, newNumber)
+	return newRandomTestSet(64*scale, newNumber)
 }
 
 func getTestRefToNativeOrderSet(scale int, vrw ValueReadWriter) testSet {
-	return newRandomTestSet(vrw, 64*scale, func(vrw ValueReadWriter, v int) Value {
+	return newRandomTestSet(64*scale, func(v int) Value {
 		return vrw.WriteValue(Number(v))
 	})
 }
 
 func getTestRefToValueOrderSet(scale int, vrw ValueReadWriter) testSet {
-	return newRandomTestSet(vrw, 64*scale, func(vrw ValueReadWriter, v int) Value {
+	return newRandomTestSet(64*scale, func(v int) Value {
 		return vrw.WriteValue(NewSet(vrw, Number(v)))
 	})
 }
@@ -472,7 +472,7 @@ func TestSetValidateInsertAscending(t *testing.T) {
 
 	vs := newTestValueStore()
 
-	validateSetInsertion(t, vs, generateNumbersAsValues(vs, 300))
+	validateSetInsertion(t, vs, generateNumbersAsValues(300))
 }
 
 func TestSetInsert(t *testing.T) {
@@ -640,7 +640,7 @@ func TestSetOfStruct(t *testing.T) {
 
 	elems := []Value{}
 	for i := 0; i < 200; i++ {
-		elems = append(elems, NewStruct(vs, "S1", StructData{"o": Number(i)}))
+		elems = append(elems, NewStruct("S1", StructData{"o": Number(i)}))
 	}
 
 	s := NewSet(vs, elems...)
@@ -931,7 +931,7 @@ func TestSetFirstNNumbers(t *testing.T) {
 	assert := assert.New(t)
 	vs := newTestValueStore()
 
-	nums := generateNumbersAsValues(vs, testSetSize)
+	nums := generateNumbersAsValues(testSetSize)
 	s := NewSet(vs, nums...)
 	assert.Equal(deriveCollectionHeight(s), getRefHeightOfCollection(s))
 }
@@ -975,7 +975,7 @@ func TestSetTypeAfterMutations(t *testing.T) {
 
 	test := func(n int, c interface{}) {
 		vs := newTestValueStore()
-		values := generateNumbersAsValues(vs, n)
+		values := generateNumbersAsValues(n)
 
 		s := NewSet(vs, values...)
 		assert.Equal(s.Len(), uint64(n))
@@ -1013,7 +1013,7 @@ func TestChunkedSetWithValuesOfEveryType(t *testing.T) {
 		NewSet(vs, Bool(true)),
 		NewList(vs, Bool(true)),
 		NewMap(vs, Bool(true), Number(0)),
-		NewStruct(vs, "", StructData{"field": Bool(true)}),
+		NewStruct("", StructData{"field": Bool(true)}),
 		// Refs of values
 		NewRef(Bool(true)),
 		NewRef(Number(0)),
@@ -1022,7 +1022,7 @@ func TestChunkedSetWithValuesOfEveryType(t *testing.T) {
 		NewRef(NewSet(vs, Bool(true))),
 		NewRef(NewList(vs, Bool(true))),
 		NewRef(NewMap(vs, Bool(true), Number(0))),
-		NewRef(NewStruct(vs, "", StructData{"field": Bool(true)})),
+		NewRef(NewStruct("", StructData{"field": Bool(true)})),
 	}
 
 	s := NewSet(vs, vals...)
@@ -1091,10 +1091,10 @@ func TestSetWithStructShouldHaveOptionalFields(t *testing.T) {
 	vs := newTestValueStore()
 
 	list := NewSet(vs,
-		NewStruct(vs, "Foo", StructData{
+		NewStruct("Foo", StructData{
 			"a": Number(1),
 		}),
-		NewStruct(vs, "Foo", StructData{
+		NewStruct("Foo", StructData{
 			"a": Number(2),
 			"b": String("bar"),
 		}),

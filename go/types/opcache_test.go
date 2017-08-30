@@ -43,8 +43,8 @@ func (suite *OpCacheSuite) TestMapSet() {
 		{Bool(false), Number(1)},
 		{NewBlob(vs, bytes.NewBuffer([]byte{0xff, 0, 0})), NewMap(vs)},
 		{Bool(true), Number(42)},
-		{NewStruct(vs, "thing1", StructData{"a": Number(7)}), Number(42)},
-		{String("struct"), NewStruct(vs, "thing2", nil)},
+		{NewStruct("thing1", StructData{"a": Number(7)}), Number(42)},
+		{String("struct"), NewStruct("thing2", nil)},
 		{Number(42), String("other")},
 	}
 	for _, entry := range entries {
@@ -80,9 +80,9 @@ func (suite *OpCacheSuite) TestSetInsert() {
 		NewBlob(vs, bytes.NewBuffer([]byte{0xff, 0, 0})),
 		NewMap(vs),
 		Number(42),
-		NewStruct(vs, "thing1", StructData{"a": Number(7)}),
+		NewStruct("thing1", StructData{"a": Number(7)}),
 		String("struct"),
-		NewStruct(vs, "thing2", nil),
+		NewStruct("thing2", nil),
 		String("other"),
 	}
 	for _, entry := range entries {
@@ -118,9 +118,9 @@ func (suite *OpCacheSuite) TestListAppend() {
 		NewBlob(vs, bytes.NewBuffer([]byte{0xff, 0, 0})),
 		NewMap(vs),
 		Number(42),
-		NewStruct(vs, "thing1", StructData{"a": Number(7)}),
+		NewStruct("thing1", StructData{"a": Number(7)}),
 		String("struct"),
-		NewStruct(vs, "thing2", nil),
+		NewStruct("thing2", nil),
 		String("other"),
 	}
 	for _, entry := range entries {

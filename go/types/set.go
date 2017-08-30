@@ -267,3 +267,7 @@ func makeSetLeafChunkFn(vrw ValueReadWriter) makeChunkFn {
 func newEmptySetSequenceChunker(vrw ValueReadWriter) *sequenceChunker {
 	return newEmptySequenceChunker(vrw, makeSetLeafChunkFn(vrw), newOrderedMetaSequenceChunkFn(SetKind, vrw), hashValueBytes)
 }
+
+func (s Set) valueReadWriter() ValueReadWriter {
+	return s.seq.valueReadWriter()
+}

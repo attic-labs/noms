@@ -72,24 +72,19 @@ func (s *nomsMergeTestSuite) TestNomsMerge_Success() {
 		},
 		types.NewSet(rightSpec.GetDatabase(), p))
 
+	expected := types.NewStruct("", types.StructData{
+		"num": types.Number(42),
+		"str": types.String("foobaz"),
+		"lst": types.NewList(parentSpec.GetDatabase(), types.Number(1), types.String("foo")),
+		"map": types.NewMap(parentSpec.GetDatabase(), types.Number(1), types.String("foo"),
+			types.String("foo"), types.Number(1), types.Number(2), types.String("bar")),
+	})
+
 	output := "output"
 	stdout, stderr, err := s.Run(main, []string{"merge", s.DBDir, left, right, output})
 	if err == nil {
-		outputSpec, err := spec.ForDataset(spec.CreateValueSpecString("nbs", s.DBDir, output))
-		if !s.NoError(err) {
-			return
-		}
-		defer outputSpec.Close()
-
-		expected := types.NewStruct(outputSpec.GetDatabase(), "", types.StructData{
-			"num": types.Number(42),
-			"str": types.String("foobaz"),
-			"lst": types.NewList(parentSpec.GetDatabase(), types.Number(1), types.String("foo")),
-			"map": types.NewMap(parentSpec.GetDatabase(), types.Number(1), types.String("foo"),
-				types.String("foo"), types.Number(1), types.Number(2), types.String("bar")),
-		})
 		s.Equal("", stderr)
-		s.validateDataset(outputSpec, expected, l, r)
+		s.validateDataset(output, expected, l, r)
 	} else {
 		s.Fail("Run failed", "err: %v\nstdout: %s\nstderr: %s\n", err, stdout, stderr)
 	}
@@ -103,18 +98,21 @@ func (s *nomsMergeTestSuite) spec(name string) spec.Spec {
 
 func (s *nomsMergeTestSuite) setupMergeDataset(sp spec.Spec, data types.StructData, p types.Set) types.Ref {
 	ds := sp.GetDataset()
-	db := sp.GetDatabase()
-	ds, err := sp.GetDatabase().Commit(ds, types.NewStruct(db, "", data), datas.CommitOptions{Parents: p})
+	ds, err := sp.GetDatabase().Commit(ds, types.NewStruct("", data), datas.CommitOptions{Parents: p})
 	s.NoError(err)
 	return ds.HeadRef()
 }
 
-func (s *nomsMergeTestSuite) validateDataset(sp spec.Spec, expected types.Struct, parents ...types.Value) {
+func (s *nomsMergeTestSuite) validateDataset(name string, expected types.Struct, parents ...types.Value) {
+	sp, err := spec.ForDataset(spec.CreateValueSpecString("nbs", s.DBDir, name))
 	db := sp.GetDatabase()
-	commit := sp.GetDataset().Head()
-	s.True(commit.Get(datas.ParentsField).Equals(types.NewSet(db, parents...)))
-	merged := sp.GetDataset().HeadValue()
-	s.True(expected.Equals(merged), "%s != %s", types.EncodedValue(expected), types.EncodedValue(merged))
+	if s.NoError(err) {
+		defer sp.Close()
+		commit := sp.GetDataset().Head()
+		s.True(commit.Get(datas.ParentsField).Equals(types.NewSet(db, parents...)))
+		merged := sp.GetDataset().HeadValue()
+		s.True(expected.Equals(merged), "%s != %s", types.EncodedValue(expected), types.EncodedValue(merged))
+	}
 }
 
 func (s *nomsMergeTestSuite) TestNomsMerge_Left() {
@@ -130,19 +128,13 @@ func (s *nomsMergeTestSuite) TestNomsMerge_Left() {
 	l := s.setupMergeDataset(leftSpec, types.StructData{"num": types.Number(43)}, types.NewSet(leftSpec.GetDatabase(), p))
 	r := s.setupMergeDataset(rightSpec, types.StructData{"num": types.Number(44)}, types.NewSet(rightSpec.GetDatabase(), p))
 
+	expected := types.NewStruct("", types.StructData{"num": types.Number(43)})
+
 	output := "output"
 	stdout, stderr, err := s.Run(main, []string{"merge", "--policy=l", s.DBDir, left, right, output})
 	if err == nil {
-		outputSpec, err := spec.ForDataset(spec.CreateValueSpecString("nbs", s.DBDir, output))
-		if !s.NoError(err) {
-			return
-		}
-		defer outputSpec.Close()
-
-		expected := types.NewStruct(outputSpec.GetDatabase(), "", types.StructData{"num": types.Number(43)})
-
 		s.Equal("", stderr)
-		s.validateDataset(outputSpec, expected, l, r)
+		s.validateDataset(output, expected, l, r)
 	} else {
 		s.Fail("Run failed", "err: %v\nstdout: %s\nstderr: %s\n", err, stdout, stderr)
 	}
@@ -161,18 +153,13 @@ func (s *nomsMergeTestSuite) TestNomsMerge_Right() {
 	l := s.setupMergeDataset(leftSpec, types.StructData{"num": types.Number(43)}, types.NewSet(leftSpec.GetDatabase(), p))
 	r := s.setupMergeDataset(rightSpec, types.StructData{"num": types.Number(44)}, types.NewSet(rightSpec.GetDatabase(), p))
 
+	expected := types.NewStruct("", types.StructData{"num": types.Number(44)})
+
 	output := "output"
 	stdout, stderr, err := s.Run(main, []string{"merge", "--policy=r", s.DBDir, left, right, output})
 	if err == nil {
-		outputSpec, err := spec.ForDataset(spec.CreateValueSpecString("nbs", s.DBDir, output))
-		if !s.NoError(err) {
-			return
-		}
-		defer outputSpec.Close()
-		expected := types.NewStruct(outputSpec.GetDatabase(), "", types.StructData{"num": types.Number(44)})
-
 		s.Equal("", stderr)
-		s.validateDataset(outputSpec, expected, l, r)
+		s.validateDataset(output, expected, l, r)
 	} else {
 		s.Fail("Run failed", "err: %v\nstdout: %s\nstderr: %s\n", err, stdout, stderr)
 	}

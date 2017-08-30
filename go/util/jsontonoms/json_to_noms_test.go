@@ -83,10 +83,10 @@ func (suite *LibTestSuite) TestCompositeTypeWithStruct() {
 	//  "list": [false true],
 	//  "struct": {"nested": "string"}
 	// }
-	tstruct := types.NewStruct(vs, "", types.StructData{
+	tstruct := types.NewStruct("", types.StructData{
 		"string": types.String("string"),
 		"list":   types.NewList(vs).Edit().Append(types.Bool(false)).Append(types.Bool(true)).List(),
-		"struct": types.NewStruct(vs, "", types.StructData{
+		"struct": types.NewStruct("", types.StructData{
 			"nested": types.String("string"),
 		}),
 	})
@@ -108,10 +108,10 @@ func (suite *LibTestSuite) TestCompositeTypeWithNamedStruct() {
 	//  "list": [false true],
 	//  "id": {"_name", "Id", "owner": "string", "value": "string"}
 	// }
-	tstruct := types.NewStruct(vs, "TStruct1", types.StructData{
+	tstruct := types.NewStruct("TStruct1", types.StructData{
 		"string": types.String("string"),
 		"list":   types.NewList(vs).Edit().Append(types.Bool(false)).Append(types.Bool(true)).List(),
-		"struct": types.NewStruct(vs, "Id", types.StructData{
+		"struct": types.NewStruct("Id", types.StructData{
 			"owner": types.String("string"),
 			"value": types.String("string"),
 		}),

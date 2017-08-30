@@ -315,7 +315,7 @@ func structEncoder(vrw types.ValueReadWriter, t reflect.Type, seenStructs map[st
 			for i, f := range fields {
 				values[i] = f.encoder(v.FieldByIndex(f.index))
 			}
-			return structTemplate.NewStruct(vrw, values)
+			return structTemplate.NewStruct(values)
 		}
 	} else if originalFieldIndex == nil {
 		// Slower path: cannot precompute the Noms type since there are Noms collections,
@@ -329,7 +329,7 @@ func structEncoder(vrw types.ValueReadWriter, t reflect.Type, seenStructs map[st
 				}
 				data[f.name] = f.encoder(fv)
 			}
-			return types.NewStruct(vrw, structName, data)
+			return types.NewStruct(structName, data)
 		}
 	} else {
 		// Slowest path - we are extending some other struct. We need to start with the
@@ -338,7 +338,7 @@ func structEncoder(vrw types.ValueReadWriter, t reflect.Type, seenStructs map[st
 			fv := v.FieldByIndex(originalFieldIndex)
 			ret := fv.Interface().(types.Struct)
 			if ret.IsZeroValue() {
-				ret = types.NewStruct(vrw, structName, nil)
+				ret = types.NewStruct(structName, nil)
 			}
 			for _, f := range fields {
 				fv := v.FieldByIndex(f.index)

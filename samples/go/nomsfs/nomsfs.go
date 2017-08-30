@@ -158,14 +158,14 @@ func start(dataset string, mount mount) {
 		}
 	} else {
 		rootAttr := makeAttr(db, 0777) // create the root directory with maximally permissive permissions
-		rootDir := types.NewStruct(db, "Directory", types.StructData{
+		rootDir := types.NewStruct("Directory", types.StructData{
 			"entries": types.NewMap(db),
 		})
-		rootInode := types.NewStruct(db, "Inode", types.StructData{
+		rootInode := types.NewStruct("Inode", types.StructData{
 			"attr":     rootAttr,
 			"contents": rootDir,
 		})
-		hv = types.NewStruct(db, "Filesystem", types.StructData{
+		hv = types.NewStruct("Filesystem", types.StructData{
 			"root": rootInode,
 		})
 	}
@@ -311,7 +311,7 @@ func (fs *nomsFS) Create(path string, flags uint32, mode uint32, context *fuse.C
 	defer fs.mdLock.Unlock()
 	np, code := fs.createCommon(path, mode, func() types.Value {
 		blob := types.NewEmptyBlob(fs.db)
-		return types.NewStruct(fs.db, "File", types.StructData{
+		return types.NewStruct("File", types.StructData{
 			"data": fs.ds.Database().WriteValue(blob),
 		})
 	})
@@ -332,7 +332,7 @@ func (fs *nomsFS) Mkdir(path string, mode uint32, context *fuse.Context) fuse.St
 	fs.mdLock.Lock()
 	defer fs.mdLock.Unlock()
 	_, code := fs.createCommon(path, mode, func() types.Value {
-		return types.NewStruct(fs.db, "Directory", types.StructData{
+		return types.NewStruct("Directory", types.StructData{
 			"entries": types.NewMap(fs.db),
 		})
 	})
@@ -344,7 +344,7 @@ func (fs *nomsFS) Symlink(targetPath string, path string, context *fuse.Context)
 	fs.mdLock.Lock()
 	defer fs.mdLock.Unlock()
 	_, code := fs.createCommon(path, 0755, func() types.Value {
-		return types.NewStruct(fs.db, "Symlink", types.StructData{
+		return types.NewStruct("Symlink", types.StructData{
 			"targetPath": types.String(targetPath),
 		})
 	})
@@ -369,7 +369,7 @@ func (fs *nomsFS) createCommon(path string, mode uint32, createContents func() t
 	}
 
 	// Create the new node.
-	inode := types.NewStruct(fs.db, "Inode", types.StructData{
+	inode := types.NewStruct("Inode", types.StructData{
 		"attr":     makeAttr(fs.db, mode),
 		"contents": createContents(),
 	})
@@ -515,7 +515,7 @@ func makeAttr(vrw types.ValueReadWriter, mode uint32) types.Struct {
 	gid := types.Number(float64(user.Gid))
 	uid := types.Number(float64(user.Uid))
 
-	return types.NewStruct(vrw, "Attr", types.StructData{
+	return types.NewStruct("Attr", types.StructData{
 		"ctime": ctime,
 		"gid":   gid,
 		"mode":  types.Number(mode),
