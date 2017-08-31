@@ -24,9 +24,7 @@ func (w *valueEncoder) writeKind(kind NomsKind) {
 }
 
 func (w *valueEncoder) writeRef(r Ref) {
-	w.writeHash(r.TargetHash())
-	w.writeType(r.TargetType(), map[string]*Type{})
-	w.writeCount(r.Height())
+	r.writeTo(w)
 }
 
 func (w *valueEncoder) writeType(t *Type, seenStructs map[string]*Type) {
@@ -115,10 +113,10 @@ func (w *valueEncoder) maybeWriteMetaSequence(seq sequence) bool {
 
 func (w *valueEncoder) writeValue(v Value) {
 	k := v.Kind()
-	w.writeKind(k)
 
 	switch k {
 	case BlobKind:
+		w.writeKind(k)
 		seq := v.(Blob).sequence()
 		if w.maybeWriteMetaSequence(seq) {
 			return
@@ -126,8 +124,10 @@ func (w *valueEncoder) writeValue(v Value) {
 
 		w.writeBlobLeafSequence(seq.(blobLeafSequence))
 	case BoolKind:
+		w.writeKind(k)
 		w.writeBool(bool(v.(Bool)))
 	case NumberKind:
+		w.writeKind(k)
 		n := v.(Number)
 		f := float64(n)
 		if math.IsNaN(f) || math.IsInf(f, 0) {
@@ -135,6 +135,7 @@ func (w *valueEncoder) writeValue(v Value) {
 		}
 		w.writeNumber(n)
 	case ListKind:
+		w.writeKind(k)
 		seq := v.(List).sequence()
 		if w.maybeWriteMetaSequence(seq) {
 			return
@@ -142,6 +143,7 @@ func (w *valueEncoder) writeValue(v Value) {
 
 		w.writeListLeafSequence(seq.(listLeafSequence))
 	case MapKind:
+		w.writeKind(k)
 		seq := v.(Map).sequence()
 		if w.maybeWriteMetaSequence(seq) {
 			return
@@ -151,6 +153,7 @@ func (w *valueEncoder) writeValue(v Value) {
 	case RefKind:
 		w.writeRef(v.(Ref))
 	case SetKind:
+		w.writeKind(k)
 		seq := v.(Set).sequence()
 		if w.maybeWriteMetaSequence(seq) {
 			return
@@ -158,8 +161,10 @@ func (w *valueEncoder) writeValue(v Value) {
 
 		w.writeSetLeafSequence(seq.(setLeafSequence))
 	case StringKind:
+		w.writeKind(k)
 		w.writeString(string(v.(String)))
 	case TypeKind:
+		w.writeKind(k)
 		w.writeType(v.(*Type), map[string]*Type{})
 	case StructKind:
 		w.writeStruct(v.(Struct))
@@ -171,13 +176,7 @@ func (w *valueEncoder) writeValue(v Value) {
 }
 
 func (w *valueEncoder) writeStruct(s Struct) {
-	w.writeString(s.name)
-	w.writeCount(uint64(len(s.fieldNames)))
-
-	for i, name := range s.fieldNames {
-		w.writeString(name)
-		w.writeValue(s.values[i])
-	}
+	s.writeTo(w)
 }
 
 func (w *valueEncoder) writeStructType(t *Type, seenStructs map[string]*Type) {

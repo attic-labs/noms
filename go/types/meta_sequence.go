@@ -18,7 +18,7 @@ const (
 var emptyKey = orderedKey{}
 
 func newMetaTuple(ref Ref, key orderedKey, numLeaves uint64) metaTuple {
-	d.PanicIfFalse(Ref{} != ref)
+	d.PanicIfTrue(ref.r == nil)
 	return metaTuple{ref, key, numLeaves}
 }
 

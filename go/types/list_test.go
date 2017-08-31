@@ -703,7 +703,7 @@ func TestListRefOfStructFirstNNumbers(t *testing.T) {
 	}
 	vrw := newTestValueStore()
 
-	nums := generateNumbersAsRefOfStructs(testListSize)
+	nums := generateNumbersAsRefOfStructs(vrw, testListSize)
 	NewList(vrw, nums...)
 }
 
@@ -1075,9 +1075,9 @@ func TestListTypeAfterMutations(t *testing.T) {
 	defer normalProductionChunks()
 
 	assert := assert.New(t)
-	vrw := newTestValueStore()
 
 	test := func(n int, c interface{}) {
+		vrw := newTestValueStore()
 		values := generateNumbersAsValues(n)
 
 		l := NewList(vrw, values...)

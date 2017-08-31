@@ -343,3 +343,7 @@ func makeMapLeafChunkFn(vrw ValueReadWriter) makeChunkFn {
 func newEmptyMapSequenceChunker(vrw ValueReadWriter) *sequenceChunker {
 	return newEmptySequenceChunker(vrw, makeMapLeafChunkFn(vrw), newOrderedMetaSequenceChunkFn(MapKind, vrw), mapHashValueBytes)
 }
+
+func (m Map) valueReadWriter() ValueReadWriter {
+	return m.seq.valueReadWriter()
+}

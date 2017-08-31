@@ -44,3 +44,7 @@ func (v Bool) typeOf() *Type {
 func (v Bool) Kind() NomsKind {
 	return BoolKind
 }
+
+func (v Bool) valueReadWriter() ValueReadWriter {
+	return nil
+}
