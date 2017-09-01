@@ -83,7 +83,7 @@ func orderedKeyFromSum(msd []metaTuple) orderedKey {
 
 // loads the set of leaf nodes which contain the items [startIdx -> endIdx).
 // Returns the set of nodes and the offset within the first sequence which corresponds to |startIdx|.
-func loadLeafNodes(cols []Collection, startIdx, endIdx uint64) ([]Collection, uint64) {
+func LoadLeafNodes(cols []Collection, startIdx, endIdx uint64) ([]Collection, uint64) {
 	vrw := cols[0].sequence().valueReadWriter()
 	d.PanicIfTrue(vrw == nil)
 
@@ -143,5 +143,5 @@ func loadLeafNodes(cols []Collection, startIdx, endIdx uint64) ([]Collection, ui
 		childCols[i] = fetched[mt.ref.TargetHash()]
 	}
 
-	return loadLeafNodes(childCols, startIdx, endIdx)
+	return LoadLeafNodes(childCols, startIdx, endIdx)
 }

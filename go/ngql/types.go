@@ -436,16 +436,16 @@ func getListElements(vrw types.ValueReadWriter, v types.Value, args map[string]i
 		Next() types.Value
 	}
 
-	var iter listOrSetIterator
-	switch l := l.(type) {
-	case types.List:
-		iter = l.IteratorAt(uint64(idx))
-	case types.Set:
-		iter = l.IteratorAt(uint64(idx))
-	}
-	for i := uint64(0); i < uint64(count); i++ {
-		values[i] = MaybeGetScalar(iter.Next())
-	}
+	// var iter listOrSetIterator
+	// switch l := l.(type) {
+	// case types.List:
+	// 	iter = l.IteratorAt(uint64(idx))
+	// case types.Set:
+	// 	iter = l.IteratorAt(uint64(idx))
+	// }
+	// for i := uint64(0); i < uint64(count); i++ {
+	// 	values[i] = MaybeGetScalar(iter.Next())
+	// }
 
 	return values
 }
