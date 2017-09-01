@@ -94,9 +94,6 @@ func (suite *QueryGraphQLSuite) TestEmbeddedStruct() {
 }
 
 func (suite *QueryGraphQLSuite) TestListBasic() {
-
-	// TODO how to ensure that the depth of the tree is > 1?
-
 	for _, valuesKey := range []string{"elements", "values"} {
 		list := types.NewList(suite.vs)
 		suite.assertQueryResult(list, "{root{size}}", `{"data":{"root":{"size":0}}}`)

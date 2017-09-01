@@ -408,7 +408,7 @@ func getListElements(vrw types.ValueReadWriter, v types.Value, args map[string]i
 	l := v.(types.Collection)
 	idx := 0
 	count := int(l.Len())
-	len := count
+	end := count
 
 	if at, ok := args[atKey].(int); ok {
 		idx = at
@@ -419,33 +419,42 @@ func getListElements(vrw types.ValueReadWriter, v types.Value, args map[string]i
 	}
 
 	// Clamp ranges
-	if count <= 0 || idx >= len {
+	if count <= 0 || idx >= end {
 		return ([]interface{})(nil)
 	}
 	if idx < 0 {
 		idx = 0
 	}
-	if idx+count > len {
-		count = len - idx
+	if idx+count > end {
+		count = end - idx
 	}
 
 	values := make([]interface{}, count)
 
-	// This is a workaround for allowing types.Set as types.List.
-	type listOrSetIterator interface {
-		Next() types.Value
-	}
+	// @raf a few questions:
+	//  - why do we do MaybeGetScalar below?
+	//  - in the unittests how could you force the collection to have tree height > 1?
+	//  - where does the rejiggering of the tree height happen?
+	//  - i just ran the unit tests; what else should i do to make sure this change is WAI?
 
-	// var iter listOrSetIterator
-	// switch l := l.(type) {
-	// case types.List:
-	// 	iter = l.IteratorAt(uint64(idx))
-	// case types.Set:
-	// 	iter = l.IteratorAt(uint64(idx))
-	// }
-	// for i := uint64(0); i < uint64(count); i++ {
-	// 	values[i] = MaybeGetScalar(iter.Next())
-	// }
+	cols, offset := types.LoadLeafNodes([]types.Collection{l}, uint64(idx), uint64(idx+count))
+
+	// Iterate the collections we got, skipping the first offset elements and bailing out
+	// once we've filled values with count elements.
+	elementsSeen := uint64(0)
+	maybeAddElement := func(v types.Value) {
+		if elementsSeen >= offset && elementsSeen-offset < uint64(count) {
+			values[elementsSeen-offset] = MaybeGetScalar(v)
+		}
+		elementsSeen++
+	}
+	for _, c := range cols {
+		v := c.(types.Value)
+		v.WalkValues(maybeAddElement)
+		if elementsSeen-offset >= uint64(count) {
+			break
+		}
+	}
 
 	return values
 }
