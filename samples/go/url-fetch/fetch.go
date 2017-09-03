@@ -57,15 +57,33 @@ func main() {
 
 	var r io.Reader
 	var contentLength int64
-	var sourceType, sourceVal string
 
+	additionalMetaInfo := make(map[string]string)
 	if *stdin {
 		r = os.Stdin
 		contentLength = -1
 	} else if url := flag.Arg(0); strings.HasPrefix(url, "http") {
-		resp, err := http.Get(url)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Could not build http request for url %s, error: %s\n", url, err)
+			return
+		}
+
+		if head, ok := ds.MaybeHead(); ok {
+			meta := head.Get(datas.MetaField).(types.Struct)
+			if previousEtag, ok := meta.MaybeGet("etag"); ok {
+				req.Header.Set("If-None-Match", string(previousEtag.(types.String)))
+			}
+		}
+
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Could not fetch url %s, error: %s\n", url, err)
+			return
+		}
+
+		if resp.StatusCode == http.StatusNotModified {
+			fmt.Fprintf(os.Stdout, "Content unchanged since last fetch, no commit made")
 			return
 		}
 
@@ -77,7 +95,10 @@ func main() {
 
 		r = resp.Body
 		contentLength = resp.ContentLength
-		sourceType, sourceVal = "url", url
+		additionalMetaInfo["url"] = url
+		if etag := resp.Header.Get("Etag"); etag != "" {
+			additionalMetaInfo["etag"] = etag
+		}
 	} else {
 		// assume it's a file
 		f, err := os.Open(url)
@@ -94,7 +115,7 @@ func main() {
 
 		r = f
 		contentLength = s.Size()
-		sourceType, sourceVal = "file", url
+		additionalMetaInfo["file"] = url
 	}
 
 	if !*noProgress {
@@ -103,13 +124,9 @@ func main() {
 	b := types.NewBlob(db, r)
 
 	if *performCommit {
-		var additionalMetaInfo map[string]string
-		if sourceType != "" {
-			additionalMetaInfo = map[string]string{sourceType: sourceVal}
-		}
 		meta, err := spec.CreateCommitMetaStruct(db, "", "", additionalMetaInfo, nil)
 		d.CheckErrorNoUsage(err)
-		ds, err = db.Commit(ds, b, datas.CommitOptions{Meta: meta})
+		_, err = db.Commit(ds, b, datas.CommitOptions{Meta: meta})
 		if err != nil {
 			d.Chk.Equal(datas.ErrMergeNeeded, err)
 			fmt.Fprintf(os.Stderr, "Could not commit, optimistic concurrency failed.")
