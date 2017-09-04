@@ -15,6 +15,7 @@ import (
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
+	"github.com/attic-labs/noms/go/marshal"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/exit"
@@ -58,7 +59,22 @@ func main() {
 	var r io.Reader
 	var contentLength int64
 
-	additionalMetaInfo := make(map[string]string)
+	var root = struct {
+		Meta struct {
+			Etag string `noms:"etag,omitempty"`
+			File string `noms:"file,omitempty"`
+			URL  string `noms:"url,omitempty"`
+		}
+	}{}
+	if ds.HasHead() {
+		err = marshal.Unmarshal(ds.Head(), &root)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Could not unmarshal head: %s\n", err)
+			return
+		}
+	}
+
+	additionalMetaInfo := map[string]string{}
 	if *stdin {
 		r = os.Stdin
 		contentLength = -1
@@ -69,11 +85,8 @@ func main() {
 			return
 		}
 
-		if head, ok := ds.MaybeHead(); ok {
-			meta := head.Get(datas.MetaField).(types.Struct)
-			if previousEtag, ok := meta.MaybeGet("etag"); ok {
-				req.Header.Set("If-None-Match", string(previousEtag.(types.String)))
-			}
+		if root.Meta.URL == url && root.Meta.Etag != "" {
+			req.Header.Set("If-None-Match", root.Meta.Etag)
 		}
 
 		resp, err := http.DefaultClient.Do(req)
