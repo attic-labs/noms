@@ -9,11 +9,11 @@ import (
 	"log"
 	"os"
 	"regexp"
-	"strings"
+    "runtime"
+    "strings"
 	"syscall"
 	"time"
 
-	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/ipfs"
@@ -25,6 +25,7 @@ import (
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/jroimartin/gocui"
 	"gopkg.in/alecthomas/kingpin.v2"
+    "github.com/attic-labs/noms/go/chunks"
 )
 
 const (
@@ -80,7 +81,6 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 	dsSpec := clientDS
 	sp, err := spec.ForDataset(dsSpec)
 	d.CheckErrorNoUsage(err)
-	fmt.Println("sp.Path:", sp.Path)
 
 	if !isIPFS(sp.Protocol) {
 		fmt.Println("ipfs-chat requires an 'ipfs' dataset")
@@ -88,7 +88,7 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 	}
 
 	ds := sp.GetDataset()
-	node, cs := reconfigureIPFSChunkStore(sp, topic, nodeIdx)
+	node, cs := initChunkStore(sp, nodeIdx)
 	db := datas.NewDatabase(cs)
 	ds = db.GetDataset(ds.ID())
 
@@ -99,7 +99,7 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 	d.PanicIfError(err)
 	defer g.Close()
 
-	go MergeMessages(node, topic, ds, func(nds datas.Dataset) {
+	go mergeMessages(node, topic, ds, func(nds datas.Dataset) {
 		ds = nds
 		if displayingSearchResults || !textScrolledToEnd(g) {
 			g.Execute(func(g *gocui.Gui) (err error) {
@@ -122,6 +122,7 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 
 	d.PanicIfError(g.SetKeybinding("", gocui.KeyF1, gocui.ModNone, debugInfo))
 	d.PanicIfError(g.SetKeybinding(all, gocui.KeyCtrlC, gocui.ModNone, quit))
+	d.PanicIfError(g.SetKeybinding(all, gocui.KeyCtrlC, gocui.ModAlt, quitWithStack))
 	d.PanicIfError(g.SetKeybinding(all, gocui.KeyTab, gocui.ModNone, nextView))
 	d.PanicIfError(g.SetKeybinding(messages, gocui.KeyArrowUp, gocui.ModNone, arrowUp))
 	d.PanicIfError(g.SetKeybinding(messages, gocui.KeyArrowDown, gocui.ModNone, arrowDown))
@@ -353,7 +354,16 @@ func handleEnter(body string, author string, clientTime time.Time, ds datas.Data
 }
 
 func quit(_ *gocui.Gui, _ *gocui.View) error {
+    dbg.Debug("QUITTING #####")
 	return gocui.ErrQuit
+}
+
+func quitWithStack(_ *gocui.Gui, _ *gocui.View) error {
+    dbg.Debug("QUITTING WITH STACK")
+    stacktrace := make([]byte, 1024*1024)
+    length := runtime.Stack(stacktrace, true)
+    fmt.Println(string(stacktrace[:length]))
+    return gocui.ErrQuit
 }
 
 func arrowUp(_ *gocui.Gui, v *gocui.View) error {
@@ -474,7 +484,6 @@ func expandRLimit() {
 	var rLimit syscall.Rlimit
 	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
 	d.Chk.NoError(err, "Unable to query file rlimit: %s", err)
-	fmt.Println("orig file limit:", rLimit)
 	if rLimit.Cur < rLimit.Max {
 		rLimit.Max = 64000
 		rLimit.Cur = 64000
@@ -483,11 +492,9 @@ func expandRLimit() {
 	}
 	err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
 	d.Chk.NoError(err)
-	fmt.Println("current file limit:", rLimit)
 
 	err = syscall.Getrlimit(8, &rLimit)
 	d.Chk.NoError(err, "Unable to query thread rlimit: %s", err)
-	fmt.Println("orig thread limit:", rLimit)
 	if rLimit.Cur < rLimit.Max {
 		rLimit.Max = 64000
 		rLimit.Cur = 64000
@@ -496,20 +503,12 @@ func expandRLimit() {
 	}
 	err = syscall.Getrlimit(8, &rLimit)
 	d.Chk.NoError(err)
-	fmt.Println("current thread limit:", rLimit)
 }
 
-func reconfigureIPFSChunkStore(sp spec.Spec, topic string, nodeIdx int) (*core.IpfsNode, chunks.ChunkStore) {
-	ds := sp.GetDataset()
-	sp.Close()
-
+func initChunkStore(sp spec.Spec, nodeIdx int) (*core.IpfsNode, chunks.ChunkStore) {
 	// recreate database so that we can have control of chunkstore's ipfs node
-	sp.Close()
 	node := ipfs.OpenIPFSRepo(sp.DatabaseName, nodeIdx)
-
-	cs := ipfs.NewChunkStorePrimitive(sp.DatabaseName, sp.Protocol == "ipfs-local", node)
-	db := datas.NewDatabase(cs)
-	ds = db.GetDataset(ds.ID())
+	cs := ipfs.ChunkStoreFromIPFSNode(sp.DatabaseName, sp.Protocol == "ipfs-local", node)
 	return node, cs
 }
 

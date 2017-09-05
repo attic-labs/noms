@@ -21,7 +21,7 @@ import (
 // MergeMessages continually listens for commit hashes published by ipfs-chat. It
 // merges new messages into it's existing dataset when necessary and if an actual
 // merge was necessary, it re-publishes the new commit.
-func MergeMessages(node *core.IpfsNode, topic string, ds datas.Dataset, didChange func(ds datas.Dataset)) {
+func mergeMessages(node *core.IpfsNode, topic string, ds datas.Dataset, didChange func(ds datas.Dataset)) {
 	sub, err := node.Floodsub.Subscribe(topic)
 	d.Chk.NoError(err)
 
@@ -97,6 +97,6 @@ func MergeMessages(node *core.IpfsNode, topic string, ds datas.Dataset, didChang
 }
 
 func Publish(node *core.IpfsNode, topic string, h hash.Hash) {
-	dbg.Debug("publishing: %s", h)
+	dbg.Debug("publishing to topic: %s, hash: %s", topic, h)
 	node.Floodsub.Publish(topic, []byte(h.String()+"\r\n"))
 }

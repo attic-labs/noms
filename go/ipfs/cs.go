@@ -30,8 +30,7 @@ import (
 // Noms chunks written to this ChunkStore are converted to IPFS blocks and
 // stored in an IPFS BlockStore.
 //
-// Noms repositories that are build on top of IPFS are identified by paths of
-// the following form:
+// IPFS database specs have the form:
 //   ipfs://<path-to-ipfs-dir>
 // where 'ipfs' indicates the noms protocol and the path indicates the path to
 // the directory where the ipfs repo resides. The chunkstore creates two files
@@ -49,13 +48,13 @@ import (
 // blocks stored will be exposed to the entire IPFS network.
 func NewChunkStore(p string, local bool) *chunkStore {
 	node := OpenIPFSRepo(p, -1)
-	return NewChunkStorePrimitive(p, local, node)
+	return ChunkStoreFromIPFSNode(p, local, node)
 }
 
 // Creates a new chunchStore using a pre-existing IpfsNode. This is currently
 // used to create a second 'local' chunkStore using the same IpfsNode as another
 // non-local chunkStore.
-func NewChunkStorePrimitive(p string, local bool, node *core.IpfsNode) *chunkStore {
+func ChunkStoreFromIPFSNode(p string, local bool, node *core.IpfsNode) *chunkStore {
 	return &chunkStore{
 		node:      node,
 		name:      p,
@@ -171,12 +170,6 @@ func (cs *chunkStore) Has(h hash.Hash) bool {
 	defer cs.RateLimitSub()
 
 	id := nomsHashToCID(h)
-	ok, err := cs.node.Blockstore.Has(id)
-	if ok {
-		return true
-	}
-	d.PanicIfError(err)
-
 	if cs.local {
 		ok, err := cs.node.Blockstore.Has(id)
 		d.PanicIfError(err)
