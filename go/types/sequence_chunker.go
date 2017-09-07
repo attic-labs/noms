@@ -239,35 +239,45 @@ func (sc *sequenceChunker) Done() sequence {
 
 	// This level must represent *a* root of the tree, but it is possibly non-canonical. There are three cases to consider:
 
-	// (1) This is "leaf" chunker and thus produced tree of depth 1 which contains exactly one chunk (never hit a boundary), or (2) This in an internal node of the tree which contains multiple references to child nodes. In either case, this is the canonical root of the tree.
-	if sc.child == nil || len(sc.current) > 1 {
+	// (1) This is "leaf" chunker and thus produced tree of depth 1 which contains exactly one chunk (never hit a boundary). A leaf sequence is by definition canonical.
+	if sc.child == nil {
+		seq, _ := sc.createSequence()
+		d.PanicIfFalse(seq.isLeaf())
+		return seq
+	}
+
+	// (2) This in an internal node of the tree which contains multiple references to child nodes.
+	if len(sc.current) > 1 {
 		writeUnwrittenCols(sc.child)
+		d.PanicIfFalse(sc.numSeq == 0)
 		seq, _ := sc.createSequence()
 		return seq
 	}
 
 	// (3) This is an internal node of the tree which contains a single reference to a child node. This can occur if a non-leaf chunker happens to chunk on the first item (metaTuple) appended. In this case, this is the root of the tree, but it is *not* canonical and we must walk down until we find cases (1) or (2), above.
 
-	// Descend through child chunkers and metaTuples in lock-step, because the sequences we're looking for may be unwritten (in |unwrittenCol|) or written (pointed to by |mt|).
+	// Descend through child chunkers and metaTuples in lock-step, because the sequences we're looking for may be unwritten (in |unwrittenCol|) or written (therefore pointed to by |mt|).
 	chunker := sc.child
-	mt := sc.current[0].(metaTuple)
+
+	seq := chunker.unwrittenSeq()
+	if seq == nil {
+		seq = sc.current[0].(metaTuple).getChildSequence(sc.vrw)
+	}
 
 	for {
-		var seq sequence
-		if chunker.unwrittenCol != nil {
-			seq = chunker.unwrittenCol.sequence()
-		} else {
-			seq = mt.getChildSequence(sc.vrw)
-		}
-		d.PanicIfTrue(seq == nil)
-
 		if _, ok := seq.(metaSequence); !ok || seq.seqLen() > 1 {
 			writeUnwrittenCols(chunker)
 			return seq
 		}
 
 		chunker = chunker.child
-		mt = seq.getItem(0).(metaTuple)
+
+		// It would be tempting in all of this to try to fast-forward to the first chunker without an unwritten seq, but this would be wrong: because of finalization (it seems), and because it just don't feel right to me. XXX in fact none of this feels write to me, but all the tests pass. XXX no they don't...
+		if seq2 := chunker.unwrittenSeq(); seq2 != nil {
+			seq = seq2
+		} else {
+			seq = seq.getChildSequence(0)
+		}
 	}
 }
 
@@ -288,16 +298,25 @@ func (sc *sequenceChunker) finalizeCursor() {
 	}
 }
 
-func (sc *sequenceChunker) writeUnwrittenCol() {
+func (sc *sequenceChunker) unwrittenSeq() sequence {
 	if sc.unwrittenCol != nil {
-		sc.vrw.WriteValue(sc.unwrittenCol)
-		sc.unwrittenCol = nil
+		return sc.unwrittenCol.sequence()
 	}
+	return nil
+}
+
+func (sc *sequenceChunker) writeUnwrittenCol() {
+	d.PanicIfTrue(sc.unwrittenCol == nil)
+	sc.vrw.WriteValue(sc.unwrittenCol)
+	sc.unwrittenCol = nil
 }
 
 // writeUnwrittenCols writes |unwrittenCol| for |sc| and all its children. |sc| may be nil.
 func writeUnwrittenCols(sc *sequenceChunker) {
+	// It would be tempting to assert that numSeq cannot be less than a children's numSeq, and bail once numSeq > 1, but this isn't true during finalization.
 	for ; sc != nil; sc = sc.child {
-		sc.writeUnwrittenCol()
+		if sc.unwrittenCol != nil {
+			sc.writeUnwrittenCol()
+		}
 	}
 }
