@@ -41,20 +41,18 @@ func (s *testSuite) SetupTest() {
 	d.Chk.NoError(err)
 	defer input.Close()
 	s.tmpFileName = input.Name()
-	writeCSV(input, false)
+	writeCSV(input)
 }
 
 func (s *testSuite) TearDownTest() {
 	os.Remove(s.tmpFileName)
 }
 
-func writeCSV(w io.Writer, mixedCase bool) {
-	var header string
-	if mixedCase {
-		header = "YeaR,a,B,c\n"
-	} else {
-		header = "year,a,b,c\n"
-	}
+func writeCSV(w io.Writer) {
+	writeCSVWithHeader(w, "year,a,b,c\n")
+}
+
+func writeCSVWithHeader(w io.Writer, header string) {
 	_, err := io.WriteString(w, header)
 	d.Chk.NoError(err)
 	for i := 0; i < TEST_DATA_SIZE; i++ {
@@ -129,7 +127,7 @@ func (s *testSuite) TestCSVImporterLowercase() {
 	input, err := ioutil.TempFile(s.TempDir, "")
 	d.Chk.NoError(err)
 	defer input.Close()
-	writeCSV(input, true)
+	writeCSVWithHeader(input, "YeAr,a,B,c\n")
 	defer os.Remove(input.Name())
 
 	setName := "csv"
@@ -146,6 +144,19 @@ func (s *testSuite) TestCSVImporterLowercase() {
 	validateList(s, ds.HeadValue().(types.List))
 }
 
+func (s *testSuite) TestCSVImporterLowercaseDuplicate() {
+	input, err := ioutil.TempFile(s.TempDir, "")
+	d.Chk.NoError(err)
+	defer input.Close()
+	writeCSVWithHeader(input, "YeAr,a,B,year\n")
+	defer os.Remove(input.Name())
+
+	setName := "csv"
+	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
+	_, stderr, _ := s.Run(main, []string{"--no-progress", "--lowercase", "--column-types", TEST_FIELDS, input.Name(), dataspec})
+	s.Contains(stderr, "must be unique")
+}
+
 func (s *testSuite) TestCSVImporterFromBlob() {
 	test := func(pathFlag string) {
 		defer os.RemoveAll(s.DBDir)
@@ -159,7 +170,7 @@ func (s *testSuite) TestCSVImporterFromBlob() {
 		db := newDB()
 		rawDS := db.GetDataset("raw")
 		csv := &bytes.Buffer{}
-		writeCSV(csv, false)
+		writeCSV(csv)
 		db.CommitValue(rawDS, types.NewBlob(db, csv))
 		db.Close()
 
