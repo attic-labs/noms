@@ -49,8 +49,6 @@ func advanceCursorToOffset(cur *sequenceCursor, idx uint64) uint64 {
 	return uint64(cur.idx)
 }
 
-// If |sink| is not nil, chunks will be eagerly written as they're created. Otherwise they are
-// written when the root is written.
 func newIndexedMetaSequenceChunkFn(kind NomsKind, source ValueReadWriter) makeChunkFn {
 	return func(level uint64, items []sequenceItem) (Collection, orderedKey, uint64) {
 		tuples := make([]metaTuple, len(items))

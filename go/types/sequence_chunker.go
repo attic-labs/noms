@@ -12,12 +12,13 @@ type sequenceChunker struct {
 	cur                        *sequenceCursor
 	level                      uint64
 	vrw                        ValueReadWriter
-	parent                     *sequenceChunker
+	parent, child              *sequenceChunker
 	current                    []sequenceItem
 	makeChunk, parentMakeChunk makeChunkFn
-	isLeaf                     bool
 	hashValueBytes             hashValueBytesFn
 	rv                         *rollingValueHasher
+	numSeq                     int
+	unwrittenCol               Collection
 	done                       bool
 }
 
@@ -40,12 +41,13 @@ func newSequenceChunker(cur *sequenceCursor, level uint64, vrw ValueReadWriter, 
 		cur,
 		level,
 		vrw,
+		nil, nil,
 		nil,
-		[]sequenceItem{},
 		makeChunk, parentMakeChunk,
-		true,
 		hashValueBytes,
 		newRollingValueHasher(byte(level % 256)),
+		0,
+		nil,
 		false,
 	}
 
@@ -164,21 +166,35 @@ func (sc *sequenceChunker) createParent() {
 		parent = sc.cur.parent
 	}
 	sc.parent = newSequenceChunker(parent, sc.level+1, sc.vrw, sc.parentMakeChunk, sc.parentMakeChunk, metaHashValueBytes)
-	sc.parent.isLeaf = false
+	sc.parent.child = sc
 }
 
 func (sc *sequenceChunker) createSequence() (sequence, metaTuple) {
-	// If the sequence chunker has a ValueWriter, eagerly write sequences.
+	// If the sequence chunker has a ValueWriter, eagerly write sequences *if* this isn't the root chunk. The logic for detecting the root chunk is subtle (see Done) but for the purposes of knowing when to *write* them, the logic is just whether there is more than 1 child.
 	col, key, numLeaves := sc.makeChunk(sc.level, sc.current)
-	seq := col.sequence()
-	mt := newMetaTuple(sc.vrw.WriteValue(col), key, numLeaves)
 
-	sc.current = []sequenceItem{}
-	return seq, mt
+	var ref Ref
+	switch sc.numSeq {
+	case 0:
+		// First sequence: manually construct a Ref rather than writing it. We only write the sequence if needed (on the 2nd sequence or when Done) to avoid writing unnecessary root sequences.
+		ref = NewRef(col)
+		sc.unwrittenCol = col
+	case 1:
+		sc.writeUnwrittenCol()
+		ref = sc.vrw.WriteValue(col)
+	default:
+		ref = sc.vrw.WriteValue(col)
+	}
+
+	sc.numSeq++
+	mt := newMetaTuple(ref, key, numLeaves)
+
+	sc.current = nil
+	return col.sequence(), mt
 }
 
 func (sc *sequenceChunker) handleChunkBoundary() {
-	d.Chk.NotEmpty(sc.current)
+	d.PanicIfTrue(len(sc.current) == 0)
 	sc.rv.Reset()
 	_, mt := sc.createSequence()
 	if sc.parent == nil {
@@ -200,7 +216,7 @@ func (sc *sequenceChunker) anyPending() bool {
 	return false
 }
 
-// Returns the root sequence of the resulting tree. The logic here is subtle, but hopefully correct and understandable. See comments inline.
+// Done returns the root sequence of the resulting tree. The logic here is subtle, but hopefully correct and understandable. See comments inline.
 func (sc *sequenceChunker) Done() sequence {
 	d.PanicIfTrue(sc.done)
 	sc.done = true
@@ -224,22 +240,34 @@ func (sc *sequenceChunker) Done() sequence {
 	// This level must represent *a* root of the tree, but it is possibly non-canonical. There are three cases to consider:
 
 	// (1) This is "leaf" chunker and thus produced tree of depth 1 which contains exactly one chunk (never hit a boundary), or (2) This in an internal node of the tree which contains multiple references to child nodes. In either case, this is the canonical root of the tree.
-	if sc.isLeaf || len(sc.current) > 1 {
+	if sc.child == nil || len(sc.current) > 1 {
+		writeUnwrittenCols(sc.child)
 		seq, _ := sc.createSequence()
 		return seq
 	}
 
 	// (3) This is an internal node of the tree which contains a single reference to a child node. This can occur if a non-leaf chunker happens to chunk on the first item (metaTuple) appended. In this case, this is the root of the tree, but it is *not* canonical and we must walk down until we find cases (1) or (2), above.
-	d.PanicIfFalse(!sc.isLeaf && len(sc.current) == 1)
+
+	// Descend through child chunkers and metaTuples in lock-step, because the sequences we're looking for may be unwritten (in |unwrittenCol|) or written (pointed to by |mt|).
+	chunker := sc.child
 	mt := sc.current[0].(metaTuple)
 
 	for {
-		child := mt.getChildSequence(sc.vrw)
-		if _, ok := child.(metaSequence); !ok || child.seqLen() > 1 {
-			return child
+		var seq sequence
+		if chunker.unwrittenCol != nil {
+			seq = chunker.unwrittenCol.sequence()
+		} else {
+			seq = mt.getChildSequence(sc.vrw)
+		}
+		d.PanicIfTrue(seq == nil)
+
+		if _, ok := seq.(metaSequence); !ok || seq.seqLen() > 1 {
+			writeUnwrittenCols(chunker)
+			return seq
 		}
 
-		mt = child.getItem(0).(metaTuple)
+		chunker = chunker.child
+		mt = seq.getItem(0).(metaTuple)
 	}
 }
 
@@ -257,5 +285,19 @@ func (sc *sequenceChunker) finalizeCursor() {
 		// Invalidate this cursor, since it is now inconsistent with its parent
 		sc.cur.parent = nil
 		sc.cur.seq = nil
+	}
+}
+
+func (sc *sequenceChunker) writeUnwrittenCol() {
+	if sc.unwrittenCol != nil {
+		sc.vrw.WriteValue(sc.unwrittenCol)
+		sc.unwrittenCol = nil
+	}
+}
+
+// writeUnwrittenCols writes |unwrittenCol| for |sc| and all its children. |sc| may be nil.
+func writeUnwrittenCols(sc *sequenceChunker) {
+	for ; sc != nil; sc = sc.child {
+		sc.writeUnwrittenCol()
 	}
 }
