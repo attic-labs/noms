@@ -41,15 +41,21 @@ func (s *testSuite) SetupTest() {
 	d.Chk.NoError(err)
 	defer input.Close()
 	s.tmpFileName = input.Name()
-	writeCSV(input)
+	writeCSV(input, false)
 }
 
 func (s *testSuite) TearDownTest() {
 	os.Remove(s.tmpFileName)
 }
 
-func writeCSV(w io.Writer) {
-	_, err := io.WriteString(w, "year,a,b,c\n")
+func writeCSV(w io.Writer, mixedCase bool) {
+	var header string
+	if mixedCase {
+		header = "YeaR,a,B,c\n"
+	} else {
+		header = "year,a,b,c\n"
+	}
+	_, err := io.WriteString(w, header)
 	d.Chk.NoError(err)
 	for i := 0; i < TEST_DATA_SIZE; i++ {
 		_, err = io.WriteString(w, fmt.Sprintf("%d,a%d,%d,%d\n", TEST_YEAR+i%3, i, i, i*2))
@@ -119,6 +125,27 @@ func (s *testSuite) TestCSVImporter() {
 	validateList(s, ds.HeadValue().(types.List))
 }
 
+func (s *testSuite) TestCSVImporterLowercase() {
+	input, err := ioutil.TempFile(s.TempDir, "")
+	d.Chk.NoError(err)
+	defer input.Close()
+	writeCSV(input, true)
+	defer os.Remove(input.Name())
+
+	setName := "csv"
+	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--lowercase", "--column-types", TEST_FIELDS, input.Name(), dataspec})
+	s.Equal("", stdout)
+	s.Equal("", stderr)
+
+	db := datas.NewDatabase(nbs.NewLocalStore(s.DBDir, clienttest.DefaultMemTableSize))
+	defer os.RemoveAll(s.DBDir)
+	defer db.Close()
+	ds := db.GetDataset(setName)
+
+	validateList(s, ds.HeadValue().(types.List))
+}
+
 func (s *testSuite) TestCSVImporterFromBlob() {
 	test := func(pathFlag string) {
 		defer os.RemoveAll(s.DBDir)
@@ -132,7 +159,7 @@ func (s *testSuite) TestCSVImporterFromBlob() {
 		db := newDB()
 		rawDS := db.GetDataset("raw")
 		csv := &bytes.Buffer{}
-		writeCSV(csv)
+		writeCSV(csv, false)
 		db.CommitValue(rawDS, types.NewBlob(db, csv))
 		db.Close()
 
