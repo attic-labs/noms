@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/attic-labs/noms/go/constants"
-	"github.com/attic-labs/noms/go/util/clienttest"
+	"github.com/attic-labs/noms/constants"
+	"github.com/attic-labs/noms/util/clienttest"
 	"github.com/stretchr/testify/suite"
 )
 

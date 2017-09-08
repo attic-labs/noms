@@ -1,7 +1,7 @@
 ## Example
 
 ```
-cd $GOPATH/src/github.com/attic-labs/noms/samples/go/counter
+cd $GOPATH/src/github.com/attic-labs/noms/samples/counter
 go build
 ./counter /tmp/nomsdb::counter
 ./counter /tmp/nomsdb::counter

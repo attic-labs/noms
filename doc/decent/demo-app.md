@@ -9,12 +9,12 @@
 
 # Sample App: IPFS-based Decentralized Chat
 
-Demo app code is in the [ipfs-chat](https://github.com/attic-labs/noms/tree/master/samples/go/ipfs-chat/) directory. To get it up and running take the following steps:
+Demo app code is in the [ipfs-chat](https://github.com/attic-labs/noms/tree/master/samples/ipfs-chat/) directory. To get it up and running take the following steps:
 * Use git to clone the noms repository onto your computer:
 ```
 git clone git@github.com:attic-labs/noms.git or git clone https://github.com/attic-labs/noms.git
 ```
-* From the noms/samples/go/ipfs-chat directory, build the program with the following command:
+* From the noms/samples/ipfs-chat directory, build the program with the following command:
 ```
 go build
 ```

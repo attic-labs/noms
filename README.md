@@ -20,7 +20,7 @@ Unlike Git, Noms is a database, so it also:
 * **Scales well** to large amounts of data and concurrent clients (TODO: benchmarks)
 * Supports **atomic transactions** (a single instance of Noms is CP, but Noms is typically run in production backed by S3, in which case it is "[effectively CA](https://cloud.google.com/spanner/docs/whitepapers/SpannerAndCap.pdf)")
 * Supports **efficient indexes** (see: [Noms prolly-trees](https://github.com/attic-labs/noms/blob/master/doc/intro.md#prolly-trees-probabilistic-b-trees))
-* Features a **flexible query model** (see: [GraphQL](./go/ngql/README.md))
+* Features a **flexible query model** (see: [GraphQL](./ngql/README.md))
 
 Finally, because Noms is content-addressed, it yields a very pleasant programming model.
 
@@ -84,15 +84,15 @@ Noms is currently under heavy development. Attic Labs plans to use it as an inte
 
 ### Data Format
 
-We are fairly confident in the core data format, and plan to support Noms database [version `7`](https://github.com/attic-labs/noms/blob/v7/go/constants/version.go#L9) and forward. If you create a database with Noms today, future versions will have migration tools to pull your databases forward.
+We are fairly confident in the core data format, and plan to support Noms database [version `7`](https://github.com/attic-labs/noms/blob/v7/constants/version.go#L9) and forward. If you create a database with Noms today, future versions will have migration tools to pull your databases forward.
 
 ### Roadmap
 
 We plan to implement the following for Noms version 8. Beyond that unknown.
 
-- [x] Horizontal scalability (Done! See: [nbs](./go/nbs/README.md))
-- [x] Automatic merge (Done! See: [CommitOptions.Policy](https://godoc.org/github.com/attic-labs/noms/go/datas#CommitOptions) and the `noms merge` subcommand).
-- [ ] Query language (In progress: See [ngql](./go/ngql/README.md))
+- [x] Horizontal scalability (Done! See: [nbs](./nbs/README.md))
+- [x] Automatic merge (Done! See: [CommitOptions.Policy](https://godoc.org/github.com/attic-labs/noms/datas#CommitOptions) and the `noms merge` subcommand).
+- [ ] Query language (In progress: See [ngql](./ngql/README.md))
 - [ ] Garbage Collection (https://github.com/attic-labs/noms/issues/3374)
 - [x] Optional fields (https://github.com/attic-labs/noms/issues/2327)
 - [ ] Fix sync performance with long commit chains (https://github.com/attic-labs/noms/issues/2233)
