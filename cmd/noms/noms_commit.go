@@ -11,11 +11,11 @@ import (
 	"os"
 
 	"github.com/attic-labs/noms/cmd/util"
-	"github.com/attic-labs/noms/go/config"
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/spec"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"github.com/attic-labs/noms/config"
+	"github.com/attic-labs/noms/d"
+	"github.com/attic-labs/noms/datas"
+	"github.com/attic-labs/noms/spec"
+	"github.com/attic-labs/noms/util/verbose"
 	flag "github.com/juju/gnuflag"
 )
 

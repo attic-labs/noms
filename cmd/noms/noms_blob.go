@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/attic-labs/noms/cmd/util"
-	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/d"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 

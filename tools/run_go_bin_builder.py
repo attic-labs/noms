@@ -26,17 +26,17 @@ PLATFORMS = [
 # The list of Go packages for which we should build binaries
 PACKAGES = [
     './cmd/noms',
-    './samples/go/blob-get',
-    './samples/go/counter',
-    './samples/go/csv/csv-analyze',
-    './samples/go/csv/csv-export',
-    './samples/go/csv/csv-import',
-    # './samples/go/hr',
-    './samples/go/json-import',
-    './samples/go/nomdex',
-    './samples/go/poke',
-    './samples/go/url-fetch',
-    './samples/go/xml-import',
+    './samples/blob-get',
+    './samples/counter',
+    './samples/csv/csv-analyze',
+    './samples/csv/csv-export',
+    './samples/csv/csv-import',
+    # './samples/hr',
+    './samples/json-import',
+    './samples/nomdex',
+    './samples/poke',
+    './samples/url-fetch',
+    './samples/xml-import',
 ]
 
 def call_with_env_and_cwd(cmd, env, cwd):
@@ -86,7 +86,7 @@ def main():
             pkg_output_file = os.path.join(platform_output_dir, os.path.basename(pkg))
             # cmd: go build -o pkg_output_file -ldFlags "-X file.Constant=value" package
             cmd = ['go', 'build', '-o', pkg_output_file, '-ldflags',
-                   '-X github.com/attic-labs/noms/go/constants.NomsGitSHA=' + noms_rev,
+                   '-X github.com/attic-labs/noms/constants.NomsGitSHA=' + noms_rev,
                    pkg]
             call_with_env_and_cwd(cmd, env, noms_src_dir)
             if not os.path.isfile(pkg_output_file):

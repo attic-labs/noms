@@ -13,12 +13,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/spec"
-	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"github.com/attic-labs/noms/chunks"
+	"github.com/attic-labs/noms/d"
+	"github.com/attic-labs/noms/datas"
+	"github.com/attic-labs/noms/spec"
+	"github.com/attic-labs/noms/types"
+	"github.com/attic-labs/noms/util/verbose"
 	"github.com/stretchr/testify/assert"
 )
 
