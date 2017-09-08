@@ -7,11 +7,14 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"regexp"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/ipfs"
@@ -20,6 +23,8 @@ import (
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/math"
 	"github.com/attic-labs/noms/samples/go/ipfs-chat/dbg"
+	"github.com/attic-labs/noms/samples/go/ipfs-chat/lib"
+	"github.com/ipfs/go-ipfs/core"
 	"github.com/jroimartin/gocui"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -55,10 +60,8 @@ func main() {
 	daemonCmd := kingpin.Command("daemon", "runs a daemon that simulates filecoin, eagerly storing all chunks for a chat")
 	daemonTopic := daemonCmd.Flag("topic", "IPFS pubsub topic to publish and subscribe to").Default("ipfs-chat").String()
 	daemonInterval := daemonCmd.Flag("interval", "amount of time to wait before publishing state to network").Default("5s").Duration()
-	netNodeIdx := daemonCmd.Flag("net-node-idx", "a single digit to be used as last digit in all port values: api, gateway and swarm (must be 0-9 inclusive)").Default("-1").Int()
-	localNodeIdx := daemonCmd.Flag("local-node-idx", "a single digit to be used as last digit in all port values: api, gateway and swarm (must be 0-9 inclusive)").Default("-1").Int()
-	daemonNetworkDS := daemonCmd.Arg("network-dataset", "the dataset spec to use to read and write data to the IPFS network").Required().String()
-	daemonLocalDS := daemonCmd.Arg("local-dataset", "the dataset spec to use to read and write data locally").Required().String()
+	daemonNodeIdx := daemonCmd.Flag("node-idx", "a single digit to be used as last digit in all port values: api, gateway and swarm (must be 0-9 inclusive)").Default("-1").Int()
+	daemonDS := daemonCmd.Arg("dataset", "the dataset spec indicating ipfs repo to use").Required().String()
 
 	kingpin.CommandLine.Help = "A demonstration of using Noms to build a scalable multiuser collaborative application."
 
@@ -69,30 +72,35 @@ func main() {
 	case "import":
 		runImport(*importDir, *importDS)
 	case "daemon":
-		runDaemon(*daemonTopic, *daemonInterval, *daemonNetworkDS, *daemonLocalDS, *netNodeIdx, *localNodeIdx)
+		runDaemon(*daemonTopic, *daemonInterval, *daemonDS, *daemonNodeIdx)
 	}
 }
 
 func runClient(username, topic, clientDS string, nodeIdx int) {
 	var displayingSearchResults = false
 
-	ipfs.NodeIndex = nodeIdx
 	dsSpec := clientDS
 	sp, err := spec.ForDataset(dsSpec)
 	d.CheckErrorNoUsage(err)
-	ds := sp.GetDataset()
-	ipfs.NodeIndex = -1
 
-	ds, err = InitDatabase(ds)
+	if !isIPFS(sp.Protocol) {
+		fmt.Println("ipfs-chat requires an 'ipfs' dataset")
+		os.Exit(1)
+	}
+
+	ds := sp.GetDataset()
+	node, cs := initChunkStore(sp, nodeIdx)
+	db := datas.NewDatabase(cs)
+	ds = db.GetDataset(ds.ID())
+
+	ds, err = lib.InitDatabase(ds)
 	d.PanicIfError(err)
 
 	g, err := gocui.NewGui(gocui.Output256)
 	d.PanicIfError(err)
 	defer g.Close()
 
-	sub, err := ipfs.CurrentNode.Floodsub.Subscribe(topic)
-	d.PanicIfError(err)
-	go Replicate(sub, ds, ds, func(nds datas.Dataset) {
+	go lib.MergeMessages(node, topic, sp, ds, func(nds datas.Dataset) {
 		ds = nds
 		if displayingSearchResults || !textScrolledToEnd(g) {
 			g.Execute(func(g *gocui.Gui) (err error) {
@@ -114,7 +122,8 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 	g.SetManagerFunc(relayout)
 
 	d.PanicIfError(g.SetKeybinding("", gocui.KeyF1, gocui.ModNone, debugInfo))
-	d.PanicIfError(g.SetKeybinding(all, gocui.KeyCtrlC, gocui.ModNone, quit))
+	//d.PanicIfError(g.SetKeybinding(all, gocui.KeyCtrlC, gocui.ModNone, quit))
+	d.PanicIfError(g.SetKeybinding(all, gocui.KeyCtrlC, gocui.ModNone, quitWithStack))
 	d.PanicIfError(g.SetKeybinding(all, gocui.KeyTab, gocui.ModNone, nextView))
 	d.PanicIfError(g.SetKeybinding(messages, gocui.KeyArrowUp, gocui.ModNone, arrowUp))
 	d.PanicIfError(g.SetKeybinding(messages, gocui.KeyArrowDown, gocui.ModNone, arrowDown))
@@ -144,7 +153,7 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 		if displayingSearchResults {
 			return
 		}
-		Publish(sub, topic, ds.HeadRef().TargetHash().String())
+		lib.Publish(node, topic, sp, ds.HeadRef().TargetHash())
 		return
 	}))
 	d.PanicIfError(g.SetKeybinding("", gocui.KeyF1, gocui.ModNone, debugInfo))
@@ -216,7 +225,7 @@ func (dp *dataPager) Next() (string, bool) {
 	}
 	nm := dp.msgMap.Get(msgKey)
 
-	var m Message
+	var m lib.Message
 	err := marshal.Unmarshal(nm, &m)
 	if err != nil {
 		return fmt.Sprintf("ERROR: %s", err.Error()), true
@@ -238,7 +247,7 @@ func updateMessages(g *gocui.Gui, v *gocui.View, ds datas.Dataset, filterIds *ty
 	}
 
 	doneChan := make(chan struct{})
-	msgMap, msgKeyChan, err := ListMessages(ds, filterIds, doneChan)
+	msgMap, msgKeyChan, err := lib.ListMessages(ds, filterIds, doneChan)
 	d.PanicIfError(err)
 	dp = dataPager{
 		dataset:    ds,
@@ -267,7 +276,7 @@ func resetAuthors(g *gocui.Gui, ds datas.Dataset) {
 	v, err := g.View(users)
 	d.PanicIfError(err)
 	v.Clear()
-	for _, u := range GetAuthors(ds) {
+	for _, u := range lib.GetAuthors(ds) {
 		fmt.Fprintln(v, u)
 	}
 }
@@ -332,8 +341,8 @@ func scrollView(v *gocui.View, dy, lineCnt int) {
 
 func handleEnter(body string, author string, clientTime time.Time, ds datas.Dataset) (*types.Map, []string, datas.Dataset, error) {
 	if strings.HasPrefix(body, searchPrefix) {
-		st := TermsFromString(body[len(searchPrefix):])
-		ids := SearchIndex(ds, st)
+		st := lib.TermsFromString(body[len(searchPrefix):])
+		ids := lib.SearchIndex(ds, st)
 		return &ids, st, ds, nil
 	}
 
@@ -341,11 +350,20 @@ func handleEnter(body string, author string, clientTime time.Time, ds datas.Data
 		return nil, nil, ds, gocui.ErrQuit
 	}
 
-	ds, err := AddMessage(body, author, clientTime, ds)
+	ds, err := lib.AddMessage(body, author, clientTime, ds)
 	return nil, nil, ds, err
 }
 
 func quit(_ *gocui.Gui, _ *gocui.View) error {
+	dbg.Debug("QUITTING #####")
+	return gocui.ErrQuit
+}
+
+func quitWithStack(_ *gocui.Gui, _ *gocui.View) error {
+	dbg.Debug("QUITTING WITH STACK")
+	stacktrace := make([]byte, 1024*1024)
+	length := runtime.Stack(stacktrace, true)
+	dbg.Debug(string(stacktrace[:length]))
 	return gocui.ErrQuit
 }
 
@@ -467,7 +485,6 @@ func expandRLimit() {
 	var rLimit syscall.Rlimit
 	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
 	d.Chk.NoError(err, "Unable to query file rlimit: %s", err)
-	fmt.Println("orig file limit:", rLimit)
 	if rLimit.Cur < rLimit.Max {
 		rLimit.Max = 64000
 		rLimit.Cur = 64000
@@ -476,11 +493,9 @@ func expandRLimit() {
 	}
 	err = syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
 	d.Chk.NoError(err)
-	fmt.Println("current file limit:", rLimit)
 
 	err = syscall.Getrlimit(8, &rLimit)
 	d.Chk.NoError(err, "Unable to query thread rlimit: %s", err)
-	fmt.Println("orig thread limit:", rLimit)
 	if rLimit.Cur < rLimit.Max {
 		rLimit.Max = 64000
 		rLimit.Cur = 64000
@@ -489,5 +504,15 @@ func expandRLimit() {
 	}
 	err = syscall.Getrlimit(8, &rLimit)
 	d.Chk.NoError(err)
-	fmt.Println("current thread limit:", rLimit)
+}
+
+func initChunkStore(sp spec.Spec, nodeIdx int) (*core.IpfsNode, chunks.ChunkStore) {
+	// recreate database so that we can have control of chunkstore's ipfs node
+	node := ipfs.OpenIPFSRepo(sp.DatabaseName, nodeIdx)
+	cs := ipfs.ChunkStoreFromIPFSNode(sp.DatabaseName, sp.Protocol == "ipfs-local", node)
+	return node, cs
+}
+
+func isIPFS(protocol string) bool {
+	return protocol == "ipfs" || protocol == "ipfs-local"
 }

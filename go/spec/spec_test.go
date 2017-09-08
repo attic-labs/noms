@@ -14,7 +14,7 @@ import (
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/nbs"
 	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMemDatabaseSpec(t *testing.T) {
@@ -91,7 +91,7 @@ func TestMemDatasetPathSpec(t *testing.T) {
 
 	db := spec.GetDatabase()
 	ds := db.GetDataset("test")
-	ds, err = db.CommitValue(ds, types.NewList(db, types.Number(42)))
+	_, err = db.CommitValue(ds, types.NewList(db, types.Number(42)))
 	assert.NoError(err)
 
 	assert.Equal(types.Number(42), spec.GetValue())
