@@ -39,7 +39,7 @@ The steps you’ll need to take are:
 1. Vendor the code into your project. 
 1. Set `NOMS_VERSION_NEXT=1` in your environment.
 1. Decide which type of storage you'd like to use: memory (convenient for playing around), disk, IPFS, or S3. (If you'd to implement a store on top of another type of storage that's possible too; email us or reach out on slack and we can help.)
-1. Set up and instantiate a database for your storage. Generally, you give a [dataset spec](https://github.com/attic-labs/noms/blob/master/doc/spelling.md) like `mem::mydataset` to a [`config.Resolver`](https://github.com/attic-labs/noms/blob/master/go/config/resolver.go) which gives you a handle to the [`Database`](https://github.com/attic-labs/noms/blob/master/go/datas/database.go) and [`Dataset`](https://github.com/attic-labs/noms/blob/master/go/datas/dataset.go).
+1. Set up and instantiate a database for your storage. Generally, you give a [dataset spec](https://github.com/attic-labs/noms/blob/master/doc/spelling.md) like `mem::mydataset` to a [`config.Resolver`](https://github.com/attic-labs/noms/blob/master/config/resolver.go) which gives you a handle to the [`Database`](https://github.com/attic-labs/noms/blob/master/datas/database.go) and [`Dataset`](https://github.com/attic-labs/noms/blob/master/datas/dataset.go).
    * **Memory**: no setup required, just instantiate it:
    ```
     cfg := config.NewResolver()
@@ -54,7 +54,7 @@ The steps you’ll need to take are:
    ```
     ????
    ```
-   * **S3**: Follow the [S3 setup instructions](https://github.com/attic-labs/noms/blob/master/go/nbs/NBS-on-AWS.md) then instantiate a database and dataset:
+   * **S3**: Follow the [S3 setup instructions](https://github.com/attic-labs/noms/blob/master/nbs/NBS-on-AWS.md) then instantiate a database and dataset:
     ```
     sess  := session.Must(session.NewSession(aws.NewConfig().WithRegion("us-west-2")))
     store := nbs.NewAWSStore("dynamo-table", "store-name", "s3-bucket", s3.New(sess), dynamodb.New(sess), 1<<28))
@@ -102,5 +102,5 @@ The steps you’ll need to take are:
      ```
 1. You can inspect data that you've committed via the [noms command-line interface](https://github.com/attic-labs/noms/blob/master/doc/cli-tour.md). Consider creating a [.nomsconfig](https://github.com/attic-labs/noms/blob/master/samples/cli/nomsconfig/README.md) file to save the trouble of writing database specs on the command line.
    * Note that Memory tables won't be inspectable because they exist only in the memory of the process that created them. 
-1. Implement pull and merge. The [pull API](../../go/datas/pull.go) is used pull changes from a peer and the [merge API](../../go/merge/) is used to merge changes before commit. There's an [example of merging in the IPFS-based-chat sample
-    app](https://github.com/attic-labs/noms/blob/master/samples/go/ipfs-chat/pubsub.go). 
+1. Implement pull and merge. The [pull API](../../datas/pull.go) is used pull changes from a peer and the [merge API](../../merge/) is used to merge changes before commit. There's an [example of merging in the IPFS-based-chat sample
+    app](https://github.com/attic-labs/noms/blob/master/samples/ipfs-chat/pubsub.go). 

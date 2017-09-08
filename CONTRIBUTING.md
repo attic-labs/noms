@@ -56,7 +56,7 @@ In general, for Public API in Noms, we use the Go-style of returning errors by d
 
 For non-exposed code, we do provide, and use, some wrappers to do Exception-style error handling. There *must* be an overriding rationale for using this style, however. One reason to use the Exception-style is that the current code doesn't know how to proceed and needs to panic, but you want to signal that a calling function somewhere up the stack might be able to recover from the failure and continue.
 
-For these cases, please use the following family of functions to 'raise' a 'catchable' error (see [go/d/try.go](https://godoc.org/github.com/attic-labs/noms/go/d)):
+For these cases, please use the following family of functions to 'raise' a 'catchable' error (see [go/d/try.go](https://godoc.org/github.com/attic-labs/noms/d)):
 
 	* d.PanicIfError()
 	* d.PanicIfTrue()
@@ -90,8 +90,8 @@ By default, neither `go test` nor Jenkins run the perf tests, because they take 
 
 To run the tests yourself, use the `-perf` and `-v` flag to `go test`, e.g.:
 
-* `go test -v ./samples/go/csv/... -perf mem`
+* `go test -v ./samples/csv/... -perf mem`
 
-See https://godoc.org/github.com/attic-labs/noms/go/perf/suite for full documentation and flags.
+See https://godoc.org/github.com/attic-labs/noms/perf/suite for full documentation and flags.
 
 To ask Jenkins to run the perf tests for you, reply (no quotes) "Jenkins: perf this" to your PR. Your results will be viewable at http://perf.noms.io/?ds=http://demo.noms.io/perf::pr_$your-pull-request-number/csv-import. Again, only a committer can do this.

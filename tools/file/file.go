@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/d"
 )
 
 // DumbCopy copies the contents of a regular file at srcPath (following symlinks) to a new regular file at dstPath. New file is created with same mode.

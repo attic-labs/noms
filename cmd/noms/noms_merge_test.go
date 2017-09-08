@@ -10,10 +10,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/spec"
-	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/clienttest"
+	"github.com/attic-labs/noms/datas"
+	"github.com/attic-labs/noms/spec"
+	"github.com/attic-labs/noms/types"
+	"github.com/attic-labs/noms/util/clienttest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
