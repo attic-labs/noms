@@ -448,6 +448,8 @@ func getListElements(vrw types.ValueReadWriter, v types.Value, args map[string]i
 		}
 		elementsSeen++
 	}
+	// TODO: Use a cursor so we do not have to instantiate all values. @arv has a
+	// change in the works that only creates Values as needed.
 	for _, c := range cols {
 		v := c.(types.Value)
 		v.WalkValues(maybeAddElement)
