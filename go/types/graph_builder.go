@@ -52,6 +52,7 @@ type GraphBuilder struct {
 	vrw      ValueReadWriter
 	stack    graphStack
 	mutex    sync.Mutex
+	rootKind NomsKind
 }
 
 // NewGraphBuilder returns an new GraphBuilder object.
@@ -60,7 +61,7 @@ func NewGraphBuilder(vrw ValueReadWriter, rootKind NomsKind) *GraphBuilder {
 }
 
 func newGraphBuilder(vrw ValueReadWriter, opcStore opCacheStore, rootKind NomsKind) *GraphBuilder {
-	b := &GraphBuilder{oc: opcStore.opCache(), opcStore: opcStore, vrw: vrw}
+	b := &GraphBuilder{oc: opcStore.opCache(), opcStore: opcStore, vrw: vrw, rootKind: rootKind}
 	b.pushNewKeyOnStack(String("ROOT"), rootKind)
 	return b
 }
@@ -82,6 +83,9 @@ func (b *GraphBuilder) SetInsert(keys []Value, v Value) {
 	if b.oc == nil {
 		d.Panic("Can't call SetInsert() again after Build()")
 	}
+	if b.rootKind != MapKind {
+		keys = nil
+	}
 	b.oc.GraphSetInsert(keys, v)
 }
 
@@ -93,6 +97,9 @@ func (b *GraphBuilder) SetInsert(keys []Value, v Value) {
 func (b *GraphBuilder) ListAppend(keys []Value, v Value) {
 	if b.oc == nil {
 		d.Panic("Can't call ListAppend() again after Build()")
+	}
+	if b.rootKind != MapKind {
+		keys = nil
 	}
 	b.oc.GraphListAppend(keys, v)
 }
