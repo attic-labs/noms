@@ -431,12 +431,6 @@ func getListElements(vrw types.ValueReadWriter, v types.Value, args map[string]i
 
 	values := make([]interface{}, count)
 
-	// @raf a few questions:
-	//  - why do we do MaybeGetScalar below?
-	//  - in the unittests how could you force the collection to have tree height > 1?
-	//  - where does the rejiggering of the tree height happen?
-	//  - i just ran the unit tests; what else should i do to make sure this change is WAI?
-
 	cols, offset := types.LoadLeafNodes([]types.Collection{l}, uint64(idx), uint64(idx+count))
 
 	// Iterate the collections we got, skipping the first offset elements and bailing out
