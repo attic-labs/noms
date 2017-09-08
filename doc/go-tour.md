@@ -21,7 +21,7 @@ Let's create a local database to play with:
 > noms serve /tmp/noms-go-tour
 ```
 
-## [Database](https://github.com/attic-labs/noms/blob/master/go/datas/database.go)
+## [Database](https://github.com/attic-labs/noms/blob/master/datas/database.go)
 Leave the server running, and in a separate terminal:
 
 ```sh
@@ -38,7 +38,7 @@ import (
   "fmt"
   "os"
 
-  "github.com/attic-labs/noms/go/spec"
+  "github.com/attic-labs/noms/spec"
 )
 
 func main() {
@@ -62,7 +62,7 @@ If you did not leave the server running you would see output of ```Could not acc
 See [Spelling in Noms](spelling.md) for more information on database spec strings.
 
 
-## [Dataset](https://github.com/attic-labs/noms/blob/master/go/dataset/dataset.go)
+## [Dataset](https://github.com/attic-labs/noms/blob/master/dataset/dataset.go)
 
 Datasets are the main interface you'll use to work with Noms. Let's update our example to use a Dataset spec string:
 
@@ -73,7 +73,7 @@ import (
   "fmt"
   "os"
 
-  "github.com/attic-labs/noms/go/spec"
+  "github.com/attic-labs/noms/spec"
 )
 
 func main() {
@@ -106,8 +106,8 @@ import (
   "fmt"
   "os"
 
-  "github.com/attic-labs/noms/go/spec"
-  "github.com/attic-labs/noms/go/types"
+  "github.com/attic-labs/noms/spec"
+  "github.com/attic-labs/noms/types"
 )
 
 func newPerson(givenName string, male bool) types.Struct {
@@ -162,8 +162,8 @@ import (
   "fmt"
   "os"
 
-  "github.com/attic-labs/noms/go/spec"
-  "github.com/attic-labs/noms/go/types"
+  "github.com/attic-labs/noms/spec"
+  "github.com/attic-labs/noms/types"
 )
 
 func main() {
@@ -234,8 +234,8 @@ import (
   "fmt"
   "os"
 
-  "github.com/attic-labs/noms/go/spec"
-  "github.com/attic-labs/noms/go/types"
+  "github.com/attic-labs/noms/spec"
+  "github.com/attic-labs/noms/types"
 )
 
 func main() {
@@ -308,4 +308,4 @@ Noms supports a [variety of datatypes](intro.md#types) beyond List, Struct, Stri
 
 ## Samples
 
-You can continue learning more about the Noms Go SDK by looking at the documentation and by reviewing the [samples](https://github.com/attic-labs/noms/blob/master/samples/go). The [hr sample](https://github.com/attic-labs/noms/blob/master/samples/go/hr) is a more complete implementation of our example above and will help you to see further usage of the other datatypes.
+You can continue learning more about the Noms Go SDK by looking at the documentation and by reviewing the [samples](https://github.com/attic-labs/noms/blob/master/samples). The [hr sample](https://github.com/attic-labs/noms/blob/master/samples/hr) is a more complete implementation of our example above and will help you to see further usage of the other datatypes.

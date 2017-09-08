@@ -18,9 +18,9 @@ import subprocess
 # These are the 'go test' packages for perf testing.
 # Note that adding entires will actually run all tests in that package, not just the perf tests.
 PACKAGES = [
-    './go/types/perf',
-    './samples/go/csv/csv-import',
-    './samples/go/url-fetch/perf',
+    './types/perf',
+    './samples/csv/csv-import',
+    './samples/url-fetch/perf',
 ]
 
 # 'go test' timeout. Go's default is 10m, which isn't long enough.

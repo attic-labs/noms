@@ -38,7 +38,7 @@ A database has two responsibilities: it provides storage of [content-addressed](
 
 A Noms database can be implemented on top of any underlying storage system that provides key/value storage with at least optional optimistic concurrency. We only use optimistic concurrency to store the current value of each dataset. Chunks themselves are immutable.
 
-We have implementations of Noms databases on top of our own file-backed store [Noms Block Store (NBS)](https://github.com/attic-labs/noms/tree/master/go/nbs) (usually used locally), our own [HTTP protocol](https://github.com/attic-labs/noms/blob/master/go/datas/database_server.go) (used for working with a remote database), [Amazon DynamoDB](https://aws.amazon.com/dynamodb/), and [memory](https://github.com/attic-labs/noms/blob/master/go/chunks/memory_store.go) (mainly used for testing).
+We have implementations of Noms databases on top of our own file-backed store [Noms Block Store (NBS)](https://github.com/attic-labs/noms/tree/master/nbs) (usually used locally), our own [HTTP protocol](https://github.com/attic-labs/noms/blob/master/datas/database_server.go) (used for working with a remote database), [Amazon DynamoDB](https://aws.amazon.com/dynamodb/), and [memory](https://github.com/attic-labs/noms/blob/master/chunks/memory_store.go) (mainly used for testing).
 
 Here's an example of creating an http-backed database using the [Go Noms SDK](go-tour.md):
 
@@ -49,7 +49,7 @@ import (
   "fmt"
   "os"
 
-  "github.com/attic-labs/noms/go/spec"
+  "github.com/attic-labs/noms/spec"
 )
 
 func main() {
@@ -120,7 +120,7 @@ Types serve several purposes in Noms:
 
 ### Refs vs Hashes
 
-A _hash_ in Noms is just like the hashes used elsewhere in computing: a short string of bytes that uniquely identifies a larger value. Every value in Noms has a hash. Noms currently uses the [sha2-512](https://github.com/attic-labs/noms/blob/master/go/hash/hash.go#L7) hash function, but that can change in future versions of the system.
+A _hash_ in Noms is just like the hashes used elsewhere in computing: a short string of bytes that uniquely identifies a larger value. Every value in Noms has a hash. Noms currently uses the [sha2-512](https://github.com/attic-labs/noms/blob/master/hash/hash.go#L7) hash function, but that can change in future versions of the system.
 
 A _ref_ is different in subtle, but important ways. A `Ref` is a part of the type system - a `Ref` is a value. Anywhere you can find a Noms value, you can find a `Ref`. For example, you can commit a `Ref<T>` to a dataset, but you can't commit a bare hash.
 

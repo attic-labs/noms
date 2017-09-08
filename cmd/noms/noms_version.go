@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/attic-labs/noms/cmd/util"
-	"github.com/attic-labs/noms/go/constants"
+	"github.com/attic-labs/noms/constants"
 	flag "github.com/juju/gnuflag"
 )
 

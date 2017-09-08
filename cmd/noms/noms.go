@@ -14,9 +14,9 @@ import (
 
 	"github.com/attic-labs/noms/cmd/noms/splore"
 	"github.com/attic-labs/noms/cmd/util"
-	"github.com/attic-labs/noms/go/util/exit"
-	"github.com/attic-labs/noms/go/util/profile"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"github.com/attic-labs/noms/util/exit"
+	"github.com/attic-labs/noms/util/profile"
+	"github.com/attic-labs/noms/util/verbose"
 	flag "github.com/juju/gnuflag"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
