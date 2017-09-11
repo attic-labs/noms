@@ -71,11 +71,18 @@ func (sc *sequenceChunker) resume() {
 
 	for ; sc.cur.idx < idx; sc.cur.advance() {
 		sc.Append(sc.cur.current())
+
+		if sc.child != nil {
+			// This is a meta-chunker then the child chunker would have created a sequence.
+			// XXX: This doesn't affect whether the tests pass, but it seems like it should.
+			sc.child.numSeq++
+		}
 	}
 }
 
 // advanceTo advances the sequenceChunker to the next "spine" at which
 // modifications to the prolly-tree should take place
+// XXX: more investigation needed as to whether this affects the find-the-root logic
 func (sc *sequenceChunker) advanceTo(next *sequenceCursor) {
 	// There are four basic situations which must be handled when advancing to a
 	// new chunking position:
@@ -170,16 +177,22 @@ func (sc *sequenceChunker) createParent() {
 }
 
 func (sc *sequenceChunker) createSequence() (sequence, metaTuple) {
-	// If the sequence chunker has a ValueWriter, eagerly write sequences *if* this isn't the root chunk. The logic for detecting the root chunk is subtle (see Done) but for the purposes of knowing when to *write* them, the logic is just whether there is more than 1 child.
 	col, key, numLeaves := sc.makeChunk(sc.level, sc.current)
 
+	// Here we produce a ref to the sequence, either by eagerly writing the
+	// sequence, or by constructing one by hand if this is still a candidate for
+	// the root of the tree (which we don't ever want to write).
 	var ref Ref
 	switch sc.numSeq {
 	case 0:
-		// First sequence: manually construct a Ref rather than writing it. We only write the sequence if needed (on the 2nd sequence or when Done) to avoid writing unnecessary root sequences.
+		// 1st sequence created at this level of the tree. This is a candidate for
+		// the root, so don't write it yet.
 		ref = NewRef(col)
 		sc.unwrittenCol = col
 	case 1:
+		// 2nd sequence created at this level of the tree. This is no longer a
+		// candidate for the root, so write the sequence eagerly, plus the
+		// unwritten (1st) sequence if it exists.
 		sc.writeUnwrittenCol()
 		ref = sc.vrw.WriteValue(col)
 	default:
@@ -187,10 +200,9 @@ func (sc *sequenceChunker) createSequence() (sequence, metaTuple) {
 	}
 
 	sc.numSeq++
-	mt := newMetaTuple(ref, key, numLeaves)
-
 	sc.current = nil
-	return col.sequence(), mt
+
+	return col.sequence(), newMetaTuple(ref, key, numLeaves)
 }
 
 func (sc *sequenceChunker) handleChunkBoundary() {
@@ -249,39 +261,40 @@ func (sc *sequenceChunker) Done() sequence {
 	// (2) This in an internal node of the tree which contains multiple references to child nodes.
 	if len(sc.current) > 1 {
 		writeUnwrittenCols(sc.child)
-		d.PanicIfFalse(sc.numSeq == 0)
 		seq, _ := sc.createSequence()
+		d.PanicIfTrue(seq.isLeaf())
 		return seq
 	}
 
 	// (3) This is an internal node of the tree which contains a single reference to a child node. This can occur if a non-leaf chunker happens to chunk on the first item (metaTuple) appended. In this case, this is the root of the tree, but it is *not* canonical and we must walk down until we find cases (1) or (2), above.
+	d.PanicIfFalse(sc.child != nil && len(sc.current) == 1)
 
-	// Descend through child chunkers and metaTuples in lock-step, because the sequences we're looking for may be unwritten (in |unwrittenCol|) or written (therefore pointed to by |mt|).
-	chunker := sc.child
-
-	seq := chunker.unwrittenSeq()
-	if seq == nil {
-		seq = sc.current[0].(metaTuple).getChildSequence(sc.vrw)
+	if sc.child.unwrittenCol == nil {
+		// Child does not have an unwritten collection, therefore it never produced a sequence.
+		d.PanicIfFalse(sc.numSeq == 0)
+		return sc.current[0].(metaTuple).getChildSequence(sc.vrw)
 	}
 
-	for {
-		if _, ok := seq.(metaSequence); !ok || seq.seqLen() > 1 {
-			writeUnwrittenCols(chunker)
+	// Finally: this sequence has an unwritten collection
+
+	// XXX: Explain this loop: e.g. why no more sc.current[0] access? Why is it
+	// the case that we can just step through the unwritten sequences?
+	for chunker := sc.child; ; chunker = chunker.child {
+		seq := chunker.unwrittenSeq()
+		d.PanicIfTrue(seq == nil)
+
+		if seq.isLeaf() {
 			return seq
 		}
 
-		chunker = chunker.child
-
-		// It would be tempting in all of this to try to fast-forward to the first chunker without an unwritten seq, but this would be wrong: because of finalization (it seems), and because it just don't feel right to me. XXX in fact none of this feels write to me, but all the tests pass. XXX no they don't...
-		if seq2 := chunker.unwrittenSeq(); seq2 != nil {
-			seq = seq2
-		} else {
-			seq = seq.getChildSequence(0)
+		if seq.seqLen() > 1 {
+			writeUnwrittenCols(chunker.child)
+			return seq
 		}
 	}
 }
 
-// If we are mutating an existing sequence, appending subsequent items in the sequence until we reach a pre-existing chunk boundary or the end of the sequence.
+// If we are mutating an existing sequence, append subsequent items in the sequence until we reach a pre-existing chunk boundary or the end of the sequence.
 func (sc *sequenceChunker) finalizeCursor() {
 	for ; sc.cur.valid(); sc.cur.advance() {
 		if sc.Append(sc.cur.current()) && sc.cur.atLastItem() {
@@ -306,17 +319,15 @@ func (sc *sequenceChunker) unwrittenSeq() sequence {
 }
 
 func (sc *sequenceChunker) writeUnwrittenCol() {
-	d.PanicIfTrue(sc.unwrittenCol == nil)
-	sc.vrw.WriteValue(sc.unwrittenCol)
-	sc.unwrittenCol = nil
+	if sc.unwrittenCol != nil {
+		sc.vrw.WriteValue(sc.unwrittenCol)
+		sc.unwrittenCol = nil
+	}
 }
 
-// writeUnwrittenCols writes |unwrittenCol| for |sc| and all its children. |sc| may be nil.
+// writeUnwrittenCols writes |unwrittenCol| for |sc| and all its children.
 func writeUnwrittenCols(sc *sequenceChunker) {
-	// It would be tempting to assert that numSeq cannot be less than a children's numSeq, and bail once numSeq > 1, but this isn't true during finalization.
 	for ; sc != nil; sc = sc.child {
-		if sc.unwrittenCol != nil {
-			sc.writeUnwrittenCol()
-		}
+		sc.writeUnwrittenCol()
 	}
 }
