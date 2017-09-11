@@ -68,19 +68,31 @@ func main() {
 	expandRLimit()
 	switch kingpin.Parse() {
 	case "client":
-		runClient(*username, *clientTopic, *clientDS, *nodeIdx)
+		runClient(*clientDS, *clientTopic, *nodeIdx, *username)
 	case "import":
 		lib.RunImport(*importDir, *importDS)
 	case "daemon":
-		runDaemon(*daemonTopic, *daemonInterval, *daemonDS, *daemonNodeIdx)
+		runDaemon(*daemonDS, *daemonTopic, *daemonNodeIdx, *daemonInterval)
 	}
 }
 
-func runClient(username, topic, clientDS string, nodeIdx int) {
+var limiter = make(chan struct{}, 1)
+
+func limitRateF() func() {
+	defer dbg.BoxF("LOCKING ######")()
+	limiter <- struct{}{}
+	return func() {
+		defer dbg.BoxF("UNLOCKING #####")()
+		<-limiter
+	}
+}
+
+func runClient(ipfsSpec, topic string, nodeIdx int, username string) {
+	dbg.SetLogger(NewLogger(username))
+
 	var displayingSearchResults = false
 
-	dsSpec := clientDS
-	sp, err := spec.ForDataset(dsSpec)
+	sp, err := spec.ForDataset(ipfsSpec)
 	d.CheckErrorNoUsage(err)
 
 	if !isIPFS(sp.Protocol) {
@@ -88,11 +100,11 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 		os.Exit(1)
 	}
 
-	ds := sp.GetDataset()
 	node, cs := initChunkStore(sp, nodeIdx)
 	db := datas.NewDatabase(cs)
-	ds = db.GetDataset(ds.ID())
 
+	// Get the head of specified dataset.
+	ds := db.GetDataset(sp.Path.Dataset)
 	ds, err = lib.InitDatabase(ds)
 	d.PanicIfError(err)
 
@@ -100,8 +112,9 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 	d.PanicIfError(err)
 	defer g.Close()
 
-	go lib.MergeMessages(node, topic, sp, ds, func(nds datas.Dataset) {
-		ds = nds
+	go mergeMessages(node, topic, ds, func(ds1 datas.Dataset) {
+		defer dbg.BoxF("DidChange")()
+		ds = ds1
 		if displayingSearchResults || !textScrolledToEnd(g) {
 			g.Execute(func(g *gocui.Gui) (err error) {
 				updateViewTitle(g, messages, "messages (NEW!)")
@@ -138,6 +151,12 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 		d.PanicIfError(err)
 		msgView.Title = "messages"
 		msgView.Autoscroll = true
+
+		defer limitRateF()()
+		db := ds.Database()
+		db.Rebase()
+		ds := db.GetDataset(ds.ID())
+
 		if buf == "" {
 			updateMessages(g, msgView, ds, nil, nil)
 			return nil
@@ -153,7 +172,7 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 		if displayingSearchResults {
 			return
 		}
-		lib.Publish(node, topic, sp, ds.HeadRef().TargetHash())
+		Publish(node, topic, ds.HeadRef().TargetHash())
 		return
 	}))
 	d.PanicIfError(g.SetKeybinding("", gocui.KeyF1, gocui.ModNone, debugInfo))
@@ -164,7 +183,7 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 
 func layout(g *gocui.Gui, ds datas.Dataset) error {
 	maxX, maxY := g.Size()
-	if v, err := g.SetView(users, 0, 0, 25, maxY-1); err != nil {
+	if v, err := g.SetView(users, 0, 0, 10, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -173,7 +192,7 @@ func layout(g *gocui.Gui, ds datas.Dataset) error {
 		v.Editable = false
 		resetAuthors(g, ds)
 	}
-	if v, err := g.SetView(messages, 25, 0, maxX-1, maxY-2-1); err != nil {
+	if v, err := g.SetView(messages, 10, 0, maxX-1, maxY-2-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -184,7 +203,7 @@ func layout(g *gocui.Gui, ds datas.Dataset) error {
 		updateMessages(g, v, ds, nil, nil)
 		return nil
 	}
-	if v, err := g.SetView(input, 25, maxY-2-1, maxX-1, maxY-1); err != nil {
+	if v, err := g.SetView(input, 10, maxY-2-1, maxX-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -237,6 +256,7 @@ func (dp *dataPager) Next() (string, bool) {
 }
 
 func updateMessages(g *gocui.Gui, v *gocui.View, ds datas.Dataset, filterIds *types.Map, terms []string) error {
+	defer dbg.BoxF("updateMessages")()
 	resetAuthors(g, ds)
 	v.Clear()
 	v.SetOrigin(0, 0)
@@ -340,6 +360,8 @@ func scrollView(v *gocui.View, dy, lineCnt int) {
 }
 
 func handleEnter(body string, author string, clientTime time.Time, ds datas.Dataset) (*types.Map, []string, datas.Dataset, error) {
+	defer dbg.BoxF("handleEnter: %s", body)()
+
 	if strings.HasPrefix(body, searchPrefix) {
 		st := lib.TermsFromString(body[len(searchPrefix):])
 		ids := lib.SearchIndex(ds, st)
@@ -515,4 +537,11 @@ func initChunkStore(sp spec.Spec, nodeIdx int) (*core.IpfsNode, chunks.ChunkStor
 
 func isIPFS(protocol string) bool {
 	return protocol == "ipfs" || protocol == "ipfs-local"
+}
+
+func NewLogger(username string) *log.Logger {
+	f, err := os.OpenFile(dbg.Filepath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	d.PanicIfError(err)
+	prefix := fmt.Sprintf("%d-%s: ", os.Getpid(), username)
+	return log.New(f, prefix, 0644)
 }
