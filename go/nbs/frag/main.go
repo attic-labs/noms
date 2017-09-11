@@ -88,7 +88,7 @@ func main() {
 		// 2) An ordered list of the child nodes that contain refs to chunks we haven't yet visited. This *excludes* already-visted nodes and nodes without children.
 		// We'll use 1) to get an estimate of how good the locality is among the children of the current level, and then 2) to descend to the next level of the graph.
 		orderedChildren := hash.HashSlice{}
-		nextLevel := hash.HashSlice{} // TODO: re-use |current| to save allocations?
+		nextLevel := hash.HashSlice{}
 		for _, h := range current {
 			currentValues[h].WalkRefs(func(r types.Ref) {
 				target := r.TargetHash()

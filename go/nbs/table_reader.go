@@ -30,6 +30,7 @@ type tableReaderAt interface {
 }
 
 // tableReader implements get & has queries against a single nbs table. goroutine safe.
+// |blockSize| refers to the block-size of the underlying storage. We assume that, each time we read data, we actually have to read in blocks of this size. So, we're willing to tolerate up to |blockSize| overhead each time we read a chunk, if it helps us group more chunks together into a single read request to backing storage.
 type tableReader struct {
 	tableIndex
 	r         tableReaderAt
@@ -389,7 +390,6 @@ func canReadAhead(fRec offsetRec, fLength uint32, readStart, readEnd, blockSize 
 		return readEnd, true
 	}
 
-	// Is this right? This seems like it means that we're willing to keep reading ahead as long as the next chunk is < blockSize away from the end of the last chunk. That may be what we want, but then it's not really a "block size". It's more like...the amount of overhead we're willing to tolerate per chunk read.
 	if fRec.offset-readEnd > blockSize {
 		return readEnd, false
 	}
