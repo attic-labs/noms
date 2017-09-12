@@ -13,7 +13,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
-	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -188,7 +188,7 @@ func main() {
 	flag.BoolVar(&debug, "d", false, "debug")
 	flag.Parse()
 	if len(flag.Args()) < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s dataset mount_point\n", path.Base(os.Args[0]))
+		fmt.Fprintf(os.Stderr, "Usage: %s dataset mount_point\n", filepath.Base(os.Args[0]))
 		return
 	}
 
@@ -355,7 +355,8 @@ func (fs *nomsFS) Symlink(targetPath string, path string, context *fuse.Context)
 }
 
 func (fs *nomsFS) createCommon(path string, mode uint32, createContents func() types.Value) (*nNode, fuse.Status) {
-	components := strings.Split(path, "/")
+	path = filepath.Clean(path)
+	components := strings.Split(path, string(os.PathSeparator))
 
 	fname := components[len(components)-1]
 	components = components[:len(components)-1]
@@ -606,10 +607,11 @@ func (fs *nomsFS) commit() {
 }
 
 func (fs *nomsFS) getPath(path string) (*nNode, fuse.Status) {
+	path = filepath.Clean(path)
 	if path == "" {
 		return fs.getPathComponents([]string{})
 	}
-	return fs.getPathComponents(strings.Split(path, "/"))
+	return fs.getPathComponents(strings.Split(path, string(os.PathSeparator)))
 }
 
 func (fs *nomsFS) getPathComponents(components []string) (*nNode, fuse.Status) {
@@ -667,8 +669,10 @@ func (fs *nomsFS) Rename(oldPath string, newPath string, context *fuse.Context) 
 }
 
 func (fs *nomsFS) getPaths(oldPath string, newPath string) (oldNode *nNode, newParent *nNode, sharedNode *nNode, newName string, code fuse.Status) {
-	ocomp := strings.Split(oldPath, "/")
-	ncomp := strings.Split(newPath, "/")
+	oldPath = filepath.Clean(oldPath)
+	newPath = filepath.Clean(newPath)
+	ocomp := strings.Split(oldPath, string(os.PathSeparator))
+	ncomp := strings.Split(newPath, string(os.PathSeparator))
 	newName = ncomp[len(ncomp)-1]
 	ncomp = ncomp[:len(ncomp)-1]
 
