@@ -4,16 +4,32 @@
 
 package types
 
-import "github.com/attic-labs/noms/go/d"
+import (
+	"sort"
+
+	"github.com/attic-labs/noms/go/d"
+)
 
 type mapLeafSequence struct {
 	leafSequence
-	data mapEntrySlice // sorted by entry.key.Hash()
 }
 
 type mapEntry struct {
 	key   Value
 	value Value
+}
+
+func (entry mapEntry) writeTo(w *valueEncoder) {
+	w.writeValue(entry.key)
+	w.writeValue(entry.value)
+}
+
+func readMapEntry(r *valueDecoder) mapEntry {
+	return mapEntry{r.readValue(), r.readValue()}
+}
+
+func (entry mapEntry) equals(other mapEntry) bool {
+	return entry.key.Equals(other.key) && entry.value.Equals(other.value)
 }
 
 type mapEntrySlice []mapEntry
@@ -27,7 +43,7 @@ func (mes mapEntrySlice) Equals(other mapEntrySlice) bool {
 	}
 
 	for i, v := range mes {
-		if !v.key.Equals(other[i].key) || !v.value.Equals(other[i].value) {
+		if !v.equals(other[i]) {
 			return false
 		}
 	}
@@ -37,56 +53,113 @@ func (mes mapEntrySlice) Equals(other mapEntrySlice) bool {
 
 func newMapLeafSequence(vrw ValueReadWriter, data ...mapEntry) orderedSequence {
 	d.PanicIfTrue(vrw == nil)
-	return mapLeafSequence{leafSequence{vrw, len(data), MapKind}, data}
+	offsets := make([]uint32, 3+len(data))
+	w := newBinaryNomsWriter()
+	enc := newValueEncoder(w)
+	enc.writeKind(MapKind)
+	offsets = append(offsets, w.offset)
+	offsets[0] = w.offset
+	enc.writeCount(0) // level
+	offsets[1] = w.offset
+	enc.writeCount(uint64(len(data)))
+	offsets[2] = w.offset
+	for i, me := range data {
+		me.writeTo(enc)
+		offsets[i+3] = w.offset
+	}
+	return mapLeafSequence{leafSequence{vrw, w.data(), offsets}}
+}
+
+func (ml mapLeafSequence) writeTo(enc *valueEncoder) {
+	enc.writeRaw(ml.buff)
 }
 
 // sequence interface
 
 func (ml mapLeafSequence) getItem(idx int) sequenceItem {
-	return ml.data[idx]
+	offset := ml.getItemOffset(idx)
+	if offset == -1 {
+		return mapEntry{}
+	}
+	dec := ml.decoderAtOffset(offset)
+	return readMapEntry(dec)
 }
 
 func (ml mapLeafSequence) WalkRefs(cb RefCallback) {
-	for _, entry := range ml.data {
-		entry.key.WalkRefs(cb)
-		entry.value.WalkRefs(cb)
+	dec, count := ml.decoderSkipToValues()
+	for i := uint64(0); i < count*2; i++ {
+		dec.readValue().WalkRefs(cb)
 	}
 }
 
+func (ml mapLeafSequence) entries() mapEntrySlice {
+	dec, count := ml.decoderSkipToValues()
+	entries := make(mapEntrySlice, count)
+	for i := uint64(0); i < count; i++ {
+		entries[i] = mapEntry{dec.readValue(), dec.readValue()}
+	}
+	return entries
+}
+
 func (ml mapLeafSequence) getCompareFn(other sequence) compareFn {
-	oml := other.(mapLeafSequence)
 	return func(idx, otherIdx int) bool {
-		entry := ml.data[idx]
-		otherEntry := oml.data[otherIdx]
-		return entry.key.Equals(otherEntry.key) && entry.value.Equals(otherEntry.value)
+		return ml.getItem(idx).(mapEntry).equals(other.getItem(otherIdx).(mapEntry))
 	}
 }
 
 func (ml mapLeafSequence) typeOf() *Type {
-	kts := make([]*Type, len(ml.data))
-	vts := make([]*Type, len(ml.data))
-	for i, e := range ml.data {
-		kts[i] = e.key.typeOf()
-		vts[i] = e.value.typeOf()
+	dec, count := ml.decoderSkipToValues()
+	kts := make([]*Type, count)
+	vts := make([]*Type, count)
+	for i := uint64(0); i < count; i++ {
+		kts[i] = dec.readValue().typeOf()
+		vts[i] = dec.readValue().typeOf()
 	}
 	return makeCompoundType(MapKind, makeCompoundType(UnionKind, kts...), makeCompoundType(UnionKind, vts...))
 }
 
 // orderedSequence interface
 
+func (ml mapLeafSequence) decoderSkipToIndex(idx int) *valueDecoder {
+	offset := ml.getItemOffset(idx)
+	// if offset == -1 {
+	// 	return nil
+	// }
+	return ml.decoderAtOffset(offset)
+	//
+	// dec, count := ml.decoderSkipToValues()
+	// if offset == -1
+	// 	return nil
+	// }
+	// for ; idx > 0; idx-- {
+	// 	dec.skipValue()
+	// 	dec.skipValue()
+	// }
+	// return dec
+}
+
 func (ml mapLeafSequence) getKey(idx int) orderedKey {
-	return newOrderedKey(ml.data[idx].key)
+	dec := ml.decoderSkipToIndex(idx)
+	// TODO: Out of bounds
+	// if dec == nil {
+	// 	return orderedKey{}
+	// }
+
+	return newOrderedKey(dec.readValue())
+}
+
+func (ml mapLeafSequence) search(key orderedKey) int {
+	return sort.Search(int(ml.Len()), func(i int) bool {
+		return !ml.getKey(i).Less(key)
+	})
 }
 
 func (ml mapLeafSequence) getValue(idx int) Value {
-	return ml.data[idx].value
-}
+	dec := ml.decoderSkipToIndex(idx)
+	// if dec == nil {
+	// 	return nil
+	// }
 
-// Collection interface
-func (ml mapLeafSequence) Len() uint64 {
-	return uint64(len(ml.data))
-}
-
-func (ml mapLeafSequence) Empty() bool {
-	return ml.Len() == uint64(0)
+	dec.skipValue()
+	return dec.readValue()
 }

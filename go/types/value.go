@@ -74,3 +74,16 @@ func (vs ValueSlice) Equals(other ValueSlice) bool {
 
 	return true
 }
+
+func (vs ValueSlice) Contains(v Value) bool {
+	for _, v := range vs {
+		if v.Equals(v) {
+			return true
+		}
+	}
+	return false
+}
+
+type valueReadWriter interface {
+	valueReadWriter() ValueReadWriter
+}

@@ -42,3 +42,7 @@ func (s String) typeOf() *Type {
 func (s String) Kind() NomsKind {
 	return StringKind
 }
+
+func (s String) valueReadWriter() ValueReadWriter {
+	return nil
+}

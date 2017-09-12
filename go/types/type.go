@@ -73,6 +73,10 @@ func (t *Type) Kind() NomsKind {
 	return TypeKind
 }
 
+func (t *Type) valueReadWriter() ValueReadWriter {
+	return nil
+}
+
 // TypeOf returns the type describing the value. This is not an exact type but
 // often a simplification of the concrete type.
 func TypeOf(v Value) *Type {

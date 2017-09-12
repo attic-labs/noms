@@ -246,3 +246,7 @@ func makeListLeafChunkFn(vrw ValueReadWriter) makeChunkFn {
 func newEmptyListSequenceChunker(vrw ValueReadWriter) *sequenceChunker {
 	return newEmptySequenceChunker(vrw, makeListLeafChunkFn(vrw), newIndexedMetaSequenceChunkFn(ListKind, vrw), hashValueBytes)
 }
+
+func (l List) valueReadWriter() ValueReadWriter {
+	return l.seq.valueReadWriter()
+}

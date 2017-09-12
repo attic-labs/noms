@@ -28,18 +28,17 @@ func EncodeValue(v Value) chunks.Chunk {
 }
 
 func DecodeFromBytes(data []byte, vrw ValueReadWriter) Value {
-	br := &binaryNomsReader{data, 0}
-	dec := newValueDecoder(br, vrw)
+	dec := newValueDecoder(data, vrw)
 	v := dec.readValue()
-	d.PanicIfFalse(br.pos() == uint32(len(data)))
+	d.PanicIfFalse(dec.pos() == uint32(len(data)))
 	return v
 }
 
 func decodeFromBytesWithValidation(data []byte, vrw ValueReadWriter) Value {
-	br := &binaryNomsReader{data, 0}
-	dec := newValueDecoderWithValidation(br, vrw)
+	r := binaryNomsReader{data, 0}
+	dec := newValueDecoderWithValidation(r, vrw)
 	v := dec.readValue()
-	d.PanicIfFalse(br.pos() == uint32(len(data)))
+	d.PanicIfFalse(dec.pos() == uint32(len(data)))
 	return v
 }
 
@@ -54,25 +53,16 @@ func DecodeValue(c chunks.Chunk, vrw ValueReadWriter) Value {
 	return v
 }
 
-type nomsReader interface {
-	pos() uint32
-	readBytes() []byte
-	readUint8() uint8
-	readCount() uint64
-	readNumber() Number
-	readBool() bool
-	readString() string
-	readHash() hash.Hash
-}
-
 type nomsWriter interface {
-	writeBytes(v []byte)
-	writeUint8(v uint8)
-	writeCount(count uint64)
-	writeNumber(v Number)
 	writeBool(b bool)
-	writeString(v string)
+	writeBytes(v []byte)
+	writeCount(count uint64)
 	writeHash(h hash.Hash)
+	writeNumber(v Number)
+	writeString(v string)
+	writeUint8(v uint8)
+
+	writeRaw(buff []byte)
 }
 
 type binaryNomsReader struct {
@@ -93,16 +83,34 @@ func (b *binaryNomsReader) readBytes() []byte {
 	return buff
 }
 
+func (b *binaryNomsReader) skipBytes() {
+	size := b.readCount()
+	b.offset += uint32(size)
+}
+
 func (b *binaryNomsReader) readUint8() uint8 {
 	v := uint8(b.buff[b.offset])
 	b.offset++
 	return v
 }
 
+func (b *binaryNomsReader) peekUint8() uint8 {
+	return uint8(b.buff[b.offset])
+}
+
+func (b *binaryNomsReader) skipUint8() {
+	b.offset++
+}
+
 func (b *binaryNomsReader) readCount() uint64 {
 	v, count := binary.Uvarint(b.buff[b.offset:])
 	b.offset += uint32(count)
 	return v
+}
+
+func (b *binaryNomsReader) skipCount() {
+	_, count := binary.Uvarint(b.buff[b.offset:])
+	b.offset += uint32(count)
 }
 
 func (b *binaryNomsReader) readNumber() Number {
@@ -114,8 +122,19 @@ func (b *binaryNomsReader) readNumber() Number {
 	return Number(fracExpToFloat(i, int(exp)))
 }
 
+func (b *binaryNomsReader) skipNumber() {
+	_, count := binary.Varint(b.buff[b.offset:])
+	b.offset += uint32(count)
+	_, count2 := binary.Varint(b.buff[b.offset:])
+	b.offset += uint32(count2)
+}
+
 func (b *binaryNomsReader) readBool() bool {
 	return b.readUint8() == 1
+}
+
+func (b *binaryNomsReader) skipBool() {
+	b.skipUint8()
 }
 
 func (b *binaryNomsReader) readString() string {
@@ -126,12 +145,37 @@ func (b *binaryNomsReader) readString() string {
 	return v
 }
 
+func (b *binaryNomsReader) skipString() {
+	size := uint32(b.readCount())
+	b.offset += size
+}
+
 func (b *binaryNomsReader) readHash() hash.Hash {
 	h := hash.Hash{}
 	copy(h[:], b.buff[b.offset:b.offset+hash.ByteLen])
 	b.offset += hash.ByteLen
 	return h
 }
+
+func (b *binaryNomsReader) skipHash() {
+	b.offset += hash.ByteLen
+}
+
+// func (b *binaryNomsReader) slice(start, end uint32) nomsReader {
+// 	return &binaryNomsReader{b.buff[start:end], 0}
+// }
+
+func (b *binaryNomsReader) byteSlice(start, end uint32) []byte {
+	return b.buff[start:end]
+}
+
+// func (b *binaryNomsReader) clone() nomsReader {
+// 	return &binaryNomsReader{b.buff, b.offset}
+// }
+//
+// func (b *binaryNomsReader) at(offset int) nomsReader {
+// 	return &binaryNomsReader{b.buff[offset:], 0}
+// }
 
 type binaryNomsWriter struct {
 	buff   []byte
@@ -218,3 +262,14 @@ func (b *binaryNomsWriter) writeHash(h hash.Hash) {
 	copy(b.buff[b.offset:], h[:])
 	b.offset += hash.ByteLen
 }
+
+func (b *binaryNomsWriter) writeRaw(buff []byte) {
+	b.ensureCapacity(uint32(len(buff)))
+	copy(b.buff[b.offset:], buff)
+	b.offset += uint32(len(buff))
+}
+
+// func (b *binaryNomsWriter) canWriteRaw(r nomsReader) bool {
+// 	_, ok := r.(*binaryNomsReader)
+// 	return ok
+// }

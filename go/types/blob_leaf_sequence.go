@@ -8,25 +8,46 @@ import "github.com/attic-labs/noms/go/d"
 
 type blobLeafSequence struct {
 	leafSequence
-	data []byte
 }
 
 func newBlobLeafSequence(vrw ValueReadWriter, data []byte) sequence {
 	d.PanicIfTrue(vrw == nil)
-	return blobLeafSequence{leafSequence{vrw, len(data), BlobKind}, data}
+	offsets := make([]uint32, 3)
+	w := newBinaryNomsWriter()
+	enc := newValueEncoder(w)
+	enc.writeKind(BlobKind)
+	offsets[0] = w.offset
+	enc.writeCount(0) // level
+	offsets[1] = w.offset
+	enc.writeBytes(data)
+	offsets[2] = w.offset
+	return blobLeafSequence{leafSequence{vrw, w.data(), offsets}}
+}
+
+func (bl blobLeafSequence) writeTo(enc *valueEncoder) {
+	enc.writeRaw(bl.buff)
 }
 
 // sequence interface
 
+func (bl blobLeafSequence) data() []byte {
+	dec := bl.decoder()
+	dec.skipKind()
+	dec.skipCount() // level
+	return dec.readBytes()
+}
+
 func (bl blobLeafSequence) getCompareFn(other sequence) compareFn {
-	otherbl := other.(blobLeafSequence)
+	data := bl.data()
+	otherData := other.(blobLeafSequence).data()
 	return func(idx, otherIdx int) bool {
-		return bl.data[idx] == otherbl.data[otherIdx]
+		return data[idx] == otherData[otherIdx]
 	}
 }
 
 func (bl blobLeafSequence) getItem(idx int) sequenceItem {
-	return bl.data[idx]
+
+	return bl.data()[idx]
 }
 
 func (bl blobLeafSequence) WalkRefs(cb RefCallback) {

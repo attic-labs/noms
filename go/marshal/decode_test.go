@@ -524,9 +524,6 @@ func TestDecodeNomsTypePtr(t *testing.T) {
 		},
 	)
 	testUnmarshal(types.NewStruct("S", types.StructData{"type": complex}), &s, &S{complex})
-
-	var empty *types.Type
-	testUnmarshal(types.NewStruct("S", types.StructData{"type": empty}), &s, &S{empty})
 }
 
 func ExampleUnmarshal() {

@@ -64,11 +64,12 @@ func (b Blob) ReadAt(p []byte, off int64) (n int, err error) {
 		bl := b.sequence().(blobLeafSequence)
 
 		localEnd := endIdx
-		leafLength := uint64(len(bl.data))
+		data := bl.data()
+		leafLength := uint64(len(data))
 		if localEnd > leafLength {
 			localEnd = leafLength
 		}
-		src := bl.data[startIdx:localEnd]
+		src := data[startIdx:localEnd]
 
 		copy(p[n:], src)
 		n += len(src)
@@ -196,6 +197,10 @@ func (b Blob) typeOf() *Type {
 
 func (b Blob) Kind() NomsKind {
 	return BlobKind
+}
+
+func (b Blob) valueReadWriter() ValueReadWriter {
+	return b.seq.valueReadWriter()
 }
 
 type BlobReader struct {
