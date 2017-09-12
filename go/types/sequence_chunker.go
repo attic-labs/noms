@@ -19,6 +19,7 @@ type sequenceChunker struct {
 	hashValueBytes             hashValueBytesFn
 	rv                         *rollingValueHasher
 	done                       bool
+	unwrittenCol               Collection
 }
 
 // makeChunkFn takes a sequence of items to chunk, and returns the result of chunking those items, a tuple of a reference to that chunk which can itself be chunked + its underlying value.
@@ -47,6 +48,7 @@ func newSequenceChunker(cur *sequenceCursor, level uint64, vrw ValueReadWriter, 
 		hashValueBytes,
 		newRollingValueHasher(byte(level % 256)),
 		false,
+		nil,
 	}
 
 	if cur != nil {
@@ -165,16 +167,37 @@ func (sc *sequenceChunker) createParent() {
 	}
 	sc.parent = newSequenceChunker(parent, sc.level+1, sc.vrw, sc.parentMakeChunk, sc.parentMakeChunk, metaHashValueBytes)
 	sc.parent.isLeaf = false
+
+	if sc.unwrittenCol != nil {
+		// There is an unwritten collection, but this chunker now has a parent, so
+		// write it. See comment in createSequence().
+		sc.vrw.WriteValue(sc.unwrittenCol)
+		sc.unwrittenCol = nil
+	}
 }
 
 func (sc *sequenceChunker) createSequence() (sequence, metaTuple) {
 	// If the sequence chunker has a ValueWriter, eagerly write sequences.
 	col, key, numLeaves := sc.makeChunk(sc.level, sc.current)
 	seq := col.sequence()
-	mt := newMetaTuple(sc.vrw.WriteValue(col), key, numLeaves)
+
+	var ref Ref
+	if sc.parent == nil {
+		// If there is no parent, this chunker (so far) is either the root of the
+		// resulting tree, or *above* the root, and either way don't write it yet
+		// because we might not need to.
+		ref = NewRef(col)
+		sc.unwrittenCol = col
+	} else {
+		// There is a parent, so either this sequence is internal to the tree, or
+		// we'll find out later in Done() that it was a *possible* (but not
+		// necessarily *canonical*) root. In the latter case we'll unecessarily
+		// write a chunk, but it's unlikely and a fair trade off for simplicity.
+		ref = sc.vrw.WriteValue(col)
+	}
 
 	sc.current = []sequenceItem{}
-	return seq, mt
+	return seq, newMetaTuple(ref, key, numLeaves)
 }
 
 func (sc *sequenceChunker) handleChunkBoundary() {
