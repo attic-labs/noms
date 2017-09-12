@@ -11,7 +11,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
-	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -186,7 +186,7 @@ func main() {
 	flag.BoolVar(&debug, "d", false, "debug")
 	flag.Parse()
 	if len(flag.Args()) < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s dataset mount_point\n", path.Base(os.Args[0]))
+		fmt.Fprintf(os.Stderr, "Usage: %s dataset mount_point\n", filepath.Base(os.Args[0]))
 		return
 	}
 
@@ -353,10 +353,9 @@ func (fs *nomsFS) Symlink(targetPath string, path string, context *fuse.Context)
 }
 
 func (fs *nomsFS) createCommon(path string, mode uint32, createContents func() types.Value) (*nNode, fuse.Status) {
-	components := strings.Split(path, "/")
-
-	fname := components[len(components)-1]
-	components = components[:len(components)-1]
+	path = filepath.Clean(path)
+	dir, fname := filepath.Split(path)
+	components := filepath.SplitList(dir)
 
 	// Grab the spot in the hierarchy where the new node will go.
 	parent, code := fs.getPathComponents(components)
