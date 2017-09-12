@@ -49,8 +49,27 @@ func main() {
 	outDB, outDS, err := cfg.GetDataset(flag.Arg(1))
 	defer outDB.Close()
 
+	// I don't want to allocate a new types.Value every time someone calls zeroVal(), so instead have a map of canned Values to reference.
+	zeroVals := map[types.NomsKind]types.Value{
+		types.BoolKind:   types.Bool(false),
+		types.NumberKind: types.Number(0),
+		types.StringKind: types.String(""),
+	}
+
+	zeroVal := func(t *types.Type) types.Value {
+		v, present := zeroVals[t.TargetKind()]
+		if !present {
+			d.CheckErrorNoUsage(fmt.Errorf("csv-invert doesn't support values of type %s", t.Describe()))
+		}
+		return v
+	}
+
 	defer profile.MaybeStartProfile().Stop()
-	streams := map[string]chan types.Value{}
+	type stream struct {
+		ch      chan types.Value
+		zeroVal types.Value
+	}
+	streams := map[string]stream{}
 	lists := map[string]<-chan types.List{}
 	lowers := map[string]string{}
 
@@ -58,29 +77,29 @@ func main() {
 	sDesc.IterFields(func(name string, t *types.Type, optional bool) {
 		lowerName := strings.ToLower(name)
 		if _, present := streams[lowerName]; !present {
-			streams[lowerName] = make(chan types.Value, 1024)
-			lists[lowerName] = types.NewStreamingList(outDB, streams[lowerName])
+			s := stream{make(chan types.Value, 1024), zeroVal(t)}
+			streams[lowerName] = s
+			lists[lowerName] = types.NewStreamingList(outDB, s.ch)
 		}
 		lowers[name] = lowerName
 	})
 
 	columnVals := make(map[string]types.Value, len(streams))
-	emptyString := types.String("")
 	l.IterAll(func(v types.Value, index uint64) {
-		for lowerName := range streams {
-			columnVals[lowerName] = emptyString
+		for lowerName, stram := range streams {
+			columnVals[lowerName] = stram.zeroVal
 		}
 		v.(types.Struct).IterFields(func(name string, value types.Value) {
 			columnVals[lowers[name]] = value
 		})
 		for lowerName, stream := range streams {
-			stream <- columnVals[lowerName]
+			stream.ch <- columnVals[lowerName]
 		}
 	})
 
 	invertedStructData := types.StructData{}
 	for lowerName, stream := range streams {
-		close(stream)
+		close(stream.ch)
 		invertedStructData[lowerName] = <-lists[lowerName]
 	}
 	str := types.NewStruct("Columnar", invertedStructData)
