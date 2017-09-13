@@ -74,20 +74,6 @@ func (b *binaryNomsReader) pos() uint32 {
 	return b.offset
 }
 
-func (b *binaryNomsReader) readBytes() []byte {
-	size := uint32(b.readCount())
-
-	buff := make([]byte, size, size)
-	copy(buff, b.buff[b.offset:b.offset+size])
-	b.offset += size
-	return buff
-}
-
-func (b *binaryNomsReader) skipBytes() {
-	size := b.readCount()
-	b.offset += uint32(size)
-}
-
 func (b *binaryNomsReader) readUint8() uint8 {
 	v := uint8(b.buff[b.offset])
 	b.offset++
@@ -212,8 +198,6 @@ func (b *binaryNomsWriter) ensureCapacity(n uint32) {
 
 func (b *binaryNomsWriter) writeBytes(v []byte) {
 	size := uint32(len(v))
-	b.writeCount(uint64(size))
-
 	b.ensureCapacity(size)
 	copy(b.buff[b.offset:], v)
 	b.offset += size

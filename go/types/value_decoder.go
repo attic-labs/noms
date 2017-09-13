@@ -114,14 +114,11 @@ func (r *valueDecoder) skipTypeInner() {
 	}
 }
 
-func (r *valueDecoder) readBlobLeafSequence() sequence {
-	b := r.readBytes()
-	return newBlobLeafSequence(r.vrw, b)
-}
-
 func (r *valueDecoder) skipBlobLeafSequence() []uint32 {
-	r.skipBytes()
-	return []uint32{r.pos()}
+	size := r.readCount()
+	valuesPos := r.pos()
+	r.offset += uint32(size)
+	return []uint32{valuesPos, r.pos()}
 }
 
 func (r *valueDecoder) readValueSequence() ValueSlice {

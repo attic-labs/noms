@@ -49,10 +49,6 @@ func (w *valueEncoder) writeType(t *Type, seenStructs map[string]*Type) {
 	}
 }
 
-// func (w *valueEncoder) writeBlobLeafSequence(seq blobLeafSequence) {
-// 	w.writeBytes(seq.data)
-// }
-
 func (w *valueEncoder) writeValueSlice(values ValueSlice) {
 	count := uint32(len(values))
 	w.writeCount(uint64(count))

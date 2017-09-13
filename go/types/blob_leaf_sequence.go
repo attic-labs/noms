@@ -12,16 +12,17 @@ type blobLeafSequence struct {
 
 func newBlobLeafSequence(vrw ValueReadWriter, data []byte) sequence {
 	d.PanicIfTrue(vrw == nil)
-	offsets := make([]uint32, 4)
+	offsets := make([]uint32, leafSequencePartValues+1)
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w)
-	offsets[0] = 0
+	offsets[leafSequencePartKind] = 0
 	enc.writeKind(BlobKind)
-	offsets[1] = w.offset
+	offsets[leafSequencePartLevel] = w.offset
 	enc.writeCount(0) // level
-	offsets[2] = w.offset
+	offsets[leafSequencePartCount] = w.offset
+	enc.writeCount(uint64(len(data)))
+	offsets[leafSequencePartValues] = w.offset
 	enc.writeBytes(data)
-	offsets[3] = w.offset
 	return blobLeafSequence{leafSequence{vrw, w.data(), offsets}}
 }
 
@@ -32,23 +33,19 @@ func (bl blobLeafSequence) writeTo(enc *valueEncoder) {
 // sequence interface
 
 func (bl blobLeafSequence) data() []byte {
-	dec := bl.decoder()
-	dec.skipKind()
-	dec.skipCount() // level
-	return dec.readBytes()
+	offset := bl.offsets[leafSequencePartValues] - bl.offsets[leafSequencePartKind]
+	return bl.buff[offset:]
 }
 
 func (bl blobLeafSequence) getCompareFn(other sequence) compareFn {
-	data := bl.data()
-	otherData := other.(blobLeafSequence).data()
 	return func(idx, otherIdx int) bool {
-		return data[idx] == otherData[otherIdx]
+		return bl.getItem(idx) == other.(blobLeafSequence).getItem(otherIdx)
 	}
 }
 
 func (bl blobLeafSequence) getItem(idx int) sequenceItem {
-
-	return bl.data()[idx]
+	offset := bl.offsets[leafSequencePartValues] - bl.offsets[leafSequencePartKind] + uint32(idx)
+	return bl.buff[offset]
 }
 
 func (bl blobLeafSequence) WalkRefs(cb RefCallback) {

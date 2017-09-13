@@ -172,8 +172,8 @@ func (seq leafSequence) getCompositeChildSequence(start uint64, length uint64) s
 func (seq leafSequence) getItemOffset(idx int) int {
 	// kind, level, count, elements...
 	// 0     1      2      3          n+1
-	d.PanicIfTrue(idx+4 > len(seq.offsets))
-	return int(seq.offsets[idx+3] - seq.offsets[0])
+	d.PanicIfTrue(idx+leafSequencePartValues+1 > len(seq.offsets))
+	return int(seq.offsets[idx+leafSequencePartValues] - seq.offsets[leafSequencePartKind])
 }
 
 func (seq leafSequence) getItem(idx int) sequenceItem {

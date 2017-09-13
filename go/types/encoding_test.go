@@ -33,6 +33,7 @@ func toBinaryNomsReaderData(data []interface{}) []byte {
 		case hash.Hash:
 			w.writeHash(v)
 		case []byte:
+			w.writeCount(uint64(len(v)))
 			w.writeBytes(v)
 		case NomsKind:
 			w.writeUint8(uint8(v))

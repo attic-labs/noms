@@ -82,6 +82,13 @@ type metaSequence struct {
 	offsets []uint32
 }
 
+const (
+	metaSequencePartKind   = 0
+	metaSequencePartLevel  = 1
+	metaSequencePartCount  = 2
+	metaSequencePartValues = 3
+)
+
 // readLeafSequence reads the data provided by a decoder and moves the decoder forward.
 func readMetaSequence(dec *valueDecoder) metaSequence {
 	start := dec.pos()
@@ -91,19 +98,23 @@ func readMetaSequence(dec *valueDecoder) metaSequence {
 }
 
 func skipMetaSequence(dec *valueDecoder) []uint32 {
-	dec.skipKind()
 	kindPos := dec.pos()
+	dec.skipKind()
+	levelPos := dec.pos()
 	dec.skipCount() // level
+	countPos := dec.pos()
 	count := dec.readCount()
-	offsets := make([]uint32, count+3)
-	offsets[0] = 0
-	offsets[1] = kindPos
-	offsets[2] = dec.pos()
+	valuesPos := dec.pos()
+	offsets := make([]uint32, count+metaSequencePartValues+1)
+	offsets[metaSequencePartKind] = kindPos
+	offsets[metaSequencePartLevel] = levelPos
+	offsets[metaSequencePartCount] = countPos
+	offsets[metaSequencePartValues] = valuesPos
 	for i := uint64(0); i < count; i++ {
 		dec.skipValue() // ref
 		dec.skipValue() // v
 		dec.skipCount() // numLeaves
-		offsets[i+3] = dec.pos()
+		offsets[i+metaSequencePartValues+1] = dec.pos()
 	}
 	return offsets
 }
@@ -120,10 +131,13 @@ func (ms metaSequence) decoderAtOffset(offset int) *valueDecoder {
 	return newValueDecoder(ms.buff[offset:], ms.vrw)
 }
 
+func (ms metaSequence) decoderAtPart(part uint32) *valueDecoder {
+	offset := ms.offsets[part] - ms.offsets[metaSequencePartKind]
+	return newValueDecoder(ms.buff[offset:], ms.vrw)
+}
+
 func (ms metaSequence) decoderSkipToValues() (*valueDecoder, uint64) {
-	dec := ms.decoder()
-	dec.skipKind()
-	dec.skipCount() // level
+	dec := ms.decoderAtPart(metaSequencePartCount)
 	count := dec.readCount()
 	return dec, count
 }
@@ -136,27 +150,27 @@ func (ms metaSequence) decoderSkipToIndex(idx int) *valueDecoder {
 func (ms metaSequence) getItemOffset(idx int) int {
 	// kind, level, count, elements...
 	// 0     1      2      3          n+1
-	d.PanicIfTrue(idx+4 > len(ms.offsets))
-	return int(ms.offsets[idx+3] - ms.offsets[0])
+	d.PanicIfTrue(idx+metaSequencePartValues+1 > len(ms.offsets))
+	return int(ms.offsets[idx+metaSequencePartValues] - ms.offsets[metaSequencePartKind])
 }
 
 func newMetaSequence(kind NomsKind, level uint64, tuples []metaTuple, vrw ValueReadWriter) metaSequence {
 	d.PanicIfFalse(level > 0)
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w)
-	offsets := make([]uint32, len(tuples)+4)
-	offsets[0] = 0
+	offsets := make([]uint32, len(tuples)+metaSequencePartValues+1)
+	offsets[metaSequencePartKind] = 0
 	enc.writeKind(kind)
-	offsets[1] = w.offset
+	offsets[metaSequencePartLevel] = w.offset
 	enc.writeCount(level)
-	offsets[2] = w.offset
+	offsets[metaSequencePartCount] = w.offset
 	enc.writeCount(uint64(len(tuples)))
-	offsets[3] = w.offset
+	offsets[metaSequencePartValues] = w.offset
 	for i, mt := range tuples {
 		enc.writeValue(mt.ref)
 		enc.writeOrderedKey(mt.key)
 		enc.writeCount(mt.numLeaves)
-		offsets[i+4] = w.offset
+		offsets[i+metaSequencePartValues+1] = w.offset
 	}
 	return metaSequence{vrw, w.data(), offsets}
 }
@@ -262,7 +276,7 @@ func (ms metaSequence) typeOf() *Type {
 }
 
 func (ms metaSequence) Kind() NomsKind {
-	return ms.decoder().readKind()
+	return ms.decoderAtPart(metaSequencePartKind).readKind()
 }
 
 func (ms metaSequence) numLeaves() uint64 {
@@ -271,9 +285,7 @@ func (ms metaSequence) numLeaves() uint64 {
 }
 
 func (ms metaSequence) treeLevel() uint64 {
-	dec := ms.decoder()
-	dec.skipKind()
-	return dec.readCount()
+	return ms.decoderAtPart(metaSequencePartLevel).readCount()
 }
 
 func (ms metaSequence) isLeaf() bool {
