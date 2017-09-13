@@ -174,17 +174,6 @@ func (ms metaSequence) tuples() []metaTuple {
 	return tuples
 }
 
-// func (ms metaSequence) numLeavesSlice() []uint64 {
-// 	dec, count := ms.decoderSkipToValues()
-// 	nls := make([]uint64, count)
-// 	for i := uint64(0); i < count; i++ {
-// 		dec.skipValue() // ref
-// 		dec.skipValue() // v
-// 		nls[i] = dec.readCount()
-// 	}
-// 	return nls
-// }
-
 func (ms metaSequence) getKey(idx int) orderedKey {
 	dec := ms.decoderSkipToIndex(idx)
 	// if dec == nil {
@@ -219,18 +208,6 @@ func (ms metaSequence) getCompareFn(other sequence) compareFn {
 		return ref.TargetHash() == otherRef.TargetHash()
 	}
 }
-
-// func (ms metaSequence) targetHashes() []hash.Hash {
-// 	dec, count := ms.decoderSkipToValues()
-// 	hs := make([]hash.Hash, count)
-// 	for i := uint64(0); i < count; i++ {
-// 		ref := dec.readValue().(Ref)
-// 		hs[i] = ref.TargetHash()
-// 		dec.skipValue() // v
-// 		dec.skipCount() // numLeaves
-// 	}
-// 	return hs
-// }
 
 func (ms metaSequence) readTuple(dec *valueDecoder) metaTuple {
 	ref := dec.readValue().(Ref)
