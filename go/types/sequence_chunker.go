@@ -42,7 +42,7 @@ func newSequenceChunker(cur *sequenceCursor, level uint64, vrw ValueReadWriter, 
 		level,
 		vrw,
 		nil,
-		[]sequenceItem{},
+		nil,
 		makeChunk, parentMakeChunk,
 		true,
 		hashValueBytes,
@@ -170,43 +170,48 @@ func (sc *sequenceChunker) createParent() {
 
 	if sc.unwrittenCol != nil {
 		// There is an unwritten collection, but this chunker now has a parent, so
-		// write it. See comment in createSequence().
+		// write it. See createSequence().
 		sc.vrw.WriteValue(sc.unwrittenCol)
 		sc.unwrittenCol = nil
 	}
 }
 
-func (sc *sequenceChunker) createSequence() (sequence, metaTuple) {
-	// If the sequence chunker has a ValueWriter, eagerly write sequences.
+// createSequence creates a sequence from the current items in |sc.current|,
+// clears the current items, then returns the new sequence and a metaTuple that
+// points to it.
+//
+// If |write| is true then the sequence is eagerly written, or if false it's
+// manually constructed and stored in |sc.unwrittenCol| to possibly write later
+// in createParent(). This is to hopefully avoid unnecessarily writing the root
+// chunk (for example, the sequence may be stored inline).
+//
+// There is a catch: in the rare case that the root chunk is actually not the
+// canonical root of the sequence (see Done()), then we will have ended up
+// unnecessarily writing a chunk - the canonical root. However, this is a fair
+// tradeoff for simplicity of the chunking algorithm.
+func (sc *sequenceChunker) createSequence(write bool) (sequence, metaTuple) {
 	col, key, numLeaves := sc.makeChunk(sc.level, sc.current)
-	seq := col.sequence()
+	sc.current = nil
 
 	var ref Ref
-	if sc.parent == nil {
-		// If there is no parent, this chunker (so far) is either the root of the
-		// resulting tree, or *above* the root, and either way don't write it yet
-		// because we might not need to.
+	if write {
+		ref = sc.vrw.WriteValue(col)
+	} else {
 		ref = NewRef(col)
 		sc.unwrittenCol = col
-	} else {
-		// There is a parent, so either this sequence is internal to the tree, or
-		// we'll find out later in Done() that it was a *possible* (but not
-		// necessarily *canonical*) root. In the latter case we'll unecessarily
-		// write a chunk, but it's unlikely and a fair trade off for simplicity.
-		ref = sc.vrw.WriteValue(col)
 	}
 
-	sc.current = []sequenceItem{}
-	return seq, newMetaTuple(ref, key, numLeaves)
+	mt := newMetaTuple(ref, key, numLeaves)
+	return col.sequence(), mt
 }
 
 func (sc *sequenceChunker) handleChunkBoundary() {
-	d.Chk.NotEmpty(sc.current)
+	d.PanicIfFalse(len(sc.current) > 0)
 	sc.rv.Reset()
-	_, mt := sc.createSequence()
 	if sc.parent == nil {
 		sc.createParent()
 	}
+	_, mt := sc.createSequence(true)
 	sc.parent.Append(mt)
 }
 
@@ -248,7 +253,7 @@ func (sc *sequenceChunker) Done() sequence {
 
 	// (1) This is "leaf" chunker and thus produced tree of depth 1 which contains exactly one chunk (never hit a boundary), or (2) This in an internal node of the tree which contains multiple references to child nodes. In either case, this is the canonical root of the tree.
 	if sc.isLeaf || len(sc.current) > 1 {
-		seq, _ := sc.createSequence()
+		seq, _ := sc.createSequence(false)
 		return seq
 	}
 
