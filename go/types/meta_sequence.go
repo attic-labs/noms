@@ -134,12 +134,9 @@ func (ms metaSequence) decoderSkipToIndex(idx int) *valueDecoder {
 }
 
 func (ms metaSequence) getItemOffset(idx int) int {
-	// kind, level, count, elements....
-	// 0     1      2      3
-	if idx+4 > len(ms.offsets) {
-		// +1 because the offsets contain one extra offset after the last entry.
-		return -1
-	}
+	// kind, level, count, elements...
+	// 0     1      2      3          n+1
+	d.PanicIfTrue(idx+4 > len(ms.offsets))
 	return int(ms.offsets[idx+3] - ms.offsets[0])
 }
 
@@ -175,10 +172,6 @@ func (ms metaSequence) tuples() []metaTuple {
 
 func (ms metaSequence) getKey(idx int) orderedKey {
 	dec := ms.decoderSkipToIndex(idx)
-	// if dec == nil {
-	// 	return orderedKey{}
-	// }
-
 	dec.skipValue() // ref
 	return dec.readOrderedKey()
 }
@@ -217,13 +210,11 @@ func (ms metaSequence) readTuple(dec *valueDecoder) metaTuple {
 
 func (ms metaSequence) getRefAt(idx int) Ref {
 	dec := ms.decoderSkipToIndex(idx)
-	// d.PanicIfTrue(dec == nil)
 	return dec.readValue().(Ref)
 }
 
 func (ms metaSequence) getNumLeavesAt(idx int) uint64 {
 	dec := ms.decoderSkipToIndex(idx)
-	// d.PanicIfTrue(dec == nil)
 	dec.skipValue()
 	dec.skipValue()
 	return dec.readCount()

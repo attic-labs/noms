@@ -77,11 +77,7 @@ func (ml mapLeafSequence) writeTo(enc *valueEncoder) {
 // sequence interface
 
 func (ml mapLeafSequence) getItem(idx int) sequenceItem {
-	offset := ml.getItemOffset(idx)
-	if offset == -1 {
-		return mapEntry{}
-	}
-	dec := ml.decoderAtOffset(offset)
+	dec := ml.decoderSkipToIndex(idx)
 	return readMapEntry(dec)
 }
 
@@ -122,29 +118,11 @@ func (ml mapLeafSequence) typeOf() *Type {
 
 func (ml mapLeafSequence) decoderSkipToIndex(idx int) *valueDecoder {
 	offset := ml.getItemOffset(idx)
-	// if offset == -1 {
-	// 	return nil
-	// }
 	return ml.decoderAtOffset(offset)
-	//
-	// dec, count := ml.decoderSkipToValues()
-	// if offset == -1
-	// 	return nil
-	// }
-	// for ; idx > 0; idx-- {
-	// 	dec.skipValue()
-	// 	dec.skipValue()
-	// }
-	// return dec
 }
 
 func (ml mapLeafSequence) getKey(idx int) orderedKey {
 	dec := ml.decoderSkipToIndex(idx)
-	// TODO: Out of bounds
-	// if dec == nil {
-	// 	return orderedKey{}
-	// }
-
 	return newOrderedKey(dec.readValue())
 }
 
@@ -156,10 +134,6 @@ func (ml mapLeafSequence) search(key orderedKey) int {
 
 func (ml mapLeafSequence) getValue(idx int) Value {
 	dec := ml.decoderSkipToIndex(idx)
-	// if dec == nil {
-	// 	return nil
-	// }
-
 	dec.skipValue()
 	return dec.readValue()
 }

@@ -159,28 +159,15 @@ func (seq leafSequence) getCompositeChildSequence(start uint64, length uint64) s
 }
 
 func (seq leafSequence) getItemOffset(idx int) int {
-	// kind, level, count, elements....
-	//      0      1      2
-	if idx+4 > len(seq.offsets) {
-		// +1 because the offsets contain one extra offset after the last entry.
-		return -1
-	}
+	// kind, level, count, elements...
+	// 0     1      2      3          n+1
+	d.PanicIfTrue(idx+4 > len(seq.offsets))
 	return int(seq.offsets[idx+3] - seq.offsets[0])
 }
 
 func (seq leafSequence) getItem(idx int) sequenceItem {
-	// fmt.Printf("getItem dec, %v\n", seq.decoder())
-	// fmt.Printf("getItem offset, %d\n", offset)
 	dec := seq.decoderSkipToIndex(idx)
 	return dec.readValue()
-	// dec, count := seq.decoderSkipToValues()
-	// if idx >= int(count) {
-	// 	return nil
-	// }
-	// for ; idx > 0; idx-- {
-	// 	dec.skipValue()
-	// }
-	// return dec.readValue()
 }
 
 func (seq leafSequence) WalkRefs(cb RefCallback) {
