@@ -53,19 +53,19 @@ func (mes mapEntrySlice) Equals(other mapEntrySlice) bool {
 
 func newMapLeafSequence(vrw ValueReadWriter, data ...mapEntry) orderedSequence {
 	d.PanicIfTrue(vrw == nil)
-	offsets := make([]uint32, 3+len(data))
+	offsets := make([]uint32, 4+len(data))
+	offsets[0] = 0
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w)
 	enc.writeKind(MapKind)
-	offsets = append(offsets, w.offset)
-	offsets[0] = w.offset
-	enc.writeCount(0) // level
 	offsets[1] = w.offset
-	enc.writeCount(uint64(len(data)))
+	enc.writeCount(0) // level
 	offsets[2] = w.offset
+	enc.writeCount(uint64(len(data)))
+	offsets[3] = w.offset
 	for i, me := range data {
 		me.writeTo(enc)
-		offsets[i+3] = w.offset
+		offsets[i+4] = w.offset
 	}
 	return mapLeafSequence{leafSequence{vrw, w.data(), offsets}}
 }

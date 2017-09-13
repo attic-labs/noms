@@ -12,15 +12,16 @@ type blobLeafSequence struct {
 
 func newBlobLeafSequence(vrw ValueReadWriter, data []byte) sequence {
 	d.PanicIfTrue(vrw == nil)
-	offsets := make([]uint32, 3)
+	offsets := make([]uint32, 4)
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w)
+	offsets[0] = 0
 	enc.writeKind(BlobKind)
-	offsets[0] = w.offset
-	enc.writeCount(0) // level
 	offsets[1] = w.offset
-	enc.writeBytes(data)
+	enc.writeCount(0) // level
 	offsets[2] = w.offset
+	enc.writeBytes(data)
+	offsets[3] = w.offset
 	return blobLeafSequence{leafSequence{vrw, w.data(), offsets}}
 }
 

@@ -19,18 +19,17 @@ func newLeafSequence(kind NomsKind, count uint64, vrw ValueReadWriter, vs ...Val
 	d.PanicIfTrue(vrw == nil)
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w)
+	offsets := make([]uint32, len(vs)+4)
+	offsets[0] = 0
 	enc.writeKind(kind)
-	kindPos := w.offset
+	offsets[1] = w.offset
 	enc.writeCount(0) // level
-	levelPos := w.offset
-	enc.writeCount(count)
-	offsets := make([]uint32, len(vs)+3)
-	offsets[0] = kindPos
-	offsets[1] = levelPos
 	offsets[2] = w.offset
+	enc.writeCount(count)
+	offsets[3] = w.offset
 	for i, v := range vs {
 		enc.writeValue(v)
-		offsets[i+3] = w.offset
+		offsets[i+4] = w.offset
 	}
 	return leafSequence{vrw, w.data(), offsets}
 }
@@ -49,13 +48,14 @@ func skipLeafSequence(dec *valueDecoder) []uint32 {
 	dec.skipCount() // level
 	levelPos := dec.pos()
 	count := dec.readCount()
-	offsets := make([]uint32, count+3)
-	offsets[0] = kindPos
-	offsets[1] = levelPos
-	offsets[2] = dec.pos()
+	offsets := make([]uint32, count+4)
+	offsets[0] = 0
+	offsets[1] = kindPos
+	offsets[2] = levelPos
+	offsets[3] = dec.pos()
 	for i := uint64(0); i < count; i++ {
 		dec.skipValue()
-		offsets[i+3] = dec.pos()
+		offsets[i+4] = dec.pos()
 	}
 	return offsets
 }
@@ -158,19 +158,14 @@ func (seq leafSequence) getCompositeChildSequence(start uint64, length uint64) s
 	panic("getCompositeChildSequence called on a leaf sequence")
 }
 
-// func (seq *leafSequence) initOffsets() {
-// 	dec := seq.decoder()
-// 	seq.offsets = skipLeafSequence(dec)
-// }
-
 func (seq leafSequence) getItemOffset(idx int) int {
 	// kind, level, count, elements....
 	//      0      1      2
-	if idx+3 > len(seq.offsets) {
+	if idx+4 > len(seq.offsets) {
 		// +1 because the offsets contain one extra offset after the last entry.
 		return -1
 	}
-	return int(seq.offsets[idx+2])
+	return int(seq.offsets[idx+3] - seq.offsets[0])
 }
 
 func (seq leafSequence) getItem(idx int) sequenceItem {

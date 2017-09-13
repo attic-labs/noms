@@ -87,7 +87,6 @@ func readMetaSequence(dec *valueDecoder) metaSequence {
 	start := dec.pos()
 	offsets := skipMetaSequence(dec)
 	end := dec.pos()
-	adjustOffsets(offsets, start)
 	return metaSequence{dec.vrw, dec.byteSlice(start, end), offsets}
 }
 
@@ -96,14 +95,15 @@ func skipMetaSequence(dec *valueDecoder) []uint32 {
 	kindPos := dec.pos()
 	dec.skipCount() // level
 	count := dec.readCount()
-	offsets := make([]uint32, count+2)
-	offsets[0] = kindPos
-	offsets[1] = dec.pos()
+	offsets := make([]uint32, count+3)
+	offsets[0] = 0
+	offsets[1] = kindPos
+	offsets[2] = dec.pos()
 	for i := uint64(0); i < count; i++ {
 		dec.skipValue() // ref
 		dec.skipValue() // v
 		dec.skipCount() // numLeaves
-		offsets[i+2] = dec.pos()
+		offsets[i+3] = dec.pos()
 	}
 	return offsets
 }
@@ -135,32 +135,31 @@ func (ms metaSequence) decoderSkipToIndex(idx int) *valueDecoder {
 
 func (ms metaSequence) getItemOffset(idx int) int {
 	// kind, level, count, elements....
-	//      0      1      2
-	if idx+3 > len(ms.offsets) {
+	// 0     1      2      3
+	if idx+4 > len(ms.offsets) {
 		// +1 because the offsets contain one extra offset after the last entry.
 		return -1
 	}
-	return int(ms.offsets[idx+2])
+	return int(ms.offsets[idx+3] - ms.offsets[0])
 }
 
 func newMetaSequence(kind NomsKind, level uint64, tuples []metaTuple, vrw ValueReadWriter) metaSequence {
 	d.PanicIfFalse(level > 0)
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w)
+	offsets := make([]uint32, len(tuples)+4)
+	offsets[0] = 0
 	enc.writeKind(kind)
-	kindPos := w.offset
+	offsets[1] = w.offset
 	enc.writeCount(level)
-	levelPos := w.offset
-	enc.writeCount(uint64(len(tuples)))
-	offsets := make([]uint32, len(tuples)+3)
-	offsets[0] = kindPos
-	offsets[1] = levelPos
 	offsets[2] = w.offset
+	enc.writeCount(uint64(len(tuples)))
+	offsets[3] = w.offset
 	for i, mt := range tuples {
 		enc.writeValue(mt.ref)
 		enc.writeOrderedKey(mt.key)
 		enc.writeCount(mt.numLeaves)
-		offsets[i+3] = w.offset
+		offsets[i+4] = w.offset
 	}
 	return metaSequence{vrw, w.data(), offsets}
 }

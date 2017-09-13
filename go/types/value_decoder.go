@@ -147,15 +147,9 @@ func (r *valueDecoder) skipValueSequence() []uint32 {
 	return offsets
 }
 
-func adjustOffsets(offsets []uint32, start uint32) {
-	for idx := range offsets {
-		offsets[idx] -= start
-	}
-}
-
 func (r *valueDecoder) readListSequence() sequence {
-	offsets := []uint32{}
 	start := r.pos()
+	offsets := []uint32{start}
 	r.skipKind()
 	offsets = append(offsets, r.pos())
 	level := r.readCount()
@@ -167,8 +161,6 @@ func (r *valueDecoder) readListSequence() sequence {
 	}
 	end := r.pos()
 
-	adjustOffsets(offsets, start)
-
 	if level > 0 {
 		return metaSequence{r.vrw, r.byteSlice(start, end), offsets}
 	}
@@ -177,8 +169,8 @@ func (r *valueDecoder) readListSequence() sequence {
 }
 
 func (r *valueDecoder) readBlobSequence() sequence {
-	offsets := []uint32{}
 	start := r.pos()
+	offsets := []uint32{start}
 	r.skipKind()
 	offsets = append(offsets, r.pos())
 	level := r.readCount()
@@ -190,8 +182,6 @@ func (r *valueDecoder) readBlobSequence() sequence {
 	}
 	end := r.pos()
 
-	adjustOffsets(offsets, start)
-
 	if level > 0 {
 		return metaSequence{r.vrw, r.byteSlice(start, end), offsets}
 	}
@@ -200,8 +190,8 @@ func (r *valueDecoder) readBlobSequence() sequence {
 }
 
 func (r *valueDecoder) readSetSequence() orderedSequence {
-	offsets := []uint32{}
 	start := r.pos()
+	offsets := []uint32{start}
 	r.skipKind()
 	offsets = append(offsets, r.pos())
 	level := r.readCount()
@@ -213,8 +203,6 @@ func (r *valueDecoder) readSetSequence() orderedSequence {
 	}
 	end := r.pos()
 
-	adjustOffsets(offsets, start)
-
 	if level > 0 {
 		return metaSequence{r.vrw, r.byteSlice(start, end), offsets}
 	}
@@ -223,8 +211,8 @@ func (r *valueDecoder) readSetSequence() orderedSequence {
 }
 
 func (r *valueDecoder) readMapSequence() orderedSequence {
-	offsets := []uint32{}
 	start := r.pos()
+	offsets := []uint32{start}
 	r.skipKind()
 	offsets = append(offsets, r.pos())
 	level := r.readCount()
@@ -235,8 +223,6 @@ func (r *valueDecoder) readMapSequence() orderedSequence {
 		offsets = append(offsets, r.skipMapLeafSequence()...)
 	}
 	end := r.pos()
-
-	adjustOffsets(offsets, start)
 
 	if level > 0 {
 		return metaSequence{r.vrw, r.byteSlice(start, end), offsets}
