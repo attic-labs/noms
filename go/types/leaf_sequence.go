@@ -15,21 +15,28 @@ type leafSequence struct {
 	offsets []uint32
 }
 
+const (
+	leafSequencePartKind   = 0
+	leafSequencePartLevel  = 1
+	leafSequencePartCount  = 2
+	leafSequencePartValues = 3
+)
+
 func newLeafSequence(kind NomsKind, count uint64, vrw ValueReadWriter, vs ...Value) leafSequence {
 	d.PanicIfTrue(vrw == nil)
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w)
-	offsets := make([]uint32, len(vs)+4)
-	offsets[0] = 0
+	offsets := make([]uint32, len(vs)+leafSequencePartValues+1)
+	offsets[leafSequencePartKind] = 0
 	enc.writeKind(kind)
-	offsets[1] = w.offset
+	offsets[leafSequencePartLevel] = w.offset
 	enc.writeCount(0) // level
-	offsets[2] = w.offset
+	offsets[leafSequencePartCount] = w.offset
 	enc.writeCount(count)
-	offsets[3] = w.offset
+	offsets[leafSequencePartValues] = w.offset
 	for i, v := range vs {
 		enc.writeValue(v)
-		offsets[i+4] = w.offset
+		offsets[i+leafSequencePartValues+1] = w.offset
 	}
 	return leafSequence{vrw, w.data(), offsets}
 }
@@ -43,19 +50,20 @@ func readLeafSequence(dec *valueDecoder) leafSequence {
 }
 
 func skipLeafSequence(dec *valueDecoder) []uint32 {
-	dec.skipKind()
 	kindPos := dec.pos()
-	dec.skipCount() // level
+	dec.skipKind()
 	levelPos := dec.pos()
+	dec.skipCount() // level
+	countPos := dec.pos()
 	count := dec.readCount()
-	offsets := make([]uint32, count+4)
-	offsets[0] = 0
-	offsets[1] = kindPos
-	offsets[2] = levelPos
-	offsets[3] = dec.pos()
+	offsets := make([]uint32, count+leafSequencePartValues+1)
+	offsets[leafSequencePartKind] = kindPos
+	offsets[leafSequencePartLevel] = levelPos
+	offsets[leafSequencePartCount] = countPos
+	offsets[leafSequencePartValues] = dec.pos()
 	for i := uint64(0); i < count; i++ {
 		dec.skipValue()
-		offsets[i+4] = dec.pos()
+		offsets[i+leafSequencePartValues+1] = dec.pos()
 	}
 	return offsets
 }
@@ -68,10 +76,13 @@ func (seq leafSequence) decoderAtOffset(offset int) *valueDecoder {
 	return newValueDecoder(seq.buff[offset:], seq.vrw)
 }
 
+func (seq leafSequence) decoderAtPart(part uint32) *valueDecoder {
+	offset := seq.offsets[part] - seq.offsets[leafSequencePartKind]
+	return newValueDecoder(seq.buff[offset:], seq.vrw)
+}
+
 func (seq leafSequence) decoderSkipToValues() (*valueDecoder, uint64) {
-	dec := seq.decoder()
-	dec.skipKind()
-	dec.skipCount() // level
+	dec := seq.decoderAtPart(leafSequencePartCount)
 	count := dec.readCount()
 	return dec, count
 }
