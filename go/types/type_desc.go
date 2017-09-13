@@ -12,13 +12,13 @@ import (
 type TypeDesc interface {
 	Kind() NomsKind
 	walkValues(cb ValueCallback)
+	writeTo(enc *valueEncoder, t *Type, seenStructs map[string]*Type)
 }
 
 // PrimitiveDesc implements TypeDesc for all primitive Noms types:
 // Blob
 // Bool
 // Number
-// Package
 // String
 // Type
 // Value
@@ -29,6 +29,10 @@ func (p PrimitiveDesc) Kind() NomsKind {
 }
 
 func (p PrimitiveDesc) walkValues(cb ValueCallback) {
+}
+
+func (p PrimitiveDesc) writeTo(enc *valueEncoder, t *Type, seenStructs map[string]*Type) {
+	enc.writeKind(NomsKind(p))
 }
 
 // CompoundDesc describes a List, Map, Set, Ref, or Union type.
@@ -48,7 +52,15 @@ func (c CompoundDesc) walkValues(cb ValueCallback) {
 	}
 }
 
-type TypeMap map[string]*Type
+func (c CompoundDesc) writeTo(enc *valueEncoder, t *Type, seenStructs map[string]*Type) {
+	enc.writeKind(c.kind)
+	if c.kind == UnionKind {
+		enc.writeCount(uint64(len(c.ElemTypes)))
+	}
+	for _, t := range c.ElemTypes {
+		t.writeTo(enc, seenStructs)
+	}
+}
 
 // StructDesc describes a custom Noms Struct.
 type StructDesc struct {
@@ -63,6 +75,34 @@ func (s StructDesc) Kind() NomsKind {
 func (s StructDesc) walkValues(cb ValueCallback) {
 	for _, field := range s.fields {
 		cb(field.Type)
+	}
+}
+
+func (s StructDesc) writeTo(enc *valueEncoder, t *Type, seenStructs map[string]*Type) {
+	name := s.Name
+
+	if name != "" {
+		if _, ok := seenStructs[name]; ok {
+			enc.writeKind(CycleKind)
+			enc.writeString(name)
+			return
+		}
+		seenStructs[name] = t
+	}
+
+	enc.writeKind(StructKind)
+	enc.writeString(name)
+	enc.writeCount(uint64(s.Len()))
+
+	// Write all names, all types and finally all the optional flags.
+	for _, field := range s.fields {
+		enc.writeString(field.Name)
+	}
+	for _, field := range s.fields {
+		field.Type.writeTo(enc, seenStructs)
+	}
+	for _, field := range s.fields {
+		enc.writeBool(field.Optional)
 	}
 }
 
@@ -100,6 +140,10 @@ func (c CycleDesc) Kind() NomsKind {
 }
 
 func (c CycleDesc) walkValues(cb ValueCallback) {
+}
+
+func (c CycleDesc) writeTo(enc *valueEncoder, t *Type, seenStruct map[string]*Type) {
+	panic("Should not write cycle types")
 }
 
 type typeSlice []*Type

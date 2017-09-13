@@ -46,7 +46,7 @@ func constructRef(targetHash hash.Hash, targetType *Type, height uint64) Ref {
 	offsets[refPartTargetHash] = w.offset
 	enc.writeHash(targetHash)
 	offsets[refPartTargetType] = w.offset
-	enc.writeType(targetType, map[string]*Type{})
+	targetType.writeTo(enc, map[string]*Type{})
 	offsets[refPartHeight] = w.offset
 	enc.writeCount(height)
 

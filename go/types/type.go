@@ -20,11 +20,10 @@ import (
 
 type Type struct {
 	Desc TypeDesc
-	h    *hash.Hash
 }
 
 func newType(desc TypeDesc) *Type {
-	return &Type{desc, &hash.Hash{}}
+	return &Type{desc}
 }
 
 // Describe generate text that should parse into the struct being described.
@@ -50,15 +49,14 @@ func (t *Type) Less(other Value) (res bool) {
 }
 
 func (t *Type) Hash() hash.Hash {
-	if t.h.IsEmpty() {
-		*t.h = getHash(t)
-	}
-
-	return *t.h
+	w := newBinaryNomsWriter()
+	enc := newValueEncoder(w)
+	t.writeTo(enc, map[string]*Type{})
+	return hash.Of(w.data())
 }
 
-func (t *Type) hashPointer() *hash.Hash {
-	return t.h
+func (t *Type) writeTo(enc *valueEncoder, seensStructs map[string]*Type) {
+	t.Desc.writeTo(enc, t, seensStructs)
 }
 
 func (t *Type) WalkValues(cb ValueCallback) {

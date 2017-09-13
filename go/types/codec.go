@@ -19,12 +19,7 @@ func EncodeValue(v Value) chunks.Chunk {
 	enc := newValueEncoder(w)
 	enc.writeValue(v)
 
-	c := chunks.NewChunk(w.data())
-	if cacher, ok := v.(hashCacher); ok {
-		assignHash(cacher, c.Hash())
-	}
-
-	return c
+	return chunks.NewChunk(w.data())
 }
 
 func DecodeFromBytes(data []byte, vrw ValueReadWriter) Value {
@@ -45,12 +40,7 @@ func decodeFromBytesWithValidation(data []byte, vrw ValueReadWriter) Value {
 // DecodeValue decodes a value from a chunk source. It is an error to provide an empty chunk.
 func DecodeValue(c chunks.Chunk, vrw ValueReadWriter) Value {
 	d.PanicIfTrue(c.IsEmpty())
-	v := DecodeFromBytes(c.Data(), vrw)
-	if cacher, ok := v.(hashCacher); ok {
-		assignHash(cacher, c.Hash())
-	}
-
-	return v
+	return DecodeFromBytes(c.Data(), vrw)
 }
 
 type nomsWriter interface {

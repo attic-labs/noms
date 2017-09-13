@@ -23,32 +23,6 @@ func (w *valueEncoder) writeKind(kind NomsKind) {
 	w.writeUint8(uint8(kind))
 }
 
-func (w *valueEncoder) writeType(t *Type, seenStructs map[string]*Type) {
-	k := t.TargetKind()
-	switch k {
-	case ListKind, MapKind, RefKind, SetKind:
-		w.writeKind(k)
-		for _, elemType := range t.Desc.(CompoundDesc).ElemTypes {
-			w.writeType(elemType, seenStructs)
-		}
-
-	case UnionKind:
-		w.writeKind(k)
-		elemTypes := t.Desc.(CompoundDesc).ElemTypes
-		w.writeCount(uint64(len(elemTypes)))
-		for _, elemType := range elemTypes {
-			w.writeType(elemType, seenStructs)
-		}
-	case StructKind:
-		w.writeStructType(t, seenStructs)
-	default:
-		if !IsPrimitiveKind(k) {
-			d.Panic("Expected primitive noms kind, got %s", k.String())
-		}
-		w.writeKind(k)
-	}
-}
-
 func (w *valueEncoder) writeValueSlice(values ValueSlice) {
 	count := uint32(len(values))
 	w.writeCount(uint64(count))
@@ -90,40 +64,11 @@ func (w *valueEncoder) writeValue(v Value) {
 		w.writeString(string(v.(String)))
 	case TypeKind:
 		w.writeKind(k)
-		w.writeType(v.(*Type), map[string]*Type{})
+		v.(*Type).writeTo(w, map[string]*Type{})
 	case CycleKind, UnionKind, ValueKind:
 		d.Chk.Fail(fmt.Sprintf("A value instance can never have type %s", k))
 	default:
 		d.Chk.Fail("Unknown NomsKind")
-	}
-}
-
-func (w *valueEncoder) writeStructType(t *Type, seenStructs map[string]*Type) {
-	desc := t.Desc.(StructDesc)
-	name := desc.Name
-
-	if name != "" {
-		if _, ok := seenStructs[name]; ok {
-			w.writeKind(CycleKind)
-			w.writeString(name)
-			return
-		}
-		seenStructs[name] = t
-	}
-
-	w.writeKind(StructKind)
-	w.writeString(desc.Name)
-	w.writeCount(uint64(desc.Len()))
-
-	// Write all names, all types and finally all the optional flags.
-	for _, field := range desc.fields {
-		w.writeString(field.Name)
-	}
-	for _, field := range desc.fields {
-		w.writeType(field.Type, seenStructs)
-	}
-	for _, field := range desc.fields {
-		w.writeBool(field.Optional)
 	}
 }
 
