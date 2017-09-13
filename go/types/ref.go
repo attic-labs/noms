@@ -9,8 +9,21 @@ import (
 )
 
 type Ref struct {
-	buff []byte
+	buff    []byte
+	offsets refOffsets
 }
+
+type refPart uint32
+
+const (
+	refPartKind refPart = iota
+	refPartTargetHash
+	refPartTargetType
+	refPartHeight
+	refPartEnd
+)
+
+type refOffsets [refPartEnd]uint32
 
 func NewRef(v Value) Ref {
 	// TODO: Taking the hash will duplicate the work of computing the type
@@ -26,35 +39,44 @@ func ToRefOfValue(r Ref) Ref {
 func constructRef(targetHash hash.Hash, targetType *Type, height uint64) Ref {
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w)
-	writeRefPartsToEncoder(enc, targetHash, targetType, height)
-	return Ref{w.data()}
+
+	var offsets refOffsets
+	offsets[refPartKind] = 0
+	enc.writeKind(RefKind)
+	offsets[refPartTargetHash] = w.offset
+	enc.writeHash(targetHash)
+	offsets[refPartTargetType] = w.offset
+	enc.writeType(targetType, map[string]*Type{})
+	offsets[refPartHeight] = w.offset
+	enc.writeCount(height)
+
+	return Ref{w.data(), offsets}
 }
 
 // readRef reads the data provided by a decoder and moves the decoder forward.
 func readRef(dec *valueDecoder) Ref {
 	start := dec.pos()
-	skipRef(dec)
+	offsets := skipRef(dec)
 	end := dec.pos()
-	return Ref{dec.byteSlice(start, end)}
+	return Ref{dec.byteSlice(start, end), offsets}
 }
 
 // readRef reads the data provided by a decoder and moves the decoder forward.
-func skipRef(dec *valueDecoder) {
+func skipRef(dec *valueDecoder) refOffsets {
+	var offsets refOffsets
+	offsets[refPartKind] = dec.pos()
 	dec.skipKind()
-	dec.skipHash()  // targetHash
-	dec.skipType()  // targetType
+	offsets[refPartTargetHash] = dec.pos()
+	dec.skipHash() // targetHash
+	offsets[refPartTargetType] = dec.pos()
+	dec.skipType() // targetType
+	offsets[refPartHeight] = dec.pos()
 	dec.skipCount() // height
+	return offsets
 }
 
 func (r Ref) writeTo(enc *valueEncoder) {
 	enc.writeRaw(r.buff)
-}
-
-func writeRefPartsToEncoder(enc *valueEncoder, targetHash hash.Hash, targetType *Type, height uint64) {
-	enc.writeKind(RefKind)
-	enc.writeHash(targetHash)
-	enc.writeType(targetType, map[string]*Type{})
-	enc.writeCount(height)
 }
 
 func maxChunkHeight(v Value) (max uint64) {
@@ -70,18 +92,18 @@ func (r Ref) decoder() *valueDecoder {
 	return newValueDecoder(r.buff, nil)
 }
 
+func (r Ref) decoderAtPart(part refPart) *valueDecoder {
+	offset := r.offsets[part] - r.offsets[refPartKind]
+	return newValueDecoder(r.buff[offset:], nil)
+}
+
 func (r Ref) TargetHash() hash.Hash {
-	dec := r.decoder()
-	dec.skipKind()
+	dec := r.decoderAtPart(refPartTargetHash)
 	return dec.readHash()
 }
 
 func (r Ref) Height() uint64 {
-	dec := r.decoder()
-	dec.skipKind()
-	dec.skipHash()
-	dec.skipType()
-	return dec.readCount()
+	return r.decoderAtPart(refPartHeight).readCount()
 }
 
 func (r Ref) TargetValue(vr ValueReader) Value {
@@ -89,10 +111,7 @@ func (r Ref) TargetValue(vr ValueReader) Value {
 }
 
 func (r Ref) TargetType() *Type {
-	dec := r.decoder()
-	dec.skipKind()
-	dec.skipHash()
-	return dec.readType()
+	return r.decoderAtPart(refPartTargetType).readType()
 }
 
 // Value interface
