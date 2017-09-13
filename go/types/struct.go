@@ -23,7 +23,6 @@ type StructData map[string]Value
 type Struct struct {
 	vrw  ValueReadWriter
 	buff []byte
-	h    *hash.Hash
 }
 
 // readStruct reads the data provided by a decoder and moves the decoder forward.
@@ -31,7 +30,7 @@ func readStruct(dec *valueDecoder) Struct {
 	start := dec.pos()
 	skipStruct(dec)
 	end := dec.pos()
-	return Struct{dec.vrw, dec.byteSlice(start, end), &hash.Hash{}}
+	return Struct{dec.vrw, dec.byteSlice(start, end)}
 }
 
 func skipStruct(dec *valueDecoder) {
@@ -62,7 +61,7 @@ func newStruct(name string, fieldNames []string, values []Value) Struct {
 		}
 		enc.writeValue(values[i])
 	}
-	return Struct{vrw, w.data(), &hash.Hash{}}
+	return Struct{vrw, w.data()}
 }
 
 func NewStruct(name string, data StructData) Struct {
@@ -121,10 +120,6 @@ func (s Struct) Empty() bool {
 	return s.Len() == 0
 }
 
-func (s Struct) hashPointer() *hash.Hash {
-	return s.h
-}
-
 // Value interface
 func (s Struct) Value() Value {
 	return s
@@ -139,11 +134,7 @@ func (s Struct) Less(other Value) bool {
 }
 
 func (s Struct) Hash() hash.Hash {
-	if s.h.IsEmpty() {
-		*s.h = getHash(s)
-	}
-
-	return *s.h
+	return hash.Of(s.buff)
 }
 
 func (s Struct) WalkValues(cb ValueCallback) {
@@ -319,7 +310,7 @@ func (s Struct) set(w *binaryNomsWriter, n string, v Value, addedCount int) Stru
 		}
 	}
 
-	return Struct{s.vrw, w.data(), &hash.Hash{}}
+	return Struct{s.vrw, w.data()}
 }
 
 // IsZeroValue can be used to test if a struct is the same as Struct{}.
@@ -353,7 +344,7 @@ func (s Struct) Delete(n string) Struct {
 	}
 
 	if found {
-		return Struct{s.vrw, w.data(), &hash.Hash{}}
+		return Struct{s.vrw, w.data()}
 	}
 
 	return s

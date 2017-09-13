@@ -10,7 +10,6 @@ import (
 
 type Ref struct {
 	buff []byte
-	h    *hash.Hash
 }
 
 func NewRef(v Value) Ref {
@@ -28,7 +27,7 @@ func constructRef(targetHash hash.Hash, targetType *Type, height uint64) Ref {
 	w := newBinaryNomsWriter()
 	enc := newValueEncoder(w)
 	writeRefPartsToEncoder(enc, targetHash, targetType, height)
-	return Ref{w.data(), &hash.Hash{}}
+	return Ref{w.data()}
 }
 
 // readRef reads the data provided by a decoder and moves the decoder forward.
@@ -36,7 +35,7 @@ func readRef(dec *valueDecoder) Ref {
 	start := dec.pos()
 	skipRef(dec)
 	end := dec.pos()
-	return Ref{dec.byteSlice(start, end), &hash.Hash{}}
+	return Ref{dec.byteSlice(start, end)}
 }
 
 // readRef reads the data provided by a decoder and moves the decoder forward.
@@ -110,11 +109,7 @@ func (r Ref) Less(other Value) bool {
 }
 
 func (r Ref) Hash() hash.Hash {
-	if r.h.IsEmpty() {
-		*r.h = getHash(r)
-	}
-
-	return *r.h
+	return hash.Of(r.buff)
 }
 
 func (r Ref) WalkValues(cb ValueCallback) {

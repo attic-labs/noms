@@ -57,6 +57,10 @@ func (t *Type) Hash() hash.Hash {
 	return *t.h
 }
 
+func (t *Type) hashPointer() *hash.Hash {
+	return t.h
+}
+
 func (t *Type) WalkValues(cb ValueCallback) {
 	t.Desc.walkValues(cb)
 }

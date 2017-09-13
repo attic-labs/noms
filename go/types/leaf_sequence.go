@@ -6,6 +6,7 @@ package types
 
 import (
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/hash"
 )
 
 type leafSequence struct {
@@ -203,4 +204,8 @@ func (seq leafSequence) Len() uint64 {
 
 func (seq leafSequence) Empty() bool {
 	return seq.Len() == uint64(0)
+}
+
+func (seq leafSequence) hash() hash.Hash {
+	return hash.Of(seq.buff)
 }

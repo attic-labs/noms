@@ -73,7 +73,7 @@ func (ts testSequence) Less(other Value) bool {
 	panic("not reached")
 }
 
-func (ts testSequence) Hash() hash.Hash {
+func (ts testSequence) hash() hash.Hash {
 	panic("not reached")
 }
 

@@ -233,9 +233,6 @@ func (ms metaSequence) getNumLeavesAt(idx int) uint64 {
 // sequence interface
 func (ms metaSequence) getItem(idx int) sequenceItem {
 	dec := ms.decoderSkipToIndex(idx)
-	// if dec == nil {
-	// 	return metaTuple{}
-	// }
 	return ms.readTuple(dec)
 }
 
@@ -246,6 +243,10 @@ func (ms metaSequence) seqLen() int {
 
 func (ms metaSequence) valueReadWriter() ValueReadWriter {
 	return ms.vrw
+}
+
+func (ms metaSequence) hash() hash.Hash {
+	return hash.Of(ms.buff)
 }
 
 func (ms metaSequence) WalkRefs(cb RefCallback) {
@@ -472,4 +473,8 @@ func (es emptySequence) treeLevel() uint64 {
 
 func (es emptySequence) isLeaf() bool {
 	return es.level == 0
+}
+
+func (es emptySequence) hash() hash.Hash {
+	panic("empty sequence")
 }
