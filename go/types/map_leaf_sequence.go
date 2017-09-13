@@ -98,8 +98,20 @@ func (ml mapLeafSequence) entries() mapEntrySlice {
 }
 
 func (ml mapLeafSequence) getCompareFn(other sequence) compareFn {
+	dec1 := ml.decoder()
+	ml2 := other.(mapLeafSequence)
+	dec2 := ml2.decoder()
 	return func(idx, otherIdx int) bool {
-		return ml.getItem(idx).(mapEntry).equals(other.getItem(otherIdx).(mapEntry))
+		dec1.offset = uint32(ml.getItemOffset(idx))
+		dec2.offset = uint32(ml2.getItemOffset(otherIdx))
+		k1 := dec1.readValue()
+		k2 := dec2.readValue()
+		if !k1.Equals(k2) {
+			return false
+		}
+		v1 := dec1.readValue()
+		v2 := dec2.readValue()
+		return v1.Equals(v2)
 	}
 }
 
