@@ -399,11 +399,11 @@ func (r *valueDecoder) skipValue() {
 	}
 }
 
-func (r *valueDecoder) copyValue(enc *valueEncoder) {
+func (r *valueDecoder) copyValue(w nomsWriter) {
 	start := r.pos()
 	r.skipValue()
 	end := r.pos()
-	enc.writeRaw(r.byteSlice(start, end))
+	w.writeRaw(r.byteSlice(start, end))
 }
 
 func (r *valueDecoder) readStruct() Value {

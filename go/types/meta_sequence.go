@@ -35,6 +35,12 @@ func (mt metaTuple) getChildSequence(vr ValueReader) sequence {
 	return mt.ref.TargetValue(vr).(Collection).sequence()
 }
 
+func (mt metaTuple) writeTo(w nomsWriter) {
+	mt.ref.writeTo(w)
+	mt.key.writeTo(w)
+	w.writeCount(mt.numLeaves)
+}
+
 // orderedKey is a key in a Prolly Tree level, which is a metaTuple in a metaSequence, or a value in a leaf sequence.
 // |v| may be nil or |h| may be empty, but not both.
 type orderedKey struct {
@@ -73,6 +79,16 @@ func (key orderedKey) Less(mk2 orderedKey) bool {
 	default:
 		d.PanicIfTrue(key.h.IsEmpty() || mk2.h.IsEmpty())
 		return key.h.Less(mk2.h)
+	}
+}
+
+func (key orderedKey) writeTo(w nomsWriter) {
+	if !key.isOrderedByValue {
+		// See https://github.com/attic-labs/noms/issues/1688#issuecomment-227528987
+		d.PanicIfTrue(key.h.IsEmpty())
+		writeRefPartsTo(w, key.h, BoolType, 0)
+	} else {
+		key.v.writeTo(w)
 	}
 }
 
@@ -119,8 +135,8 @@ func skipMetaSequence(dec *valueDecoder) []uint32 {
 	return offsets
 }
 
-func (ms metaSequence) writeTo(enc *valueEncoder) {
-	enc.writeRaw(ms.buff)
+func (ms metaSequence) writeTo(w nomsWriter) {
+	w.writeRaw(ms.buff)
 }
 
 func (ms metaSequence) decoder() *valueDecoder {
@@ -157,19 +173,16 @@ func (ms metaSequence) getItemOffset(idx int) int {
 func newMetaSequence(kind NomsKind, level uint64, tuples []metaTuple, vrw ValueReadWriter) metaSequence {
 	d.PanicIfFalse(level > 0)
 	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w)
 	offsets := make([]uint32, len(tuples)+metaSequencePartValues+1)
 	offsets[metaSequencePartKind] = 0
-	enc.writeKind(kind)
+	kind.writeTo(w)
 	offsets[metaSequencePartLevel] = w.offset
-	enc.writeCount(level)
+	w.writeCount(level)
 	offsets[metaSequencePartCount] = w.offset
-	enc.writeCount(uint64(len(tuples)))
+	w.writeCount(uint64(len(tuples)))
 	offsets[metaSequencePartValues] = w.offset
 	for i, mt := range tuples {
-		enc.writeValue(mt.ref)
-		enc.writeOrderedKey(mt.key)
-		enc.writeCount(mt.numLeaves)
+		mt.writeTo(w)
 		offsets[i+metaSequencePartValues+1] = w.offset
 	}
 	return metaSequence{vrw, w.data(), offsets}
@@ -478,5 +491,9 @@ func (es emptySequence) isLeaf() bool {
 }
 
 func (es emptySequence) hash() hash.Hash {
+	panic("empty sequence")
+}
+
+func (es emptySequence) writeTo(nomsWriter) {
 	panic("empty sequence")
 }

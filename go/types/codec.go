@@ -16,9 +16,7 @@ const initialBufferSize = 2048
 
 func EncodeValue(v Value) chunks.Chunk {
 	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w)
-	enc.writeValue(v)
-
+	v.writeTo(w)
 	return chunks.NewChunk(w.data())
 }
 
@@ -242,8 +240,3 @@ func (b *binaryNomsWriter) writeRaw(buff []byte) {
 	copy(b.buff[b.offset:], buff)
 	b.offset += uint32(len(buff))
 }
-
-// func (b *binaryNomsWriter) canWriteRaw(r nomsReader) bool {
-// 	_, ok := r.(*binaryNomsReader)
-// 	return ok
-// }

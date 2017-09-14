@@ -340,9 +340,8 @@ func decodeValue(bs []byte, asValue bool, vrw ValueReadWriter) ([]byte, Value) {
 
 // Note that, if 'v' are prolly trees, any in-memory child chunks will be written to vw at this time.
 func encToSlice(v Value, initBuf []byte) []byte {
-	// TODO: Are there enough calls to this that it's worth re-using a nomsWriter and valueEncoder?
+	// TODO: Are there enough calls to this that it's worth re-using a nomsWriter?
 	w := &binaryNomsWriter{initBuf, 0}
-	enc := newValueEncoder(w)
-	enc.writeValue(v)
+	v.writeTo(w)
 	return w.data()
 }

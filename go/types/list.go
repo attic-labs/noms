@@ -241,3 +241,7 @@ func newEmptyListSequenceChunker(vrw ValueReadWriter) *sequenceChunker {
 func (l List) valueReadWriter() ValueReadWriter {
 	return l.seq.valueReadWriter()
 }
+
+func (l List) writeTo(w nomsWriter) {
+	l.seq.writeTo(w)
+}

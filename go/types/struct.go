@@ -43,23 +43,22 @@ func skipStruct(dec *valueDecoder) {
 	}
 }
 
-func (s Struct) writeTo(enc *valueEncoder) {
+func (s Struct) writeTo(enc nomsWriter) {
 	enc.writeRaw(s.buff)
 }
 
 func newStruct(name string, fieldNames []string, values []Value) Struct {
 	var vrw ValueReadWriter
 	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w)
-	enc.writeKind(StructKind)
-	enc.writeString(name)
-	enc.writeCount(uint64(len(fieldNames)))
+	StructKind.writeTo(w)
+	w.writeString(name)
+	w.writeCount(uint64(len(fieldNames)))
 	for i := 0; i < len(fieldNames); i++ {
-		enc.writeString(fieldNames[i])
+		w.writeString(fieldNames[i])
 		if vrw == nil {
 			vrw = values[i].(valueReadWriter).valueReadWriter()
 		}
-		enc.writeValue(values[i])
+		values[i].writeTo(w)
 	}
 	return Struct{vrw, w.data()}
 }
@@ -267,12 +266,11 @@ func (s Struct) Set(n string, v Value) Struct {
 func (s Struct) set(w *binaryNomsWriter, n string, v Value, addedCount int) Struct {
 	// TODO: Reuse bytes if we end up adding a field
 	dec := s.decoder()
-	enc := newValueEncoder(w)
-	enc.writeKind(StructKind)
+	StructKind.writeTo(w)
 	dec.skipKind()
-	dec.copyString(enc)
+	dec.copyString(w)
 	count := dec.readCount()
-	enc.writeCount(count + uint64(addedCount))
+	w.writeCount(count + uint64(addedCount))
 
 	newFieldHandled := false
 
@@ -280,8 +278,8 @@ func (s Struct) set(w *binaryNomsWriter, n string, v Value, addedCount int) Stru
 		name := dec.readString()
 
 		if n == name {
-			enc.writeString(name)
-			enc.writeValue(v)
+			w.writeString(name)
+			v.writeTo(w)
 			dec.skipValue()
 			newFieldHandled = true
 			continue
@@ -291,19 +289,19 @@ func (s Struct) set(w *binaryNomsWriter, n string, v Value, addedCount int) Stru
 				w.reset()
 				return s.set(w, n, v, 1)
 			}
-			enc.writeString(n)
-			enc.writeValue(v)
+			w.writeString(n)
+			v.writeTo(w)
 			newFieldHandled = true
 		}
-		enc.writeString(name)
-		dec.copyValue(enc)
+		w.writeString(name)
+		dec.copyValue(w)
 	}
 
 	if !newFieldHandled {
 		if addedCount == 1 {
 			// Already adjusted the count
-			enc.writeString(n)
-			enc.writeValue(v)
+			w.writeString(n)
+			v.writeTo(w)
 		} else {
 			w.reset()
 			return s.set(w, n, v, 1)
@@ -323,12 +321,11 @@ func (s Struct) IsZeroValue() bool {
 func (s Struct) Delete(n string) Struct {
 	dec := s.decoder()
 	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w)
-	enc.writeKind(StructKind)
+	StructKind.writeTo(w)
 	dec.skipKind()
-	dec.copyString(enc)
+	dec.copyString(w)
 	count := dec.readCount()
-	enc.writeCount(count - 1) // If not found we just return s
+	w.writeCount(count - 1) // If not found we just return s
 
 	found := false
 	for i := uint64(0); i < count; i++ {
@@ -338,8 +335,8 @@ func (s Struct) Delete(n string) Struct {
 			dec.skipValue()
 			found = true
 		} else {
-			enc.writeString(name)
-			dec.copyValue(enc)
+			w.writeString(name)
+			dec.copyValue(w)
 		}
 	}
 

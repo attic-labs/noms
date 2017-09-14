@@ -46,3 +46,8 @@ func (s String) Kind() NomsKind {
 func (s String) valueReadWriter() ValueReadWriter {
 	return nil
 }
+
+func (s String) writeTo(w nomsWriter) {
+	StringKind.writeTo(w)
+	w.writeString(string(s))
+}

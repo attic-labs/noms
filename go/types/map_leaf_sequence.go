@@ -19,9 +19,9 @@ type mapEntry struct {
 	value Value
 }
 
-func (entry mapEntry) writeTo(w *valueEncoder) {
-	w.writeValue(entry.key)
-	w.writeValue(entry.value)
+func (entry mapEntry) writeTo(w nomsWriter) {
+	entry.key.writeTo(w)
+	entry.value.writeTo(w)
 }
 
 func readMapEntry(r *valueDecoder) mapEntry {
@@ -56,22 +56,21 @@ func newMapLeafSequence(vrw ValueReadWriter, data ...mapEntry) orderedSequence {
 	offsets := make([]uint32, 4+len(data))
 	offsets[0] = 0
 	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w)
-	enc.writeKind(MapKind)
+	MapKind.writeTo(w)
 	offsets[1] = w.offset
-	enc.writeCount(0) // level
+	w.writeCount(0) // level
 	offsets[2] = w.offset
-	enc.writeCount(uint64(len(data)))
+	w.writeCount(uint64(len(data)))
 	offsets[3] = w.offset
 	for i, me := range data {
-		me.writeTo(enc)
+		me.writeTo(w)
 		offsets[i+4] = w.offset
 	}
 	return mapLeafSequence{leafSequence{vrw, w.data(), offsets}}
 }
 
-func (ml mapLeafSequence) writeTo(enc *valueEncoder) {
-	enc.writeRaw(ml.buff)
+func (ml mapLeafSequence) writeTo(w nomsWriter) {
+	w.writeRaw(ml.buff)
 }
 
 // sequence interface

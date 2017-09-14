@@ -14,20 +14,19 @@ func newBlobLeafSequence(vrw ValueReadWriter, data []byte) sequence {
 	d.PanicIfTrue(vrw == nil)
 	offsets := make([]uint32, leafSequencePartValues+1)
 	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w)
 	offsets[leafSequencePartKind] = 0
-	enc.writeKind(BlobKind)
+	BlobKind.writeTo(w)
 	offsets[leafSequencePartLevel] = w.offset
-	enc.writeCount(0) // level
+	w.writeCount(0) // level
 	offsets[leafSequencePartCount] = w.offset
-	enc.writeCount(uint64(len(data)))
+	w.writeCount(uint64(len(data)))
 	offsets[leafSequencePartValues] = w.offset
-	enc.writeBytes(data)
+	w.writeBytes(data)
 	return blobLeafSequence{leafSequence{vrw, w.data(), offsets}}
 }
 
-func (bl blobLeafSequence) writeTo(enc *valueEncoder) {
-	enc.writeRaw(bl.buff)
+func (bl blobLeafSequence) writeTo(w nomsWriter) {
+	w.writeRaw(bl.buff)
 }
 
 // sequence interface

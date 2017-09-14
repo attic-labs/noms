@@ -54,6 +54,9 @@ type Value interface {
 	// and unions might have a single element, duplicates and be in the wrong
 	// order.
 	typeOf() *Type
+
+	// writeTo writes the encoded version of the value to a nomsWriter.
+	writeTo(nomsWriter)
 }
 
 type ValueSlice []Value

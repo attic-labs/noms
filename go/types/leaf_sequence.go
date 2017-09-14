@@ -25,17 +25,16 @@ const (
 func newLeafSequence(kind NomsKind, count uint64, vrw ValueReadWriter, vs ...Value) leafSequence {
 	d.PanicIfTrue(vrw == nil)
 	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w)
 	offsets := make([]uint32, len(vs)+leafSequencePartValues+1)
 	offsets[leafSequencePartKind] = 0
-	enc.writeKind(kind)
+	kind.writeTo(w)
 	offsets[leafSequencePartLevel] = w.offset
-	enc.writeCount(0) // level
+	w.writeCount(0) // level
 	offsets[leafSequencePartCount] = w.offset
-	enc.writeCount(count)
+	w.writeCount(count)
 	offsets[leafSequencePartValues] = w.offset
 	for i, v := range vs {
-		enc.writeValue(v)
+		v.writeTo(w)
 		offsets[i+leafSequencePartValues+1] = w.offset
 	}
 	return leafSequence{vrw, w.data(), offsets}
@@ -92,8 +91,8 @@ func (seq leafSequence) decoderSkipToIndex(idx int) *valueDecoder {
 	return seq.decoderAtOffset(offset)
 }
 
-func (seq leafSequence) writeTo(enc *valueEncoder) {
-	enc.writeRaw(seq.buff)
+func (seq leafSequence) writeTo(w nomsWriter) {
+	w.writeRaw(seq.buff)
 }
 
 func (seq leafSequence) values() []Value {

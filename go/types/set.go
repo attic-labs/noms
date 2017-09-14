@@ -262,3 +262,7 @@ func newEmptySetSequenceChunker(vrw ValueReadWriter) *sequenceChunker {
 func (s Set) valueReadWriter() ValueReadWriter {
 	return s.seq.valueReadWriter()
 }
+
+func (s Set) writeTo(w nomsWriter) {
+	s.seq.writeTo(w)
+}

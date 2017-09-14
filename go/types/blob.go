@@ -194,6 +194,10 @@ func (b Blob) valueReadWriter() ValueReadWriter {
 	return b.seq.valueReadWriter()
 }
 
+func (b Blob) writeTo(w nomsWriter) {
+	b.seq.writeTo(w)
+}
+
 type BlobReader struct {
 	b   Blob
 	pos int64

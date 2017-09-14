@@ -38,19 +38,25 @@ func ToRefOfValue(r Ref) Ref {
 
 func constructRef(targetHash hash.Hash, targetType *Type, height uint64) Ref {
 	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w)
 
 	var offsets refOffsets
 	offsets[refPartKind] = 0
-	enc.writeKind(RefKind)
+	RefKind.writeTo(w)
 	offsets[refPartTargetHash] = w.offset
-	enc.writeHash(targetHash)
+	w.writeHash(targetHash)
 	offsets[refPartTargetType] = w.offset
-	targetType.writeTo(enc, map[string]*Type{})
+	targetType.writeToAsType(w, map[string]*Type{})
 	offsets[refPartHeight] = w.offset
-	enc.writeCount(height)
+	w.writeCount(height)
 
 	return Ref{w.data(), offsets}
+}
+
+func writeRefPartsTo(w nomsWriter, targetHash hash.Hash, targetType *Type, height uint64) {
+	RefKind.writeTo(w)
+	w.writeHash(targetHash)
+	targetType.writeToAsType(w, map[string]*Type{})
+	w.writeCount(height)
 }
 
 // readRef reads the data provided by a decoder and moves the decoder forward.
@@ -75,8 +81,8 @@ func skipRef(dec *valueDecoder) refOffsets {
 	return offsets
 }
 
-func (r Ref) writeTo(enc *valueEncoder) {
-	enc.writeRaw(r.buff)
+func (r Ref) writeTo(w nomsWriter) {
+	w.writeRaw(r.buff)
 }
 
 func maxChunkHeight(v Value) (max uint64) {

@@ -48,8 +48,7 @@ func assertEncoding(t *testing.T, expect []interface{}, v Value) {
 	expectedAsByteSlice := toBinaryNomsReaderData(expect)
 	vs := newTestValueStore()
 	w := newBinaryNomsWriter()
-	enc := valueEncoder{w}
-	enc.writeValue(v)
+	v.writeTo(w)
 	assert.EqualValues(t, expectedAsByteSlice, w.data())
 
 	dec := newValueDecoder(expectedAsByteSlice, vs)
@@ -562,6 +561,9 @@ func (bg bogusType) Kind() NomsKind {
 }
 func (bg bogusType) typeOf() *Type {
 	return MakeCycleType("ABC")
+}
+func (bg bogusType) writeTo(nomsWriter) {
+	panic("abc")
 }
 
 func TestBogusValueWithUnresolvedCycle(t *testing.T) {

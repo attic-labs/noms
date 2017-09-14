@@ -336,3 +336,7 @@ func newEmptyMapSequenceChunker(vrw ValueReadWriter) *sequenceChunker {
 func (m Map) valueReadWriter() ValueReadWriter {
 	return m.seq.valueReadWriter()
 }
+
+func (m Map) writeTo(w nomsWriter) {
+	m.seq.writeTo(w)
+}

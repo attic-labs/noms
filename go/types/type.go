@@ -49,14 +49,16 @@ func (t *Type) Less(other Value) (res bool) {
 }
 
 func (t *Type) Hash() hash.Hash {
-	w := newBinaryNomsWriter()
-	enc := newValueEncoder(w)
-	t.writeTo(enc, map[string]*Type{})
-	return hash.Of(w.data())
+	return getHash(t)
 }
 
-func (t *Type) writeTo(enc *valueEncoder, seensStructs map[string]*Type) {
-	t.Desc.writeTo(enc, t, seensStructs)
+func (t *Type) writeTo(w nomsWriter) {
+	TypeKind.writeTo(w)
+	t.writeToAsType(w, map[string]*Type{})
+}
+
+func (t *Type) writeToAsType(w nomsWriter, seensStructs map[string]*Type) {
+	t.Desc.writeTo(w, t, seensStructs)
 }
 
 func (t *Type) WalkValues(cb ValueCallback) {

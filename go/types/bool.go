@@ -48,3 +48,8 @@ func (v Bool) Kind() NomsKind {
 func (v Bool) valueReadWriter() ValueReadWriter {
 	return nil
 }
+
+func (b Bool) writeTo(w nomsWriter) {
+	BoolKind.writeTo(w)
+	w.writeBool(bool(b))
+}
