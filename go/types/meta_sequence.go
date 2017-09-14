@@ -225,21 +225,19 @@ func (ms metaSequence) getCompareFn(other sequence) compareFn {
 	oms := other.(metaSequence)
 	otherDec := oms.decoder()
 	return func(idx, otherIdx int) bool {
-		dec.offset = uint32(ms.getItemOffset(idx))
-		otherDec.offset = uint32(oms.getItemOffset(otherIdx))
-		return dec.readRef().TargetHash() == otherDec.readRef().TargetHash()
+		return ms.getRefAt(dec, idx).TargetHash() == oms.getRefAt(otherDec, otherIdx).TargetHash()
 	}
 }
 
 func (ms metaSequence) readTuple(dec *valueDecoder) metaTuple {
-	ref := dec.readValue().(Ref)
+	ref := dec.readRef()
 	key := dec.readOrderedKey()
 	numLeaves := dec.readCount()
 	return newMetaTuple(ref, key, numLeaves)
 }
 
-func (ms metaSequence) getRefAt(idx int) Ref {
-	dec := ms.decoderSkipToIndex(idx)
+func (ms metaSequence) getRefAt(dec *valueDecoder, idx int) Ref {
+	dec.offset = uint32(ms.getItemOffset(idx))
 	return dec.readRef()
 }
 
@@ -283,7 +281,7 @@ func (ms metaSequence) typeOf() *Type {
 	dec, count := ms.decoderSkipToValues()
 	ts := make(typeSlice, count)
 	for i := uint64(0); i < count; i++ {
-		ref := dec.readValue().(Ref)
+		ref := dec.readRef()
 		ts[i] = ref.TargetType()
 		dec.skipValue() // v
 		dec.skipCount() // numLeaves
@@ -383,8 +381,10 @@ func (ms metaSequence) getChildren(start, end uint64) (seqs []sequence) {
 	seqs = make([]sequence, end-start)
 	hs := make(hash.HashSet, len(seqs))
 
+	dec := ms.decoder()
+
 	for i := start; i < end; i++ {
-		hs[ms.getRefAt(int(i)).TargetHash()] = struct{}{}
+		hs[ms.getRefAt(dec, int(i)).TargetHash()] = struct{}{}
 	}
 
 	if len(hs) == 0 {
@@ -403,7 +403,7 @@ func (ms metaSequence) getChildren(start, end uint64) (seqs []sequence) {
 	}
 
 	for i := start; i < end; i++ {
-		childSeq := children[ms.getRefAt(int(i)).TargetHash()]
+		childSeq := children[ms.getRefAt(dec, int(i)).TargetHash()]
 		d.Chk.NotNil(childSeq)
 		seqs[i-start] = childSeq
 	}
