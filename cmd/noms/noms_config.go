@@ -9,8 +9,8 @@ import (
 	"os"
 
 	"github.com/attic-labs/noms/cmd/util"
-	"github.com/attic-labs/noms/go/config"
-	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/config"
+	"github.com/attic-labs/noms/d"
 	flag "github.com/juju/gnuflag"
 )
 

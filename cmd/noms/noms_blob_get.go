@@ -10,12 +10,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/attic-labs/noms/go/config"
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/profile"
-	"github.com/attic-labs/noms/go/util/progressreader"
-	"github.com/attic-labs/noms/go/util/status"
+	"github.com/attic-labs/noms/config"
+	"github.com/attic-labs/noms/d"
+	"github.com/attic-labs/noms/types"
+	"github.com/attic-labs/noms/util/profile"
+	"github.com/attic-labs/noms/util/progressreader"
+	"github.com/attic-labs/noms/util/status"
 	humanize "github.com/dustin/go-humanize"
 )
 

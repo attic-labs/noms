@@ -10,10 +10,10 @@ import (
 	"io"
 	"os"
 
-	"github.com/attic-labs/noms/go/config"
-	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/profile"
+	"github.com/attic-labs/noms/config"
+	"github.com/attic-labs/noms/d"
+	"github.com/attic-labs/noms/types"
+	"github.com/attic-labs/noms/util/profile"
 )
 
 func nomsBlobPut(filePath string, dsPath string, concurrency int) int {
