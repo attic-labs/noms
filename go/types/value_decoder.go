@@ -121,18 +121,6 @@ func (r *valueDecoder) skipBlobLeafSequence() []uint32 {
 	return []uint32{valuesPos, r.pos()}
 }
 
-func (r *valueDecoder) readValueSequence() ValueSlice {
-	count := uint32(r.readCount())
-
-	data := ValueSlice{}
-	for i := uint32(0); i < count; i++ {
-		v := r.readValue()
-		data = append(data, v)
-	}
-
-	return data
-}
-
 func (r *valueDecoder) skipValueSequence() []uint32 {
 	count := int(r.readCount())
 	offsets := make([]uint32, count+1)

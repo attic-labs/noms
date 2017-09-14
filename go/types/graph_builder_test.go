@@ -247,9 +247,7 @@ func TestGraphBuilderNestedMapSet(t *testing.T) {
 	vs := newTestValueStore()
 	defer vs.Close()
 
-	expected := createTestMap(vs, 3, 4, func() Value {
-		return valGen()
-	})
+	expected := createTestMap(vs, 3, 4, valGen)
 	b := NewGraphBuilder(vs, MapKind)
 
 	ops := []testGraphOp{}

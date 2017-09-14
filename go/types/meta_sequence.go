@@ -270,7 +270,7 @@ func (ms metaSequence) hash() hash.Hash {
 func (ms metaSequence) WalkRefs(cb RefCallback) {
 	dec, count := ms.decoderSkipToValues()
 	for i := uint64(0); i < count; i++ {
-		ref := dec.readValue().(Ref)
+		ref := dec.readRef()
 		cb(ref)
 		dec.skipValue() // v
 		dec.skipCount() // numLeaves
