@@ -253,6 +253,7 @@ func (w *hrsWriter) Write(v Value) {
 
 type hrsStructWriter struct {
 	*hrsWriter
+	v Struct
 }
 
 func (w hrsStructWriter) name(n string) {
@@ -262,9 +263,9 @@ func (w hrsStructWriter) name(n string) {
 		w.write(" ")
 	}
 	w.write("{")
-	commenters := GetHRSCommenters(v.name)
+	commenters := GetHRSCommenters(n)
 	for _, commenter := range commenters {
-		if comment := commenter.Comment(v); comment != "" {
+		if comment := commenter.Comment(w.v); comment != "" {
 			w.write(" // " + comment)
 			break
 		}
@@ -296,7 +297,7 @@ func (w hrsStructWriter) end() {
 }
 
 func (w *hrsWriter) writeStruct(v Struct) {
-	v.iterParts(hrsStructWriter{w})
+	v.iterParts(hrsStructWriter{w, v})
 }
 
 func (w *hrsWriter) writeSize(v Value) {
