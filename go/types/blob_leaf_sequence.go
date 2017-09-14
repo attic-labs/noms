@@ -14,7 +14,7 @@ func newBlobLeafSequence(vrw ValueReadWriter, data []byte) sequence {
 	d.PanicIfTrue(vrw == nil)
 	offsets := make([]uint32, leafSequencePartValues+1)
 	w := newBinaryNomsWriter()
-	offsets[leafSequencePartKind] = 0
+	offsets[leafSequencePartKind] = w.offset
 	BlobKind.writeTo(w)
 	offsets[leafSequencePartLevel] = w.offset
 	w.writeCount(0) // level
@@ -37,8 +37,11 @@ func (bl blobLeafSequence) data() []byte {
 }
 
 func (bl blobLeafSequence) getCompareFn(other sequence) compareFn {
+	offsetStart := int(bl.offsets[leafSequencePartValues] - bl.offsets[leafSequencePartKind])
+	obl := other.(blobLeafSequence)
+	otherOffsetStart := int(obl.offsets[leafSequencePartValues] - obl.offsets[leafSequencePartKind])
 	return func(idx, otherIdx int) bool {
-		return bl.getItem(idx) == other.(blobLeafSequence).getItem(otherIdx)
+		return bl.buff[offsetStart+idx] == obl.buff[otherOffsetStart+otherIdx]
 	}
 }
 

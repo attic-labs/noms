@@ -26,7 +26,7 @@ func newLeafSequence(kind NomsKind, count uint64, vrw ValueReadWriter, vs ...Val
 	d.PanicIfTrue(vrw == nil)
 	w := newBinaryNomsWriter()
 	offsets := make([]uint32, len(vs)+leafSequencePartValues+1)
-	offsets[leafSequencePartKind] = 0
+	offsets[leafSequencePartKind] = w.offset
 	kind.writeTo(w)
 	offsets[leafSequencePartLevel] = w.offset
 	w.writeCount(0) // level
@@ -109,10 +109,8 @@ func (seq leafSequence) getCompareFnHelper(other leafSequence) compareFn {
 	otherDec := other.decoder()
 
 	return func(idx, otherIdx int) bool {
-		offset := seq.getItemOffset(idx)
-		otherOffset := other.getItemOffset(otherIdx)
-		dec.offset = uint32(offset)
-		otherDec.offset = uint32(otherOffset)
+		dec.offset = uint32(seq.getItemOffset(idx))
+		otherDec.offset = uint32(other.getItemOffset(otherIdx))
 		return dec.readValue().Equals(otherDec.readValue())
 	}
 }

@@ -174,7 +174,7 @@ func newMetaSequence(kind NomsKind, level uint64, tuples []metaTuple, vrw ValueR
 	d.PanicIfFalse(level > 0)
 	w := newBinaryNomsWriter()
 	offsets := make([]uint32, len(tuples)+metaSequencePartValues+1)
-	offsets[metaSequencePartKind] = 0
+	offsets[metaSequencePartKind] = w.offset
 	kind.writeTo(w)
 	offsets[metaSequencePartLevel] = w.offset
 	w.writeCount(level)
@@ -221,10 +221,13 @@ func (ms metaSequence) cumulativeNumberOfLeaves(idx int) uint64 {
 }
 
 func (ms metaSequence) getCompareFn(other sequence) compareFn {
+	dec := ms.decoder()
+	oms := other.(metaSequence)
+	otherDec := oms.decoder()
 	return func(idx, otherIdx int) bool {
-		ref := ms.getRefAt(idx)
-		otherRef := other.(metaSequence).getRefAt(otherIdx)
-		return ref.TargetHash() == otherRef.TargetHash()
+		dec.offset = uint32(ms.getItemOffset(idx))
+		otherDec.offset = uint32(oms.getItemOffset(otherIdx))
+		return dec.readRef().TargetHash() == otherDec.readRef().TargetHash()
 	}
 }
 
@@ -237,7 +240,7 @@ func (ms metaSequence) readTuple(dec *valueDecoder) metaTuple {
 
 func (ms metaSequence) getRefAt(idx int) Ref {
 	dec := ms.decoderSkipToIndex(idx)
-	return dec.readValue().(Ref)
+	return dec.readRef()
 }
 
 func (ms metaSequence) getNumLeavesAt(idx int) uint64 {
@@ -338,6 +341,7 @@ func (ms metaSequence) getCompositeChildSequence(start uint64, length uint64) se
 	// TODO: This looks strange. The children can only be a meta sequence or one of map/set/list
 	// (why not blob?). We cannot mix map, set and list here and we know based on ms.Kind what
 	// we are expecting.
+	// https://github.com/attic-labs/noms/issues/3706
 	output := ms.getChildren(start, start+length)
 	for _, seq := range output {
 		switch t := seq.(type) {

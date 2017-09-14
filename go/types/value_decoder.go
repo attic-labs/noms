@@ -266,31 +266,6 @@ func (r *valueDecoder) skipBlob() {
 	}
 }
 
-// func (r *valueDecoder) skipListLeafSequence() {
-// 	r.skipValueSequence()
-// }
-
-// func (r *valueDecoder) readSetLeafSequence() orderedSequence {
-// 	data := r.readValueSequence()
-// 	return setLeafSequence{leafSequence{r.vrw, len(data), SetKind}, data}
-// }
-//
-// func (r *valueDecoder) skipSetLeafSequence() {
-// 	r.skipValueSequence()
-// }
-
-// func (r *valueDecoder) readMapLeafSequence() orderedSequence {
-// 	count := r.readCount()
-// 	data := []mapEntry{}
-// 	for i := uint64(0); i < count; i++ {
-// 		k := r.readValue()
-// 		v := r.readValue()
-// 		data = append(data, mapEntry{k, v})
-// 	}
-//
-// 	return mapLeafSequence{leafSequence{r.vrw, len(data), MapKind}, data}
-// }
-
 func (r *valueDecoder) skipMapLeafSequence() []uint32 {
 	count := r.readCount()
 	offsets := make([]uint32, count+1)
@@ -302,20 +277,6 @@ func (r *valueDecoder) skipMapLeafSequence() []uint32 {
 	}
 	return offsets
 }
-
-// func (r *valueDecoder) readMetaSequence(k NomsKind, level uint64) metaSequence {
-// 	count := r.readCount()
-//
-// 	data := []metaTuple{}
-// 	for i := uint64(0); i < count; i++ {
-// 		ref := r.readValue().(Ref)
-// 		key := r.readOrderedKey()
-// 		numLeaves := r.readCount()
-// 		data = append(data, newMetaTuple(ref, key, numLeaves))
-// 	}
-//
-// 	return newMetaSequence(k, level, data, r.vrw)
-// }
 
 func (r *valueDecoder) skipMetaSequence(k NomsKind, level uint64) []uint32 {
 	count := r.readCount()

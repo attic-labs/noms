@@ -40,7 +40,7 @@ func constructRef(targetHash hash.Hash, targetType *Type, height uint64) Ref {
 	w := newBinaryNomsWriter()
 
 	var offsets refOffsets
-	offsets[refPartKind] = 0
+	offsets[refPartKind] = w.offset
 	RefKind.writeTo(w)
 	offsets[refPartTargetHash] = w.offset
 	w.writeHash(targetHash)

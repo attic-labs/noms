@@ -15,6 +15,7 @@ import (
 const initialBufferSize = 2048
 
 func EncodeValue(v Value) chunks.Chunk {
+	// TODO: Once all Values are backed by []byte we might not need EncodeValue
 	w := newBinaryNomsWriter()
 	v.writeTo(w)
 	return chunks.NewChunk(w.data())
@@ -135,21 +136,9 @@ func (b *binaryNomsReader) skipHash() {
 	b.offset += hash.ByteLen
 }
 
-// func (b *binaryNomsReader) slice(start, end uint32) nomsReader {
-// 	return &binaryNomsReader{b.buff[start:end], 0}
-// }
-
 func (b *binaryNomsReader) byteSlice(start, end uint32) []byte {
 	return b.buff[start:end]
 }
-
-// func (b *binaryNomsReader) clone() nomsReader {
-// 	return &binaryNomsReader{b.buff, b.offset}
-// }
-//
-// func (b *binaryNomsReader) at(offset int) nomsReader {
-// 	return &binaryNomsReader{b.buff[offset:], 0}
-// }
 
 type binaryNomsWriter struct {
 	buff   []byte

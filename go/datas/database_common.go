@@ -106,8 +106,8 @@ func (db *database) doFastForward(ds Dataset, newHeadRef types.Ref) error {
 	if ok && newHeadRef.Equals(currentHeadRef) {
 		return nil
 	}
-	newHeadRefHeight := newHeadRef.Height()
-	if ok && newHeadRefHeight <= currentHeadRef.Height() || newHeadRefHeight == 0 {
+
+	if ok && newHeadRef.Height() <= currentHeadRef.Height() {
 		return ErrMergeNeeded
 	}
 
@@ -229,9 +229,8 @@ func (db *database) validateRefAsCommit(r types.Ref) types.Struct {
 
 func buildNewCommit(ds Dataset, v types.Value, opts CommitOptions) types.Struct {
 	parents := opts.Parents
-	db := ds.Database()
 	if (parents == types.Set{}) {
-		parents = types.NewSet(db)
+		parents = types.NewSet(ds.Database())
 		if headRef, ok := ds.MaybeHeadRef(); ok {
 			parents = parents.Edit().Insert(headRef).Set()
 		}
