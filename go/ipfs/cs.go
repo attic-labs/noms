@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"path"
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	cid "gx/ipfs/QmTprEaAA2A9bst5XH7exuyi5KzNMK3SEDNN8rBDnKWcUS/go-cid"
 	mh "gx/ipfs/QmU9a9NV9RdPNwZQDYd5uKsm6N6LJLSvLbywDDYFbaaC6P/go-multihash"
@@ -49,20 +51,18 @@ import (
 // blocks stored will be exposed to the entire IPFS network.
 func NewChunkStore(p string, local bool) *chunkStore {
 	node := OpenIPFSRepo(p, -1)
-	return ChunkStoreFromIPFSNode(p, local, node)
+	return ChunkStoreFromIPFSNode(p, local, node, math.MaxInt32)
 }
-
-const MaxConcurrentIPFSRequests = 1
 
 // Creates a new chunchStore using a pre-existing IpfsNode. This is currently
 // used to create a second 'local' chunkStore using the same IpfsNode as another
 // non-local chunkStore.
-func ChunkStoreFromIPFSNode(p string, local bool, node *core.IpfsNode) *chunkStore {
+func ChunkStoreFromIPFSNode(p string, local bool, node *core.IpfsNode, maxConcurrentRequests int) *chunkStore {
 	return &chunkStore{
 		node:      node,
 		name:      p,
 		local:     local,
-		rateLimit: make(chan struct{}, MaxConcurrentIPFSRequests),
+		rateLimit: make(chan struct{}, maxConcurrentRequests),
 	}
 }
 
@@ -106,41 +106,44 @@ type chunkStore struct {
 }
 
 func (cs *chunkStore) limitRateF() func() {
-	defer dbg.BoxF("CS-LOCK")()
 	cs.rateLimit <- struct{}{}
 	return func() {
-		defer dbg.BoxF("CS-UNLOCK")()
 		<-cs.rateLimit
 	}
 }
 
 func (cs *chunkStore) Get(h hash.Hash) chunks.Chunk {
-	defer dbg.BoxF("ipfs chunkstore Get, h: %s, cs.local: %t", h, cs.local)()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	defer dbg.BoxF("ipfsCS Get, h: %s, cid: %s, cs.local: %t", h, NomsHashToCID(h), cs.local)()
 	defer cs.limitRateF()()
 
-	dbg.Debug("ipfs chunkstore Get, cleared rateLimit")
-	var b blocks.Block
-	var err error
-	c := NomsHashToCID(h)
-	if cs.local {
-		b, err = cs.node.Blockstore.Get(c)
-		if err == blockstore.ErrNotFound {
-			return chunks.EmptyChunk
-		}
-	} else {
-		dbg.Debug("ipfs chunkstore Get, asking for block, h: %s, cid: %s", h, c)
-		b, err = cs.node.Blocks.GetBlock(ctx, c)
-		dbg.Debug("ipfs chunkstore Get, GetBlock returned, h: %s, cid: %s", h, c)
-		if err == blockservice.ErrNotFound {
-			return chunks.EmptyChunk
-		}
-	}
-	d.PanicIfError(err)
+	getBlock := func(chunkId *cid.Cid) (b blocks.Block, err error) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*200)
+		defer cancel()
 
-	dbg.Debug("ipfs chunkstore Get, making new chunk, h: %s, len(data): %d", h, len(b.RawData()))
-	return chunks.NewChunkWithHash(h, b.RawData())
+		if cs.local {
+			b, err = cs.node.Blockstore.Get(chunkId)
+			if err == blockstore.ErrNotFound {
+				return
+			}
+		} else {
+			dbg.Debug("ipfs GetBlock, h: %s, cid: %s", h, chunkId)
+			b, err = cs.node.Blocks.GetBlock(ctx, chunkId)
+			dbg.Debug("ipfs GetBlock returned, h: %s, cid: %s, err: %s", h, chunkId, err)
+		}
+		return
+	}
+
+	chunkId := NomsHashToCID(h)
+	b, err := getBlock(chunkId)
+	if err == nil {
+		return chunks.NewChunkWithHash(h, b.RawData())
+	}
+	if err == blockservice.ErrNotFound {
+		return chunks.EmptyChunk
+	}
+
+	dbg.Debug("ipfsCS Get, EmptyChunk for h: %s, cid: %s", h, NomsHashToCID(h))
+	return chunks.EmptyChunk
 }
 
 func (cs *chunkStore) GetMany(hashes hash.HashSet, foundChunks chan *chunks.Chunk) {
@@ -185,6 +188,7 @@ func (cs *chunkStore) Has(h hash.Hash) bool {
 }
 
 func (cs *chunkStore) HasMany(hashes hash.HashSet) hash.HashSet {
+	defer dbg.BoxF("HashMany, len(hashes): %d", len(hashes))()
 	misses := hash.HashSet{}
 	if cs.local {
 		for h := range hashes {
@@ -207,14 +211,9 @@ func (cs *chunkStore) HasMany(hashes hash.HashSet) hash.HashSet {
 				}
 			}()
 		}
+		wg.Wait()
 	}
 	return misses
-}
-
-func NomsHashToCID(nh hash.Hash) *cid.Cid {
-	mhb, err := mh.Encode(nh[:], mh.SHA2_512)
-	d.PanicIfError(err)
-	return cid.NewCidV1(cid.Raw, mhb)
 }
 
 func (cs *chunkStore) Put(c chunks.Chunk) {
@@ -268,6 +267,12 @@ func CidToNomsHash(id *cid.Cid) (h hash.Hash) {
 	d.PanicIfError(err)
 	copy(h[:], dmh.Digest)
 	return
+}
+
+func NomsHashToCID(nh hash.Hash) *cid.Cid {
+	mhb, err := mh.Encode(nh[:], mh.SHA2_512)
+	d.PanicIfError(err)
+	return cid.NewCidV1(cid.Raw, mhb)
 }
 
 func (cs *chunkStore) Commit(current, last hash.Hash) bool {

@@ -56,13 +56,10 @@ func AddMessage(body string, author string, clientTime time.Time, ds datas.Datas
 		ClientTime: datetime.DateTime{clientTime},
 		Ordinal:    root.Messages.Len(),
 	}
-	dbg.Debug("AddMessage, editing root messages")
 	root.Messages = root.Messages.Edit().Set(types.String(nm.ID()), marshal.MustMarshal(db, nm)).Map()
-	dbg.Debug("AddMessage, Indexing root messages")
 	IndexNewMessage(db, &root, nm)
-
-	dbg.Debug("AddMessage, committing new value")
-	ds, err = db.CommitValue(ds, marshal.MustMarshal(db, root))
+	newRoot := marshal.MustMarshal(db, root)
+	ds, err = db.CommitValue(ds, newRoot)
 	return ds, err
 }
 
