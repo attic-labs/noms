@@ -27,3 +27,10 @@ type sequence interface {
 	hash() hash.Hash
 	writeTo(nomsWriter)
 }
+
+const (
+	sequencePartKind   = 0
+	sequencePartLevel  = 1
+	sequencePartCount  = 2
+	sequencePartValues = 3
+)

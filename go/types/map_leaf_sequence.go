@@ -53,18 +53,18 @@ func (mes mapEntrySlice) Equals(other mapEntrySlice) bool {
 
 func newMapLeafSequence(vrw ValueReadWriter, data ...mapEntry) orderedSequence {
 	d.PanicIfTrue(vrw == nil)
-	offsets := make([]uint32, 4+len(data))
-	offsets[0] = 0
+	offsets := make([]uint32, len(data)+sequencePartValues+1)
 	w := newBinaryNomsWriter()
+	offsets[sequencePartKind] = w.offset
 	MapKind.writeTo(w)
-	offsets[1] = w.offset
+	offsets[sequencePartLevel] = w.offset
 	w.writeCount(0) // level
-	offsets[2] = w.offset
+	offsets[sequencePartCount] = w.offset
 	w.writeCount(uint64(len(data)))
-	offsets[3] = w.offset
+	offsets[sequencePartValues] = w.offset
 	for i, me := range data {
 		me.writeTo(w)
-		offsets[i+4] = w.offset
+		offsets[i+sequencePartValues+1] = w.offset
 	}
 	return mapLeafSequence{leafSequence{vrw, w.data(), offsets}}
 }
@@ -82,7 +82,7 @@ func (ml mapLeafSequence) getItem(idx int) sequenceItem {
 
 func (ml mapLeafSequence) WalkRefs(cb RefCallback) {
 	dec, count := ml.decoderSkipToValues()
-	for i := uint64(0); i < count*2; i++ {
+	for i := uint64(0); i < count*2; i++ { // * 2 because we have keys and values.
 		dec.readValue().WalkRefs(cb)
 	}
 }
