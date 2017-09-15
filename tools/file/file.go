@@ -5,6 +5,7 @@
 package file
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -19,6 +20,10 @@ func DumbCopy(srcPath, dstPath string) {
 
 	info, err := os.Stat(srcPath)
 	d.PanicIfError(err)
+
+	if info.IsDir() {
+		d.PanicIfError(ErrNoCopyDir)
+	}
 
 	src, err := os.Open(srcPath)
 	d.PanicIfError(err)
@@ -39,3 +44,5 @@ func MyDir() string {
 	}
 	return filepath.Dir(path)
 }
+
+var ErrNoCopyDir = fmt.Errorf("attempted to copy a directory")
