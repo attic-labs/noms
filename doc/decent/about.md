@@ -5,35 +5,47 @@
 [![GoDoc](https://godoc.org/github.com/attic-labs/noms?status.svg)](https://godoc.org/github.com/attic-labs/noms)
 [![Slack](http://slack.noms.io/badge.svg)](http://slack.noms.io)
 
-# About Noms
+# Noms -- The Decentralized Database
 
-[Noms](http://noms.io) is a database for decentralized
-applications. It stores structured data (ints, strings, blobs, maps,
-lists, structs, etc) and like most databases it features atomic
-transactions, efficient searches, scans, reads, and updates.
+[Noms](http://noms.io) makes it ~~easy~~ tractable to create rich,
+multiuser, collaborative, fully-decentralized applications.
 
-Unlike any other database, Noms is built for the decentralized
-web. Any number of dapp peers can concurrently modify their own copies
-of the same Noms database and continuously sync their changes with
-each other. In this sense noms works like git: changes are bundled as
-commits which reference previous states of the database. Apps pull
-changes from peers and merge them using a principled set of APIs and
+Like most databases, Noms features a rich data model, atomic
+transactions, support for large-scale data, and efficient searches,
+scans, reads, and updates.
+
+Unlike any other database, Noms has built-in multiparty sync and
+conflict resolution. Any number of dapp peers in a P2P network can
+concurrently modify the same logical Noms database, and continuously
+and efficiently sync their changes with each other. All peers will
+converge to the same state.
+
+For many applications, peers can store an entire local copy of the
+data they are interested in. For larger applications, it should be
+possible to back Noms by a decentralized blockstore like IPFS, Swarm,
+or Sia (or in the future, Filecoin), and store large-scale data in a
+completely decentralized way, without replicating it on every
+node. Noms also has a blockstore for S3, which is ideal for
+applications that have some centralized components.
+
+## How it Works
+
+Think of Noms like a programmable Git: changes are bundled as commits
+which reference previous states of the database. Apps pull changes
+from peers and merge them using a principled set of APIs and
 strategies. Except that rather than users manually pulling and
 merging, applications typically do this continuously, automatically
 converging to a shared state.
 
-Noms stores data in the blockstore of your choice. For example you
-could back Noms with a decentralized blockstore like IPFS. In this
-configuration, read and write load is spread throughout the
-network. If for some reason you wanted to sync to a centralized 
-service you could do that to (for example, S3).
-
-Your application uses a [Go client library](https://github.com/attic-labs/noms/blob/master/doc/go-tour.md) to interact with Noms
-data. There is also a command-line interface for working with data and
-initial support for a GraphQL-based query language.
+Your application uses a [Go client
+library](https://github.com/attic-labs/noms/blob/master/doc/go-tour.md)
+to interact with Noms data. There is also a [command-line
+interface](https://github.com/attic-labs/noms/blob/master/doc/cli-tour.md)
+for working with data and initial support for a [GraphQL-based query
+language](https://github.com/attic-labs/noms/blob/master/go/ngql/README.md).
 
 Some additional features include:
-* **Versioning**: noms is git-like, so it’s easy to use, compare, or revert to older database versions
+* **Versioning**: It’s easy to use, compare, or revert to older database versions
 * **Efficient diffs**: diffing even huge datasets is efficient due to
   noms’ use of a novel BTree-like data structure called a [Prolly
   Tree](../intro.md#prolly-trees-probabilistic-b-trees)
@@ -46,3 +58,7 @@ Some additional features include:
  verify that a particular database hashes to the same value
 
 Read the [Noms design overview](../intro.md).
+
+*If you’d like to use noms in your project we’d love to hear from you*:
+drop us an email ([noms@attic.io](mailto:noms@attic.io)) or send us a
+message in slack ([slack.noms.io](http://slack.noms.io)).
