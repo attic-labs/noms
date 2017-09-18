@@ -18,7 +18,7 @@ import (
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/clienttest"
-	"github.com/attic-labs/testify/suite"
+	"github.com/stretchr/testify/suite"
 )
 
 const (
@@ -49,7 +49,11 @@ func (s *testSuite) TearDownTest() {
 }
 
 func writeCSV(w io.Writer) {
-	_, err := io.WriteString(w, "year,a,b,c\n")
+	writeCSVWithHeader(w, "year,a,b,c\n")
+}
+
+func writeCSVWithHeader(w io.Writer, header string) {
+	_, err := io.WriteString(w, header)
 	d.Chk.NoError(err)
 	for i := 0; i < TEST_DATA_SIZE; i++ {
 		_, err = io.WriteString(w, fmt.Sprintf("%d,a%d,%d,%d\n", TEST_YEAR+i%3, i, i, i*2))
@@ -57,7 +61,7 @@ func writeCSV(w io.Writer) {
 	}
 }
 
-func validateList(s *testSuite, l types.List) {
+func (s *testSuite) validateList(l types.List) {
 	s.Equal(uint64(TEST_DATA_SIZE), l.Len())
 
 	i := uint64(0)
@@ -72,7 +76,7 @@ func validateList(s *testSuite, l types.List) {
 	})
 }
 
-func validateMap(s *testSuite, m types.Map) {
+func (s *testSuite) validateMap(vrw types.ValueReadWriter, m types.Map) {
 	// --dest-type=map:1 so key is field "a"
 	s.Equal(uint64(TEST_DATA_SIZE), m.Len())
 
@@ -88,7 +92,7 @@ func validateMap(s *testSuite, m types.Map) {
 	}
 }
 
-func validateNestedMap(s *testSuite, m types.Map) {
+func (s *testSuite) validateNestedMap(vrw types.ValueReadWriter, m types.Map) {
 	// --dest-type=map:0,1 so keys are fields "year", then field "a"
 	s.Equal(uint64(3), m.Len())
 
@@ -116,7 +120,41 @@ func (s *testSuite) TestCSVImporter() {
 	defer db.Close()
 	ds := db.GetDataset(setName)
 
-	validateList(s, ds.HeadValue().(types.List))
+	s.validateList(ds.HeadValue().(types.List))
+}
+
+func (s *testSuite) TestCSVImporterLowercase() {
+	input, err := ioutil.TempFile(s.TempDir, "")
+	d.Chk.NoError(err)
+	defer input.Close()
+	writeCSVWithHeader(input, "YeAr,a,B,c\n")
+	defer os.Remove(input.Name())
+
+	setName := "csv"
+	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--lowercase", "--column-types", TEST_FIELDS, input.Name(), dataspec})
+	s.Equal("", stdout)
+	s.Equal("", stderr)
+
+	db := datas.NewDatabase(nbs.NewLocalStore(s.DBDir, clienttest.DefaultMemTableSize))
+	defer os.RemoveAll(s.DBDir)
+	defer db.Close()
+	ds := db.GetDataset(setName)
+
+	s.validateList(ds.HeadValue().(types.List))
+}
+
+func (s *testSuite) TestCSVImporterLowercaseDuplicate() {
+	input, err := ioutil.TempFile(s.TempDir, "")
+	d.Chk.NoError(err)
+	defer input.Close()
+	writeCSVWithHeader(input, "YeAr,a,B,year\n")
+	defer os.Remove(input.Name())
+
+	setName := "csv"
+	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
+	_, stderr, _ := s.Run(main, []string{"--no-progress", "--lowercase", "--column-types", TEST_FIELDS, input.Name(), dataspec})
+	s.Contains(stderr, "must be unique")
 }
 
 func (s *testSuite) TestCSVImporterFromBlob() {
@@ -147,7 +185,7 @@ func (s *testSuite) TestCSVImporterFromBlob() {
 		db = newDB()
 		defer db.Close()
 		csvDS := db.GetDataset("csv")
-		validateList(s, csvDS.HeadValue().(types.List))
+		s.validateList(csvDS.HeadValue().(types.List))
 	}
 	test("--path")
 	test("-p")
@@ -166,7 +204,7 @@ func (s *testSuite) TestCSVImporterToMap() {
 	ds := db.GetDataset(setName)
 
 	m := ds.HeadValue().(types.Map)
-	validateMap(s, m)
+	s.validateMap(db, m)
 }
 
 func (s *testSuite) TestCSVImporterToNestedMap() {
@@ -182,7 +220,7 @@ func (s *testSuite) TestCSVImporterToNestedMap() {
 	ds := db.GetDataset(setName)
 
 	m := ds.HeadValue().(types.Map)
-	validateNestedMap(s, m)
+	s.validateNestedMap(db, m)
 }
 
 func (s *testSuite) TestCSVImporterToNestedMapByName() {
@@ -198,7 +236,7 @@ func (s *testSuite) TestCSVImporterToNestedMapByName() {
 	ds := db.GetDataset(setName)
 
 	m := ds.HeadValue().(types.Map)
-	validateNestedMap(s, m)
+	s.validateNestedMap(db, m)
 }
 
 func (s *testSuite) TestCSVImporterWithPipe() {

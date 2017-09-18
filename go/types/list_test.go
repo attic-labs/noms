@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/testify/assert"
-	"github.com/attic-labs/testify/suite"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 const testListSize = 5000
@@ -703,7 +703,7 @@ func TestListRefOfStructFirstNNumbers(t *testing.T) {
 	}
 	vrw := newTestValueStore()
 
-	nums := generateNumbersAsRefOfStructs(testListSize)
+	nums := generateNumbersAsRefOfStructs(vrw, testListSize)
 	NewList(vrw, nums...)
 }
 
@@ -828,6 +828,7 @@ func TestListDiffReverseWithLargerLimit(t *testing.T) {
 	assert := assert.New(t)
 	nums1 := generateNumbersAsValues(5000)
 	nums2 := reverseValues(nums1)
+
 	l1 := NewList(vrw, nums1...)
 	l2 := NewList(vrw, nums2...)
 
@@ -1075,9 +1076,9 @@ func TestListTypeAfterMutations(t *testing.T) {
 	defer normalProductionChunks()
 
 	assert := assert.New(t)
-	vrw := newTestValueStore()
 
 	test := func(n int, c interface{}) {
+		vrw := newTestValueStore()
 		values := generateNumbersAsValues(n)
 
 		l := NewList(vrw, values...)
@@ -1214,4 +1215,21 @@ func TestListWithNil(t *testing.T) {
 	assert.Panics(t, func() {
 		NewList(vrw, Number(42), nil)
 	})
+}
+
+func TestListOfListsDoesNotWriteRoots(t *testing.T) {
+	assert := assert.New(t)
+	vrw := newTestValueStore()
+
+	l1 := NewList(vrw, String("a"), String("b"))
+	l2 := NewList(vrw, String("c"), String("d"))
+	l3 := NewList(vrw, l1, l2)
+
+	assert.Nil(vrw.ReadValue(l1.Hash()))
+	assert.Nil(vrw.ReadValue(l2.Hash()))
+	assert.Nil(vrw.ReadValue(l3.Hash()))
+
+	vrw.WriteValue(l3)
+	assert.Nil(vrw.ReadValue(l1.Hash()))
+	assert.Nil(vrw.ReadValue(l2.Hash()))
 }

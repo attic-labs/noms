@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestValidatingBatchingSinkDecode(t *testing.T) {
@@ -24,8 +24,8 @@ func TestValidatingBatchingSinkDecode(t *testing.T) {
 func assertPanicsOnInvalidChunk(t *testing.T, data []interface{}) {
 	storage := &chunks.TestStorage{}
 	vs := NewValueStore(storage.NewView())
-	r := &nomsTestReader{data, 0}
-	dec := newValueDecoder(r, vs)
+	dataAsByteSlice := toBinaryNomsReaderData(data)
+	dec := newValueDecoder(dataAsByteSlice, vs)
 	v := dec.readValue()
 
 	c := EncodeValue(v)

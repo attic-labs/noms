@@ -14,11 +14,10 @@ import (
 
 type Map struct {
 	seq orderedSequence
-	h   *hash.Hash
 }
 
 func newMap(seq orderedSequence) Map {
-	return Map{seq, &hash.Hash{}}
+	return Map{seq}
 }
 
 func mapHashValueBytes(item sequenceItem, rv *rollingValueHasher) {
@@ -123,10 +122,6 @@ func (m Map) sequence() sequence {
 	return m.seq
 }
 
-func (m Map) hashPointer() *hash.Hash {
-	return m.h
-}
-
 // Value interface
 func (m Map) Value() Value {
 	return m
@@ -141,11 +136,7 @@ func (m Map) Less(other Value) bool {
 }
 
 func (m Map) Hash() hash.Hash {
-	if m.h.IsEmpty() {
-		*m.h = getHash(m)
-	}
-
-	return *m.h
+	return m.sequence().hash()
 }
 
 func (m Map) WalkValues(cb ValueCallback) {
@@ -316,8 +307,6 @@ func buildMapData(values []Value) mapEntrySlice {
 	return append(uniqueSorted, last)
 }
 
-// If |vw| is not nil, chunks will be eagerly written as they're created. Otherwise they are
-// written when the root is written.
 func makeMapLeafChunkFn(vrw ValueReadWriter) makeChunkFn {
 	return func(level uint64, items []sequenceItem) (Collection, orderedKey, uint64) {
 		d.PanicIfFalse(level == 0)
@@ -342,4 +331,12 @@ func makeMapLeafChunkFn(vrw ValueReadWriter) makeChunkFn {
 
 func newEmptyMapSequenceChunker(vrw ValueReadWriter) *sequenceChunker {
 	return newEmptySequenceChunker(vrw, makeMapLeafChunkFn(vrw), newOrderedMetaSequenceChunkFn(MapKind, vrw), mapHashValueBytes)
+}
+
+func (m Map) valueReadWriter() ValueReadWriter {
+	return m.seq.valueReadWriter()
+}
+
+func (m Map) writeTo(w nomsWriter) {
+	m.seq.writeTo(w)
 }

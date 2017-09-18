@@ -16,9 +16,9 @@ import (
 	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/testify/assert"
-	"github.com/attic-labs/testify/suite"
 	"github.com/julienschmidt/httprouter"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 const testAuthToken = "aToken123"
@@ -151,7 +151,7 @@ func (suite *HTTPChunkStoreSuite) TestPutChunk() {
 	suite.True(suite.http.Has(c.Hash()))
 
 	suite.True(suite.http.Commit(hash.Hash{}, hash.Hash{}))
-	suite.Equal(2, suite.serverCS.Writes)
+	suite.Equal(1, suite.serverCS.Writes)
 }
 
 func (suite *HTTPChunkStoreSuite) TestPutChunksInOrder() {
@@ -169,7 +169,7 @@ func (suite *HTTPChunkStoreSuite) TestPutChunksInOrder() {
 	suite.http.Put(types.EncodeValue(le.List()))
 	suite.True(suite.http.Commit(hash.Hash{}, hash.Hash{}))
 
-	suite.Equal(4, suite.serverCS.Writes)
+	suite.Equal(3, suite.serverCS.Writes)
 }
 
 func (suite *HTTPChunkStoreSuite) TestRebase() {

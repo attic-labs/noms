@@ -11,13 +11,14 @@ import (
 // TypeDesc describes a type of the kind returned by Kind(), e.g. Map, Number, or a custom type.
 type TypeDesc interface {
 	Kind() NomsKind
+	walkValues(cb ValueCallback)
+	writeTo(w nomsWriter, t *Type, seenStructs map[string]*Type)
 }
 
 // PrimitiveDesc implements TypeDesc for all primitive Noms types:
 // Blob
 // Bool
 // Number
-// Package
 // String
 // Type
 // Value
@@ -25,6 +26,13 @@ type PrimitiveDesc NomsKind
 
 func (p PrimitiveDesc) Kind() NomsKind {
 	return NomsKind(p)
+}
+
+func (p PrimitiveDesc) walkValues(cb ValueCallback) {
+}
+
+func (p PrimitiveDesc) writeTo(w nomsWriter, t *Type, seenStructs map[string]*Type) {
+	NomsKind(p).writeTo(w)
 }
 
 // CompoundDesc describes a List, Map, Set, Ref, or Union type.
@@ -38,7 +46,21 @@ func (c CompoundDesc) Kind() NomsKind {
 	return c.kind
 }
 
-type TypeMap map[string]*Type
+func (c CompoundDesc) walkValues(cb ValueCallback) {
+	for _, t := range c.ElemTypes {
+		cb(t)
+	}
+}
+
+func (c CompoundDesc) writeTo(w nomsWriter, t *Type, seenStructs map[string]*Type) {
+	c.kind.writeTo(w)
+	if c.kind == UnionKind {
+		w.writeCount(uint64(len(c.ElemTypes)))
+	}
+	for _, t := range c.ElemTypes {
+		t.writeToAsType(w, seenStructs)
+	}
+}
 
 // StructDesc describes a custom Noms Struct.
 type StructDesc struct {
@@ -48,6 +70,40 @@ type StructDesc struct {
 
 func (s StructDesc) Kind() NomsKind {
 	return StructKind
+}
+
+func (s StructDesc) walkValues(cb ValueCallback) {
+	for _, field := range s.fields {
+		cb(field.Type)
+	}
+}
+
+func (s StructDesc) writeTo(w nomsWriter, t *Type, seenStructs map[string]*Type) {
+	name := s.Name
+
+	if name != "" {
+		if _, ok := seenStructs[name]; ok {
+			CycleKind.writeTo(w)
+			w.writeString(name)
+			return
+		}
+		seenStructs[name] = t
+	}
+
+	StructKind.writeTo(w)
+	w.writeString(name)
+	w.writeCount(uint64(s.Len()))
+
+	// Write all names, all types and finally all the optional flags.
+	for _, field := range s.fields {
+		w.writeString(field.Name)
+	}
+	for _, field := range s.fields {
+		field.Type.writeToAsType(w, seenStructs)
+	}
+	for _, field := range s.fields {
+		w.writeBool(field.Optional)
+	}
 }
 
 func (s StructDesc) IterFields(cb func(name string, t *Type, optional bool)) {
@@ -81,6 +137,13 @@ type CycleDesc string
 
 func (c CycleDesc) Kind() NomsKind {
 	return CycleKind
+}
+
+func (c CycleDesc) walkValues(cb ValueCallback) {
+}
+
+func (c CycleDesc) writeTo(w nomsWriter, t *Type, seenStruct map[string]*Type) {
+	panic("Should not write cycle types")
 }
 
 type typeSlice []*Type

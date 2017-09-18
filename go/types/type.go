@@ -6,7 +6,6 @@
 package types
 
 import (
-	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 )
 
@@ -21,11 +20,10 @@ import (
 
 type Type struct {
 	Desc TypeDesc
-	h    *hash.Hash
 }
 
 func newType(desc TypeDesc) *Type {
-	return &Type{desc, &hash.Hash{}}
+	return &Type{desc}
 }
 
 // Describe generate text that should parse into the struct being described.
@@ -51,29 +49,20 @@ func (t *Type) Less(other Value) (res bool) {
 }
 
 func (t *Type) Hash() hash.Hash {
-	if t.h.IsEmpty() {
-		*t.h = getHash(t)
-	}
+	return getHash(t)
+}
 
-	return *t.h
+func (t *Type) writeTo(w nomsWriter) {
+	TypeKind.writeTo(w)
+	t.writeToAsType(w, map[string]*Type{})
+}
+
+func (t *Type) writeToAsType(w nomsWriter, seensStructs map[string]*Type) {
+	t.Desc.writeTo(w, t, seensStructs)
 }
 
 func (t *Type) WalkValues(cb ValueCallback) {
-	switch desc := t.Desc.(type) {
-	case CompoundDesc:
-		for _, t := range desc.ElemTypes {
-			cb(t)
-		}
-	case StructDesc:
-		desc.IterFields(func(name string, t *Type, opt bool) {
-			cb(t)
-		})
-	case PrimitiveDesc, CycleDesc:
-		// Nothing, these have no child values
-	default:
-		d.Chk.Fail("Unexpected type desc implementation: %#v", t)
-	}
-	return
+	t.Desc.walkValues(cb)
 }
 
 func (t *Type) WalkRefs(cb RefCallback) {
@@ -86,6 +75,10 @@ func (t *Type) typeOf() *Type {
 
 func (t *Type) Kind() NomsKind {
 	return TypeKind
+}
+
+func (t *Type) valueReadWriter() ValueReadWriter {
+	return nil
 }
 
 // TypeOf returns the type describing the value. This is not an exact type but

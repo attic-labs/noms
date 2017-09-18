@@ -12,7 +12,7 @@ import (
 
 	"github.com/attic-labs/noms/go/nomdl"
 	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMarshalTypeType(tt *testing.T) {
@@ -702,8 +702,8 @@ func TestMarshalTypeOutface(t *testing.T) {
 	defer vs.Close()
 
 	typ := MustMarshalType(vs, OutPhoto{})
-	expectedType := nomdl.MustParseType(`struct OutPhoto {
-          faces: Set<struct Face {
+	expectedType := nomdl.MustParseType(`Struct OutPhoto {
+          faces: Set<Struct Face {
             blob: Ref<Value>,
           }>,
           someOtherFacesSet: Set<Cycle<Face>>,

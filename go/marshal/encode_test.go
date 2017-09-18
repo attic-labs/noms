@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEncode(tt *testing.T) {
@@ -581,9 +581,6 @@ func TestEncodeNomsTypePtr(t *testing.T) {
 		},
 	)
 	testMarshal(S{complex}, types.NewStruct("S", types.StructData{"type": complex}))
-
-	var empty *types.Type
-	testMarshal(S{empty}, types.NewStruct("S", types.StructData{"type": empty}))
 }
 
 func TestEncodeRecursive(t *testing.T) {

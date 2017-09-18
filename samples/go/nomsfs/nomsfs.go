@@ -2,6 +2,8 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
+// +build darwin linux
+
 package main
 
 import (
@@ -103,8 +105,8 @@ type mount func(fs pathfs.FileSystem)
 var fsType, inodeType, attrType, directoryType, fileType, symlinkType *types.Type
 
 func init() {
-	inodeType = nomdl.MustParseType(`struct Inode {
-          attr: struct Attr {
+	inodeType = nomdl.MustParseType(`Struct Inode {
+          attr: Struct Attr {
             ctime: Number,
             gid: Number,
             mode: Number,
@@ -112,11 +114,11 @@ func init() {
             uid: Number,
             xattr: Map<String, Blob>,
           },
-          contents: struct Symlink {
+          contents: Struct Symlink {
               targetPath: String,
-            } | struct File {
+            } | Struct File {
               data: Ref<Blob>,
-            } | struct Directory {
+            } | Struct Directory {
               entries: Map<String, Cycle<Inode>>,
             },
         }`)

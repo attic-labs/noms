@@ -5,12 +5,11 @@
 package types
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/hash"
-	"github.com/attic-labs/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestValueReadWriteRead(t *testing.T) {
@@ -113,7 +112,6 @@ func (cbs *checkingChunkStore) expect(rs ...Ref) {
 }
 
 func (cbs *checkingChunkStore) Put(c chunks.Chunk) {
-	fmt.Println("Put", c.Hash().String())
 	if cbs.a.NotZero(len(cbs.expectedOrder), "Unexpected Put of %s", c.Hash()) {
 		cbs.a.Equal(cbs.expectedOrder[0], c.Hash())
 		cbs.expectedOrder = cbs.expectedOrder[1:]

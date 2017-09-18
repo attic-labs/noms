@@ -5,13 +5,14 @@
 package datetime
 
 import (
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/marshal"
 	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBasics(t *testing.T) {
@@ -150,4 +151,25 @@ func TestString(t *testing.T) {
 func TestEpoch(t *testing.T) {
 	assert := assert.New(t)
 	assert.Equal(Epoch, DateTime{time.Unix(0, 0)})
+}
+
+func TestHRSComment(t *testing.T) {
+	a := assert.New(t)
+	vs := newTestValueStore()
+
+	dt := Now()
+	mdt := marshal.MustMarshal(vs, dt)
+
+	exp := dt.Format(time.RFC3339)
+	s1 := types.EncodedValue(mdt)
+	a.True(strings.Contains(s1, "{ // "+exp))
+
+	RegisterHRSCommenter(time.UTC)
+	exp = dt.In(time.UTC).Format((time.RFC3339))
+	s1 = types.EncodedValue(mdt)
+	a.True(strings.Contains(s1, "{ // "+exp))
+
+	types.UnregisterHRSCommenter(datetypename, hrsEncodingName)
+	s1 = types.EncodedValue(mdt)
+	a.False(strings.Contains(s1, "{ // 20"))
 }

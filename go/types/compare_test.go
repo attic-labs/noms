@@ -9,7 +9,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/attic-labs/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 var prefix = []byte{0x01, 0x02, 0x03, 0x04}
@@ -131,7 +131,7 @@ func TestCompareEncodedKeys(t *testing.T) {
 
 func encode(v Value) []byte {
 	w := &binaryNomsWriter{make([]byte, 128, 128), 0}
-	newValueEncoder(w).writeValue(v)
+	v.writeTo(w)
 	return w.data()
 }
 

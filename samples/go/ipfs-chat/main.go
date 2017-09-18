@@ -23,6 +23,7 @@ import (
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/math"
 	"github.com/attic-labs/noms/samples/go/ipfs-chat/dbg"
+	"github.com/attic-labs/noms/samples/go/ipfs-chat/lib"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/jroimartin/gocui"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -69,7 +70,7 @@ func main() {
 	case "client":
 		runClient(*username, *clientTopic, *clientDS, *nodeIdx)
 	case "import":
-		runImport(*importDir, *importDS)
+		lib.RunImport(*importDir, *importDS)
 	case "daemon":
 		runDaemon(*daemonTopic, *daemonInterval, *daemonDS, *daemonNodeIdx)
 	}
@@ -92,14 +93,14 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 	db := datas.NewDatabase(cs)
 	ds = db.GetDataset(ds.ID())
 
-	ds, err = InitDatabase(ds)
+	ds, err = lib.InitDatabase(ds)
 	d.PanicIfError(err)
 
 	g, err := gocui.NewGui(gocui.Output256)
 	d.PanicIfError(err)
 	defer g.Close()
 
-	go mergeMessages(node, topic, ds, func(nds datas.Dataset) {
+	go lib.MergeMessages(node, topic, sp, ds, func(nds datas.Dataset) {
 		ds = nds
 		if displayingSearchResults || !textScrolledToEnd(g) {
 			g.Execute(func(g *gocui.Gui) (err error) {
@@ -121,8 +122,8 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 	g.SetManagerFunc(relayout)
 
 	d.PanicIfError(g.SetKeybinding("", gocui.KeyF1, gocui.ModNone, debugInfo))
-	d.PanicIfError(g.SetKeybinding(all, gocui.KeyCtrlC, gocui.ModNone, quit))
-	d.PanicIfError(g.SetKeybinding(all, gocui.KeyCtrlC, gocui.ModAlt, quitWithStack))
+	//d.PanicIfError(g.SetKeybinding(all, gocui.KeyCtrlC, gocui.ModNone, quit))
+	d.PanicIfError(g.SetKeybinding(all, gocui.KeyCtrlC, gocui.ModNone, quitWithStack))
 	d.PanicIfError(g.SetKeybinding(all, gocui.KeyTab, gocui.ModNone, nextView))
 	d.PanicIfError(g.SetKeybinding(messages, gocui.KeyArrowUp, gocui.ModNone, arrowUp))
 	d.PanicIfError(g.SetKeybinding(messages, gocui.KeyArrowDown, gocui.ModNone, arrowDown))
@@ -152,7 +153,7 @@ func runClient(username, topic, clientDS string, nodeIdx int) {
 		if displayingSearchResults {
 			return
 		}
-		Publish(node, topic, ds.HeadRef().TargetHash())
+		lib.Publish(node, topic, sp, ds.HeadRef().TargetHash())
 		return
 	}))
 	d.PanicIfError(g.SetKeybinding("", gocui.KeyF1, gocui.ModNone, debugInfo))
@@ -224,7 +225,7 @@ func (dp *dataPager) Next() (string, bool) {
 	}
 	nm := dp.msgMap.Get(msgKey)
 
-	var m Message
+	var m lib.Message
 	err := marshal.Unmarshal(nm, &m)
 	if err != nil {
 		return fmt.Sprintf("ERROR: %s", err.Error()), true
@@ -246,7 +247,7 @@ func updateMessages(g *gocui.Gui, v *gocui.View, ds datas.Dataset, filterIds *ty
 	}
 
 	doneChan := make(chan struct{})
-	msgMap, msgKeyChan, err := ListMessages(ds, filterIds, doneChan)
+	msgMap, msgKeyChan, err := lib.ListMessages(ds, filterIds, doneChan)
 	d.PanicIfError(err)
 	dp = dataPager{
 		dataset:    ds,
@@ -275,7 +276,7 @@ func resetAuthors(g *gocui.Gui, ds datas.Dataset) {
 	v, err := g.View(users)
 	d.PanicIfError(err)
 	v.Clear()
-	for _, u := range GetAuthors(ds) {
+	for _, u := range lib.GetAuthors(ds) {
 		fmt.Fprintln(v, u)
 	}
 }
@@ -340,8 +341,8 @@ func scrollView(v *gocui.View, dy, lineCnt int) {
 
 func handleEnter(body string, author string, clientTime time.Time, ds datas.Dataset) (*types.Map, []string, datas.Dataset, error) {
 	if strings.HasPrefix(body, searchPrefix) {
-		st := TermsFromString(body[len(searchPrefix):])
-		ids := SearchIndex(ds, st)
+		st := lib.TermsFromString(body[len(searchPrefix):])
+		ids := lib.SearchIndex(ds, st)
 		return &ids, st, ds, nil
 	}
 
@@ -349,7 +350,7 @@ func handleEnter(body string, author string, clientTime time.Time, ds datas.Data
 		return nil, nil, ds, gocui.ErrQuit
 	}
 
-	ds, err := AddMessage(body, author, clientTime, ds)
+	ds, err := lib.AddMessage(body, author, clientTime, ds)
 	return nil, nil, ds, err
 }
 
@@ -362,7 +363,7 @@ func quitWithStack(_ *gocui.Gui, _ *gocui.View) error {
 	dbg.Debug("QUITTING WITH STACK")
 	stacktrace := make([]byte, 1024*1024)
 	length := runtime.Stack(stacktrace, true)
-	fmt.Println(string(stacktrace[:length]))
+	dbg.Debug(string(stacktrace[:length]))
 	return gocui.ErrQuit
 }
 

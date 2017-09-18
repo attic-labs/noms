@@ -9,11 +9,79 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/util/writers"
 	humanize "github.com/dustin/go-humanize"
 )
+
+// Clients can register a 'commenter' to return a comment that will get appended
+// to the first line of encoded values. For example, the noms DateTime struct
+// normally gets encoded as follows:
+//    lastRefresh: DateTime {
+//      secSinceEpoch: 1.501801626877e+09,
+//    }
+//
+// By registering a commenter that returns a nicely formatted date,
+// the struct will be coded with a comment:
+//    lastRefresh: DateTime { // 2017-08-03T16:07:06-07:00
+//      secSinceEpoch: 1.501801626877e+09,
+//    }
+
+// Function type for commenter functions
+type HRSCommenter interface {
+	Comment(Value) string
+}
+
+var (
+	commenterRegistry = map[string]map[string]HRSCommenter{}
+	registryLock      sync.RWMutex
+)
+
+// RegisterHRSCommenter is called to with three arguments:
+//  typename: the name of the struct this function will be applied to
+//  unique: an arbitrary string to differentiate functions that should be applied
+//    to different structs that have the same name (e.g. two implementations of
+//    the "Employee" type.
+//  commenter: an interface with a 'Comment()' function that gets called for all
+//    Values with this name. The function should verify the type of the Value
+//    and, if appropriate, return a non-empty string to be appended as the comment
+func RegisterHRSCommenter(typename, unique string, commenter HRSCommenter) {
+	registryLock.Lock()
+	defer registryLock.Unlock()
+	commenters := commenterRegistry[typename]
+	if commenters == nil {
+		commenters = map[string]HRSCommenter{}
+		commenterRegistry[typename] = commenters
+	}
+	commenters[unique] = commenter
+}
+
+// UnregisterHRSCommenter will remove a commenter function for a specified
+// typename/unique string combination.
+func UnregisterHRSCommenter(typename, unique string) {
+	registryLock.Lock()
+	defer registryLock.Unlock()
+	r := commenterRegistry[typename]
+	if r == nil {
+		return
+	}
+	delete(r, unique)
+}
+
+// GetHRSCommenters the map of 'unique' strings to HRSCommentFunc for
+// a specified typename.
+func GetHRSCommenters(typename string) []HRSCommenter {
+	registryLock.RLock()
+	defer registryLock.RUnlock()
+	// need to copy this value so we can release the lock
+	commenters := []HRSCommenter{}
+	for _, f := range commenterRegistry[typename] {
+		commenters = append(commenters, f)
+	}
+	return commenters
+}
 
 // Human Readable Serialization
 type hrsWriter struct {
@@ -183,28 +251,53 @@ func (w *hrsWriter) Write(v Value) {
 	}
 }
 
-func (w *hrsWriter) writeStruct(v Struct) {
+type hrsStructWriter struct {
+	*hrsWriter
+	v Struct
+}
+
+func (w hrsStructWriter) name(n string) {
 	w.write("struct ")
-	if v.name != "" {
-		w.write(v.name)
+	if n != "" {
+		w.write(n)
 		w.write(" ")
 	}
 	w.write("{")
+	commenters := GetHRSCommenters(n)
+	for _, commenter := range commenters {
+		if comment := commenter.Comment(w.v); comment != "" {
+			w.write(" // " + comment)
+			break
+		}
+
+	}
 	w.indent()
+}
 
-	if len(v.fieldNames) > 0 {
+func (w hrsStructWriter) count(c uint64) {
+	if c > 0 {
 		w.newLine()
 	}
-	for i := 0; i < len(v.fieldNames); i++ {
-		w.write(v.fieldNames[i])
-		w.write(": ")
-		w.Write(v.values[i])
-		w.write(",")
-		w.newLine()
-	}
+}
 
+func (w hrsStructWriter) fieldName(n string) {
+	w.write(n)
+	w.write(": ")
+}
+
+func (w hrsStructWriter) fieldValue(v Value) {
+	w.Write(v)
+	w.write(",")
+	w.newLine()
+}
+
+func (w hrsStructWriter) end() {
 	w.outdent()
 	w.write("}")
+}
+
+func (w *hrsWriter) writeStruct(v Struct) {
+	v.iterParts(hrsStructWriter{w, v})
 }
 
 func (w *hrsWriter) writeSize(v Value) {

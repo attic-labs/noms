@@ -2,6 +2,8 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
+// +build darwin linux
+
 package main
 
 import (
@@ -10,8 +12,8 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/spec"
-	"github.com/attic-labs/testify/assert"
-	"github.com/attic-labs/testify/suite"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/hanwen/go-fuse/fuse/pathfs"

@@ -8,16 +8,15 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/attic-labs/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRefByHeight(t *testing.T) {
 	unique := 0
 	newRefWithHeight := func(height uint64) Ref {
-		r := NewRef(Number(unique))
+		v := Number(unique)
 		unique++
-		r.height = height
-		return r
+		return constructRef(v.Hash(), NumberType, height)
 	}
 
 	assert := assert.New(t)
@@ -90,8 +89,7 @@ func TestDropIndices(t *testing.T) {
 func TestPopRefsOfHeight(t *testing.T) {
 	h := &RefByHeight{}
 	for i, n := range []int{6, 3, 6, 6, 2} {
-		r := NewRef(Number(i))
-		r.height = uint64(n)
+		r := constructRef(Number(i).Hash(), NumberType, uint64(n))
 		h.PushBack(r)
 	}
 	sort.Sort(h)

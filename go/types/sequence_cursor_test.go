@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/hash"
-	"github.com/attic-labs/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 type testSequence struct {
@@ -55,6 +55,10 @@ func (ts testSequence) valueReadWriter() ValueReadWriter {
 	panic("not reached")
 }
 
+func (ts testSequence) writeTo(nomsWriter) {
+	panic("not reached")
+}
+
 func (ts testSequence) getChildSequence(idx int) sequence {
 	child := ts.items[idx]
 	return testSequence{child.([]interface{})}
@@ -73,7 +77,7 @@ func (ts testSequence) Less(other Value) bool {
 	panic("not reached")
 }
 
-func (ts testSequence) Hash() hash.Hash {
+func (ts testSequence) hash() hash.Hash {
 	panic("not reached")
 }
 

@@ -33,25 +33,30 @@ func advanceCursorToOffset(cur *sequenceCursor, idx uint64) uint64 {
 		cur.idx = 0
 		cum := uint64(0)
 
+		seqLen := ms.seqLen()
 		// Advance the cursor to the meta-sequence tuple containing idx
-		for cur.idx < ms.seqLen()-1 && uint64(idx) >= cum+ms.tuples[cur.idx].numLeaves {
-			cum += ms.tuples[cur.idx].numLeaves
-			cur.idx++
+		for cur.idx < seqLen-1 {
+			numLeaves := ms.getNumLeavesAt(cur.idx)
+			if uint64(idx) >= cum+numLeaves {
+				cum += numLeaves
+				cur.idx++
+			} else {
+				break
+			}
 		}
 
 		return cum // number of leaves sequences BEFORE cur.idx in meta sequence
 	}
 
+	seqLen := seq.seqLen()
 	cur.idx = int(idx)
-	if cur.idx > seq.seqLen() {
-		cur.idx = seq.seqLen()
+	if cur.idx > seqLen {
+		cur.idx = seqLen
 	}
 	return uint64(cur.idx)
 }
 
-// If |sink| is not nil, chunks will be eagerly written as they're created. Otherwise they are
-// written when the root is written.
-func newIndexedMetaSequenceChunkFn(kind NomsKind, source ValueReadWriter) makeChunkFn {
+func newIndexedMetaSequenceChunkFn(kind NomsKind, vrw ValueReadWriter) makeChunkFn {
 	return func(level uint64, items []sequenceItem) (Collection, orderedKey, uint64) {
 		tuples := make([]metaTuple, len(items))
 		numLeaves := uint64(0)
@@ -64,10 +69,10 @@ func newIndexedMetaSequenceChunkFn(kind NomsKind, source ValueReadWriter) makeCh
 
 		var col Collection
 		if kind == ListKind {
-			col = newList(newListMetaSequence(level, tuples, source))
+			col = newList(newListMetaSequence(level, tuples, vrw))
 		} else {
 			d.PanicIfFalse(BlobKind == kind)
-			col = newBlob(newBlobMetaSequence(level, tuples, source))
+			col = newBlob(newBlobMetaSequence(level, tuples, vrw))
 		}
 		return col, orderedKeyFromSum(tuples), numLeaves
 	}
@@ -81,9 +86,10 @@ func orderedKeyFromSum(msd []metaTuple) orderedKey {
 	return orderedKeyFromUint64(sum)
 }
 
-// loads the set of leaf nodes which contain the items [startIdx -> endIdx).
-// Returns the set of nodes and the offset within the first sequence which corresponds to |startIdx|.
-func loadLeafNodes(cols []Collection, startIdx, endIdx uint64) ([]Collection, uint64) {
+// LoadLeafNodes loads the set of leaf nodes which contain the items
+// [startIdx -> endIdx).  Returns the set of nodes and the offset within
+// the first sequence which corresponds to |startIdx|.
+func LoadLeafNodes(cols []Collection, startIdx, endIdx uint64) ([]Collection, uint64) {
 	vrw := cols[0].sequence().valueReadWriter()
 	d.PanicIfTrue(vrw == nil)
 
@@ -104,7 +110,7 @@ func loadLeafNodes(cols []Collection, startIdx, endIdx uint64) ([]Collection, ui
 		d.PanicIfFalse(s.treeLevel() == level)
 		ms := s.(metaSequence)
 
-		for _, mt := range ms.tuples {
+		for _, mt := range ms.tuples() {
 			if cum == 0 && mt.numLeaves <= startIdx {
 				// skip tuples whose items are < startIdx
 				startIdx -= mt.numLeaves
@@ -143,5 +149,5 @@ func loadLeafNodes(cols []Collection, startIdx, endIdx uint64) ([]Collection, ui
 		childCols[i] = fetched[mt.ref.TargetHash()]
 	}
 
-	return loadLeafNodes(childCols, startIdx, endIdx)
+	return LoadLeafNodes(childCols, startIdx, endIdx)
 }

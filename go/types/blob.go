@@ -18,15 +18,14 @@ import (
 // Blob represents a list of Blobs.
 type Blob struct {
 	seq sequence
-	h   *hash.Hash
 }
 
 func newBlob(seq sequence) Blob {
-	return Blob{seq, &hash.Hash{}}
+	return Blob{seq}
 }
 
 func NewEmptyBlob(vrw ValueReadWriter) Blob {
-	return Blob{newBlobLeafSequence(vrw, []byte{}), &hash.Hash{}}
+	return Blob{newBlobLeafSequence(vrw, []byte{})}
 }
 
 func (b Blob) Edit() *BlobEditor {
@@ -56,7 +55,7 @@ func (b Blob) ReadAt(p []byte, off int64) (n int, err error) {
 		return
 	}
 
-	leaves, localStart := loadLeafNodes([]Collection{b}, startIdx, endIdx)
+	leaves, localStart := LoadLeafNodes([]Collection{b}, startIdx, endIdx)
 	endIdx = localStart + endIdx - startIdx
 	startIdx = localStart
 
@@ -64,11 +63,12 @@ func (b Blob) ReadAt(p []byte, off int64) (n int, err error) {
 		bl := b.sequence().(blobLeafSequence)
 
 		localEnd := endIdx
-		leafLength := uint64(len(bl.data))
+		data := bl.data()
+		leafLength := uint64(len(data))
 		if localEnd > leafLength {
 			localEnd = leafLength
 		}
-		src := bl.data[startIdx:localEnd]
+		src := data[startIdx:localEnd]
 
 		copy(p[n:], src)
 		n += len(src)
@@ -158,10 +158,6 @@ func (b Blob) sequence() sequence {
 	return b.seq
 }
 
-func (b Blob) hashPointer() *hash.Hash {
-	return b.h
-}
-
 // Value interface
 func (b Blob) Value() Value {
 	return b
@@ -176,11 +172,7 @@ func (b Blob) Less(other Value) bool {
 }
 
 func (b Blob) Hash() hash.Hash {
-	if b.h.IsEmpty() {
-		*b.h = getHash(b)
-	}
-
-	return *b.h
+	return b.sequence().hash()
 }
 
 func (b Blob) WalkValues(cb ValueCallback) {
@@ -196,6 +188,14 @@ func (b Blob) typeOf() *Type {
 
 func (b Blob) Kind() NomsKind {
 	return BlobKind
+}
+
+func (b Blob) valueReadWriter() ValueReadWriter {
+	return b.seq.valueReadWriter()
+}
+
+func (b Blob) writeTo(w nomsWriter) {
+	b.seq.writeTo(w)
 }
 
 type BlobReader struct {
@@ -251,7 +251,6 @@ func chunkBlobLeaf(vrw ValueReadWriter, buff []byte) (Collection, orderedKey, ui
 
 // NewBlob creates a Blob by reading from every Reader in rs and
 // concatenating the result. NewBlob uses one goroutine per Reader.
-// If vrw is not nil, chunks are written to vrw instead of kept in memory.
 func NewBlob(vrw ValueReadWriter, rs ...io.Reader) Blob {
 	return readBlobsP(vrw, rs...)
 }

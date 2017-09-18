@@ -65,18 +65,17 @@ func generateNumbersAsStructsFromToBy(from, to, by int) ValueSlice {
 	return nums
 }
 
-func generateNumbersAsRefOfStructs(n int) []Value {
-	vs := newTestValueStore()
+func generateNumbersAsRefOfStructs(vrw ValueReadWriter, n int) []Value {
 	nums := []Value{}
 	for i := 0; i < n; i++ {
-		r := vs.WriteValue(NewStruct("num", StructData{"n": Number(i)}))
+		r := vrw.WriteValue(NewStruct("num", StructData{"n": Number(i)}))
 		nums = append(nums, r)
 	}
 	return nums
 }
 
 func leafCount(c Collection) int {
-	leaves, _ := loadLeafNodes([]Collection{c}, 0, c.Len())
+	leaves, _ := LoadLeafNodes([]Collection{c}, 0, c.Len())
 	return len(leaves)
 }
 
@@ -84,8 +83,8 @@ func leafDiffCount(c1, c2 Collection) int {
 	count := 0
 	hashes := make(map[hash.Hash]int)
 
-	leaves1, _ := loadLeafNodes([]Collection{c1}, 0, c1.Len())
-	leaves2, _ := loadLeafNodes([]Collection{c2}, 0, c2.Len())
+	leaves1, _ := LoadLeafNodes([]Collection{c1}, 0, c1.Len())
+	leaves2, _ := LoadLeafNodes([]Collection{c2}, 0, c2.Len())
 
 	for _, l := range leaves1 {
 		hashes[l.Hash()]++

@@ -36,13 +36,14 @@ func main() {
 	// https://blog.golang.org/strings
 	delimiter := flag.String("delimiter", ",", "field delimiter for csv file, must be exactly one character long.")
 	header := flag.String("header", "", "header row. If empty, we'll use the first row of the file")
+	lowercase := flag.Bool("lowercase", false, "convert column names to lowercase (otherwise preserve the case in the resulting struct fields)")
 	name := flag.String("name", "Row", "struct name. The user-visible name to give to the struct type that will hold each row of data.")
 	columnTypes := flag.String("column-types", "", "a comma-separated list of types representing the desired type of each column. if absent all types default to be String")
 	pathDescription := "noms path to blob to import"
 	path := flag.String("path", "", pathDescription)
 	flag.StringVar(path, "p", "", pathDescription)
 	noProgress := flag.Bool("no-progress", false, "prevents progress from being output if true")
-	destType := flag.String("dest-type", "list", "the destination type to import to. can be 'list' or 'map:<pk>', where <pk> is the index position (0-based) of the column that is a the unique identifier for the column")
+	destType := flag.String("dest-type", "list", "the destination type to import to. can be 'list' or 'map:<pk>', where <pk> is a list of comma-delimited column headers or indexes (0-based) used to uniquely identify a row")
 	skipRecords := flag.Uint("skip-records", 0, "number of records to skip at beginning of file")
 	performCommit := flag.Bool("commit", true, "commit the data to head of the dataset (otherwise only write the data to the dataset)")
 	spec.RegisterCommitMetaFlags(flag.CommandLine)
@@ -145,6 +146,11 @@ func main() {
 		d.PanicIfError(err)
 	} else {
 		headers = strings.Split(*header, ",")
+	}
+	if *lowercase {
+		for i, _ := range headers {
+			headers[i] = strings.ToLower(headers[i])
+		}
 	}
 
 	uniqueHeaders := make(map[string]bool)
