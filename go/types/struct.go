@@ -47,6 +47,10 @@ func (s Struct) writeTo(enc nomsWriter) {
 	enc.writeRaw(s.buff)
 }
 
+func (s Struct) valueBytes() []byte {
+	return s.buff
+}
+
 func newStruct(name string, fieldNames []string, values []Value) Struct {
 	var vrw ValueReadWriter
 	w := newBinaryNomsWriter()
