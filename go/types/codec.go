@@ -26,7 +26,7 @@ func EncodeValue(v Value) chunks.Chunk {
 		return chunks.NewChunk(v.valueBytes())
 	case *Type:
 		w := newBinaryNomsWriter()
-		v.writeTo(w)
+		v.writeTo(&w)
 		return chunks.NewChunk(w.data())
 	}
 
@@ -157,8 +157,8 @@ type binaryNomsWriter struct {
 	offset uint32
 }
 
-func newBinaryNomsWriter() *binaryNomsWriter {
-	return &binaryNomsWriter{make([]byte, initialBufferSize, initialBufferSize), 0}
+func newBinaryNomsWriter() binaryNomsWriter {
+	return binaryNomsWriter{make([]byte, initialBufferSize, initialBufferSize), 0}
 }
 
 func (b *binaryNomsWriter) data() []byte {
