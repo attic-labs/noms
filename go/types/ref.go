@@ -87,6 +87,10 @@ func (r Ref) writeTo(w nomsWriter) {
 	w.writeRaw(r.buff)
 }
 
+func (r Ref) valueBytes() []byte {
+	return r.buff
+}
+
 func maxChunkHeight(v Value) (max uint64) {
 	v.WalkRefs(func(r Ref) {
 		if height := r.Height(); height > max {
