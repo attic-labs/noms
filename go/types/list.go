@@ -5,6 +5,8 @@
 package types
 
 import (
+	"sync/atomic"
+
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 )
@@ -149,15 +151,101 @@ type listIterAllFunc func(v Value, index uint64)
 // IterAll iterates over the list and calls f for every element in the list. Unlike Iter there is no
 // way to stop the iteration and all elements are visited.
 func (l List) IterAll(f listIterAllFunc) {
-	// TODO: Consider removing this and have Iter behave like IterAll.
-	// https://github.com/attic-labs/noms/issues/2558
-	idx := uint64(0)
-	cur := newCursorAtIndex(l.seq, idx, true)
-	cur.iter(func(v interface{}) bool {
-		f(v.(Value), uint64(idx))
-		idx++
-		return false
-	})
+	concurrency := 6
+	vcChan := make(chan chan []Value, concurrency)
+
+	// Target reading data in |batchSize| bytes per thread. We don't know how
+	// many bytes each value is, so update |estimatedValueSize| as data is read.
+	batchSize := 1 << 23 // 8MB
+	estimatedValueSize := uint64(1000)
+
+	go func() {
+		idx := uint64(0)
+		for idx < l.Len() {
+			valueSize := atomic.LoadUint64(&estimatedValueSize)
+
+			start := idx
+			blockLength := l.Len() - start
+			if blockLength > valueSize {
+				blockLength = valueSize
+			}
+			idx += blockLength
+
+			vc := make(chan []Value)
+			vcChan <- vc
+
+			go func() {
+				buff := make([]Value, blockLength)
+				numBytes := l.copyReadAhead(buff, start)
+				//fmt.Fprintf(os.Stderr, "read %d chunks (%s)\n", blockLength, humanize.Bytes(numBytes))
+
+				// Adjust the estimated value count to try to read |batchSize| bytes
+				// next time.
+				if valueSize == blockLength {
+					scale := float64(batchSize) / float64(numBytes)
+					adjustedValueSize := uint64(float64(valueSize) * scale)
+					atomic.StoreUint64(&estimatedValueSize, adjustedValueSize)
+					//fmt.Fprintf(os.Stderr, "adjusted chunk size from %d to %d (scaled by %.3f)\n", valueSize, adjustedValueSize, scale)
+				}
+
+				// Send |buff| to |vc| last so that adjusting |estimatedValueSize|
+				// doesn't block.
+				vc <- buff
+			}()
+		}
+		close(vcChan)
+	}()
+
+	// Ensure read-ahead goroutines can exit
+	defer func() {
+		for range vcChan {
+		}
+	}()
+
+	i := uint64(0)
+	for vc := range vcChan {
+		for _, v := range <-vc {
+			f(v, i)
+			i++
+		}
+	}
+}
+
+func (l List) copyReadAhead(buff []Value, startIdx uint64) (numBytes uint64) {
+	d.PanicIfFalse(startIdx < l.Len())
+
+	endIdx := startIdx + uint64(len(buff))
+	if endIdx > l.Len() {
+		endIdx = l.Len()
+	}
+
+	if startIdx == endIdx {
+		return
+	}
+
+	leaves, localStart := LoadLeafNodes([]Collection{l}, startIdx, endIdx)
+	endIdx = localStart + endIdx - startIdx
+	startIdx = localStart
+	n := 0
+
+	for _, leaf := range leaves {
+		ls := leaf.sequence().(listLeafSequence)
+		numBytes += uint64(len(ls.buff))
+
+		localEnd := endIdx
+		values := ls.values()
+		leafLength := uint64(len(values))
+		if localEnd > leafLength {
+			localEnd = leafLength
+		}
+		src := values[startIdx:localEnd]
+
+		copy(buff[n:], src)
+		n += len(src)
+		endIdx -= localEnd
+		startIdx = 0
+	}
+	return
 }
 
 // Iterator returns a ListIterator which can be used to iterate efficiently over a list.

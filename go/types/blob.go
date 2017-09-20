@@ -59,8 +59,8 @@ func (b Blob) ReadAt(p []byte, off int64) (n int, err error) {
 	endIdx = localStart + endIdx - startIdx
 	startIdx = localStart
 
-	for _, b := range leaves {
-		bl := b.sequence().(blobLeafSequence)
+	for _, leaf := range leaves {
+		bl := leaf.sequence().(blobLeafSequence)
 
 		localEnd := endIdx
 		data := bl.data()
