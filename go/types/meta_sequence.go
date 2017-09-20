@@ -397,16 +397,8 @@ func (ms metaSequence) getChildren(start, end uint64) (seqs []sequence) {
 
 	// Fetch committed child sequences in a single batch
 	readValues := ms.vrw.ReadManyValues(hs)
-
-	children := make(map[hash.Hash]sequence, len(hs))
 	for i, v := range readValues {
-		children[hs[i]] = v.(Collection).sequence()
-	}
-
-	for i := start; i < end; i++ {
-		childSeq := children[ms.getRefAt(&dec, int(i)).TargetHash()]
-		d.Chk.NotNil(childSeq)
-		seqs[i-start] = childSeq
+		seqs[i] = v.(Collection).sequence()
 	}
 
 	return
