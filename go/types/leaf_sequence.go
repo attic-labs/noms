@@ -96,13 +96,10 @@ func (seq leafSequence) values() []Value {
 }
 
 func (seq leafSequence) valuesSlice(from, to uint64) []Value {
-	dec, count := seq.decoderSkipToValues()
-	if to > count {
-		to = count
+	if len := seq.Len(); to > len {
+		to = len
 	}
-	for i := uint64(0); i < from; i++ {
-		dec.skipValue()
-	}
+	dec := seq.decoderSkipToIndex(int(from))
 	vs := make([]Value, to-from)
 	for i := from; i < to; i++ {
 		vs[i-from] = dec.readValue()

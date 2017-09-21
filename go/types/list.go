@@ -211,10 +211,10 @@ func (l List) IterAll(f listIterAllFunc) {
 	}
 }
 
-func (l List) copyReadAhead(buff []Value, startIdx uint64) (numBytes uint64) {
+func (l List) copyReadAhead(out []Value, startIdx uint64) (numBytes uint64) {
 	d.PanicIfFalse(startIdx < l.Len())
 
-	endIdx := startIdx + uint64(len(buff))
+	endIdx := startIdx + uint64(len(out))
 	if endIdx > l.Len() {
 		endIdx = l.Len()
 	}
@@ -231,8 +231,8 @@ func (l List) copyReadAhead(buff []Value, startIdx uint64) (numBytes uint64) {
 		ls := leaf.sequence().(listLeafSequence)
 
 		values := ls.valuesSlice(startIdx, endIdx)
-		copy(buff, values)
-		buff = buff[len(values):]
+		copy(out, values)
+		out = out[len(values):]
 		endIdx = endIdx - uint64(len(values)) - startIdx
 		startIdx = 0
 
