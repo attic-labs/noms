@@ -154,20 +154,19 @@ func (l List) IterAll(f listIterAllFunc) {
 	concurrency := 6
 	vcChan := make(chan chan []Value, concurrency)
 
-	// Target reading data in |batchSize| bytes per thread. We don't know how
-	// many bytes each value is, so update |estimatedValueSize| as data is read.
-	batchSize := 1 << 23 // 8MB
-	estimatedValueSize := uint64(1000)
+	// Target reading data in |targetBatchBytes| per thread. We don't know how
+	// many bytes each value is, so update |estimatedNumValues| as data is read.
+	targetBatchBytes := 1 << 23 // 8MB
+	estimatedNumValues := uint64(1000)
 
 	go func() {
-		idx := uint64(0)
-		for idx < l.Len() {
-			valueSize := atomic.LoadUint64(&estimatedValueSize)
+		for idx := uint64(0); idx < l.Len(); {
+			numValues := atomic.LoadUint64(&estimatedNumValues)
 
 			start := idx
 			blockLength := l.Len() - start
-			if blockLength > valueSize {
-				blockLength = valueSize
+			if blockLength > numValues {
+				blockLength = numValues
 			}
 			idx += blockLength
 
@@ -175,22 +174,19 @@ func (l List) IterAll(f listIterAllFunc) {
 			vcChan <- vc
 
 			go func() {
-				buff := make([]Value, blockLength)
-				numBytes := l.copyReadAhead(buff, start)
-				//fmt.Fprintf(os.Stderr, "read %d chunks (%s)\n", blockLength, humanize.Bytes(numBytes))
+				values := make([]Value, blockLength)
+				numBytes := l.copyReadAhead(values, start)
 
-				// Adjust the estimated value count to try to read |batchSize| bytes
-				// next time.
-				if valueSize == blockLength {
-					scale := float64(batchSize) / float64(numBytes)
-					adjustedValueSize := uint64(float64(valueSize) * scale)
-					atomic.StoreUint64(&estimatedValueSize, adjustedValueSize)
-					//fmt.Fprintf(os.Stderr, "adjusted chunk size from %d to %d (scaled by %.3f)\n", valueSize, adjustedValueSize, scale)
+				// Adjust the estimated number of values to try to read
+				// |targetBatchBytes| next time.
+				if numValues == blockLength {
+					scale := float64(targetBatchBytes) / float64(numBytes)
+					atomic.StoreUint64(&estimatedNumValues, uint64(float64(numValues)*scale))
 				}
 
-				// Send |buff| to |vc| last so that adjusting |estimatedValueSize|
+				// Send |values| to |vc| last so that adjusting |estimatedNumValues|
 				// doesn't block.
-				vc <- buff
+				vc <- values
 			}()
 		}
 		close(vcChan)
@@ -233,9 +229,9 @@ func (l List) copyReadAhead(out []Value, startIdx uint64) (numBytes uint64) {
 		values := ls.valuesSlice(startIdx, endIdx)
 		copy(out, values)
 		out = out[len(values):]
+
 		endIdx = endIdx - uint64(len(values)) - startIdx
 		startIdx = 0
-
 		numBytes += uint64(len(ls.buff))
 	}
 	return
