@@ -226,24 +226,17 @@ func (l List) copyReadAhead(buff []Value, startIdx uint64) (numBytes uint64) {
 	leaves, localStart := LoadLeafNodes([]Collection{l}, startIdx, endIdx)
 	endIdx = localStart + endIdx - startIdx
 	startIdx = localStart
-	n := 0
 
 	for _, leaf := range leaves {
 		ls := leaf.sequence().(listLeafSequence)
-		numBytes += uint64(len(ls.buff))
 
-		localEnd := endIdx
-		values := ls.values()
-		leafLength := uint64(len(values))
-		if localEnd > leafLength {
-			localEnd = leafLength
-		}
-		src := values[startIdx:localEnd]
-
-		copy(buff[n:], src)
-		n += len(src)
-		endIdx -= localEnd
+		values := ls.valuesSlice(startIdx, endIdx)
+		copy(buff, values)
+		buff = buff[len(values):]
+		endIdx = endIdx - uint64(len(values)) - startIdx
 		startIdx = 0
+
+		numBytes += uint64(len(ls.buff))
 	}
 	return
 }

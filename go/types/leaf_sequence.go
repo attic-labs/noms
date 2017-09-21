@@ -6,6 +6,7 @@ package types
 
 import (
 	"bytes"
+	"math"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
@@ -91,10 +92,20 @@ func (seq leafSequence) writeTo(w nomsWriter) {
 }
 
 func (seq leafSequence) values() []Value {
+	return seq.valuesSlice(0, math.MaxUint64)
+}
+
+func (seq leafSequence) valuesSlice(from, to uint64) []Value {
 	dec, count := seq.decoderSkipToValues()
-	vs := make([]Value, count)
-	for i := uint64(0); i < count; i++ {
-		vs[i] = dec.readValue()
+	if to > count {
+		to = count
+	}
+	for i := uint64(0); i < from; i++ {
+		dec.skipValue()
+	}
+	vs := make([]Value, to-from)
+	for i := from; i < to; i++ {
+		vs[i-from] = dec.readValue()
 	}
 	return vs
 }
