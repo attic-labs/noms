@@ -12,13 +12,13 @@ This sample app demonstrates backing a P2P noms app by a decentralized blockstor
 # Build and Run
 
 Demo app code is in the
-[ipfs-chat](https://github.com/attic-labs/noms/tree/master/samples/go/ipfs-chat/)
+[ipfs-chat](https://github.com/attic-labs/noms/tree/master/samples/go/decent/ipfs-chat/)
 directory. To get it up and running take the following steps:
 * Use git to clone the noms repository onto your computer:
 ```
-go get github.com/attic-labs/noms/samples/go/ipfs-chat
+go get github.com/attic-labs/noms/samples/go/decent/ipfs-chat
 ```
-* From the noms/samples/go/ipfs-chat directory, build the program with the following command:
+* From the noms/samples/go/decent/ipfs-chat directory, build the program with the following command:
 ```
 go build
 ```
