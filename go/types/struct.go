@@ -6,6 +6,7 @@ package types
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"regexp"
 	"sort"
@@ -90,35 +91,53 @@ func newStruct(name string, fieldNames []string, values []Value) Struct {
 // structBinaryNomsWriter is used to write a struct to a binaryNomsWriter
 // without knowing the number of fields to write.
 type structBinaryNomsWriter struct {
-	mainWriter, fieldsWriter binaryNomsWriter
-	count                    uint64
+	w                         binaryNomsWriter
+	estimatedCount, count     int
+	countOffset, fieldsOffset uint32
 }
 
-func newStructBinaryNomsWriter(name string) structBinaryNomsWriter {
-	mainWriter := newBinaryNomsWriter()
-	StructKind.writeTo(&mainWriter)
-	mainWriter.writeString(name)
-	fieldsWriter := newBinaryNomsWriter()
-	return structBinaryNomsWriter{mainWriter, fieldsWriter, 0}
+func newStructBinaryNomsWriter(name string, estimatedCount int) structBinaryNomsWriter {
+	w := newBinaryNomsWriter()
+	StructKind.writeTo(&w)
+	w.writeString(name)
+	countOffset := w.offset
+	w.writeCount(uint64(estimatedCount))
+	fieldsOffset := w.offset
+	return structBinaryNomsWriter{w, estimatedCount, 0, countOffset, fieldsOffset}
 }
 
 func (w *structBinaryNomsWriter) writeField(name string, value Value) {
-	w.fieldsWriter.writeString(name)
-	value.writeTo(&w.fieldsWriter)
+	w.w.writeString(name)
+	value.writeTo(&w.w)
 	w.count++
 
 }
 
 func (w *structBinaryNomsWriter) writeFieldRaw(name string, buff []byte) {
-	w.fieldsWriter.writeString(name)
-	w.fieldsWriter.writeRaw(buff)
+	w.w.writeString(name)
+	w.w.writeRaw(buff)
 	w.count++
 }
 
 func (w *structBinaryNomsWriter) close() []byte {
-	w.mainWriter.writeCount(w.count)
-	w.mainWriter.writeRaw(w.fieldsWriter.data())
-	return w.mainWriter.data()
+	data := w.w.data()
+	if w.count == w.estimatedCount {
+		return data
+	}
+
+	countWriter := binaryNomsWriter{make([]byte, binary.MaxVarintLen64), 0}
+	countWriter.writeCount(uint64(w.count))
+	if countWriter.offset == w.fieldsOffset-w.countOffset {
+		// count uses same number of bytes
+		copy(data[w.countOffset:w.fieldsOffset], countWriter.buff[:countWriter.offset])
+		return data
+	}
+
+	w2 := binaryNomsWriter{make([]byte, len(data)+binary.MaxVarintLen64), 0}
+	w2.writeRaw(data[:w.countOffset])
+	w2.writeRaw(countWriter.data())
+	w2.writeRaw(data[w.fieldsOffset:])
+	return w2.data()
 }
 
 func NewStruct(name string, data StructData) Struct {

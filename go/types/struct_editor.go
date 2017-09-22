@@ -17,14 +17,15 @@ import (
 // Note: The implementation biases performance towards a usage which applies
 // edits in name-order.
 type StructEditor struct {
-	s          Struct
-	edits      structEditSlice // edits may contain duplicate name values, in which case, the last edit of a given name is used
-	normalized bool
+	s              Struct
+	edits          structEditSlice // edits may contain duplicate name values, in which case, the last edit of a given name is used
+	normalized     bool
+	estimatedCount int
 }
 
 // NewStructEditor returns a new StructEditor starting with the fields in s.
 func NewStructEditor(s Struct) *StructEditor {
-	return &StructEditor{s, structEditSlice{}, true}
+	return &StructEditor{s, structEditSlice{}, true, 0}
 }
 
 // Kind returns the kind of editor this is.
@@ -77,8 +78,8 @@ func (se *StructEditor) Struct() Struct {
 		close(kvsChan)
 	}()
 
-	w := newStructBinaryNomsWriter(se.s.Name())
 	entries := se.s.structEntries()
+	w := newStructBinaryNomsWriter(se.s.Name(), len(entries)+se.estimatedCount)
 
 	i := 0
 	for sec := range kvsChan {
@@ -108,6 +109,7 @@ func (se *StructEditor) Struct() Struct {
 func (se *StructEditor) Set(n string, v Valuable) *StructEditor {
 	d.PanicIfTrue(v == nil)
 	se.set(n, v)
+	se.estimatedCount++
 	return se
 }
 
@@ -115,6 +117,7 @@ func (se *StructEditor) Set(n string, v Valuable) *StructEditor {
 // field is a no op.
 func (se *StructEditor) Delete(k string) *StructEditor {
 	se.set(k, nil)
+	se.estimatedCount--
 	return se
 }
 
