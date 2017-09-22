@@ -192,7 +192,8 @@ func (l List) IterAll(f listIterAllFunc) {
 		close(vcChan)
 	}()
 
-	// Ensure read-ahead goroutines can exit
+	// Ensure read-ahead goroutines can exit, because the `range` below might not
+	// finish if an |f| callback panics.
 	defer func() {
 		for range vcChan {
 		}
