@@ -160,7 +160,7 @@ func (l List) IterAll(f listIterAllFunc) {
 	estimatedNumValues := uint64(1000)
 
 	go func() {
-		for idx := uint64(0); idx < l.Len(); {
+		for idx, len := uint64(0), l.Len(); idx < len; {
 			numValues := atomic.LoadUint64(&estimatedNumValues)
 
 			start := idx
