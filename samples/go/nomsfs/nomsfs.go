@@ -291,16 +291,16 @@ func (fs *nomsFS) Truncate(path string, size uint64, context *fuse.Context) fuse
 	defer np.nLock.Unlock()
 
 	inode := np.inode
-	attr := inode.Get("attr").(types.Struct)
-	file := inode.Get("contents").(types.Struct)
+	attr := inode.Get("attr").(types.Struct).Edit()
+	file := inode.Get("contents").(types.Struct).Edit()
 	ref := file.Get("data").(types.Ref)
 	blob := ref.TargetValue(fs.db).(types.Blob)
 
 	blob = blob.Edit().Splice(size, blob.Len()-size, nil).Blob()
 	ref = fs.db.WriteValue(blob)
-	file = file.Set("data", ref)
+	file.Set("data", ref)
 
-	inode = inode.Set("contents", file).Set("attr", updateMtime(attr))
+	inode = inode.Edit().Set("contents", file).Set("attr", updateMtime(attr)).Struct()
 	fs.updateNode(np, inode)
 	fs.splice(np)
 	fs.commit()
@@ -427,15 +427,15 @@ func (fs *nomsFS) removeCommon(path string, typeCheck func(inode types.Value)) f
 
 	parent := np.parent
 
-	dir := parent.inode.Get("contents").(types.Struct)
-	entries := dir.Get("entries").(types.Map)
+	dir := parent.inode.Get("contents").(types.Struct).Edit()
+	entries := dir.Get("entries").(types.Map).Edit()
 
-	entries = entries.Edit().Remove(types.String(np.name)).Map()
-	dir = dir.Set("entries", entries)
+	entries = entries.Remove(types.String(np.name))
+	dir.Set("entries", entries)
 
 	fs.deleteNode(np)
 
-	fs.updateNode(parent, parent.inode.Set("contents", dir))
+	fs.updateNode(parent, parent.inode.Edit().Set("contents", dir).Struct())
 	fs.splice(parent)
 	fs.commit()
 
@@ -470,8 +470,8 @@ func (nfile nomsFile) Write(data []byte, off int64) (uint32, fuse.Status) {
 	inode := nfile.node.inode
 	d.Chk.Equal(nodeType(inode), "File")
 
-	attr := inode.Get("attr").(types.Struct)
-	file := inode.Get("contents").(types.Struct)
+	attr := inode.Get("attr").(types.Struct).Edit()
+	file := inode.Get("contents").(types.Struct).Edit()
 	ref := file.Get("data").(types.Ref)
 	blob := ref.TargetValue(nfile.fs.db).(types.Blob)
 
@@ -485,9 +485,9 @@ func (nfile nomsFile) Write(data []byte, off int64) (uint32, fuse.Status) {
 
 	blob = blob.Edit().Splice(uint64(off), del, data).Blob()
 	ref = nfile.fs.db.WriteValue(blob)
-	file = file.Set("data", ref)
+	file.Set("data", ref)
 
-	nfile.fs.bufferNode(nfile.node, inode.Set("contents", file).Set("attr", updateMtime(attr)))
+	nfile.fs.bufferNode(nfile.node, inode.Edit().Set("contents", file).Set("attr", updateMtime(attr)).Struct())
 
 	return uint32(len(data)), fuse.OK
 }
@@ -527,7 +527,7 @@ func makeAttr(vrw types.ValueReadWriter, mode uint32) types.Struct {
 	})
 }
 
-func updateMtime(attr types.Struct) types.Struct {
+func updateMtime(attr *types.StructEditor) *types.StructEditor {
 	now := time.Now()
 	mtime := types.Number(float64(now.Unix()) + float64(now.Nanosecond())/1000000000)
 
@@ -583,18 +583,18 @@ func (fs *nomsFS) deleteNode(np *nNode) {
 // Rewrite the hierarchy starting frpm np and walking back to the root.
 func (fs *nomsFS) splice(np *nNode) {
 	for np.parent != nil {
-		dir := np.parent.inode.Get("contents").(types.Struct)
-		entries := dir.Get("entries").(types.Map)
+		dir := np.parent.inode.Get("contents").(types.Struct).Edit()
+		entries := dir.Get("entries").(types.Map).Edit()
 
-		entries = entries.Edit().Set(types.String(np.name), np.inode).Map()
-		dir = dir.Set("entries", entries)
+		entries.Set(types.String(np.name), np.inode)
+		dir.Set("entries", entries)
 
-		fs.updateNode(np.parent, np.parent.inode.Set("contents", dir))
+		fs.updateNode(np.parent, np.parent.inode.Edit().Set("contents", dir).Struct())
 
 		np = np.parent
 	}
 
-	fs.head = fs.head.Set("root", np.inode)
+	fs.head = fs.head.Edit().Set("root", np.inode).Struct()
 }
 
 func (fs *nomsFS) commit() {
@@ -648,13 +648,13 @@ func (fs *nomsFS) Rename(oldPath string, newPath string, context *fuse.Context) 
 	// Remove the node from the old spot in the hierarchy.
 	oparent := np.parent
 
-	dir := oparent.inode.Get("contents").(types.Struct)
-	entries := dir.Get("entries").(types.Map)
+	dir := oparent.inode.Get("contents").(types.Struct).Edit()
+	entries := dir.Get("entries").(types.Map).Edit()
 
-	entries = entries.Edit().Remove(types.String(np.name)).Map()
-	dir = dir.Set("entries", entries)
+	entries.Remove(types.String(np.name))
+	dir.Set("entries", entries)
 
-	fs.updateNode(oparent, oparent.inode.Set("contents", dir))
+	fs.updateNode(oparent, oparent.inode.Edit().Set("contents", dir).Struct())
 
 	// Insert it into the new spot in the hierarchy
 	np.parent = nparent
@@ -742,13 +742,13 @@ func (fs *nomsFS) splices(np1, np2, npShared *nNode) {
 	// Splice each until we get to the shared parent directory.
 	for _, np := range []*nNode{np1, np2} {
 		for np != npShared {
-			dir := np.parent.inode.Get("contents").(types.Struct)
-			entries := dir.Get("entries").(types.Map)
+			dir := np.parent.inode.Get("contents").(types.Struct).Edit()
+			entries := dir.Get("entries").(types.Map).Edit()
 
-			entries = entries.Edit().Set(types.String(np.name), np.inode).Map()
-			dir = dir.Set("entries", entries)
+			entries.Set(types.String(np.name), np.inode)
+			dir.Set("entries", entries)
 
-			fs.updateNode(np.parent, np.parent.inode.Set("contents", dir))
+			fs.updateNode(np.parent, np.parent.inode.Edit().Set("contents", dir).Struct())
 
 			np = np.parent
 		}
@@ -803,7 +803,7 @@ func (fs *nomsFS) GetAttr(path string, context *fuse.Context) (*fuse.Attr, fuse.
 }
 
 func (fs *nomsFS) Chown(path string, uid uint32, gid uint32, context *fuse.Context) fuse.Status {
-	return fs.setAttr(path, func(attr types.Struct) types.Struct {
+	return fs.setAttr(path, func(attr *types.StructEditor) *types.StructEditor {
 		return attr.Set("uid", types.Number(uid)).Set("gid", types.Number(gid))
 	})
 }
@@ -812,18 +812,18 @@ func (fs *nomsFS) Utimens(path string, atime *time.Time, mtime *time.Time, conte
 	if mtime == nil {
 		return fuse.OK
 	}
-	return fs.setAttr(path, func(attr types.Struct) types.Struct {
+	return fs.setAttr(path, func(attr *types.StructEditor) *types.StructEditor {
 		return attr.Set("mtime", types.Number(float64(mtime.Unix())+float64(mtime.Nanosecond())/1000000000))
 	})
 }
 
 func (fs *nomsFS) Chmod(path string, mode uint32, context *fuse.Context) fuse.Status {
-	return fs.setAttr(path, func(attr types.Struct) types.Struct {
+	return fs.setAttr(path, func(attr *types.StructEditor) *types.StructEditor {
 		return attr.Set("mode", types.Number(mode))
 	})
 }
 
-func (fs *nomsFS) setAttr(path string, updateAttr func(attr types.Struct) types.Struct) fuse.Status {
+func (fs *nomsFS) setAttr(path string, updateAttr func(attr *types.StructEditor) *types.StructEditor) fuse.Status {
 	fs.mdLock.Lock()
 	defer fs.mdLock.Unlock()
 	np, code := fs.getPath(path)
@@ -832,9 +832,9 @@ func (fs *nomsFS) setAttr(path string, updateAttr func(attr types.Struct) types.
 	}
 
 	inode := np.inode
-	attr := inode.Get("attr").(types.Struct)
+	attr := inode.Get("attr").(types.Struct).Edit()
 	attr = updateAttr(attr)
-	inode = inode.Set("attr", attr)
+	inode = inode.Edit().Set("attr", attr).Struct()
 
 	fs.updateNode(np, inode)
 	fs.splice(np)
@@ -895,12 +895,12 @@ func (fs *nomsFS) RemoveXAttr(path string, key string, context *fuse.Context) fu
 	}
 
 	inode := np.inode
-	attr := np.inode.Get("attr").(types.Struct)
-	xattr := attr.Get("xattr").(types.Map)
+	attr := np.inode.Get("attr").(types.Struct).Edit()
+	xattr := attr.Get("xattr").(types.Map).Edit()
 
-	xattr = xattr.Edit().Remove(types.String(key)).Map()
-	attr = attr.Set("xattr", xattr)
-	inode = inode.Set("attr", attr)
+	xattr.Remove(types.String(key))
+	attr.Set("xattr", xattr)
+	inode = inode.Edit().Set("attr", attr).Struct()
 
 	fs.updateNode(np, inode)
 	fs.splice(np)
@@ -918,13 +918,13 @@ func (fs *nomsFS) SetXAttr(path string, key string, data []byte, flags int, cont
 	}
 
 	inode := np.inode
-	attr := np.inode.Get("attr").(types.Struct)
-	xattr := attr.Get("xattr").(types.Map)
+	attr := np.inode.Get("attr").(types.Struct).Edit()
+	xattr := attr.Get("xattr").(types.Map).Edit()
 	blob := types.NewBlob(fs.db, bytes.NewReader(data))
 
-	xattr = xattr.Edit().Set(types.String(key), blob).Map()
-	attr = attr.Set("xattr", xattr)
-	inode = inode.Set("attr", attr)
+	xattr.Set(types.String(key), blob)
+	attr.Set("xattr", xattr)
+	inode = inode.Edit().Set("attr", attr).Struct()
 
 	fs.updateNode(np, inode)
 	fs.splice(np)

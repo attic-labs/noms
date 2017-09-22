@@ -881,21 +881,21 @@ func TestEncodeOriginal(t *testing.T) {
 	err = Unmarshal(orig, &s)
 	assert.NoError(err)
 	s.Foo = 43
-	assert.True(MustMarshal(vs, s).Equals(orig.Set("foo", types.Number(43))))
+	assert.True(MustMarshal(vs, s).Equals(orig.Edit().Set("foo", types.Number(43)).Struct()))
 
 	// New field extends old struct
 	orig = types.NewStruct("S", types.StructData{})
 	err = Unmarshal(orig, &s)
 	assert.NoError(err)
 	s.Foo = 43
-	assert.True(MustMarshal(vs, s).Equals(orig.Set("foo", types.Number(43))))
+	assert.True(MustMarshal(vs, s).Equals(orig.Edit().Set("foo", types.Number(43)).Struct()))
 
 	// Old struct name always used
 	orig = types.NewStruct("Q", types.StructData{})
 	err = Unmarshal(orig, &s)
 	assert.NoError(err)
 	s.Foo = 43
-	assert.True(MustMarshal(vs, s).Equals(orig.Set("foo", types.Number(43))))
+	assert.True(MustMarshal(vs, s).Equals(orig.Edit().Set("foo", types.Number(43)).Struct()))
 
 	// Field type of base are preserved
 	orig = types.NewStruct("S", types.StructData{
@@ -905,7 +905,7 @@ func TestEncodeOriginal(t *testing.T) {
 	assert.NoError(err)
 	s.Foo = 43
 	out := MustMarshal(vs, s)
-	assert.True(out.Equals(orig.Set("foo", types.Number(43))))
+	assert.True(out.Equals(orig.Edit().Set("foo", types.Number(43)).Struct()))
 
 	st2 := types.MakeStructTypeFromFields("S", types.FieldMap{
 		"foo": types.NumberType,
