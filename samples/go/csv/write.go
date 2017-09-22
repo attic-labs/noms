@@ -5,6 +5,7 @@
 package csv
 
 import (
+	"encoding/csv"
 	"fmt"
 	"io"
 
@@ -39,33 +40,28 @@ func GetMapElemDesc(m types.Map, vr types.ValueReader) types.StructDesc {
 }
 
 func writeValuesFromChan(structChan chan types.Struct, sd types.StructDesc, comma rune, output io.Writer) {
-	for range structChan {
+	fieldNames := getFieldNamesFromStruct(sd)
+	csvWriter := csv.NewWriter(output)
+	csvWriter.Comma = comma
+	if csvWriter.Write(fieldNames) != nil {
+		d.Panic("Failed to write header %v", fieldNames)
+	}
+	record := make([]string, len(fieldNames))
+	for s := range structChan {
+		i := 0
+		s.WalkValues(func(v types.Value) {
+			record[i] = fmt.Sprintf("%v", v)
+			i++
+		})
+		if csvWriter.Write(record) != nil {
+			d.Panic("Failed to write record %v", record)
+		}
 	}
 
-	/*
-		fieldNames := getFieldNamesFromStruct(sd)
-		csvWriter := csv.NewWriter(output)
-		csvWriter.Comma = comma
-		if csvWriter.Write(fieldNames) != nil {
-			d.Panic("Failed to write header %v", fieldNames)
-		}
-		record := make([]string, len(fieldNames))
-		for s := range structChan {
-			i := 0
-			s.WalkValues(func(v types.Value) {
-				record[i] = fmt.Sprintf("%v", v)
-				i++
-			})
-			if csvWriter.Write(record) != nil {
-				d.Panic("Failed to write record %v", record)
-			}
-		}
-
-		csvWriter.Flush()
-		if csvWriter.Error() != nil {
-			d.Panic("error flushing csv")
-		}
-	*/
+	csvWriter.Flush()
+	if csvWriter.Error() != nil {
+		d.Panic("error flushing csv")
+	}
 }
 
 // WriteList takes a types.List l of structs (described by sd) and writes it to output as comma-delineated values.
