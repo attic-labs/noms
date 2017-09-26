@@ -67,6 +67,7 @@ func (l List) Len() uint64 {
 
 // Empty returns true if the list is empty (length is zero).
 func (l List) Empty() bool {
+	// TODO: l.Len() is not free, use l.seq.seqLen()?
 	return l.Len() == 0
 }
 
@@ -160,11 +161,11 @@ func (l List) IterAll(f listIterAllFunc) {
 	estimatedNumValues := uint64(1000)
 
 	go func() {
-		for idx, len := uint64(0), l.Len(); idx < len; {
+		for idx, llen := uint64(0), l.Len(); idx < llen; {
 			numValues := atomic.LoadUint64(&estimatedNumValues)
 
 			start := idx
-			blockLength := l.Len() - start
+			blockLength := llen - start
 			if blockLength > numValues {
 				blockLength = numValues
 			}
@@ -209,11 +210,12 @@ func (l List) IterAll(f listIterAllFunc) {
 }
 
 func (l List) copyReadAhead(out []Value, startIdx uint64) (numBytes uint64) {
-	d.PanicIfFalse(startIdx < l.Len())
+	llen := l.Len()
+	d.PanicIfFalse(startIdx < llen)
 
 	endIdx := startIdx + uint64(len(out))
-	if endIdx > l.Len() {
-		endIdx = l.Len()
+	if endIdx > llen {
+		endIdx = llen
 	}
 
 	if startIdx == endIdx {
