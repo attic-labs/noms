@@ -334,13 +334,13 @@ func (s Struct) IsZeroValue() bool {
 // If name is not an existing field in the struct then the current struct is returned.
 func (s Struct) Delete(n string) Struct {
 	prolog, head, tail, count, found := s.splitFieldsAt(n)
+	if !found {
+		return s
+	}
 
 	w := binaryNomsWriter{make([]byte, len(s.buff)), 0}
 	w.writeRaw(prolog)
-	if found {
-		count--
-	}
-	w.writeCount(count)
+	w.writeCount(count - 1)
 	w.writeRaw(head)
 	w.writeRaw(tail)
 
