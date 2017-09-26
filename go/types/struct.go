@@ -289,7 +289,7 @@ func (s Struct) Set(n string, v Value) Struct {
 	return Struct{s.vrw, w.data()}
 }
 
-// splitFieldsAt splits the buffer into two parts. The fields comming before the field we are looking for
+// splitFieldsAt splits the buffer into two parts. The fields coming before the field we are looking for
 // and the fields coming after it.
 func (s Struct) splitFieldsAt(name string) (prolog, head, tail []byte, count uint64, found bool) {
 	dec := s.decoder()
