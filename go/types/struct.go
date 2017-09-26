@@ -312,8 +312,8 @@ func (s Struct) splitFieldsAt(name string) (prolog, head, tail []byte, count uin
 		}
 
 		if name < fn {
-			head = dec.buff[fieldsOffset:dec.offset]
-			tail = dec.buff[dec.offset:len(dec.buff)]
+			head = dec.buff[fieldsOffset:beforeCurrent]
+			tail = dec.buff[beforeCurrent:len(dec.buff)]
 			break
 		}
 	}
