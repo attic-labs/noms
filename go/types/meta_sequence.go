@@ -22,7 +22,7 @@ var emptyKey = orderedKey{}
 func newMetaTuple(ref Ref, key orderedKey, numLeaves uint64) metaTuple {
 	d.PanicIfTrue(ref.buff == nil)
 	w := newBinaryNomsWriter()
-	offsets := make([]uint32, metaTuplePartNumLeaves+1)
+	var offsets [metaTuplePartNumLeaves + 1]uint32
 	offsets[metaTuplePartRef] = w.offset
 	ref.writeTo(&w)
 	offsets[metaTuplePartKey] = w.offset
@@ -35,7 +35,7 @@ func newMetaTuple(ref Ref, key orderedKey, numLeaves uint64) metaTuple {
 // metaTuple is a node in a Prolly Tree, consisting of data in the node (either tree leaves or other metaSequences), and a Value annotation for exploring the tree (e.g. the largest item if this an ordered sequence).
 type metaTuple struct {
 	buff    []byte
-	offsets []uint32
+	offsets [metaTuplePartNumLeaves + 1]uint32
 }
 
 const (
@@ -221,7 +221,7 @@ func (ms metaSequence) getCompareFn(other sequence) compareFn {
 }
 
 func (ms metaSequence) readTuple(dec *valueDecoder) metaTuple {
-	offsets := make([]uint32, metaTuplePartNumLeaves+1)
+	var offsets [metaTuplePartNumLeaves + 1]uint32
 	start := dec.offset
 	offsets[metaTuplePartRef] = start
 	dec.skipRef()
