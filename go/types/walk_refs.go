@@ -13,7 +13,11 @@ import (
 // are precisely equal to DecodeValue(c).WalkRefs(cb), but this should be much
 // faster.
 func WalkRefs(c chunks.Chunk, cb RefCallback) {
-	rw := newRefWalker(c.Data())
+	walkRefs(c.Data(), cb)
+}
+
+func walkRefs(data []byte, cb RefCallback) {
+	rw := newRefWalker(data)
 	rw.walkValue(cb)
 }
 
