@@ -118,7 +118,7 @@ func (l List) IterAll(f listIterAllFunc) {
 
 func iterAll(col Collection, f listIterAllFunc) {
 	concurrency := 6
-	vcChan := make(chan chan []Value, concurrency)
+	vcChan := make(chan chan Value, concurrency)
 
 	// Target reading data in |targetBatchBytes| per thread. We don't know how
 	// many bytes each value is, so update |estimatedNumValues| as data is read.
@@ -136,11 +136,14 @@ func iterAll(col Collection, f listIterAllFunc) {
 			}
 			idx += blockLength
 
-			vc := make(chan []Value)
+			vc := make(chan Value)
 			vcChan <- vc
 
 			go func() {
-				values, numBytes := copyReadAhead(col, blockLength, start)
+				numBytes := iterRange(col, blockLength, start, func(v Value) {
+					vc <- v
+				})
+				close(vc)
 
 				// Adjust the estimated number of values to try to read
 				// |targetBatchBytes| next time.
@@ -148,10 +151,6 @@ func iterAll(col Collection, f listIterAllFunc) {
 					scale := float64(targetBatchBytes) / float64(numBytes)
 					atomic.StoreUint64(&estimatedNumValues, uint64(float64(numValues)*scale))
 				}
-
-				// Send |values| to |vc| last so that adjusting |estimatedNumValues|
-				// doesn't block.
-				vc <- values
 			}()
 		}
 		close(vcChan)
@@ -160,20 +159,21 @@ func iterAll(col Collection, f listIterAllFunc) {
 	// Ensure read-ahead goroutines can exit, because the `range` below might not
 	// finish if an |f| callback panics.
 	defer func() {
-		for range vcChan {
+		for vc := range vcChan {
+			close(vc)
 		}
 	}()
 
 	i := uint64(0)
 	for vc := range vcChan {
-		for _, v := range <-vc {
+		for v := range vc {
 			f(v, i)
 			i++
 		}
 	}
 }
 
-func copyReadAhead(col Collection, blockLength uint64, startIdx uint64) (out []Value, numBytes uint64) {
+func iterRange(col Collection, blockLength uint64, startIdx uint64, cb func(v Value)) (numBytes uint64) {
 	d.PanicIfTrue(blockLength == 0)
 
 	l := col.Len()
@@ -182,26 +182,24 @@ func copyReadAhead(col Collection, blockLength uint64, startIdx uint64) (out []V
 	endIdx := startIdx + blockLength
 	d.PanicIfFalse(endIdx <= l)
 
-	valuesPerIdx := getValuesPerIdx(col.asSequence())
-	out = make([]Value, blockLength*valuesPerIdx)
-
 	leaves, localStart := LoadLeafNodes([]Collection{col}, startIdx, endIdx)
 	endIdx = localStart + endIdx - startIdx
 	startIdx = localStart
 	numValues := 0
+	valuesPerIdx := getValuesPerIdx(col.asSequence())
 
 	for _, leaf := range leaves {
 		seq := leaf.asSequence()
 		values := seq.valuesSlice(startIdx, endIdx)
-		copy(out[numValues:], values)
-
 		numValues += len(values)
+
+		for _, v := range values {
+			cb(v)
+		}
+
 		endIdx = endIdx - uint64(len(values))/valuesPerIdx - startIdx
 		startIdx = 0
-
-		// TODO: this is wrong, it should only include the bytes of |values| only,
-		// not the whole of |seq|.
-		numBytes += uint64(len(seq.valueBytes()))
+		numBytes += uint64(len(seq.valueBytes())) // note: should really only include |values|
 	}
 	return
 }
