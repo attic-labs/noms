@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
-	"github.com/golang/snappy"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -108,40 +107,6 @@ func tableReaderAtFromBytes(b []byte) tableReaderAt {
 
 func (adapter tableReaderAtAdapter) ReadAtWithStats(p []byte, off int64, stats *Stats) (n int, err error) {
 	return adapter.ReadAt(p, off)
-}
-
-func TestMemTableSnappyWriteOutOfLine(t *testing.T) {
-	assert := assert.New(t)
-	mt := newMemTable(1024)
-
-	chunks := [][]byte{
-		[]byte("hello2"),
-		[]byte("goodbye2"),
-		[]byte("badbye2"),
-	}
-
-	for _, c := range chunks {
-		assert.True(mt.addChunk(computeAddr(c), c))
-	}
-	mt.snapper = &outOfLineSnappy{[]bool{false, true, false}} // chunks[1] should trigger a panic
-
-	assert.Panics(func() { mt.write(nil, &Stats{}) })
-}
-
-type outOfLineSnappy struct {
-	policy []bool
-}
-
-func (o *outOfLineSnappy) Encode(dst, src []byte) []byte {
-	outOfLine := false
-	if len(o.policy) > 0 {
-		outOfLine = o.policy[0]
-		o.policy = o.policy[1:]
-	}
-	if outOfLine {
-		return snappy.Encode(nil, src)
-	}
-	return snappy.Encode(dst, src)
 }
 
 type chunkReaderGroup []chunkReader

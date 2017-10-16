@@ -63,14 +63,14 @@ func TestStats(t *testing.T) {
 	// Now we have write IO
 	assert.Equal(uint64(1), stats(store).PersistLatency.Samples())
 	assert.Equal(uint64(3), stats(store).ChunksPerPersist.Sum())
-	assert.Equal(uint64(131), stats(store).BytesPerPersist.Sum())
+	assert.Equal(uint64(125), stats(store).BytesPerPersist.Sum())
 
 	// Now some gets that will incur read IO
 	store.Get(c1.Hash())
 	store.Get(c2.Hash())
 	store.Get(c3.Hash())
 	assert.Equal(uint64(3), stats(store).FileReadLatency.Samples())
-	assert.Equal(uint64(27), stats(store).FileBytesPerRead.Sum())
+	assert.Equal(uint64(21), stats(store).FileBytesPerRead.Sum())
 
 	// Try A GetMany
 	chnx := make([]chunks.Chunk, 3)
@@ -84,7 +84,7 @@ func TestStats(t *testing.T) {
 	chunkChan := make(chan *chunks.Chunk, 3)
 	store.GetMany(hashes.HashSet(), chunkChan)
 	assert.Equal(uint64(4), stats(store).FileReadLatency.Samples())
-	assert.Equal(uint64(54), stats(store).FileBytesPerRead.Sum())
+	assert.Equal(uint64(42), stats(store).FileBytesPerRead.Sum())
 
 	// Force a conjoin
 	store.c = inlineConjoiner{2}

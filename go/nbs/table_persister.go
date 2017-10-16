@@ -117,10 +117,10 @@ type sourceWithSize struct {
 }
 
 type compactionPlan struct {
-	sources             chunkSourcesByDescendingDataSize
-	mergedIndex         []byte
-	chunkCount          uint32
-	totalCompressedData uint64
+	sources     chunkSourcesByDescendingDataSize
+	mergedIndex []byte
+	chunkCount  uint32
+	totalData   uint64
 }
 
 func (cp compactionPlan) lengths() []byte {
@@ -134,16 +134,16 @@ func (cp compactionPlan) suffixes() []byte {
 }
 
 func planConjoin(sources chunkSources, stats *Stats) (plan compactionPlan) {
-	var totalUncompressedData uint64
+	var logicalData uint64 // distinct from plan.totalData as it doesn't include crc, etc...
 	for _, src := range sources {
-		totalUncompressedData += src.uncompressedLen()
+		logicalData += src.uncompressedLen()
 		index := src.index()
 		plan.chunkCount += index.chunkCount
 
 		// Calculate the amount of chunk data in |src|
 		chunkDataLen := calcChunkDataLen(index)
 		plan.sources = append(plan.sources, sourceWithSize{src, chunkDataLen})
-		plan.totalCompressedData += chunkDataLen
+		plan.totalData += chunkDataLen
 	}
 	sort.Sort(plan.sources)
 
@@ -186,9 +186,9 @@ func planConjoin(sources chunkSources, stats *Stats) (plan compactionPlan) {
 		pfxPos += ordinalSize
 	}
 
-	writeFooter(plan.mergedIndex[uint64(len(plan.mergedIndex))-footerSize:], plan.chunkCount, totalUncompressedData)
+	writeFooter(plan.mergedIndex[uint64(len(plan.mergedIndex))-footerSize:], plan.chunkCount, logicalData)
 
-	stats.BytesPerConjoin.Sample(uint64(plan.totalCompressedData) + uint64(len(plan.mergedIndex)))
+	stats.BytesPerConjoin.Sample(uint64(plan.totalData) + uint64(len(plan.mergedIndex)))
 	return plan
 }
 

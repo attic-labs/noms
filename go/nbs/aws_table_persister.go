@@ -240,7 +240,7 @@ func (s3p awsTablePersister) ConjoinAll(sources chunkSources, stats *Stats) chun
 	t1 := time.Now()
 	name := nameFromSuffixes(plan.suffixes())
 	s3p.executeCompactionPlan(plan, name.String())
-	verbose.Log("Compacted table of %d Kb in %s", plan.totalCompressedData/1024, time.Since(t1))
+	verbose.Log("Compacted table of %d Kb in %s", plan.totalData/1024, time.Since(t1))
 
 	if s3p.tc != nil {
 		go s3p.loadIntoCache(name) // load conjoined table to the cache

@@ -14,15 +14,14 @@ import (
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
-	"github.com/golang/snappy"
 )
 
 type tableIndex struct {
-	chunkCount            uint32
-	totalUncompressedData uint64
-	prefixes, offsets     []uint64
-	lengths, ordinals     []uint32
-	suffixes              []byte
+	chunkCount        uint32
+	totalData         uint64
+	prefixes, offsets []uint64
+	lengths, ordinals []uint32
+	suffixes          []byte
 }
 
 type tableReaderAt interface {
@@ -45,9 +44,9 @@ func parseTableIndex(buff []byte) tableIndex {
 	pos -= magicNumberSize
 	d.Chk.True(string(buff[pos:]) == magicNumber)
 
-	// total uncompressed chunk data
+	// total chunk data
 	pos -= uint64Size
-	totalUncompressedData := binary.BigEndian.Uint64(buff[pos:])
+	totalData := binary.BigEndian.Uint64(buff[pos:])
 
 	pos -= uint32Size
 	chunkCount := binary.BigEndian.Uint32(buff[pos:])
@@ -67,7 +66,7 @@ func parseTableIndex(buff []byte) tableIndex {
 	prefixes, ordinals := computePrefixes(chunkCount, buff[pos:pos+tuplesSize])
 
 	return tableIndex{
-		chunkCount, totalUncompressedData,
+		chunkCount, totalData,
 		prefixes, offsets,
 		lengths, ordinals,
 		suffixes,
@@ -194,7 +193,7 @@ func (tr tableReader) count() uint32 {
 }
 
 func (tr tableReader) uncompressedLen() uint64 {
-	return tr.totalUncompressedData
+	return tr.totalData
 }
 
 func (tr tableReader) index() tableIndex {
@@ -400,13 +399,9 @@ func canReadAhead(fRec offsetRec, fLength uint32, readStart, readEnd, blockSize 
 // Fetches the byte stream of data logically encoded within the table starting at |pos|.
 func (tr tableReader) parseChunk(buff []byte) []byte {
 	dataLen := uint64(len(buff)) - checksumSize
-
+	data := buff[:dataLen]
 	chksum := binary.BigEndian.Uint32(buff[dataLen:])
-	d.Chk.True(chksum == crc(buff[:dataLen]))
-
-	data, err := snappy.Decode(nil, buff[:dataLen])
-	d.Chk.NoError(err)
-
+	d.Chk.True(chksum == crc(data))
 	return data
 }
 

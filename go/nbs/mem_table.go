@@ -120,8 +120,7 @@ func (mt *memTable) write(haver chunkReader, stats *Stats) (name addr, data []by
 
 	if count > 0 {
 		stats.BytesPerPersist.Sample(uint64(tableSize))
-		stats.CompressedChunkBytesPerPersist.Sample(uint64(tw.totalCompressedData))
-		stats.UncompressedChunkBytesPerPersist.Sample(uint64(tw.totalUncompressedData))
+		stats.ChunkBytesPerPersist.Sample(uint64(tw.totalData))
 		stats.ChunksPerPersist.Sample(uint64(count))
 	}
 
