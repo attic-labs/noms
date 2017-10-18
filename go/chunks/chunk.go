@@ -6,9 +6,6 @@
 package chunks
 
 import (
-	"bytes"
-
-	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 )
 
@@ -41,43 +38,4 @@ func NewChunk(data []byte) Chunk {
 // NewChunkWithHash creates a new chunk with a known hash. The hash is not re-calculated or verified. This should obviously only be used in cases where the caller already knows the specified hash is correct.
 func NewChunkWithHash(r hash.Hash, data []byte) Chunk {
 	return Chunk{r, data}
-}
-
-// ChunkWriter wraps an io.WriteCloser, additionally providing the ability to grab the resulting Chunk for all data written through the interface. Calling Chunk() or Close() on an instance disallows further writing.
-type ChunkWriter struct {
-	buffer *bytes.Buffer
-	c      Chunk
-}
-
-func NewChunkWriter() *ChunkWriter {
-	b := &bytes.Buffer{}
-	return &ChunkWriter{
-		buffer: b,
-	}
-}
-
-func (w *ChunkWriter) Write(data []byte) (int, error) {
-	if w.buffer == nil {
-		d.Panic("Write() cannot be called after Hash() or Close().")
-	}
-	size, err := w.buffer.Write(data)
-	d.Chk.NoError(err)
-	return size, nil
-}
-
-// Chunk() closes the writer and returns the resulting Chunk.
-func (w *ChunkWriter) Chunk() Chunk {
-	d.Chk.NoError(w.Close())
-	return w.c
-}
-
-// Close() closes computes the hash and Puts it into the ChunkSink Note: The Write() method never returns an error. Instead, like other noms interfaces, errors are reported via panic.
-func (w *ChunkWriter) Close() error {
-	if w.buffer == nil {
-		return nil
-	}
-
-	w.c = NewChunk(w.buffer.Bytes())
-	w.buffer = nil
-	return nil
 }
