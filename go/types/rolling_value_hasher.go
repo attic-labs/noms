@@ -16,7 +16,8 @@ const (
 	defaultChunkPattern = uint32(1<<12 - 1) // Avg Chunk Size of 4k
 
 	// The window size to use for computing the rolling hash. This is way more than necessary assuming random data (two bytes would be sufficient with a target chunk size of 4k). The benefit of a larger window is it allows for better distribution on input with lower entropy. At a target chunk size of 4k, any given byte changing has roughly a 1.5% chance of affecting an existing boundary, which seems like an acceptable trade-off.
-	defaultChunkWindow = uint32(64)
+	defaultChunkWindow = uint32(67)
+	maxChunkSize       = 1 << 24
 )
 
 // Only set by tests
@@ -84,6 +85,9 @@ func (rv *rollingValueHasher) HashByte(b byte) bool {
 	if !rv.crossedBoundary {
 		rv.bz.HashByte(b ^ rv.salt)
 		rv.crossedBoundary = (rv.bz.Sum32()&rv.pattern == rv.pattern)
+		if rv.bw.offset > maxChunkSize {
+			rv.crossedBoundary = true
+		}
 	}
 	return rv.crossedBoundary
 }
