@@ -141,6 +141,7 @@ func main() {
 	}
 
 	cr := csv.NewCSVReader(r, delim)
+	cr.ReuseRecord = true
 	err = csv.SkipRecords(cr, *skipRecords)
 
 	if err == io.EOF {
