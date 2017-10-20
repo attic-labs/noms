@@ -67,7 +67,7 @@ func TestChunkStoreCommit(t *testing.T) {
 
 	assert.Equal(hash.Hash{}, store.Root())
 
-	newRootChunk := chunks.NewChunk([]byte("new root"))
+	newRootChunk := chunks.New([]byte("new root"))
 	newRoot := newRootChunk.Hash()
 	store.Put(newRootChunk)
 	if assert.True(store.Commit(newRoot, hash.Hash{})) {
@@ -75,7 +75,7 @@ func TestChunkStoreCommit(t *testing.T) {
 		assert.Equal(newRoot, store.Root())
 	}
 
-	secondRootChunk := chunks.NewChunk([]byte("newer root"))
+	secondRootChunk := chunks.New([]byte("newer root"))
 	secondRoot := secondRootChunk.Hash()
 	store.Put(secondRootChunk)
 	if assert.True(store.Commit(secondRoot, newRoot)) {
@@ -146,12 +146,12 @@ func TestChunkStoreManifestPreemptiveOptimisticLockFail(t *testing.T) {
 	interloper := newNomsBlockStore(mm, p, c, defaultMemTableSize)
 	defer interloper.Close()
 
-	chunk := chunks.NewChunk([]byte("hello"))
+	chunk := chunks.New([]byte("hello"))
 	interloper.Put(chunk)
 	assert.True(interloper.Commit(chunk.Hash(), hash.Hash{}))
 
 	// Try to land a new chunk in store, which should fail AND not persist the contents of store.mt
-	chunk = chunks.NewChunk([]byte("goodbye"))
+	chunk = chunks.New([]byte("goodbye"))
 	store.Put(chunk)
 	assert.NotNil(store.mt)
 	assert.False(store.Commit(chunk.Hash(), hash.Hash{}))
@@ -185,7 +185,7 @@ func TestChunkStoreCommitLocksOutFetch(t *testing.T) {
 		}()
 	}
 
-	rootChunk := chunks.NewChunk([]byte("new root"))
+	rootChunk := chunks.New([]byte("new root"))
 	store.Put(rootChunk)
 	assert.True(store.Commit(rootChunk.Hash(), store.Root()))
 
@@ -205,8 +205,8 @@ func TestChunkStoreSerializeCommits(t *testing.T) {
 	store := newNomsBlockStore(manifestManager{upm, mc, l}, p, c, defaultMemTableSize)
 	defer store.Close()
 
-	storeChunk := chunks.NewChunk([]byte("store"))
-	interloperChunk := chunks.NewChunk([]byte("interloper"))
+	storeChunk := chunks.New([]byte("store"))
+	interloperChunk := chunks.New([]byte("interloper"))
 	updateCount := 0
 
 	interloper := newNomsBlockStore(
@@ -266,7 +266,7 @@ func createMemTable(chunks [][]byte) *memTable {
 
 func assertDataInStore(slices [][]byte, store chunks.ChunkStore, assert *assert.Assertions) {
 	for _, data := range slices {
-		assert.True(store.Has(chunks.NewChunk(data).Hash()))
+		assert.True(store.Has(chunks.New(data).Hash()))
 	}
 }
 

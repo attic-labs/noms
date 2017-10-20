@@ -140,7 +140,8 @@ func (lvs *ValueStore) ReadValue(h hash.Hash) Value {
 
 	v := DecodeValue(chunk, lvs)
 	d.PanicIfTrue(v == nil)
-	lvs.decodedChunks.Add(h, uint64(len(chunk.Data())), v)
+	// TODO: Fix
+	lvs.decodedChunks.Add(h, chunk.ByteLen(), v)
 	return v
 }
 
@@ -152,7 +153,8 @@ func (lvs *ValueStore) ReadManyValues(hashes hash.HashSlice) ValueSlice {
 	decode := func(h hash.Hash, chunk *chunks.Chunk) Value {
 		v := DecodeValue(*chunk, lvs)
 		d.PanicIfTrue(v == nil)
-		lvs.decodedChunks.Add(h, uint64(len(chunk.Data())), v)
+		// TODO: Fix
+		lvs.decodedChunks.Add(h, chunk.ByteLen(), v)
 		return v
 	}
 
@@ -236,12 +238,12 @@ func (lvs *ValueStore) bufferChunk(v Value, c chunks.Chunk, height uint64) {
 	h := c.Hash()
 	if _, present := lvs.bufferedChunks[h]; !present {
 		lvs.bufferedChunks[h] = c
-		lvs.bufferedChunkSize += uint64(len(c.Data()))
+		lvs.bufferedChunkSize += c.ByteLen()
 	}
 
 	put := func(h hash.Hash, c chunks.Chunk) {
 		lvs.cs.Put(c)
-		lvs.bufferedChunkSize -= uint64(len(c.Data()))
+		lvs.bufferedChunkSize -= c.ByteLen()
 		delete(lvs.bufferedChunks, h)
 	}
 
@@ -256,6 +258,14 @@ func (lvs *ValueStore) bufferChunk(v Value, c chunks.Chunk, height uint64) {
 				put(gch, pending)
 			}
 		})
+
+		// Once we've Put() a chunks children, we shouldn't need to walk its refs
+		// and thus its safe to compress it. This allows for more chunks to be
+		// buffered in memory before needing to start flushing
+		lvs.bufferedChunkSize -= c.ByteLen()
+		c.Compress()
+		lvs.bufferedChunkSize += c.ByteLen()
+
 		delete(lvs.withBufferedChildren, parent)
 		return
 	}
@@ -323,7 +333,7 @@ func (lvs *ValueStore) Commit(current, last hash.Hash) bool {
 		put := func(h hash.Hash, chunk chunks.Chunk) {
 			lvs.cs.Put(chunk)
 			delete(lvs.bufferedChunks, h)
-			lvs.bufferedChunkSize -= uint64(len(chunk.Data()))
+			lvs.bufferedChunkSize -= chunk.ByteLen()
 		}
 
 		for parent := range lvs.withBufferedChildren {
@@ -339,7 +349,7 @@ func (lvs *ValueStore) Commit(current, last hash.Hash) bool {
 		for _, c := range lvs.bufferedChunks {
 			// Can't use put() because it's wrong to delete from a lvs.bufferedChunks while iterating it.
 			lvs.cs.Put(c)
-			lvs.bufferedChunkSize -= uint64(len(c.Data()))
+			lvs.bufferedChunkSize -= c.ByteLen()
 		}
 		d.PanicIfFalse(lvs.bufferedChunkSize == 0)
 		lvs.withBufferedChildren = map[hash.Hash]uint64{}

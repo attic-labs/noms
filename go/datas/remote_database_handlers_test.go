@@ -102,8 +102,8 @@ func TestBuildWriteValueRequest(t *testing.T) {
 	assert := assert.New(t)
 	input1, input2 := "abc", "def"
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte(input1)),
-		chunks.NewChunk([]byte(input2)),
+		chunks.New([]byte(input1)),
+		chunks.New([]byte(input2)),
 	}
 
 	inChunkChan := make(chan *chunks.Chunk, 2)
@@ -157,8 +157,8 @@ func TestHandleGetRefs(t *testing.T) {
 	cs := storage.NewView()
 	input1, input2 := "abc", "def"
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte(input1)),
-		chunks.NewChunk([]byte(input2)),
+		chunks.New([]byte(input1)),
+		chunks.New([]byte(input2)),
 	}
 	for _, c := range chnx {
 		cs.Put(c)
@@ -263,10 +263,10 @@ func TestHandleHasRefs(t *testing.T) {
 	storage := &chunks.MemoryStorage{}
 	input1, input2, input3 := "abc", "def", "ghi"
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte(input1)),
-		chunks.NewChunk([]byte(input2)),
+		chunks.New([]byte(input1)),
+		chunks.New([]byte(input2)),
 	}
-	present := chunks.NewChunk([]byte(input3))
+	present := chunks.New([]byte(input3))
 	cs := storage.NewView()
 	cs.Put(present)
 	persistChunks(cs)
@@ -307,7 +307,7 @@ func TestHandleGetRoot(t *testing.T) {
 	assert := assert.New(t)
 	storage := &chunks.MemoryStorage{}
 	cs := storage.NewView()
-	c := chunks.NewChunk([]byte("abc"))
+	c := chunks.New([]byte("abc"))
 	cs.Put(c)
 	assert.True(cs.Commit(c.Hash(), hash.Hash{}))
 

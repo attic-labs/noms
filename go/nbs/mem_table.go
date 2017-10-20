@@ -82,7 +82,7 @@ func (mt *memTable) getMany(reqs []getRecord, foundChunks chan *chunks.Chunk, wg
 	for _, r := range reqs {
 		data := mt.chunks[*r.a]
 		if data != nil {
-			c := chunks.NewChunkWithHash(hash.Hash(*r.a), data)
+			c := chunks.FromStorage(hash.Hash(*r.a), data)
 			foundChunks <- &c
 		} else {
 			remaining = true

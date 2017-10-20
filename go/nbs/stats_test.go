@@ -32,7 +32,7 @@ func TestStats(t *testing.T) {
 
 	i1, i2, i3, i4, i5 := []byte("abc"), []byte("def"), []byte("ghi"), []byte("jkl"), []byte("mno")
 
-	c1, c2, c3, c4, c5 := chunks.NewChunk(i1), chunks.NewChunk(i2), chunks.NewChunk(i3), chunks.NewChunk(i4), chunks.NewChunk(i5)
+	c1, c2, c3, c4, c5 := chunks.New(i1), chunks.New(i2), chunks.New(i3), chunks.New(i4), chunks.New(i5)
 
 	// These just go to mem table, only operation stats
 	store.Put(c1)
@@ -63,14 +63,14 @@ func TestStats(t *testing.T) {
 	// Now we have write IO
 	assert.Equal(uint64(1), stats(store).PersistLatency.Samples())
 	assert.Equal(uint64(3), stats(store).ChunksPerPersist.Sum())
-	assert.Equal(uint64(125), stats(store).BytesPerPersist.Sum())
+	assert.Equal(uint64(131), stats(store).BytesPerPersist.Sum())
 
 	// Now some gets that will incur read IO
 	store.Get(c1.Hash())
 	store.Get(c2.Hash())
 	store.Get(c3.Hash())
 	assert.Equal(uint64(3), stats(store).FileReadLatency.Samples())
-	assert.Equal(uint64(21), stats(store).FileBytesPerRead.Sum())
+	assert.Equal(uint64(27), stats(store).FileBytesPerRead.Sum())
 
 	// Try A GetMany
 	chnx := make([]chunks.Chunk, 3)
@@ -84,7 +84,7 @@ func TestStats(t *testing.T) {
 	chunkChan := make(chan *chunks.Chunk, 3)
 	store.GetMany(hashes.HashSet(), chunkChan)
 	assert.Equal(uint64(4), stats(store).FileReadLatency.Samples())
-	assert.Equal(uint64(42), stats(store).FileBytesPerRead.Sum())
+	assert.Equal(uint64(54), stats(store).FileBytesPerRead.Sum())
 
 	// Force a conjoin
 	store.c = inlineConjoiner{2}

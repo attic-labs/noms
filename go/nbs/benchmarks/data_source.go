@@ -101,7 +101,7 @@ func (src *dataSource) ReadChunks(chunkChan chan<- *chunks.Chunk) {
 		n, err := io.ReadFull(bufData, buff)
 		d.Chk.NoError(err)
 		d.Chk.True(uint64(n) == ot.l)
-		c := chunks.NewChunkWithHash(ot.h, buff)
+		c := chunks.FromStorage(ot.h, buff)
 		chunkChan <- &c
 	}
 }

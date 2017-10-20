@@ -12,7 +12,6 @@ import (
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
-	"github.com/golang/snappy"
 )
 
 type PullProgress struct {
@@ -68,7 +67,7 @@ func Pull(srcDB, sinkDB Database, sourceRef types.Ref, progressCh chan PullProgr
 
 				// Randomly sample amount of data written
 				if rand.Float64() < bytesWrittenSampleRate {
-					sampleSize += uint64(len(snappy.Encode(nil, c.Data())))
+					sampleSize += c.ByteLen()
 					sampleCount++
 				}
 				updateProgress(1, 0, sampleSize/uint64(math.Max(1, float64(sampleCount))))

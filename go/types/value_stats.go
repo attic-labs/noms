@@ -10,7 +10,6 @@ import (
 
 	"github.com/attic-labs/noms/go/hash"
 	humanize "github.com/dustin/go-humanize"
-	"github.com/golang/snappy"
 )
 
 type ValueStats interface {
@@ -90,9 +89,7 @@ func printTreeLevel(w io.Writer, level, values, chunks, byteSize uint64) {
 }
 
 func compressedSize(v Value) uint64 {
-	chunk := EncodeValue(v)
-	compressed := snappy.Encode(nil, chunk.Data())
-	return uint64(len(compressed))
+	return uint64(len(EncodeValue(v).CompressedData()))
 }
 
 func loadNextLevel(refs RefSlice, vr ValueReader) ValueSlice {

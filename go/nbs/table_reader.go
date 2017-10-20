@@ -262,7 +262,7 @@ func (tr tableReader) readAtOffsets(
 		localEnd := localStart + uint64(tr.lengths[rec.ordinal])
 		d.Chk.True(localEnd <= readLength)
 		data := tr.parseChunk(buff[localStart:localEnd])
-		c := chunks.NewChunkWithHash(hash.Hash(*rec.a), data)
+		c := chunks.FromStorage(hash.Hash(*rec.a), data)
 		foundChunks <- &c
 	}
 

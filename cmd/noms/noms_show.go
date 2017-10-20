@@ -63,7 +63,7 @@ func runShow(args []string) int {
 
 	if showRaw {
 		ch := types.EncodeValue(value)
-		buf := bytes.NewBuffer(ch.Data())
+		buf := bytes.NewBuffer(ch.UncompressedData())
 		_, err = io.Copy(os.Stdout, buf)
 		d.CheckError(err)
 		return 0

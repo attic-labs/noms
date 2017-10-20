@@ -21,11 +21,11 @@ type valueBytes interface {
 func EncodeValue(v Value) chunks.Chunk {
 	switch v := v.(type) {
 	case valueBytes:
-		return chunks.NewChunk(v.valueBytes())
+		return chunks.New(v.valueBytes())
 	case *Type:
 		w := newBinaryNomsWriter()
 		v.writeTo(&w)
-		return chunks.NewChunk(w.data())
+		return chunks.New(w.data())
 	}
 
 	panic("unreachable")
@@ -49,7 +49,7 @@ func decodeFromBytesWithValidation(data []byte, vrw ValueReadWriter) Value {
 // DecodeValue decodes a value from a chunk source. It is an error to provide an empty chunk.
 func DecodeValue(c chunks.Chunk, vrw ValueReadWriter) Value {
 	d.PanicIfTrue(c.IsEmpty())
-	return DecodeFromBytes(c.Data(), vrw)
+	return DecodeFromBytes(c.UncompressedData(), vrw)
 }
 
 type nomsWriter interface {

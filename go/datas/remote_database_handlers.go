@@ -124,7 +124,7 @@ func handleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs
 	}
 
 	t1 := time.Now()
-	totalDataWritten := 0
+	totalDataWritten := uint64(0)
 	chunkCount := 0
 
 	verbose.Log("Handling WriteValue from " + req.RemoteAddr)
@@ -173,7 +173,7 @@ func handleWriteValue(w http.ResponseWriter, req *http.Request, ps URLParams, cs
 				unresolvedRefs.Insert(r.TargetHash())
 			})
 
-			totalDataWritten += len(dc.Chunk.Data())
+			totalDataWritten += dc.Chunk.ByteLen()
 			cs.Put(*dc.Chunk)
 			chunkCount++
 			if chunkCount%100 == 0 {

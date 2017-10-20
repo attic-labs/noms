@@ -30,7 +30,7 @@ func writeToEmptyStore(store chunks.ChunkStore, src *dataSource, t assert.Testin
 	for c := range chunx {
 		store.Put(*c)
 	}
-	newRoot := chunks.NewChunk([]byte("root"))
+	newRoot := chunks.New([]byte("root"))
 	store.Put(newRoot)
 	assert.True(t, store.Commit(newRoot.Hash(), root))
 }
@@ -54,7 +54,7 @@ func benchmarkNoRefreshWrite(openStore storeOpenFn, src *dataSource, t assert.Te
 }
 
 func verifyChunk(h hash.Hash, c chunks.Chunk) {
-	if len(c.Data()) == 0 {
+	if c.IsEmpty() {
 		panic(fmt.Sprintf("Failed to fetch %s\n", h.String()))
 	}
 }

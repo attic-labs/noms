@@ -303,7 +303,7 @@ func TestWriteStruct(t *testing.T) {
 func TestWriteStructTooMuchData(t *testing.T) {
 	s := NewStruct("S", StructData{"x": Number(42), "b": Bool(true)})
 	c := EncodeValue(s)
-	data := c.Data()
+	data := c.UncompressedData()
 	buff := make([]byte, len(data)+1)
 	copy(buff, data)
 	buff[len(data)] = 5 // Add a bogus extrabyte

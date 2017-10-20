@@ -135,7 +135,7 @@ func newNomsBlockStoreWithContents(mm manifestManager, mc manifestContents, p ta
 func (nbs *NomsBlockStore) Put(c chunks.Chunk) {
 	t1 := time.Now()
 	a := addr(c.Hash())
-	d.PanicIfFalse(nbs.addChunk(a, c.Data()))
+	d.PanicIfFalse(nbs.addChunk(a, c.CompressedData()))
 	nbs.putCount++
 
 	nbs.stats.PutLatency.SampleTimeSince(t1)
@@ -173,10 +173,10 @@ func (nbs *NomsBlockStore) Get(h hash.Hash) chunks.Chunk {
 		return data, nbs.tables
 	}()
 	if data != nil {
-		return chunks.NewChunkWithHash(h, data)
+		return chunks.FromStorage(h, data)
 	}
 	if data := tables.get(a, nbs.stats); data != nil {
-		return chunks.NewChunkWithHash(h, data)
+		return chunks.FromStorage(h, data)
 	}
 
 	return chunks.EmptyChunk
@@ -258,7 +258,7 @@ func (nbs *NomsBlockStore) extractChunks(chunkChan chan<- *chunks.Chunk) {
 		}
 	}()
 	for rec := range ch {
-		c := chunks.NewChunkWithHash(hash.Hash(rec.a), rec.data)
+		c := chunks.FromStorage(hash.Hash(rec.a), rec.data)
 		chunkChan <- &c
 	}
 }

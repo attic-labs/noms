@@ -62,7 +62,7 @@ func (suite *BlockStoreSuite) TestChunkStoreNotDir() {
 
 func (suite *BlockStoreSuite) TestChunkStorePut() {
 	input := []byte("abc")
-	c := chunks.NewChunk(input)
+	c := chunks.New(input)
 	suite.store.Put(c)
 	h := c.Hash()
 
@@ -78,7 +78,7 @@ func (suite *BlockStoreSuite) TestChunkStorePut() {
 	}
 
 	// Re-writing the same data should cause a second put
-	c = chunks.NewChunk(input)
+	c = chunks.New(input)
 	suite.store.Put(c)
 	suite.Equal(h, c.Hash())
 	assertInputInStore(input, h, suite.store, suite.Assert())
@@ -91,7 +91,7 @@ func (suite *BlockStoreSuite) TestChunkStorePut() {
 
 func (suite *BlockStoreSuite) TestChunkStorePutMany() {
 	input1, input2 := []byte("abc"), []byte("def")
-	c1, c2 := chunks.NewChunk(input1), chunks.NewChunk(input2)
+	c1, c2 := chunks.New(input1), chunks.New(input2)
 	suite.store.Put(c1)
 	suite.store.Put(c2)
 
@@ -122,7 +122,7 @@ func (suite *BlockStoreSuite) TestChunkStorePutMoreThanMemTable() {
 	input1, input2 := make([]byte, testMemTableSize/2+1), make([]byte, testMemTableSize/2+1)
 	rand.Read(input1)
 	rand.Read(input2)
-	c1, c2 := chunks.NewChunk(input1), chunks.NewChunk(input2)
+	c1, c2 := chunks.New(input1), chunks.New(input2)
 	suite.store.Put(c1)
 	suite.store.Put(c2)
 
@@ -143,7 +143,7 @@ func (suite *BlockStoreSuite) TestChunkStoreGetMany() {
 	rand.Read(inputs[1])
 	chnx := make([]chunks.Chunk, len(inputs))
 	for i, data := range inputs {
-		chnx[i] = chunks.NewChunk(data)
+		chnx[i] = chunks.New(data)
 		suite.store.Put(chnx[i])
 	}
 	suite.store.Commit(chnx[0].Hash(), suite.store.Root()) // Commit writes
@@ -169,14 +169,14 @@ func (suite *BlockStoreSuite) TestChunkStoreGetMany() {
 
 func (suite *BlockStoreSuite) TestChunkStoreHasMany() {
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte("abc")),
-		chunks.NewChunk([]byte("def")),
+		chunks.New([]byte("abc")),
+		chunks.New([]byte("def")),
 	}
 	for _, c := range chnx {
 		suite.store.Put(c)
 	}
 	suite.store.Commit(chnx[0].Hash(), suite.store.Root()) // Commit writes
-	notPresent := chunks.NewChunk([]byte("ghi")).Hash()
+	notPresent := chunks.New([]byte("ghi")).Hash()
 
 	hashes := hash.NewHashSet(chnx[0].Hash(), chnx[1].Hash(), notPresent)
 	absent := suite.store.HasMany(hashes)
@@ -192,7 +192,7 @@ func (suite *BlockStoreSuite) TestChunkStoreExtractChunks() {
 	input1, input2 := make([]byte, testMemTableSize/2+1), make([]byte, testMemTableSize/2+1)
 	rand.Read(input1)
 	rand.Read(input2)
-	chnx := []chunks.Chunk{chunks.NewChunk(input1), chunks.NewChunk(input2)}
+	chnx := []chunks.Chunk{chunks.New(input1), chunks.New(input2)}
 	for _, c := range chnx {
 		suite.store.Put(c)
 	}
@@ -201,7 +201,7 @@ func (suite *BlockStoreSuite) TestChunkStoreExtractChunks() {
 	go func() { suite.store.extractChunks(chunkChan); close(chunkChan) }()
 	i := 0
 	for c := range chunkChan {
-		suite.Equal(chnx[i].Data(), c.Data())
+		suite.Equal(chnx[i].UncompressedData(), c.UncompressedData())
 		suite.Equal(chnx[i].Hash(), c.Hash())
 		i++
 	}
@@ -209,7 +209,7 @@ func (suite *BlockStoreSuite) TestChunkStoreExtractChunks() {
 
 func (suite *BlockStoreSuite) TestChunkStoreFlushOptimisticLockFail() {
 	input1, input2 := []byte("abc"), []byte("def")
-	c1, c2 := chunks.NewChunk(input1), chunks.NewChunk(input2)
+	c1, c2 := chunks.New(input1), chunks.New(input2)
 	root := suite.store.Root()
 
 	interloper := NewLocalStore(suite.dir, testMemTableSize)
@@ -234,7 +234,7 @@ func (suite *BlockStoreSuite) TestChunkStoreFlushOptimisticLockFail() {
 
 func (suite *BlockStoreSuite) TestChunkStoreRebaseOnNoOpFlush() {
 	input1 := []byte("abc")
-	c1 := chunks.NewChunk(input1)
+	c1 := chunks.New(input1)
 
 	interloper := NewLocalStore(suite.dir, testMemTableSize)
 	interloper.Put(c1)
@@ -252,7 +252,7 @@ func (suite *BlockStoreSuite) TestChunkStoreRebaseOnNoOpFlush() {
 
 func (suite *BlockStoreSuite) TestChunkStorePutWithRebase() {
 	input1, input2 := []byte("abc"), []byte("def")
-	c1, c2 := chunks.NewChunk(input1), chunks.NewChunk(input2)
+	c1, c2 := chunks.New(input1), chunks.New(input2)
 	root := suite.store.Root()
 
 	interloper := NewLocalStore(suite.dir, testMemTableSize)
@@ -310,7 +310,7 @@ func TestBlockStoreConjoinOnCommit(t *testing.T) {
 		return manifestManager{m, newManifestCache(0), newManifestLocks()}
 	}
 
-	newChunk := chunks.NewChunk([]byte("gnu"))
+	new := chunks.New([]byte("gnu"))
 
 	t.Run("NoConjoin", func(t *testing.T) {
 		mm := makeManifestManager(&fakeManifest{})
@@ -320,9 +320,9 @@ func TestBlockStoreConjoinOnCommit(t *testing.T) {
 		smallTableStore := newNomsBlockStore(mm, p, c, testMemTableSize)
 
 		root := smallTableStore.Root()
-		smallTableStore.Put(newChunk)
-		assert.True(t, smallTableStore.Commit(newChunk.Hash(), root))
-		assert.True(t, smallTableStore.Has(newChunk.Hash()))
+		smallTableStore.Put(new)
+		assert.True(t, smallTableStore.Commit(new.Hash(), root))
+		assert.True(t, smallTableStore.Has(new.Hash()))
 	})
 
 	makeCanned := func(conjoinees, keepers []tableSpec, p tablePersister) cannedConjoin {
@@ -349,9 +349,9 @@ func TestBlockStoreConjoinOnCommit(t *testing.T) {
 		smallTableStore := newNomsBlockStore(makeManifestManager(fm), p, c, testMemTableSize)
 
 		root := smallTableStore.Root()
-		smallTableStore.Put(newChunk)
-		assert.True(t, smallTableStore.Commit(newChunk.Hash(), root))
-		assert.True(t, smallTableStore.Has(newChunk.Hash()))
+		smallTableStore.Put(new)
+		assert.True(t, smallTableStore.Commit(new.Hash(), root))
+		assert.True(t, smallTableStore.Has(new.Hash()))
 		assertContainAll(t, smallTableStore, srcs...)
 	})
 
@@ -372,9 +372,9 @@ func TestBlockStoreConjoinOnCommit(t *testing.T) {
 		smallTableStore := newNomsBlockStore(makeManifestManager(fm), p, c, testMemTableSize)
 
 		root := smallTableStore.Root()
-		smallTableStore.Put(newChunk)
-		assert.True(t, smallTableStore.Commit(newChunk.Hash(), root))
-		assert.True(t, smallTableStore.Has(newChunk.Hash()))
+		smallTableStore.Put(new)
+		assert.True(t, smallTableStore.Commit(new.Hash(), root))
+		assert.True(t, smallTableStore.Has(new.Hash()))
 		assertContainAll(t, smallTableStore, srcs...)
 	})
 }
@@ -414,7 +414,7 @@ func (fc *fakeConjoiner) Conjoin(upstream manifestContents, mm manifestUpdater, 
 func assertInputInStore(input []byte, h hash.Hash, s chunks.ChunkStore, assert *assert.Assertions) {
 	c := s.Get(h)
 	assert.False(c.IsEmpty(), "Shouldn't get empty chunk for %s", h.String())
-	assert.Zero(bytes.Compare(input, c.Data()), "%s != %s", string(input), string(c.Data()))
+	assert.Zero(bytes.Compare(input, c.UncompressedData()), "%s != %s", string(input), string(c.UncompressedData()))
 }
 
 func (suite *BlockStoreSuite) TestChunkStoreGetNonExisting() {

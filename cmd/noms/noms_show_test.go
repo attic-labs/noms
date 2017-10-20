@@ -102,7 +102,7 @@ func (s *nomsShowTestSuite) TestNomsShowRaw() {
 		db.CommitValue(sp.GetDataset(), r1)
 		res, _ := s.MustRun(main, []string{"show", "--raw",
 			spec.CreateValueSpecString("nbs", s.DBDir, "#"+r1.TargetHash().String())})
-		ch := chunks.NewChunk([]byte(res))
+		ch := chunks.New([]byte(res))
 		out := types.DecodeValue(ch, db)
 		s.True(out.Equals(in))
 	}

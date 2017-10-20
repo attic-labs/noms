@@ -51,12 +51,12 @@ func (c Chunk) CompressedData() []byte {
 	return snappy.Encode(nil, c.uncompressed)
 }
 
-func (c Chunk) ByteLen() int {
+func (c Chunk) ByteLen() uint64 {
 	if c.compressed != nil {
-		return len(c.compressed)
+		return uint64(len(c.compressed))
 	}
 
-	return len(c.uncompressed)
+	return uint64(len(c.uncompressed))
 }
 
 func (c Chunk) Compress() {
@@ -70,8 +70,7 @@ func (c Chunk) Compress() {
 }
 
 func (c Chunk) IsEmpty() bool {
-	d.PanicIfTrue(c.uncompressed == nil)
-	return len(c.uncompressed) == 0
+	return c.compressed == nil && len(c.uncompressed) == 0
 }
 
 // NewChunk creates a new Chunk backed by data. This means that the returned Chunk has ownership of this slice of memory.
