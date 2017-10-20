@@ -19,7 +19,7 @@ type ChunkStoreTestSuite struct {
 func (suite *ChunkStoreTestSuite) TestChunkStorePut() {
 	store := suite.Factory.CreateStore("ns")
 	input := "abc"
-	c := NewChunk([]byte(input))
+	c := New([]byte(input))
 	store.Put(c)
 	h := c.Hash()
 
@@ -48,7 +48,7 @@ func (suite *ChunkStoreTestSuite) TestChunkStoreCommitPut() {
 	name := "ns"
 	store := suite.Factory.CreateStore(name)
 	input := "abc"
-	c := NewChunk([]byte(input))
+	c := New([]byte(input))
 	store.Put(c)
 	h := c.Hash()
 
@@ -82,7 +82,7 @@ func (suite *ChunkStoreTestSuite) TestChunkStoreVersion() {
 func (suite *ChunkStoreTestSuite) TestChunkStoreCommitUnchangedRoot() {
 	store1, store2 := suite.Factory.CreateStore("ns"), suite.Factory.CreateStore("ns")
 	input := "abc"
-	c := NewChunk([]byte(input))
+	c := New([]byte(input))
 	store1.Put(c)
 	h := c.Hash()
 
