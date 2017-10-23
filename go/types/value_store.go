@@ -66,7 +66,7 @@ func PanicIfDangling(unresolved hash.HashSet, cs chunks.ChunkStore) {
 
 const (
 	defaultDecodedChunksSize = 1 << 25 // 32MB
-	defaultPendingPutMax     = 1 << 28 // 256MB
+	defaultPendingPutMax     = 1 << 28 // 512MB
 )
 
 // newTestValueStore creates a simple struct that satisfies ValueReadWriter

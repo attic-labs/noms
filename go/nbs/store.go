@@ -25,7 +25,7 @@ const (
 	// StorageVersion is the version of the on-disk Noms Chunks Store data format.
 	StorageVersion = "4"
 
-	defaultMemTableSize uint64 = (1 << 20) * 128 // 128MB
+	defaultMemTableSize uint64 = (1 << 20) * 512 // 128MB
 	defaultMaxTables           = 256
 
 	defaultIndexCacheSize    = (1 << 20) * 8 // 8MB
