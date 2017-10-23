@@ -310,6 +310,67 @@ func (r *valueDecoder) readTypeOfValue() *Type {
 	panic("not reachable")
 }
 
+// isValueSameTypeForSure may return false even though the type of the value is
+// equal. We do that in cases wherer it would be too expensive to compute the
+// type.
+func (r *valueDecoder) isValueSameTypeForSure(t *Type) bool {
+	k := r.peekKind()
+	if k != t.TargetKind() {
+		r.skipValue()
+		return false
+	}
+
+	switch k {
+	case BlobKind:
+		r.skipBlob()
+		return true
+	case BoolKind:
+		r.skipKind()
+		r.skipBool()
+		return true
+	case NumberKind:
+		r.skipKind()
+		r.skipNumber()
+		return true
+	case StringKind:
+		r.skipKind()
+		r.skipString()
+		return true
+	case ListKind, MapKind, RefKind, SetKind:
+		// TODO: Do the same thing as for struct. In other words find the true cases.
+		r.skipValue()
+		return false
+	case StructKind:
+		return isStructSameTypeForSure(r, t)
+	case TypeKind:
+		r.skipKind()
+		r.skipType()
+		return false
+	case CycleKind, UnionKind, ValueKind:
+		d.Panic("A value instance can never have type %s", k)
+	}
+
+	panic("not reachable")
+}
+
+// isStringSame checks if the next string in the decoder matches string. It
+// moves the decoder to after the string in all cases.
+func (r *valueDecoder) isStringSame(s string) bool {
+	count := r.readCount()
+	start := uint64(r.offset)
+	r.offset += uint32(count)
+	if uint64(len(s)) != count {
+		return false
+	}
+
+	for i := uint64(0); i < count; i++ {
+		if s[i] != r.buff[start+i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (r *valueDecoder) copyValue(w nomsWriter) {
 	start := r.pos()
 	r.skipValue()
@@ -447,7 +508,7 @@ func (r *typedBinaryNomsReader) readUnionType(seenStructs map[string]*Type) *Typ
 	for i := uint64(0); i < l; i++ {
 		ts[i] = r.readTypeInner(seenStructs)
 	}
-	return makeCompoundType(UnionKind, ts...)
+	return makeUnionType(ts...)
 }
 
 func (r *typedBinaryNomsReader) skipUnionType() {
