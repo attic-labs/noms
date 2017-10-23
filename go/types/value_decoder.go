@@ -313,38 +313,23 @@ func (r *valueDecoder) readTypeOfValue() *Type {
 // isValueSameTypeForSure may return false even though the type of the value is
 // equal. We do that in cases wherer it would be too expensive to compute the
 // type.
+// If this returns false the decoder might not have visited the whole value and
+// its offset is no longer valid.
 func (r *valueDecoder) isValueSameTypeForSure(t *Type) bool {
 	k := r.peekKind()
 	if k != t.TargetKind() {
-		r.skipValue()
 		return false
 	}
 
 	switch k {
-	case BlobKind:
-		r.skipBlob()
-		return true
-	case BoolKind:
-		r.skipKind()
-		r.skipBool()
-		return true
-	case NumberKind:
-		r.skipKind()
-		r.skipNumber()
-		return true
-	case StringKind:
-		r.skipKind()
-		r.skipString()
+	case BlobKind, BoolKind, NumberKind, StringKind:
+		r.skipValue()
 		return true
 	case ListKind, MapKind, RefKind, SetKind:
-		// TODO: Do the same thing as for struct. In other words find the true cases.
-		r.skipValue()
 		return false
 	case StructKind:
 		return isStructSameTypeForSure(r, t)
 	case TypeKind:
-		r.skipKind()
-		r.skipType()
 		return false
 	case CycleKind, UnionKind, ValueKind:
 		d.Panic("A value instance can never have type %s", k)

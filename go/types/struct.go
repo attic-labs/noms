@@ -44,24 +44,26 @@ func skipStruct(dec *valueDecoder) {
 func isStructSameTypeForSure(dec *valueDecoder, t *Type) bool {
 	desc := t.Desc.(StructDesc)
 	dec.skipKind()
-	rv := dec.isStringSame(desc.Name)
+	if !dec.isStringSame(desc.Name) {
+		return false
+	}
 	count := dec.readCount()
-	rv = rv && count == uint64(len(desc.fields))
+	if count != uint64(len(desc.fields)) {
+		return false
+	}
 	for i := uint64(0); i < count; i++ {
-		rv = rv && !desc.fields[i].Optional
-		if !rv {
-			dec.skipString()
-		} else {
-			rv = rv && dec.isStringSame(desc.fields[i].Name)
+		if desc.fields[i].Optional {
+			return false
+		}
+		if !dec.isStringSame(desc.fields[i].Name) {
+			return false
 		}
 
-		if !rv {
-			dec.skipValue()
-		} else {
-			rv = rv && dec.isValueSameTypeForSure(desc.fields[i].Type)
+		if !dec.isValueSameTypeForSure(desc.fields[i].Type) {
+			return false
 		}
 	}
-	return rv
+	return true
 }
 
 func walkStruct(r *refWalker, cb RefCallback) {
