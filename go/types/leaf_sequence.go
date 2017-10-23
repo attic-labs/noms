@@ -14,8 +14,8 @@ type leafSequence struct {
 	sequenceImpl
 }
 
-func newLeafSequence(vrw ValueReadWriter, buff []byte, offsets []uint32) leafSequence {
-	return leafSequence{newSequenceImpl(vrw, buff, offsets)}
+func newLeafSequence(vrw ValueReadWriter, buff []byte, offsets []uint32, len uint64) leafSequence {
+	return leafSequence{newSequenceImpl(vrw, buff, offsets, len)}
 }
 
 func newLeafSequenceFromValues(kind NomsKind, vrw ValueReadWriter, vs ...Value) leafSequence {
@@ -34,18 +34,18 @@ func newLeafSequenceFromValues(kind NomsKind, vrw ValueReadWriter, vs ...Value) 
 		v.writeTo(&w)
 		offsets[i+sequencePartValues+1] = w.offset
 	}
-	return newLeafSequence(vrw, w.data(), offsets)
+	return newLeafSequence(vrw, w.data(), offsets, count)
 }
 
 // readLeafSequence reads the data provided by a decoder and moves the decoder forward.
 func readLeafSequence(dec *valueDecoder) leafSequence {
 	start := dec.pos()
-	offsets := skipLeafSequence(dec)
+	offsets, seqLen := skipLeafSequence(dec)
 	end := dec.pos()
-	return newLeafSequence(dec.vrw, dec.byteSlice(start, end), offsets)
+	return newLeafSequence(dec.vrw, dec.byteSlice(start, end), offsets, seqLen)
 }
 
-func skipLeafSequence(dec *valueDecoder) []uint32 {
+func skipLeafSequence(dec *valueDecoder) ([]uint32, uint64) {
 	kindPos := dec.pos()
 	dec.skipKind()
 	levelPos := dec.pos()
@@ -61,7 +61,7 @@ func skipLeafSequence(dec *valueDecoder) []uint32 {
 		dec.skipValue()
 		offsets[i+sequencePartValues+1] = dec.pos()
 	}
-	return offsets
+	return offsets, count
 }
 
 func (seq leafSequence) values() []Value {
@@ -109,8 +109,7 @@ func (seq leafSequence) typeOf() *Type {
 }
 
 func (seq leafSequence) numLeaves() uint64 {
-	_, count := seq.decoderSkipToValues()
-	return count
+	return seq.len
 }
 
 func (seq leafSequence) getChildSequence(idx int) sequence {
@@ -136,10 +135,6 @@ func (seq leafSequence) getCompositeChildSequence(start uint64, length uint64) s
 func (seq leafSequence) getItem(idx int) sequenceItem {
 	dec := seq.decoderSkipToIndex(idx)
 	return dec.readValue()
-}
-
-func (seq leafSequence) Len() uint64 {
-	return seq.numLeaves()
 }
 
 func getValuesPerIdx(seq sequence) uint64 {
