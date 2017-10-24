@@ -326,6 +326,9 @@ func (r *valueDecoder) isValueSameTypeForSure(t *Type) bool {
 		r.skipValue()
 		return true
 	case ListKind, MapKind, RefKind, SetKind:
+		// TODO: Maybe do some simple cases here too. Performance metrics should determine
+		// what is going to be worth doing.
+		// https://github.com/attic-labs/noms/issues/3776
 		return false
 	case StructKind:
 		return isStructSameTypeForSure(r, t)
