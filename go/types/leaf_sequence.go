@@ -74,7 +74,7 @@ func (seq leafSequence) valuesSlice(from, to uint64) []Value {
 	}
 
 	dec := seq.decoderSkipToIndex(int(from))
-	vs := make([]Value, (to-from)*getValuesPerIdx(seq))
+	vs := make([]Value, (to-from)*uint64(getValuesPerIdx(seq.Kind())))
 	for i := range vs {
 		vs[i] = dec.readValue()
 	}
@@ -137,8 +137,8 @@ func (seq leafSequence) getItem(idx int) sequenceItem {
 	return dec.readValue()
 }
 
-func getValuesPerIdx(seq sequence) uint64 {
-	if seq.Kind() == MapKind {
+func getValuesPerIdx(kind NomsKind) int {
+	if kind == MapKind {
 		return 2
 	}
 	return 1

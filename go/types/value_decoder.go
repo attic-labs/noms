@@ -62,15 +62,15 @@ func (r *valueDecoder) skipValueSequence(elementsPerIndex int) ([]uint32, uint64
 }
 
 func (r *valueDecoder) skipListLeafSequence() ([]uint32, uint64) {
-	return r.skipValueSequence(1)
+	return r.skipValueSequence(getValuesPerIdx(ListKind))
 }
 
 func (r *valueDecoder) skipSetLeafSequence() ([]uint32, uint64) {
-	return r.skipValueSequence(1)
+	return r.skipValueSequence(getValuesPerIdx(SetKind))
 }
 
 func (r *valueDecoder) skipMapLeafSequence() ([]uint32, uint64) {
-	return r.skipValueSequence(2)
+	return r.skipValueSequence(getValuesPerIdx(MapKind))
 }
 
 func (r *valueDecoder) readSequence(kind NomsKind, leafSkipper func() ([]uint32, uint64)) sequence {
@@ -122,7 +122,7 @@ func (r *valueDecoder) readSetSequence() orderedSequence {
 }
 
 func (r *valueDecoder) readMapSequence() orderedSequence {
-	seq := r.readSequence(SetKind, r.skipMapLeafSequence)
+	seq := r.readSequence(MapKind, r.skipMapLeafSequence)
 	if seq.isLeaf() {
 		return mapLeafSequence{seq.(leafSequence)}
 	}
