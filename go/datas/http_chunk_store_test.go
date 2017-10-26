@@ -246,8 +246,8 @@ func (suite *HTTPChunkStoreSuite) TestCommitWithParams() {
 
 func (suite *HTTPChunkStoreSuite) TestGet() {
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte("abc")),
-		chunks.NewChunk([]byte("def")),
+		chunks.New([]byte("abc")),
+		chunks.New([]byte("def")),
 	}
 	for _, c := range chnx {
 		suite.serverCS.Put(c)
@@ -260,10 +260,10 @@ func (suite *HTTPChunkStoreSuite) TestGet() {
 
 func (suite *HTTPChunkStoreSuite) TestGetMany() {
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte("abc")),
-		chunks.NewChunk([]byte("def")),
+		chunks.New([]byte("abc")),
+		chunks.New([]byte("def")),
 	}
-	notPresent := chunks.NewChunk([]byte("ghi")).Hash()
+	notPresent := chunks.New([]byte("ghi")).Hash()
 	for _, c := range chnx {
 		suite.serverCS.Put(c)
 	}
@@ -293,7 +293,7 @@ func (suite *HTTPChunkStoreSuite) TestOverGetThreshold_Issue3589() {
 		hashes.Insert(h)
 	}
 
-	present := chunks.NewChunk([]byte("ghi"))
+	present := chunks.New([]byte("ghi"))
 	suite.serverCS.Put(present)
 	persistChunks(suite.serverCS)
 	hashes.Insert(present.Hash())
@@ -311,8 +311,8 @@ func (suite *HTTPChunkStoreSuite) TestOverGetThreshold_Issue3589() {
 
 func (suite *HTTPChunkStoreSuite) TestGetManyAllCached() {
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte("abc")),
-		chunks.NewChunk([]byte("def")),
+		chunks.New([]byte("abc")),
+		chunks.New([]byte("def")),
 	}
 	for _, c := range chnx {
 		suite.http.Put(c)
@@ -330,10 +330,10 @@ func (suite *HTTPChunkStoreSuite) TestGetManyAllCached() {
 
 func (suite *HTTPChunkStoreSuite) TestGetManySomeCached() {
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte("abc")),
-		chunks.NewChunk([]byte("def")),
+		chunks.New([]byte("abc")),
+		chunks.New([]byte("def")),
 	}
-	cached := chunks.NewChunk([]byte("ghi"))
+	cached := chunks.New([]byte("ghi"))
 	for _, c := range chnx {
 		suite.serverCS.Put(c)
 	}
@@ -352,8 +352,8 @@ func (suite *HTTPChunkStoreSuite) TestGetManySomeCached() {
 
 func (suite *HTTPChunkStoreSuite) TestGetSame() {
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte("def")),
-		chunks.NewChunk([]byte("def")),
+		chunks.New([]byte("def")),
+		chunks.New([]byte("def")),
 	}
 	for _, c := range chnx {
 		suite.serverCS.Put(c)
@@ -366,8 +366,8 @@ func (suite *HTTPChunkStoreSuite) TestGetSame() {
 
 func (suite *HTTPChunkStoreSuite) TestGetWithRoot() {
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte("abc")),
-		chunks.NewChunk([]byte("def")),
+		chunks.New([]byte("abc")),
+		chunks.New([]byte("def")),
 	}
 	for _, c := range chnx {
 		suite.serverCS.Put(c)
@@ -399,8 +399,8 @@ func (suite *HTTPChunkStoreSuite) TestGetWithRoot() {
 
 func (suite *HTTPChunkStoreSuite) TestHas() {
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte("abc")),
-		chunks.NewChunk([]byte("def")),
+		chunks.New([]byte("abc")),
+		chunks.New([]byte("def")),
 	}
 	for _, c := range chnx {
 		suite.serverCS.Put(c)
@@ -411,14 +411,14 @@ func (suite *HTTPChunkStoreSuite) TestHas() {
 
 func (suite *HTTPChunkStoreSuite) TestHasMany() {
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte("abc")),
-		chunks.NewChunk([]byte("def")),
+		chunks.New([]byte("abc")),
+		chunks.New([]byte("def")),
 	}
 	for _, c := range chnx {
 		suite.serverCS.Put(c)
 	}
 	persistChunks(suite.serverCS)
-	notPresent := chunks.NewChunk([]byte("ghi")).Hash()
+	notPresent := chunks.New([]byte("ghi")).Hash()
 
 	hashes := hash.NewHashSet(chnx[0].Hash(), chnx[1].Hash(), notPresent)
 	absent := suite.http.HasMany(hashes)
@@ -432,8 +432,8 @@ func (suite *HTTPChunkStoreSuite) TestHasMany() {
 
 func (suite *HTTPChunkStoreSuite) TestHasManyAllCached() {
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte("abc")),
-		chunks.NewChunk([]byte("def")),
+		chunks.New([]byte("abc")),
+		chunks.New([]byte("def")),
 	}
 	for _, c := range chnx {
 		suite.http.Put(c)
@@ -451,10 +451,10 @@ func (suite *HTTPChunkStoreSuite) TestHasManyAllCached() {
 
 func (suite *HTTPChunkStoreSuite) TestHasManySomeCached() {
 	chnx := []chunks.Chunk{
-		chunks.NewChunk([]byte("abc")),
-		chunks.NewChunk([]byte("def")),
+		chunks.New([]byte("abc")),
+		chunks.New([]byte("def")),
 	}
-	cached := chunks.NewChunk([]byte("ghi"))
+	cached := chunks.New([]byte("ghi"))
 	for _, c := range chnx {
 		suite.serverCS.Put(c)
 	}

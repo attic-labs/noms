@@ -15,9 +15,9 @@ import (
 func TestGetRequestBatch(t *testing.T) {
 	assert := assert.New(t)
 	h0 := hash.Parse("00000000000000000000000000000000")
-	c1 := NewChunk([]byte("abc"))
+	c1 := New([]byte("abc"))
 	h1 := c1.Hash()
-	c2 := NewChunk([]byte("123"))
+	c2 := New([]byte("123"))
 	h2 := c2.Hash()
 
 	tally := func(b bool, trueCnt, falseCnt *int) {
@@ -78,9 +78,9 @@ func TestGetRequestBatch(t *testing.T) {
 func TestGetManyRequestBatch(t *testing.T) {
 	assert := assert.New(t)
 	h0 := hash.Parse("00000000000000000000000000000000")
-	c1 := NewChunk([]byte("abc"))
+	c1 := New([]byte("abc"))
 	h1 := c1.Hash()
-	c2 := NewChunk([]byte("123"))
+	c2 := New([]byte("123"))
 	h2 := c2.Hash()
 
 	chunks := make(chan *Chunk)
@@ -120,9 +120,9 @@ func TestGetManyRequestBatch(t *testing.T) {
 func TestAbsentManyRequestBatch(t *testing.T) {
 	assert := assert.New(t)
 	h0 := hash.Parse("00000000000000000000000000000000")
-	c1 := NewChunk([]byte("abc"))
+	c1 := New([]byte("abc"))
 	h1 := c1.Hash()
-	c2 := NewChunk([]byte("123"))
+	c2 := New([]byte("123"))
 	h2 := c2.Hash()
 
 	found := make(chan hash.Hash)

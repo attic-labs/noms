@@ -136,7 +136,7 @@ func (cs *chunkStore) Get(h hash.Hash) chunks.Chunk {
 	chunkId := NomsHashToCID(h)
 	b, err := getBlock(chunkId)
 	if err == nil {
-		return chunks.NewChunkWithHash(h, b.RawData())
+		return chunks.FromStorage(h, b.RawData())
 	}
 	if err == blockservice.ErrNotFound {
 		return chunks.EmptyChunk
@@ -162,12 +162,12 @@ func (cs *chunkStore) GetMany(hashes hash.HashSet, foundChunks chan *chunks.Chun
 		for _, cid := range cids {
 			b, err := cs.node.Blockstore.Get(cid)
 			d.PanicIfError(err)
-			c := chunks.NewChunkWithHash(CidToNomsHash(b.Cid()), b.RawData())
+			c := chunks.FromStorage(CidToNomsHash(b.Cid()), b.RawData())
 			foundChunks <- &c
 		}
 	} else {
 		for b := range cs.node.Blocks.GetBlocks(ctx, cids) {
-			c := chunks.NewChunkWithHash(CidToNomsHash(b.Cid()), b.RawData())
+			c := chunks.FromStorage(CidToNomsHash(b.Cid()), b.RawData())
 			foundChunks <- &c
 		}
 	}
@@ -220,7 +220,7 @@ func (cs *chunkStore) Put(c chunks.Chunk) {
 	defer cs.limitRateF()()
 
 	cid := NomsHashToCID(c.Hash())
-	b, err := blocks.NewBlockWithCid(c.Data(), cid)
+	b, err := blocks.NewBlockWithCid(c.CompressedData(), cid)
 	d.PanicIfError(err)
 	if cs.local {
 		err = cs.node.Blockstore.Put(b)

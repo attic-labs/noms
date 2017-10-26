@@ -16,7 +16,7 @@ func TestSerializeRoundTrip(t *testing.T) {
 	inputs := [][]byte{[]byte("abc"), []byte("def")}
 	chnx := make([]Chunk, len(inputs))
 	for i, data := range inputs {
-		chnx[i] = NewChunk(data)
+		chnx[i] = New(data)
 	}
 
 	buf := &bytes.Buffer{}

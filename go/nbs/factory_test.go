@@ -27,7 +27,7 @@ func TestLocalStoreFactory(t *testing.T) {
 	dbName := "db"
 	store := f.CreateStore(dbName)
 
-	c := chunks.NewChunk([]byte{0xff})
+	c := chunks.New([]byte{0xff})
 	store.Put(c)
 	assert.True(store.Commit(c.Hash(), hash.Hash{}))
 

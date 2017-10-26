@@ -40,9 +40,8 @@ type Stats struct {
 	PersistLatency  metrics.Histogram
 	BytesPerPersist metrics.Histogram
 
-	ChunksPerPersist                 metrics.Histogram
-	CompressedChunkBytesPerPersist   metrics.Histogram
-	UncompressedChunkBytesPerPersist metrics.Histogram
+	ChunksPerPersist     metrics.Histogram
+	ChunkBytesPerPersist metrics.Histogram
 
 	ConjoinLatency   metrics.Histogram
 	BytesPerConjoin  metrics.Histogram
@@ -55,29 +54,28 @@ type Stats struct {
 
 func NewStats() *Stats {
 	return &Stats{
-		OpenLatency:                      metrics.NewTimeHistogram(),
-		CommitLatency:                    metrics.NewTimeHistogram(),
-		IndexReadLatency:                 metrics.NewTimeHistogram(),
-		IndexBytesPerRead:                metrics.NewByteHistogram(),
-		GetLatency:                       metrics.NewTimeHistogram(),
-		FileReadLatency:                  metrics.NewTimeHistogram(),
-		FileBytesPerRead:                 metrics.NewByteHistogram(),
-		S3ReadLatency:                    metrics.NewTimeHistogram(),
-		S3BytesPerRead:                   metrics.NewByteHistogram(),
-		MemReadLatency:                   metrics.NewTimeHistogram(),
-		MemBytesPerRead:                  metrics.NewByteHistogram(),
-		DynamoReadLatency:                metrics.NewTimeHistogram(),
-		DynamoBytesPerRead:               metrics.NewByteHistogram(),
-		HasLatency:                       metrics.NewTimeHistogram(),
-		PutLatency:                       metrics.NewTimeHistogram(),
-		PersistLatency:                   metrics.NewTimeHistogram(),
-		BytesPerPersist:                  metrics.NewByteHistogram(),
-		CompressedChunkBytesPerPersist:   metrics.NewByteHistogram(),
-		UncompressedChunkBytesPerPersist: metrics.NewByteHistogram(),
-		ConjoinLatency:                   metrics.NewTimeHistogram(),
-		BytesPerConjoin:                  metrics.NewByteHistogram(),
-		ReadManifestLatency:              metrics.NewTimeHistogram(),
-		WriteManifestLatency:             metrics.NewTimeHistogram(),
+		OpenLatency:          metrics.NewTimeHistogram(),
+		CommitLatency:        metrics.NewTimeHistogram(),
+		IndexReadLatency:     metrics.NewTimeHistogram(),
+		IndexBytesPerRead:    metrics.NewByteHistogram(),
+		GetLatency:           metrics.NewTimeHistogram(),
+		FileReadLatency:      metrics.NewTimeHistogram(),
+		FileBytesPerRead:     metrics.NewByteHistogram(),
+		S3ReadLatency:        metrics.NewTimeHistogram(),
+		S3BytesPerRead:       metrics.NewByteHistogram(),
+		MemReadLatency:       metrics.NewTimeHistogram(),
+		MemBytesPerRead:      metrics.NewByteHistogram(),
+		DynamoReadLatency:    metrics.NewTimeHistogram(),
+		DynamoBytesPerRead:   metrics.NewByteHistogram(),
+		HasLatency:           metrics.NewTimeHistogram(),
+		PutLatency:           metrics.NewTimeHistogram(),
+		PersistLatency:       metrics.NewTimeHistogram(),
+		BytesPerPersist:      metrics.NewByteHistogram(),
+		ChunkBytesPerPersist: metrics.NewByteHistogram(),
+		ConjoinLatency:       metrics.NewTimeHistogram(),
+		BytesPerConjoin:      metrics.NewByteHistogram(),
+		ReadManifestLatency:  metrics.NewTimeHistogram(),
+		WriteManifestLatency: metrics.NewTimeHistogram(),
 	}
 }
 
@@ -112,8 +110,7 @@ func (s *Stats) Add(other Stats) {
 	s.BytesPerPersist.Add(other.BytesPerPersist)
 
 	s.ChunksPerPersist.Add(other.ChunksPerPersist)
-	s.CompressedChunkBytesPerPersist.Add(other.CompressedChunkBytesPerPersist)
-	s.UncompressedChunkBytesPerPersist.Add(other.UncompressedChunkBytesPerPersist)
+	s.ChunkBytesPerPersist.Add(other.ChunkBytesPerPersist)
 
 	s.ConjoinLatency.Add(other.ConjoinLatency)
 	s.BytesPerConjoin.Add(other.BytesPerConjoin)
@@ -156,8 +153,7 @@ func (s Stats) Delta(other Stats) Stats {
 		s.BytesPerPersist.Delta(other.BytesPerPersist),
 
 		s.ChunksPerPersist.Delta(other.ChunksPerPersist),
-		s.CompressedChunkBytesPerPersist.Delta(other.CompressedChunkBytesPerPersist),
-		s.UncompressedChunkBytesPerPersist.Delta(other.UncompressedChunkBytesPerPersist),
+		s.ChunkBytesPerPersist.Delta(other.ChunkBytesPerPersist),
 
 		s.ConjoinLatency.Delta(other.ConjoinLatency),
 		s.BytesPerConjoin.Delta(other.BytesPerConjoin),
@@ -191,8 +187,7 @@ PutLatency:                       %s
 PersistLatency:                   %s
 BytesPerPersist:                  %s
 ChunksPerPersist:                 %s
-CompressedChunkBytesPerPersist:   %s
-UncompressedChunkBytesPerPersist: %s
+ChunkBytesPerPersist: %s
 ConjoinLatency:                   %s
 BytesPerConjoin:                  %s
 ChunksPerConjoin:                 %s
@@ -230,8 +225,7 @@ WriteManifestLatency:             %s
 		s.BytesPerPersist,
 
 		s.ChunksPerPersist,
-		s.CompressedChunkBytesPerPersist,
-		s.UncompressedChunkBytesPerPersist,
+		s.ChunkBytesPerPersist,
 
 		s.ConjoinLatency,
 		s.BytesPerConjoin,

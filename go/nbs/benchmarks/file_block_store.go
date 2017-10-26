@@ -40,7 +40,7 @@ func (fb fileBlockStore) HasMany(hashes hash.HashSet) (present hash.HashSet) {
 }
 
 func (fb fileBlockStore) Put(c chunks.Chunk) {
-	io.Copy(fb.bw, bytes.NewReader(c.Data()))
+	io.Copy(fb.bw, bytes.NewReader(c.CompressedData()))
 }
 
 func (fb fileBlockStore) Version() string {

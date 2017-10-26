@@ -13,7 +13,7 @@ import (
 func assertInputInStore(input string, h hash.Hash, s ChunkStore, assert *assert.Assertions) {
 	chunk := s.Get(h)
 	assert.False(chunk.IsEmpty(), "Shouldn't get empty chunk for %s", h.String())
-	assert.Equal(input, string(chunk.Data()))
+	assert.Equal(input, string(chunk.UncompressedData()))
 }
 
 func assertInputNotInStore(input string, h hash.Hash, s ChunkStore, assert *assert.Assertions) {

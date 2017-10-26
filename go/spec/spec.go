@@ -178,7 +178,7 @@ func (sp Spec) NewChunkStore() chunks.ChunkStore {
 	case "aws":
 		return parseAWSSpec(sp.Href())
 	case "nbs":
-		return nbs.NewLocalStore(sp.DatabaseName, 1<<28)
+		return nbs.NewLocalStore(sp.DatabaseName, 0)
 	case "mem":
 		storage := &chunks.MemoryStorage{}
 		return storage.NewView()
@@ -280,7 +280,7 @@ func (sp Spec) createDatabase() datas.Database {
 		return datas.NewDatabase(parseAWSSpec(sp.Href()))
 	case "nbs":
 		os.Mkdir(sp.DatabaseName, 0777)
-		return datas.NewDatabase(nbs.NewLocalStore(sp.DatabaseName, 1<<28))
+		return datas.NewDatabase(nbs.NewLocalStore(sp.DatabaseName, 0))
 	case "ipfs", "ipfs-local":
 		return datas.NewDatabase(sp.NewChunkStore())
 	case "mem":

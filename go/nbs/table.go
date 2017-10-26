@@ -72,10 +72,10 @@ import (
 
    Footer:
    +----------------------+----------------------------------------+------------------+
-   | (Uint32) Chunk Count | (Uint64) Total Uncompressed Chunk Data | (8) Magic Number |
+   | (Uint32) Chunk Count | (Uint64) Total Chunk Data | (8) Magic Number |
    +----------------------+----------------------------------------+------------------+
 
-     -Total Uncompressed Chunk Data is the sum of the uncompressed byte lengths of all contained chunk byte slices.
+     -Total Chunk Data is the sum of the byte lengths of all contained chunk byte slices.
      -Magic Number is the first 8 bytes of the SHA256 hash of "https://github.com/attic-labs/nbs".
 
     NOTE: Unsigned integer quanities, hashes and hash suffix are all encoded big-endian

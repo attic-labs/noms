@@ -33,7 +33,7 @@ type NomsBlockCache struct {
 
 // Insert stores c in the cache.
 func (nbc *NomsBlockCache) Insert(c chunks.Chunk) {
-	d.PanicIfFalse(nbc.chunks.addChunk(addr(c.Hash()), c.Data()))
+	d.PanicIfFalse(nbc.chunks.addChunk(addr(c.Hash()), c.CompressedData()))
 }
 
 // Has checks if the chunk referenced by hash is in the cache.

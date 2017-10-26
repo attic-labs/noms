@@ -6,78 +6,85 @@
 package chunks
 
 import (
-	"bytes"
-
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
+	"github.com/golang/snappy"
 )
 
-// Chunk is a unit of stored data in noms
+// Chunk is a unit of stored data in noms. Chunk data is compressed in storage
+// and on the wire.
 type Chunk struct {
-	r    hash.Hash
-	data []byte
+	h                        hash.Hash
+	uncompressed, compressed []byte
+	hashVerified             bool
 }
 
-var EmptyChunk = NewChunk([]byte{})
+var EmptyChunk = New([]byte{})
 
 func (c Chunk) Hash() hash.Hash {
-	return c.r
+	if !c.hashVerified {
+		c.UncompressedData()
+	}
+	return c.h
 }
 
-func (c Chunk) Data() []byte {
-	return c.data
+func (c Chunk) UncompressedData() []byte {
+	if c.uncompressed != nil {
+		d.PanicIfFalse(c.hashVerified)
+		return c.uncompressed
+	}
+
+	b, err := snappy.Decode(nil, c.compressed)
+	d.PanicIfError(err)
+	if !c.hashVerified {
+		vh := hash.Of(b)
+		d.PanicIfFalse(vh == c.h)
+		c.hashVerified = true
+	}
+	return b
+}
+
+func (c Chunk) CompressedData() []byte {
+	if c.compressed != nil {
+		return c.compressed
+	}
+	return snappy.Encode(nil, c.uncompressed)
+}
+
+func (c Chunk) ByteLen() uint64 {
+	if c.compressed != nil {
+		return uint64(len(c.compressed))
+	}
+
+	return uint64(len(c.uncompressed))
+}
+
+func (c Chunk) Compress() {
+	if c.compressed != nil {
+		return
+	}
+
+	d.PanicIfTrue(c.IsEmpty())
+	c.compressed = snappy.Encode(nil, c.uncompressed)
+	c.uncompressed = nil
 }
 
 func (c Chunk) IsEmpty() bool {
-	return len(c.data) == 0
+	return c.compressed == nil && len(c.uncompressed) == 0
 }
 
 // NewChunk creates a new Chunk backed by data. This means that the returned Chunk has ownership of this slice of memory.
-func NewChunk(data []byte) Chunk {
+func New(data []byte) Chunk {
 	r := hash.Of(data)
-	return Chunk{r, data}
+	return Chunk{r, data, nil, true}
 }
 
 // NewChunkWithHash creates a new chunk with a known hash. The hash is not re-calculated or verified. This should obviously only be used in cases where the caller already knows the specified hash is correct.
-func NewChunkWithHash(r hash.Hash, data []byte) Chunk {
-	return Chunk{r, data}
+func FromStorage(r hash.Hash, compressed []byte) Chunk {
+	return Chunk{r, nil, compressed, true}
 }
 
-// ChunkWriter wraps an io.WriteCloser, additionally providing the ability to grab the resulting Chunk for all data written through the interface. Calling Chunk() or Close() on an instance disallows further writing.
-type ChunkWriter struct {
-	buffer *bytes.Buffer
-	c      Chunk
-}
-
-func NewChunkWriter() *ChunkWriter {
-	b := &bytes.Buffer{}
-	return &ChunkWriter{
-		buffer: b,
-	}
-}
-
-func (w *ChunkWriter) Write(data []byte) (int, error) {
-	if w.buffer == nil {
-		d.Panic("Write() cannot be called after Hash() or Close().")
-	}
-	size, err := w.buffer.Write(data)
-	d.Chk.NoError(err)
-	return size, nil
-}
-
-// Chunk() closes the writer and returns the resulting Chunk.
-func (w *ChunkWriter) Chunk() Chunk {
-	d.Chk.NoError(w.Close())
-	return w.c
-}
-
-// Close() closes computes the hash and Puts it into the ChunkSink Note: The Write() method never returns an error. Instead, like other noms interfaces, errors are reported via panic.
-func (w *ChunkWriter) Close() error {
-	if w.buffer == nil {
-		return nil
-	}
-
-	w.c = NewChunk(w.buffer.Bytes())
-	w.buffer = nil
-	return nil
+// TODO: Verify Hash on Decode
+func FromWire(r hash.Hash, compressed []byte) Chunk {
+	return Chunk{r, nil, compressed, false}
 }

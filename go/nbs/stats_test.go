@@ -32,7 +32,7 @@ func TestStats(t *testing.T) {
 
 	i1, i2, i3, i4, i5 := []byte("abc"), []byte("def"), []byte("ghi"), []byte("jkl"), []byte("mno")
 
-	c1, c2, c3, c4, c5 := chunks.NewChunk(i1), chunks.NewChunk(i2), chunks.NewChunk(i3), chunks.NewChunk(i4), chunks.NewChunk(i5)
+	c1, c2, c3, c4, c5 := chunks.New(i1), chunks.New(i2), chunks.New(i3), chunks.New(i4), chunks.New(i5)
 
 	// These just go to mem table, only operation stats
 	store.Put(c1)

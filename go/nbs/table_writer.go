@@ -7,7 +7,6 @@ package nbs
 import (
 	"crypto/sha512"
 	"encoding/binary"
-	"fmt"
 	"hash"
 	"sort"
 
@@ -17,12 +16,11 @@ import (
 
 // tableWriter encodes a collection of byte stream chunks into a nbs table. NOT goroutine safe.
 type tableWriter struct {
-	buff                  []byte
-	pos                   uint64
-	totalCompressedData   uint64
-	totalUncompressedData uint64
-	prefixes              prefixIndexSlice // TODO: This is in danger of exploding memory
-	blockHash             hash.Hash
+	buff      []byte
+	pos       uint64
+	totalData uint64
+	prefixes  prefixIndexSlice // TODO: This is in danger of exploding memory
+	blockHash hash.Hash
 
 	snapper snappyEncoder
 }
@@ -70,28 +68,19 @@ func newTableWriter(buff []byte, snapper snappyEncoder) *tableWriter {
 }
 
 func (tw *tableWriter) addChunk(h addr, data []byte) bool {
-	if len(data) == 0 {
+	dataLength := uint64(len(data))
+
+	if dataLength == 0 {
 		panic("NBS blocks cannont be zero length")
 	}
 
-	// Compress data straight into tw.buff
-	compressed := tw.snapper.Encode(tw.buff[tw.pos:], data)
-	dataLength := uint64(len(compressed))
-	tw.totalCompressedData += dataLength
-
-	// BUG 3156 indicated that, sometimes, snappy decided that there's not enough space in tw.buff[tw.pos:] to encode into.
-	// This _should never happen anymore be_, because we iterate over all chunks to be added and sum the max amount of space that snappy says it might need.
-	// Since we know that |data| can't be 0-length, we also know that the compressed version of |data| has length greater than zero. The first element in a snappy-encoded blob is a Uvarint indicating how much data is present. Therefore, if there's a Uvarint-encoded 0 at tw.buff[tw.pos:], we know that snappy did not write anything there and we have a problem.
-	if v, n := binary.Uvarint(tw.buff[tw.pos:]); v == 0 {
-		d.Chk.True(n != 0)
-		panic(fmt.Errorf("BUG 3156: unbuffered chunk %s: uncompressed %d, compressed %d, snappy max %d, tw.buff %d\n", h.String(), len(data), dataLength, snappy.MaxEncodedLen(len(data)), len(tw.buff[tw.pos:])))
-	}
-
+	copy(tw.buff[tw.pos:], data)
 	tw.pos += dataLength
-	tw.totalUncompressedData += uint64(len(data))
+
+	tw.totalData += dataLength
 
 	// checksum (4 LSBytes, big-endian)
-	binary.BigEndian.PutUint32(tw.buff[tw.pos:], crc(compressed))
+	binary.BigEndian.PutUint32(tw.buff[tw.pos:], crc(data))
 	tw.pos += checksumSize
 
 	// Stored in insertion order
@@ -163,7 +152,7 @@ func (tw *tableWriter) writeIndex() {
 }
 
 func (tw *tableWriter) writeFooter() {
-	tw.pos += writeFooter(tw.buff[tw.pos:], uint32(len(tw.prefixes)), tw.totalUncompressedData)
+	tw.pos += writeFooter(tw.buff[tw.pos:], uint32(len(tw.prefixes)), tw.totalData)
 }
 
 func writeFooter(dst []byte, chunkCount uint32, uncData uint64) (consumed uint64) {

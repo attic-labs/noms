@@ -13,7 +13,8 @@ import (
 // are precisely equal to DecodeValue(c).WalkRefs(cb), but this should be much
 // faster.
 func WalkRefs(c chunks.Chunk, cb RefCallback) {
-	walkRefs(c.Data(), cb)
+	// TODO: Allow decompression to pre-allocated buffer
+	walkRefs(c.UncompressedData(), cb)
 }
 
 func walkRefs(data []byte, cb RefCallback) {

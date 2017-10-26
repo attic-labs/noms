@@ -28,7 +28,8 @@ import (
 
 // Serialize a single Chunk to writer.
 func Serialize(chunk Chunk, writer io.Writer) {
-	d.PanicIfFalse(chunk.data != nil)
+	data := chunk.CompressedData()
+	d.PanicIfFalse(data != nil)
 
 	h := chunk.Hash()
 	n, err := io.Copy(writer, bytes.NewReader(h[:]))
@@ -36,11 +37,11 @@ func Serialize(chunk Chunk, writer io.Writer) {
 	d.PanicIfFalse(int64(hash.ByteLen) == n)
 
 	// Because of chunking at higher levels, no chunk should never be more than 4GB
-	chunkSize := uint32(len(chunk.Data()))
+	chunkSize := uint32(len(data))
 	err = binary.Write(writer, binary.BigEndian, chunkSize)
 	d.Chk.NoError(err)
 
-	n, err = io.Copy(writer, bytes.NewReader(chunk.Data()))
+	n, err = io.Copy(writer, bytes.NewReader(data))
 	d.Chk.NoError(err)
 	d.PanicIfFalse(uint32(n) == chunkSize)
 }
@@ -82,9 +83,6 @@ func deserializeChunk(reader io.Reader) (Chunk, error) {
 		return EmptyChunk, err
 	}
 	d.PanicIfFalse(int(chunkSize) == n)
-	c := NewChunk(data)
-	if h != c.Hash() {
-		d.Panic("%s != %s", h, c.Hash().String())
-	}
+	c := FromWire(h, data)
 	return c, nil
 }
