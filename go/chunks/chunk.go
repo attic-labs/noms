@@ -14,9 +14,9 @@ import (
 // Chunk is a unit of stored data in noms. Chunk data is compressed in storage
 // and on the wire.
 type Chunk struct {
-	h                        hash.Hash
-	uncompressed, compressed []byte
-	hashVerified             bool
+	h                          hash.Hash
+	data                       []byte
+	IsCompressed, hashVerified bool
 }
 
 var EmptyChunk = New([]byte{})
@@ -29,62 +29,55 @@ func (c Chunk) Hash() hash.Hash {
 }
 
 func (c Chunk) UncompressedData() []byte {
-	if c.uncompressed != nil {
-		d.PanicIfFalse(c.hashVerified)
-		return c.uncompressed
+	if !c.IsCompressed {
+		return c.data
 	}
 
-	b, err := snappy.Decode(nil, c.compressed)
+	ucData, err := snappy.Decode(nil, c.data)
 	d.PanicIfError(err)
 	if !c.hashVerified {
-		vh := hash.Of(b)
+		vh := hash.Of(ucData)
 		d.PanicIfFalse(vh == c.h)
-		c.hashVerified = true
 	}
-	return b
+
+	return ucData
 }
 
 func (c Chunk) CompressedData() []byte {
-	if c.compressed != nil {
-		return c.compressed
+	if c.IsCompressed {
+		return c.data
 	}
-	return snappy.Encode(nil, c.uncompressed)
+
+	return snappy.Encode(nil, c.data)
 }
 
 func (c Chunk) ByteLen() uint64 {
-	if c.compressed != nil {
-		return uint64(len(c.compressed))
-	}
-
-	return uint64(len(c.uncompressed))
+	return uint64(len(c.data))
 }
 
-func (c Chunk) Compress() {
-	if c.compressed != nil {
-		return
-	}
-
+func (c Chunk) Compress() Chunk {
+	d.PanicIfTrue(c.IsCompressed)
 	d.PanicIfTrue(c.IsEmpty())
-	c.compressed = snappy.Encode(nil, c.uncompressed)
-	c.uncompressed = nil
+	d.PanicIfFalse(c.hashVerified)
+	return Chunk{c.h, snappy.Encode(nil, c.data), true, true}
 }
 
 func (c Chunk) IsEmpty() bool {
-	return c.compressed == nil && len(c.uncompressed) == 0
+	return len(c.data) == 0
 }
 
 // NewChunk creates a new Chunk backed by data. This means that the returned Chunk has ownership of this slice of memory.
 func New(data []byte) Chunk {
 	r := hash.Of(data)
-	return Chunk{r, data, nil, true}
+	return Chunk{r, data, false, true}
 }
 
 // NewChunkWithHash creates a new chunk with a known hash. The hash is not re-calculated or verified. This should obviously only be used in cases where the caller already knows the specified hash is correct.
 func FromStorage(r hash.Hash, compressed []byte) Chunk {
-	return Chunk{r, nil, compressed, true}
+	return Chunk{r, compressed, true, true}
 }
 
 // TODO: Verify Hash on Decode
 func FromWire(r hash.Hash, compressed []byte) Chunk {
-	return Chunk{r, nil, compressed, false}
+	return Chunk{r, compressed, true, false}
 }

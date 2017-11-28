@@ -259,12 +259,14 @@ func (lvs *ValueStore) bufferChunk(v Value, c chunks.Chunk, height uint64) {
 			}
 		})
 
-		// Once we've Put() a chunks children, we shouldn't need to walk its refs
+		// Once we've Put() a chunk's children, we shouldn't need to walk its refs
 		// and thus its safe to compress it. This allows for more chunks to be
 		// buffered in memory before needing to start flushing
-		lvs.bufferedChunkSize -= c.ByteLen()
-		c.Compress()
-		lvs.bufferedChunkSize += c.ByteLen()
+		if !pending.IsCompressed {
+			lvs.bufferedChunkSize -= pending.ByteLen()
+			lvs.bufferedChunks[parent] = pending.Compress()
+			lvs.bufferedChunkSize += c.ByteLen()
+		}
 
 		delete(lvs.withBufferedChildren, parent)
 		return
