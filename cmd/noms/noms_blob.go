@@ -18,7 +18,7 @@ func nomsBlob(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandle
 
 	blobPut := blob.Command("put", "imports a blob to a dataset")
 	concurrency := blobPut.Flag("concurrency", "number of concurrent HTTP calls to retrieve remote resources").Default(strconv.Itoa(runtime.NumCPU())).Int()
-	putFile := blobPut.Arg("url-or-file", "a url or file to import").Required().String()
+	putFile := blobPut.Arg("file", "file to import").Required().String()
 	putDs := blobPut.Arg("dataset", "the path to import to").Required().String()
 
 	blobGet := blob.Command("export", "exports a blob from a dataset")

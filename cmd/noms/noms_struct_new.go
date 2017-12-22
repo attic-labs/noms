@@ -44,7 +44,7 @@ func nomsStructNew(dbStr string, name string, args []string) int {
 	// TODO: Committing to this temporary dataset is ghetto, but we lack any
 	// other way to flush changes.
 	// See: https://github.com/attic-labs/noms/issues/3530
-	ds := db.GetDataset(random.Id())
+	ds := fmt.Sprintf("nomscmd/struct/new/%s", db.GetDataset(random.Id())
 	r := db.WriteValue(types.NewStruct(name, sd))
 	ds, err = db.CommitValue(ds, r)
 	d.PanicIfError(err)
