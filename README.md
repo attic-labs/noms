@@ -24,7 +24,7 @@ Unlike Git, Noms is a database, so it also:
 * Supports **efficient indexes** (see: [Noms prolly-trees](https://github.com/attic-labs/noms/blob/master/doc/intro.md#prolly-trees-probabilistic-b-trees))
 * Features a **flexible query model** (see: [GraphQL](./go/ngql/README.md))
 
-A Noms database can reside on within file-system or in the cloud:
+A Noms database can reside within a file-system or in the cloud:
 
 * The `NBS` `ChunkStore` implementation provides two back-ends: one for storing a database within files on a file-system and one for storing a database in an S3 bucket.
 
