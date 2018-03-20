@@ -19,8 +19,8 @@ import (
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/samples/go/decent/dbg"
 	"github.com/attic-labs/noms/samples/go/decent/lib"
-	"github.com/ipfs/go-ipfs/core"
 	"github.com/jroimartin/gocui"
+	"gx/ipfs/QmXporsyf5xMvffd2eiTDoq85dNpYUynGJhfabzDjwP8uR/go-ipfs/core"
 )
 
 func main() {

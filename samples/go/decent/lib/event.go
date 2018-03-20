@@ -18,7 +18,7 @@ import (
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/math"
 	"github.com/attic-labs/noms/samples/go/decent/dbg"
-	"github.com/ipfs/go-ipfs/core"
+	"gx/ipfs/QmXporsyf5xMvffd2eiTDoq85dNpYUynGJhfabzDjwP8uR/go-ipfs/core"
 )
 
 const (

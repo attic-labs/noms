@@ -22,6 +22,17 @@
       "hash": "QmZyZDi491cCNTLfAhwcaDii2Kg4pwKRkhqQzURGDvY6ua",
       "name": "go-multihash",
       "version": "1.0.7"
+    },
+    {
+      "author": "hsanjuan",
+      "hash": "QmPwNSAKhfSDEjQ2LYx8bemvnoyXYTaL96JxsAvjzphT75",
+      "name": "go-ipfs-blockstore",
+      "version": "0.0.3"
+    },
+    {
+      "hash": "QmXporsyf5xMvffd2eiTDoq85dNpYUynGJhfabzDjwP8uR",
+      "name": "go-ipfs",
+      "version": "0.4.14-rc1"
     }
   ],
   "gxVersion": "0.12.1",

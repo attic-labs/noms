@@ -25,10 +25,6 @@ const (
 
 var log = logging.Logger("pubsub")
 
-func init() {
-	logging.SetLogLevel("pubsub", "WARNING")
-}
-
 type PubSub struct {
 	host host.Host
 
@@ -174,16 +170,15 @@ func (p *PubSub) processLoop(ctx context.Context) {
 		p.topics = nil
 	}()
 	for {
-		log.Info("processLoop loop")
 		select {
 		case s := <-p.newPeers:
 			pid := s.Conn().RemotePeer()
 			ch, ok := p.peers[pid]
 			if ok {
-				log.Error("already have a connection to peer: ", pid)
+				log.Error("already have connection to peer: ", pid)
 				close(ch)
 			}
-			log.Infof("newPeer %s", pid.Pretty())
+
 			messages := make(chan *RPC, 32)
 			go p.handleSendingMessages(ctx, s, messages)
 			messages <- p.getHelloPacket()
@@ -193,7 +188,6 @@ func (p *PubSub) processLoop(ctx context.Context) {
 			p.rt.AddPeer(pid, s.Protocol())
 
 		case pid := <-p.peerDead:
-			log.Infof("peerDead %s", pid.Pretty())
 			ch, ok := p.peers[pid]
 			if ok {
 				close(ch)
@@ -207,20 +201,16 @@ func (p *PubSub) processLoop(ctx context.Context) {
 			p.rt.RemovePeer(pid)
 
 		case treq := <-p.getTopics:
-			log.Infof("getTopics %s")
 			var out []string
 			for t := range p.myTopics {
 				out = append(out, t)
 			}
 			treq.resp <- out
 		case sub := <-p.cancelCh:
-			log.Infof("cancelCh %s", sub.Topic())
 			p.handleRemoveSubscription(sub)
 		case sub := <-p.addSub:
-			log.Infof("addSub %s", sub.sub.Topic())
 			p.handleAddSubscription(sub)
 		case preq := <-p.getPeers:
-			log.Infof("getPeers %s", preq.topic)
 			tmap, ok := p.topics[preq.topic]
 			if preq.topic != "" && !ok {
 				preq.resp <- nil
@@ -238,16 +228,13 @@ func (p *PubSub) processLoop(ctx context.Context) {
 			}
 			preq.resp <- peers
 		case rpc := <-p.incoming:
-			log.Infof("incoming %s", rpc.String())
 			p.handleIncomingRPC(rpc)
 
 		case msg := <-p.publish:
-			log.Infof("publish %s", msg.String())
 			vals := p.getValidators(msg)
 			p.pushMsg(vals, p.host.ID(), msg)
 
 		case req := <-p.sendMsg:
-			log.Infof("sendMsg %s -> %s", req.from, req.msg.Message.String())
 			p.maybePublishMessage(req.from, req.msg.Message)
 
 		case req := <-p.addVal:

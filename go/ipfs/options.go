@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ipfs/go-ipfs/repo"
 	"github.com/pkg/errors"
+	"gx/ipfs/QmXporsyf5xMvffd2eiTDoq85dNpYUynGJhfabzDjwP8uR/go-ipfs/repo"
 )
 
 // resetRepoConfigPorts adds portIdx to each default port number. The index is added instead of replaced to keep

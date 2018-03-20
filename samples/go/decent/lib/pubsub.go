@@ -12,8 +12,8 @@ import (
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/samples/go/decent/dbg"
-	"github.com/ipfs/go-ipfs/core"
 	"github.com/jbenet/go-base58"
+	"gx/ipfs/QmXporsyf5xMvffd2eiTDoq85dNpYUynGJhfabzDjwP8uR/go-ipfs/core"
 )
 
 var (
