@@ -21,7 +21,7 @@ func NewLogger(fp string) *log.Logger {
 	f, err := os.OpenFile(fp, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	d.PanicIfError(err)
 	pid := strconv.FormatInt(int64(os.Getpid()), 10)
-	return log.New(f, pid+": ", 0644)
+	return log.New(f, pid+": ", log.LstdFlags|log.Lmicroseconds)
 }
 
 func GetLogger() *log.Logger {

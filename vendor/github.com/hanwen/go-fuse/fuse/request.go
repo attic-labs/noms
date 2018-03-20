@@ -26,8 +26,7 @@ type request struct {
 
 	filenames []string // filename arguments
 
-	// Unstructured data, a pointer to the relevant XxxxOut struct.
-	outData  unsafe.Pointer
+	// Output data.
 	status   Status
 	flatData []byte
 	fdData   *readResultFd
@@ -65,7 +64,6 @@ func (r *request) clear() {
 	r.inData = nil
 	r.arg = nil
 	r.filenames = nil
-	r.outData = nil
 	r.status = OK
 	r.flatData = nil
 	r.fdData = nil
@@ -96,8 +94,8 @@ func (r *request) InputDebug() string {
 
 func (r *request) OutputDebug() string {
 	var dataStr string
-	if r.handler.DecodeOut != nil && r.outData != nil {
-		dataStr = Print(r.handler.DecodeOut(r.outData))
+	if r.handler.DecodeOut != nil && r.handler.OutputSize > 0 {
+		dataStr = Print(r.handler.DecodeOut(r.outData()))
 	}
 
 	max := 1024
@@ -115,7 +113,7 @@ func (r *request) OutputDebug() string {
 			if r.fdData != nil {
 				spl = " (fd data)"
 			}
-			flatStr = fmt.Sprintf(" %d bytes data%s\n", r.flatDataSize(), spl)
+			flatStr = fmt.Sprintf(" %d bytes data%s", r.flatDataSize(), spl)
 		}
 	}
 
@@ -186,26 +184,35 @@ func (r *request) parse() {
 
 	copy(r.outBuf[:r.handler.OutputSize+sizeOfOutHeader],
 		zeroOutBuf[:r.handler.OutputSize+sizeOfOutHeader])
-	r.outData = unsafe.Pointer(&r.outBuf[sizeOfOutHeader])
 }
 
-func (r *request) serializeHeader(dataSize int) (header []byte) {
+func (r *request) outData() unsafe.Pointer {
+	return unsafe.Pointer(&r.outBuf[sizeOfOutHeader])
+}
+
+// serializeHeader serializes the response header. The header points
+// to an internal buffer of the receiver.
+func (r *request) serializeHeader(flatDataSize int) (header []byte) {
 	dataLength := r.handler.OutputSize
-	if r.outData == nil || r.status > OK {
+	if r.status > OK {
 		dataLength = 0
 	}
 
-	sizeOfOutHeader := unsafe.Sizeof(OutHeader{})
+	// [GET|LIST]XATTR is two opcodes in one: get/list xattr size (return
+	// structured GetXAttrOut, no flat data) and get/list xattr data
+	// (return no structured data, but only flat data)
+	if r.inHeader.Opcode == _OP_GETXATTR || r.inHeader.Opcode == _OP_LISTXATTR {
+		if (*GetXAttrIn)(r.inData).Size != 0 {
+			dataLength = 0
+		}
+	}
+
 	header = r.outBuf[:sizeOfOutHeader+dataLength]
 	o := (*OutHeader)(unsafe.Pointer(&header[0]))
 	o.Unique = r.inHeader.Unique
 	o.Status = int32(-r.status)
 	o.Length = uint32(
-		int(sizeOfOutHeader) + int(dataLength) + dataSize)
-
-	var asSlice []byte
-	toSlice(&asSlice, r.outData, dataLength)
-	copy(header[sizeOfOutHeader:], asSlice)
+		int(sizeOfOutHeader) + int(dataLength) + flatDataSize)
 	return header
 }
 

@@ -13,6 +13,7 @@ import (
 	"path"
 	"syscall"
 
+	"github.com/attic-labs/kingpin"
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
@@ -22,7 +23,6 @@ import (
 	"github.com/attic-labs/noms/samples/go/decent/dbg"
 	"github.com/attic-labs/noms/samples/go/decent/lib"
 	"github.com/jroimartin/gocui"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 	clientCmd := kingpin.Command("client", "runs the ipfs-chat client UI")
 	clientTopic := clientCmd.Flag("topic", "IPFS pubsub topic to publish and subscribe to").Default("noms-chat-p2p").String()
 	username := clientCmd.Flag("username", "username to sign in as").Required().String()
-	nodeIdx := clientCmd.Flag("node-idx", "a single digit to be used as last digit in all port values: api, gateway and swarm (must be 0-9 inclusive)").Default("-1").Int()
+	portIdx := clientCmd.Flag("port-idx", "a single digit to add to all port values: api, gateway and swarm (must be 0-8 inclusive)").Default("0").Int()
 	clientDir := clientCmd.Arg("path", "local directory to store data in").Required().ExistingDir()
 
 	importCmd := kingpin.Command("import", "imports data into a chat")
@@ -46,7 +46,7 @@ func main() {
 		cInfo := lib.ClientInfo{
 			Topic:    *clientTopic,
 			Username: *username,
-			Idx:      *nodeIdx,
+			Idx:      *portIdx,
 			IsDaemon: false,
 			Dir:      *clientDir,
 			Delegate: lib.P2PEventDelegate{},
@@ -74,7 +74,8 @@ func runClient(cInfo lib.ClientInfo) {
 	ds, err = lib.InitDatabase(ds)
 	d.PanicIfError(err)
 
-	node := ipfs.OpenIPFSRepo(path.Join(cInfo.Dir, "ipfs"), cInfo.Idx)
+	node, err := ipfs.OpenIPFSRepo(path.Join(cInfo.Dir, "ipfs"), cInfo.Idx)
+	d.PanicIfError(err)
 	events := make(chan lib.ChatEvent, 1024)
 	t := lib.CreateTermUI(events)
 	defer t.Close()

@@ -1,6 +1,7 @@
 package net
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -39,13 +40,14 @@ type Addr struct {
 }
 
 type ConnectionStat struct {
-	Fd     uint32 `json:"fd"`
-	Family uint32 `json:"family"`
-	Type   uint32 `json:"type"`
-	Laddr  Addr   `json:"localaddr"`
-	Raddr  Addr   `json:"remoteaddr"`
-	Status string `json:"status"`
-	Pid    int32  `json:"pid"`
+	Fd     uint32  `json:"fd"`
+	Family uint32  `json:"family"`
+	Type   uint32  `json:"type"`
+	Laddr  Addr    `json:"localaddr"`
+	Raddr  Addr    `json:"remoteaddr"`
+	Status string  `json:"status"`
+	Uids   []int32 `json:"uids"`
+	Pid    int32   `json:"pid"`
 }
 
 // System wide stats about different network protocols
@@ -110,6 +112,10 @@ func (n InterfaceAddr) String() string {
 }
 
 func Interfaces() ([]InterfaceStat, error) {
+	return InterfacesWithContext(context.Background())
+}
+
+func InterfacesWithContext(ctx context.Context) ([]InterfaceStat, error) {
 	is, err := net.Interfaces()
 	if err != nil {
 		return nil, err

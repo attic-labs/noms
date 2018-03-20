@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/attic-labs/noms/go/chunks"
+	"github.com/attic-labs/kingpin"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/ipfs"
@@ -21,7 +21,6 @@ import (
 	"github.com/attic-labs/noms/samples/go/decent/lib"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/jroimartin/gocui"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func main() {
@@ -31,17 +30,17 @@ func main() {
 	clientCmd := kingpin.Command("client", "runs the ipfs-chat client UI")
 	clientTopic := clientCmd.Flag("topic", "IPFS pubsub topic to publish and subscribe to").Default("ipfs-chat").String()
 	username := clientCmd.Flag("username", "username to sign in as").String()
-	nodeIdx := clientCmd.Flag("node-idx", "a single digit to be used as last digit in all port values: api, gateway and swarm (must be 0-9 inclusive)").Default("-1").Int()
+	portIdx := clientCmd.Flag("port-idx", "a single digit to add to all port values: api, gateway and swarm (must be 0-8 inclusive)").Default("0").Int()
 	clientDS := clientCmd.Arg("dataset", "the dataset spec to store chat data in").Required().String()
 
 	importCmd := kingpin.Command("import", "imports data into a chat")
 	importDir := importCmd.Flag("dir", "directory that contains data to import").Default("./data").ExistingDir()
-	importDS := importCmd.Arg("dataset", "the dataset spec to import chat data to").Required().String()
+	importDS := importCmd.Arg("dataset", "the dataq set spec to import chat data to").Required().String()
 
 	daemonCmd := kingpin.Command("daemon", "runs a daemon that simulates filecoin, eagerly storing all chunks for a chat")
 	daemonTopic := daemonCmd.Flag("topic", "IPFS pubsub topic to publish and subscribe to").Default("ipfs-chat").String()
 	daemonInterval := daemonCmd.Flag("interval", "amount of time to wait before publishing state to network").Default("5s").Duration()
-	daemonNodeIdx := daemonCmd.Flag("node-idx", "a single digit to be used as last digit in all port values: api, gateway and swarm (must be 0-9 inclusive)").Default("-1").Int()
+	daemonPortIdx := daemonCmd.Flag("port-idx", "a single digit to add to all port values: api, gateway and swarm (must be 0-8 inclusive)").Default("0").Int()
 	daemonDS := daemonCmd.Arg("dataset", "the dataset spec indicating ipfs repo to use").Required().String()
 
 	kingpin.CommandLine.Help = "A demonstration of using Noms to build a scalable multiuser collaborative application."
@@ -52,7 +51,7 @@ func main() {
 		cInfo := lib.ClientInfo{
 			Topic:    *clientTopic,
 			Username: *username,
-			Idx:      *nodeIdx,
+			Idx:      *portIdx,
 			IsDaemon: false,
 			Delegate: lib.IPFSEventDelegate{},
 		}
@@ -64,7 +63,7 @@ func main() {
 			Topic:    *daemonTopic,
 			Username: "daemon",
 			Interval: *daemonInterval,
-			Idx:      *daemonNodeIdx,
+			Idx:      *daemonPortIdx,
 			IsDaemon: true,
 			Delegate: lib.IPFSEventDelegate{},
 		}
@@ -74,7 +73,7 @@ func main() {
 
 func runClient(ipfsSpec string, cInfo lib.ClientInfo) {
 	dbg.SetLogger(lib.NewLogger(cInfo.Username))
-
+	d.CheckError(ipfs.RegisterProtocols(ipfs.SetPortIdx(cInfo.Idx)))
 	sp, err := spec.ForDataset(ipfsSpec)
 	d.CheckErrorNoUsage(err)
 
@@ -83,8 +82,10 @@ func runClient(ipfsSpec string, cInfo lib.ClientInfo) {
 		os.Exit(1)
 	}
 
-	node, cs := initIPFSChunkStore(sp, cInfo.Idx)
-	db := datas.NewDatabase(cs)
+	// Create/Open a new IPFS-backed database
+	node, db := initIpfsDb(sp)
+
+	dbg.Debug("my ID is %s", node.Identity.Pretty())
 
 	// Get the head of specified dataset.
 	ds := db.GetDataset(sp.Path.Dataset)
@@ -110,7 +111,7 @@ func runClient(ipfsSpec string, cInfo lib.ClientInfo) {
 
 func runDaemon(ipfsSpec string, cInfo lib.ClientInfo) {
 	dbg.SetLogger(log.New(os.Stdout, "", 0))
-
+	d.CheckError(ipfs.RegisterProtocols(ipfs.SetPortIdx(cInfo.Idx)))
 	sp, err := spec.ForDataset(ipfsSpec)
 	d.CheckErrorNoUsage(err)
 
@@ -119,9 +120,8 @@ func runDaemon(ipfsSpec string, cInfo lib.ClientInfo) {
 		os.Exit(1)
 	}
 
-	// Create/Open a new network chunkstore
-	node, cs := initIPFSChunkStore(sp, cInfo.Idx)
-	db := datas.NewDatabase(cs)
+	// Create/Open a new IPFS-backed database
+	node, db := initIpfsDb(sp)
 
 	// Get the head of specified dataset.
 	ds := db.GetDataset(sp.Path.Dataset)
@@ -177,11 +177,10 @@ func expandRLimit() {
 	d.Chk.NoError(err)
 }
 
-func initIPFSChunkStore(sp spec.Spec, nodeIdx int) (*core.IpfsNode, chunks.ChunkStore) {
-	// recreate database so that we can have control of chunkstore's ipfs node
-	node := ipfs.OpenIPFSRepo(sp.DatabaseName, nodeIdx)
-	cs := ipfs.ChunkStoreFromIPFSNode(sp.DatabaseName, sp.Protocol == "ipfs-local", node, 1)
-	return node, cs
+func initIpfsDb(sp spec.Spec) (*core.IpfsNode, datas.Database) {
+	db := sp.GetDatabase()
+	node := db.(ipfs.HasIPFSNode).IPFSNode()
+	return node, db
 }
 
 func isIPFS(protocol string) bool {

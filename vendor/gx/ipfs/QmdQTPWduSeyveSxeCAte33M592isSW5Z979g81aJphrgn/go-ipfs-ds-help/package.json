@@ -1,0 +1,36 @@
+{
+  "author": "hector",
+  "bugs": {
+    "url": "https://github.com/ipfs/go-ipfs-ds-help"
+  },
+  "gx": {
+    "dvcsimport": "github.com/ipfs/go-ipfs-ds-help"
+  },
+  "gxDependencies": [
+    {
+      "author": "jbenet",
+      "hash": "QmPpegoMqhAEqjncrzArm7KVWAkCm78rqL2DPuNjhPrshg",
+      "name": "go-datastore",
+      "version": "1.4.1"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmcZfnkapfECQGcLZaf9B79NRg7cRa9EnZh4LSbkCzwNvY",
+      "name": "go-cid",
+      "version": "0.7.20"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmfVj3x4D6Jkq9SEoi5n2NmoUomLwoeiwnYz2KQa15wRw6",
+      "name": "base32",
+      "version": "0.0.2"
+    }
+  ],
+  "gxVersion": "0.12.1",
+  "language": "go",
+  "license": "",
+  "name": "go-ipfs-ds-help",
+  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "version": "0.0.1"
+}
+

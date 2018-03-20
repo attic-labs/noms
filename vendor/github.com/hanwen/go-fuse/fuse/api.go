@@ -43,6 +43,10 @@ type MountOptions struct {
 	// capped at the kernel maximum.
 	MaxWrite int
 
+	// Max read ahead to use.  If 0, use default. This number is
+	// capped at the kernel maximum.
+	MaxReadAhead int
+
 	// If IgnoreSecurityLabels is set, all security related xattr
 	// requests will return NO_DATA without passing through the
 	// user defined filesystem.  You should only set this if you
@@ -88,7 +92,18 @@ type RawFileSystem interface {
 	// If called, provide debug output through the log package.
 	SetDebug(debug bool)
 
+	// Lookup is called by the kernel when the VFS wants to know
+	// about a file inside a directory. Many lookup calls can
+	// occur in parallel, but only one call happens for each (dir,
+	// name) pair.
 	Lookup(header *InHeader, name string, out *EntryOut) (status Status)
+
+	// Forget is called when the kernel discards entries from its
+	// dentry cache. This happens on unmount, and when the kernel
+	// is short on memory. Since it is not guaranteed to occur at
+	// any moment, and since there is no return value, Forget
+	// should not do I/O, as there is no channel to report back
+	// I/O errors.
 	Forget(nodeid, nlookup uint64)
 
 	// Attributes.
@@ -118,6 +133,8 @@ type RawFileSystem interface {
 	Create(input *CreateIn, name string, out *CreateOut) (code Status)
 	Open(input *OpenIn, out *OpenOut) (status Status)
 	Read(input *ReadIn, buf []byte) (ReadResult, Status)
+
+	Flock(input *FlockIn, flags int) (code Status)
 
 	Release(input *ReleaseIn)
 	Write(input *WriteIn, data []byte) (written uint32, code Status)

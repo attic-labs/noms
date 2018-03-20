@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build 386, !gccgo, !appengine
+// +build 386,!gccgo,!appengine
 
 package blake2s
 
 var (
-	useSSE4    = false
-	useSSSE3   = supportSSSE3()
-	useSSE2    = supportSSE2()
-	useGeneric = true
+	useSSE4  = false
+	useSSSE3 = supportSSSE3()
+	useSSE2  = supportSSE2()
 )
 
 //go:noescape

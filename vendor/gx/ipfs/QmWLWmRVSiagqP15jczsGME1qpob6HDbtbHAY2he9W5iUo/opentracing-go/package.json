@@ -1,0 +1,16 @@
+{
+  "author": "frist",
+  "bugs": {
+    "url": "https://github.com/opentracing/opentracing-go"
+  },
+  "gx": {
+    "dvcsimport": "github.com/opentracing/opentracing-go"
+  },
+  "gxVersion": "0.12.1",
+  "language": "go",
+  "license": "",
+  "name": "opentracing-go",
+  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "version": "0.0.3"
+}
+

@@ -35,7 +35,6 @@ type handleMap interface {
 }
 
 type handled struct {
-	check  uint32
 	handle uint64
 	count  int
 }
@@ -77,10 +76,6 @@ func newPortableHandleMap() *portableHandleMap {
 func (m *portableHandleMap) Register(obj *handled) (handle, generation uint64) {
 	m.Lock()
 	if obj.count == 0 {
-		if obj.check != 0 {
-			panic(_ALREADY_MSG)
-		}
-
 		if len(m.freeIds) == 0 {
 			handle = uint64(len(m.handles))
 			m.handles = append(m.handles, obj)

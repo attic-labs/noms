@@ -3,14 +3,19 @@
 package mem
 
 import (
+	"context"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/shirou/gopsutil/internal/common"
+	"golang.org/x/sys/unix"
 )
 
 func VirtualMemory() (*VirtualMemoryStat, error) {
+	return VirtualMemoryWithContext(context.Background())
+}
+
+func VirtualMemoryWithContext(ctx context.Context) (*VirtualMemoryStat, error) {
 	filename := common.HostProc("meminfo")
 	lines, _ := common.ReadLines(filename)
 	// flag if MemAvailable is in /proc/meminfo (kernel 3.14+)
@@ -52,6 +57,14 @@ func VirtualMemory() (*VirtualMemoryStat, error) {
 			ret.WritebackTmp = t * 1024
 		case "Dirty":
 			ret.Dirty = t * 1024
+		case "Shmem":
+			ret.Shared = t * 1024
+		case "Slab":
+			ret.Slab = t * 1024
+		case "PageTables":
+			ret.PageTables = t * 1024
+		case "SwapCached":
+			ret.SwapCached = t * 1024
 		}
 	}
 	if !memavail {
@@ -64,14 +77,18 @@ func VirtualMemory() (*VirtualMemoryStat, error) {
 }
 
 func SwapMemory() (*SwapMemoryStat, error) {
-	sysinfo := &syscall.Sysinfo_t{}
+	return SwapMemoryWithContext(context.Background())
+}
 
-	if err := syscall.Sysinfo(sysinfo); err != nil {
+func SwapMemoryWithContext(ctx context.Context) (*SwapMemoryStat, error) {
+	sysinfo := &unix.Sysinfo_t{}
+
+	if err := unix.Sysinfo(sysinfo); err != nil {
 		return nil, err
 	}
 	ret := &SwapMemoryStat{
-		Total: uint64(sysinfo.Totalswap),
-		Free:  uint64(sysinfo.Freeswap),
+		Total: uint64(sysinfo.Totalswap) * uint64(sysinfo.Unit),
+		Free:  uint64(sysinfo.Freeswap) * uint64(sysinfo.Unit),
 	}
 	ret.Used = ret.Total - ret.Free
 	//check Infinity

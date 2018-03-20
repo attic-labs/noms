@@ -1,0 +1,30 @@
+{
+  "author": "whyrusleeping",
+  "bugs": {
+    "url": "https://github.com/whyrusleeping/retry-datastore"
+  },
+  "gx": {
+    "dvcsimport": "github.com/whyrusleeping/retry-datastore"
+  },
+  "gxDependencies": [
+    {
+      "author": "jbenet",
+      "hash": "QmPpegoMqhAEqjncrzArm7KVWAkCm78rqL2DPuNjhPrshg",
+      "name": "go-datastore",
+      "version": "1.4.1"
+    },
+    {
+      "author": "whyrusleeping",
+      "hash": "QmPa81w9aTcax5JnkdMqN7bLPCSMSeBQEuUDX1UF1Sv6k1",
+      "name": "failstore",
+      "version": "1.0.6"
+    }
+  ],
+  "gxVersion": "0.8.0",
+  "language": "go",
+  "license": "",
+  "name": "retry-datastore",
+  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "version": "1.1.6"
+}
+

@@ -14,7 +14,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"unsafe"
 )
 
 const (
@@ -161,9 +160,10 @@ func NewServer(fs RawFileSystem, mountPoint string, opts *MountOptions) (*Server
 		// FUSE device: on unmount, sometime some reads do not
 		// error-out, meaning that unmount will hang.
 		singleReader: runtime.GOOS == "darwin",
+		ready:        make(chan error, 1),
 	}
 	ms.reqPool.New = func() interface{} { return new(request) }
-	ms.readPool.New = func() interface{} { return make([]byte, o.MaxWrite+PAGESIZE) }
+	ms.readPool.New = func() interface{} { return make([]byte, o.MaxWrite+pageSize) }
 
 	mountPoint = filepath.Clean(mountPoint)
 	if !filepath.IsAbs(mountPoint) {
@@ -173,7 +173,6 @@ func NewServer(fs RawFileSystem, mountPoint string, opts *MountOptions) (*Server
 		}
 		mountPoint = filepath.Clean(filepath.Join(cwd, mountPoint))
 	}
-	ms.ready = make(chan error, 1)
 	fd, err := mount(mountPoint, &o, ms.ready)
 	if err != nil {
 		return nil, err
@@ -389,12 +388,19 @@ func (ms *Server) handleRequest(req *request) Status {
 		log.Println(req.InputDebug())
 	}
 
-	if req.status.Ok() && req.handler.Func == nil {
+	if req.inHeader.NodeId == pollHackInode {
+		// We want to avoid switching off features through our
+		// poll hack, so don't use ENOSYS
+		req.status = EIO
+		if req.inHeader.Opcode == _OP_POLL {
+			req.status = ENOSYS
+		}
+	} else if req.inHeader.NodeId == FUSE_ROOT_ID && len(req.filenames) > 0 && req.filenames[0] == pollHackName {
+		doPollHackLookup(ms, req)
+	} else if req.status.Ok() && req.handler.Func == nil {
 		log.Printf("Unimplemented opcode %v", operationName(req.inHeader.Opcode))
 		req.status = ENOSYS
-	}
-
-	if req.status.Ok() {
+	} else if req.status.Ok() {
 		req.handler.Func(ms, req)
 	}
 
@@ -445,11 +451,6 @@ func (ms *Server) InodeNotify(node uint64, off int64, length int64) Status {
 		return ENOSYS
 	}
 
-	entry := &NotifyInvalInodeOut{
-		Ino:    node,
-		Off:    off,
-		Length: length,
-	}
 	req := request{
 		inHeader: &InHeader{
 			Opcode: _OP_NOTIFY_INODE,
@@ -457,7 +458,11 @@ func (ms *Server) InodeNotify(node uint64, off int64, length int64) Status {
 		handler: operationHandlers[_OP_NOTIFY_INODE],
 		status:  NOTIFY_INVAL_INODE,
 	}
-	req.outData = unsafe.Pointer(entry)
+
+	entry := (*NotifyInvalInodeOut)(req.outData())
+	entry.Ino = node
+	entry.Off = off
+	entry.Length = length
 
 	// Protect against concurrent close.
 	ms.writeMu.Lock()
@@ -487,18 +492,17 @@ func (ms *Server) DeleteNotify(parent uint64, child uint64, name string) Status 
 		handler: operationHandlers[_OP_NOTIFY_DELETE],
 		status:  NOTIFY_INVAL_DELETE,
 	}
-	entry := &NotifyInvalDeleteOut{
-		Parent:  parent,
-		Child:   child,
-		NameLen: uint32(len(name)),
-	}
+
+	entry := (*NotifyInvalDeleteOut)(req.outData())
+	entry.Parent = parent
+	entry.Child = child
+	entry.NameLen = uint32(len(name))
 
 	// Many versions of FUSE generate stacktraces if the
 	// terminating null byte is missing.
 	nameBytes := make([]byte, len(name)+1)
 	copy(nameBytes, name)
 	nameBytes[len(nameBytes)-1] = '\000'
-	req.outData = unsafe.Pointer(entry)
 	req.flatData = nameBytes
 
 	// Protect against concurrent close.
@@ -526,17 +530,15 @@ func (ms *Server) EntryNotify(parent uint64, name string) Status {
 		handler: operationHandlers[_OP_NOTIFY_ENTRY],
 		status:  NOTIFY_INVAL_ENTRY,
 	}
-	entry := &NotifyInvalEntryOut{
-		Parent:  parent,
-		NameLen: uint32(len(name)),
-	}
+	entry := (*NotifyInvalEntryOut)(req.outData())
+	entry.Parent = parent
+	entry.NameLen = uint32(len(name))
 
 	// Many versions of FUSE generate stacktraces if the
 	// terminating null byte is missing.
 	nameBytes := make([]byte, len(name)+1)
 	copy(nameBytes, name)
 	nameBytes[len(nameBytes)-1] = '\000'
-	req.outData = unsafe.Pointer(entry)
 	req.flatData = nameBytes
 
 	// Protect against concurrent close.
@@ -579,8 +581,10 @@ func init() {
 // WaitMount waits for the first request to be served. Use this to
 // avoid racing between accessing the (empty or not yet mounted)
 // mountpoint, and the OS trying to setup the user-space mount.
-// Currently, this call only necessary on OSX.
 func (ms *Server) WaitMount() error {
 	err := <-ms.ready
-	return err
+	if err != nil {
+		return err
+	}
+	return pollHack(ms.mountPoint)
 }

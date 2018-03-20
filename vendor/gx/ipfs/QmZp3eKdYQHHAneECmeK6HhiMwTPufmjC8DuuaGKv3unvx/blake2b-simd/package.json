@@ -1,0 +1,16 @@
+{
+  "author": "minio",
+  "bugs": {
+    "url": "github.com/minio/blake2b-simd/issues"
+  },
+  "gx": {
+    "dvcsimport": "github.com/minio/blake2b-simd"
+  },
+  "gxVersion": "0.12.1",
+  "language": "go",
+  "license": "Apache-2.0",
+  "name": "blake2b-simd",
+  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "version": "0.1.1"
+}
+

@@ -30,17 +30,17 @@ go build
 
 ```shell
 mkdir /tmp/noms1
-./p2p-chat client --username=<aname1> --node-idx=1 /tmp/noms1 >& /tmp/err1
+./p2p-chat client --username=<aname1> --port-idx=1 /tmp/noms1 >& /tmp/err1
 ```
 
 * Run a second p2p client with the following command:
 
 ```shell
 mkdir /tmp/noms2
-./p2p-chat client --username=<aname2> --node-idx=2 /tmp/noms2 >& /tmp/err2
+./p2p-chat client --username=<aname2> --port-idx=2 /tmp/noms2 >& /tmp/err2
 ```
   
 Note: the p2p client relies on IPFS for it's pub/sub implementation. The
-'node-idx' argument ensures that each IPFS-based node uses a distinct set
+'port-idx' argument ensures that each IPFS-based node uses a distinct set
 of ports. This is useful when running multiple IPFS-based programs on
 the same machine.

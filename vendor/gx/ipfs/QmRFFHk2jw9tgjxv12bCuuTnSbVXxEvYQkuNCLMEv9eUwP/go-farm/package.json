@@ -1,0 +1,16 @@
+{
+  "author": "magik6k",
+  "bugs": {
+    "url": "https://github.com/gxed/go-farm"
+  },
+  "gx": {
+    "dvcsimport": "github.com/dgryski/go-farm"
+  },
+  "gxVersion": "0.11.0",
+  "language": "go",
+  "license": "",
+  "name": "go-farm",
+  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "version": "1.0.0"
+}
+

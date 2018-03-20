@@ -95,7 +95,7 @@ func (t *TermUI) Close() {
 
 func (t *TermUI) UpdateMessagesFromSync(ds datas.Dataset) {
 	if t.InSearch || !t.textScrolledToEnd() {
-		t.Gui.Execute(func(g *gocui.Gui) (err error) {
+		t.Gui.Update(func(g *gocui.Gui) (err error) {
 			updateViewTitle(g, messageView, "messages (NEW!)")
 			return
 		})
@@ -181,7 +181,7 @@ func (t *TermUI) ResetAuthors(ds datas.Dataset) {
 }
 
 func (t *TermUI) UpdateMessagesAsync(ds datas.Dataset, sids *types.Map, terms []string) {
-	t.Gui.Execute(func(_ *gocui.Gui) error {
+	t.Gui.Update(func(_ *gocui.Gui) error {
 		err := t.UpdateMessages(ds, sids, terms)
 		d.PanicIfError(err)
 		return nil

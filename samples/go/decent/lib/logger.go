@@ -17,5 +17,5 @@ func NewLogger(username string) *log.Logger {
 	f, err := os.OpenFile(dbg.Filepath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	d.PanicIfError(err)
 	prefix := fmt.Sprintf("%d-%s: ", os.Getpid(), username)
-	return log.New(f, prefix, 0644)
+	return log.New(f, prefix, log.LstdFlags|log.Lmicroseconds)
 }

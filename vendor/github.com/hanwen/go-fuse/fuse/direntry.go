@@ -24,10 +24,13 @@ type DirEntry struct {
 
 	// Name is the basename of the file in the directory.
 	Name string
+
+	// Ino is the inode number.
+	Ino uint64
 }
 
 func (d DirEntry) String() string {
-	return fmt.Sprintf("%o: %q", d.Mode, d.Name)
+	return fmt.Sprintf("%o: %q ino=%d", d.Mode, d.Name, d.Ino)
 }
 
 // DirEntryList holds the return value for READDIR and READDIRPLUS
@@ -51,12 +54,15 @@ func NewDirEntryList(data []byte, off uint64) *DirEntryList {
 // AddDirEntry tries to add an entry, and reports whether it
 // succeeded.
 func (l *DirEntryList) AddDirEntry(e DirEntry) (bool, uint64) {
-	return l.Add(0, e.Name, uint64(FUSE_UNKNOWN_INO), e.Mode)
+	return l.Add(0, e.Name, e.Ino, e.Mode)
 }
 
 // Add adds a direntry to the DirEntryList, returning whether it
 // succeeded.
 func (l *DirEntryList) Add(prefix int, name string, inode uint64, mode uint32) (bool, uint64) {
+	if inode == 0 {
+		inode = FUSE_UNKNOWN_INO
+	}
 	padding := (8 - len(name)&7) & 7
 	delta := padding + direntSize + len(name) + prefix
 	oldLen := len(l.buf)
@@ -90,7 +96,7 @@ func (l *DirEntryList) Add(prefix int, name string, inode uint64, mode uint32) (
 func (l *DirEntryList) AddDirLookupEntry(e DirEntry) (*EntryOut, uint64) {
 	lastStart := len(l.buf)
 	ok, off := l.Add(int(unsafe.Sizeof(EntryOut{})), e.Name,
-		uint64(FUSE_UNKNOWN_INO), e.Mode)
+		e.Ino, e.Mode)
 	if !ok {
 		return nil, off
 	}

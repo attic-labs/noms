@@ -30,6 +30,9 @@ func MaxPipeSize() int {
 // Since Linux 2.6.11, the pipe capacity is 65536 bytes.
 const DefaultPipeSize = 16 * 4096
 
+// We empty pipes by splicing to /dev/null.
+var devNullFD uintptr
+
 func init() {
 	content, err := ioutil.ReadFile("/proc/sys/fs/pipe-max-size")
 	if err != nil {
@@ -48,6 +51,13 @@ func init() {
 	resizable = resizable && (errNo == 0)
 	r.Close()
 	w.Close()
+
+	fd, err := syscall.Open("/dev/null", os.O_WRONLY, 0)
+	if err != nil {
+		log.Panicf("splice: %v", err)
+	}
+
+	devNullFD = uintptr(fd)
 }
 
 // copy & paste from syscall.
@@ -61,30 +71,27 @@ func fcntl(fd uintptr, cmd int, arg int) (val int, errno syscall.Errno) {
 const F_SETPIPE_SZ = 1031
 const F_GETPIPE_SZ = 1032
 
+func osPipe() (int, int, error) {
+	var fds [2]int
+	err := syscall.Pipe2(fds[:], syscall.O_NONBLOCK)
+	return fds[0], fds[1], err
+}
+
 func newSplicePair() (p *Pair, err error) {
 	p = &Pair{}
-	p.r, p.w, err = os.Pipe()
+	p.r, p.w, err = osPipe()
 	if err != nil {
 		return nil, err
 	}
-
-	errNo := syscall.Errno(0)
-	for _, f := range []*os.File{p.r, p.w} {
-		_, errNo = fcntl(f.Fd(), syscall.F_SETFL, syscall.O_NONBLOCK)
-		if errNo != 0 {
-			p.Close()
-			return nil, os.NewSyscallError("fcntl setfl", errNo)
-		}
-	}
-
-	p.size, errNo = fcntl(p.r.Fd(), F_GETPIPE_SZ, 0)
-	if errNo == syscall.EINVAL {
+	var errNo syscall.Errno
+	p.size, errNo = fcntl(uintptr(p.r), F_GETPIPE_SZ, 0)
+	if err == syscall.EINVAL {
 		p.size = DefaultPipeSize
 		return p, nil
 	}
 	if errNo != 0 {
 		p.Close()
-		return nil, os.NewSyscallError("fcntl getsize", errNo)
+		return nil, fmt.Errorf("fcntl getsize: %v", errNo)
 	}
 	return p, nil
 }

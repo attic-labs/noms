@@ -1,0 +1,16 @@
+{
+  "author": "hector",
+  "bugs": {
+    "url": "https://github.com/ipfs/go-ipfs-flags"
+  },
+  "gx": {
+    "dvcsimport": "github.com/ipfs/go-ipfs-flags"
+  },
+  "gxVersion": "0.12.1",
+  "language": "go",
+  "license": "",
+  "name": "go-ipfs-flags",
+  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "version": "0.0.1"
+}
+

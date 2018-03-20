@@ -52,7 +52,7 @@ const (
 		</mydoc>
 */
 // Alternative values for DefaultRootTag and DefaultElementTag can be set as:
-// AnyXmlIndent( v, myRootTag, myElementTag).
+// AnyXml( v, myRootTag, myElementTag).
 func AnyXml(v interface{}, tags ...string) ([]byte, error) {
 	if reflect.TypeOf(v).Kind() == reflect.Struct {
 		return xml.Marshal(v)

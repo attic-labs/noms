@@ -91,10 +91,15 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 
 ## Projects using gocui
 
-* [Komanda CLI](https://github.com/mephux/komanda-cli): IRC Client For Developers.
-* [Vuls](https://github.com/future-architect/vuls): Agentless vulnerability scanner for Linux/FreeBSD.
+* [komanda-cli](https://github.com/mephux/komanda-cli): IRC Client For Developers.
+* [vuls](https://github.com/future-architect/vuls): Agentless vulnerability scanner for Linux/FreeBSD.
 * [wuzz](https://github.com/asciimoo/wuzz): Interactive cli tool for HTTP inspection.
 * [httplab](https://github.com/gchaincl/httplab): Interactive web server.
 * [domainr](https://github.com/MichaelThessel/domainr): Tool that checks the availability of domains based on keywords.
+* [gotime](https://github.com/nanohard/gotime): Time tracker for projects and tasks.
+* [claws](https://github.com/thehowl/claws): Interactive command line client for testing websockets.
+* [terminews](http://github.com/antavelos/terminews): Terminal based RSS reader.
+* [diagram](https://github.com/esimov/diagram): Tool to convert ascii arts into hand drawn diagrams.
+* [pody](https://github.com/JulienBreux/pody): CLI app to manage Pods in a Kubernetes cluster.
 
 Note: if your project is not listed here, let us know! :)

@@ -11,8 +11,6 @@ import (
 	"path"
 	"testing"
 
-	"github.com/attic-labs/noms/go/chunks"
-	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/nbs"
 	"github.com/attic-labs/noms/go/types"
@@ -507,45 +505,4 @@ func TestAcccessingInvalidSpec(t *testing.T) {
 	test("💩:spec")
 	test("http:")
 	test("http:💩:")
-}
-
-type testProtocol struct {
-	name string
-}
-
-func (t *testProtocol) NewChunkStore(sp Spec) (chunks.ChunkStore, error) {
-	t.name = sp.DatabaseName
-	return chunks.NewMemoryStoreFactory().CreateStore(""), nil
-}
-func (t *testProtocol) NewDatabase(sp Spec) (datas.Database, error) {
-	t.name = sp.DatabaseName
-	cs, err := t.NewChunkStore(sp)
-	d.PanicIfError(err)
-	return datas.NewDatabase(cs), nil
-}
-
-func TestExternalProtocol(t *testing.T) {
-	assert := assert.New(t)
-	tp := testProtocol{}
-	ExternalProtocols["test"] = &tp
-
-	sp, err := ForDataset("test:foo::bar")
-	assert.NoError(err)
-	assert.Equal("test", sp.Protocol)
-	assert.Equal("foo", sp.DatabaseName)
-
-	cs := sp.NewChunkStore()
-	assert.Equal("foo", tp.name)
-	c := chunks.NewChunk([]byte("hi!"))
-	cs.Put(c)
-	assert.True(cs.Has(c.Hash()))
-
-	tp.name = ""
-	ds := sp.GetDataset()
-	assert.Equal("foo", tp.name)
-
-	ds, err = ds.Database().CommitValue(ds, types.String("hi!"))
-	d.PanicIfError(err)
-
-	assert.True(types.String("hi!").Equals(ds.HeadValue()))
 }

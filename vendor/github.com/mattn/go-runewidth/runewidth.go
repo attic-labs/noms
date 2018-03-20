@@ -1,8 +1,10 @@
 package runewidth
 
+import "os"
+
 var (
 	// EastAsianWidth will be set true if the current locale is CJK
-	EastAsianWidth = IsEastAsian()
+	EastAsianWidth = os.Getenv("RUNEWIDTH_EASTASIAN") == "1" || IsEastAsian()
 
 	// DefaultCondition is a condition in current locale
 	DefaultCondition = &Condition{EastAsianWidth}

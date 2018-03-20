@@ -29,13 +29,6 @@ const Separator = "::"
 
 var datasetRe = regexp.MustCompile("^" + datas.DatasetRe.String() + "$")
 
-type ProtocolImpl interface {
-	NewChunkStore(sp Spec) (chunks.ChunkStore, error)
-	NewDatabase(sp Spec) (datas.Database, error)
-}
-
-var ExternalProtocols = map[string]ProtocolImpl{}
-
 // SpecOptions customize Spec behavior.
 type SpecOptions struct {
 	// Authorization token for requests. For example, if the database is HTTP
@@ -47,7 +40,7 @@ type SpecOptions struct {
 // its database instance so it therefore does not reflect new commits in
 // the db, by (legacy) design.
 type Spec struct {
-	// Protocol is one of "mem", "ldb", "http", or "https".
+	// Protocol is one of "mem", "nbs", "http", or "aws", or anything registered with RegisterExternalProtocol
 	Protocol string
 
 	// DatabaseName is the name of the Spec's database, which is the string after
@@ -189,9 +182,9 @@ func (sp Spec) NewChunkStore() chunks.ChunkStore {
 		storage := &chunks.MemoryStorage{}
 		return storage.NewView()
 	default:
-		impl, ok := ExternalProtocols[sp.Protocol]
+		impl, ok := externalProtocols.get(sp.Protocol)
 		if !ok {
-			d.PanicIfError(fmt.Errorf("Unknown protocol: %s", sp.Protocol))
+			d.PanicIfError(fmt.Errorf("unknown protocol: %s", sp.Protocol))
 		}
 		r, err := impl.NewChunkStore(sp)
 		d.PanicIfError(err)
@@ -293,7 +286,7 @@ func (sp Spec) createDatabase() datas.Database {
 		storage := &chunks.MemoryStorage{}
 		return datas.NewDatabase(storage.NewView())
 	default:
-		impl, ok := ExternalProtocols[sp.Protocol]
+		impl, ok := externalProtocols.get(sp.Protocol)
 		if !ok {
 			d.PanicIfError(fmt.Errorf("Unknown protocol: %s", sp.Protocol))
 		}
@@ -323,8 +316,7 @@ func parseDatabaseSpec(spec string) (protocol, name string, err error) {
 		return
 	}
 
-	if _, ok := ExternalProtocols[parts[0]]; ok {
-		fmt.Println("found external spec", parts[0])
+	if _, ok := externalProtocols.get(parts[0]); ok {
 		protocol, name = parts[0], parts[1]
 		return
 	}
@@ -346,10 +338,10 @@ func parseDatabaseSpec(spec string) (protocol, name string, err error) {
 		}
 
 	case "mem":
-		err = fmt.Errorf(`In-memory database must be specified as "mem", not "mem:"`)
+		err = fmt.Errorf(`in-memory database must be specified as "mem", not "mem:"`)
 
 	default:
-		err = fmt.Errorf("Invalid database protocol %s in %s", protocol, spec)
+		err = fmt.Errorf("invalid database protocol %s in %s", protocol, spec)
 	}
 	return
 }
@@ -357,7 +349,7 @@ func parseDatabaseSpec(spec string) (protocol, name string, err error) {
 func splitDatabaseSpec(spec string) (string, string, error) {
 	lastIdx := strings.LastIndex(spec, Separator)
 	if lastIdx == -1 {
-		return "", "", fmt.Errorf("Missing %s after database in %s", Separator, spec)
+		return "", "", fmt.Errorf("missing %s after database in %s", Separator, spec)
 	}
 
 	return spec[:lastIdx], spec[lastIdx+len(Separator):], nil
