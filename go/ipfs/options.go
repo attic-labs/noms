@@ -31,42 +31,34 @@ func resetRepoConfigPorts(r repo.Repo, portIdx int) error {
 }
 
 // An Option configures the IPFS ChunkStore
-type Option interface {
-	apply(*config) error
-}
-
-type optFunc func(*config) error
-
-func (of optFunc) apply(c *config) error {
-	return of(c)
-}
+type Option func(*config) error
 
 // SetLocal makes the ChunkStore only use the local IPFS blockstore for both reads and writes.
 func SetLocal() Option {
-	return optFunc(func(c *config) error {
-		c.local = true
-		return nil
-	})
+	return func(c *config) error {
+			c.local = true
+			return nil
+		}
 }
 
 // SetNetworked makes reads fall through to the network and expose stored blocks to the entire IPFS network.
 func SetNetworked() Option {
-	return optFunc(func(c *config) error {
-		c.local = false
-		return nil
-	})
+	return func(c *config) error {
+			c.local = false
+			return nil
+		}
 }
 
 // SetMaxConcurrent sets the maximum number of concurrent requests used when creating IPFS ChunkStores from a Spec. The
 // default is 1. Negative values of n will return an error.
 func SetMaxConcurrent(max int) Option {
-	return optFunc(func(config *config) error {
-		if max < 0 {
-			return errors.New("SetMaxConcurrent must be called with max > 0")
+	return func(config *config) error {
+			if max < 0 {
+				return errors.New("SetMaxConcurrent must be called with max > 0")
+			}
+			config.maxConcurrent = max
+			return nil
 		}
-		config.maxConcurrent = max
-		return nil
-	})
 }
 
 // SetPortIdx sets the port index to use when creating IPFS ChunkStores from a Spec. If portIdx is a number between 1
@@ -76,13 +68,13 @@ func SetMaxConcurrent(max int) Option {
 // The default is 0, which stands for IPFS default ports. idx must be between 0 and 8 inclusive; other values will
 // result in an error.
 func SetPortIdx(portIdx int) Option {
-	return optFunc(func(protocol *config) error {
-		if portIdx < 0 || portIdx > 8 {
-			return errors.New("SetPortIdx must be called with portIdx >= 0 and <= 8")
+	return func(protocol *config) error {
+			if portIdx < 0 || portIdx > 8 {
+				return errors.New("SetPortIdx must be called with portIdx >= 0 and <= 8")
+			}
+			protocol.portIdx = portIdx
+			return nil
 		}
-		protocol.portIdx = portIdx
-		return nil
-	})
 }
 
 // TODO: figure out less grody way of passing options to the external protocol. Maybe even extend Spec so that it supports
@@ -98,7 +90,7 @@ type config struct {
 func cfgFrom(opts ...Option) (*config, error) {
 	c := &config{maxConcurrent: 1}
 	for _, opt := range opts {
-		if err := opt.apply(c); err != nil {
+		if err := opt(c); err != nil {
 			return nil, errors.Wrap(err, "error in configuration")
 		}
 	}
