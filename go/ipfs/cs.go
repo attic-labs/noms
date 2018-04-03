@@ -335,13 +335,13 @@ func (cs *chunkStore) getLocalNameFile(local bool) string {
 	return path.Join(cs.name, "noms")
 }
 
-type IPFSStats struct {
+type Stats struct {
 	Local   bool
 	PortIdx int
 }
 
 func (cs *chunkStore) Stats() interface{} {
-	return IPFSStats{Local: cs.c.local, PortIdx: cs.c.portIdx}
+	return Stats{Local: cs.c.local, PortIdx: cs.c.portIdx}
 }
 
 func (cs *chunkStore) StatsSummary() string {

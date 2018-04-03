@@ -65,10 +65,10 @@ func TestDbFromProtocol(t *testing.T) {
 			}, "GetDatabase should not panic")
 
 			assert.Implements((*HasIPFSNode)(nil), db, "the returned database should implement HasIPFSNode")
-			var stats IPFSStats
+			var stats Stats
 			assert.NotPanics(func() {
-				stats = db.Stats().(IPFSStats)
-			}, "Stats should return an IPFSStats")
+				stats = db.Stats().(Stats)
+			}, "Stats should return a Stats")
 
 			local := proto == LocalProtoName
 
@@ -97,10 +97,10 @@ func TestChunkStoreFromProtocol(t *testing.T) {
 			}, "NewChunkStore should not panic")
 
 			assert.Implements((*HasIPFSNode)(nil), cs, "the returned ChunkStore should implement HasIPFSNode")
-			var stats IPFSStats
+			var stats Stats
 			assert.NotPanics(func() {
-				stats = cs.Stats().(IPFSStats)
-			}, "Stats should return an IPFSStats")
+				stats = cs.Stats().(Stats)
+			}, "Stats should return a Stats")
 
 			local := proto == LocalProtoName
 
