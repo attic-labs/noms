@@ -93,6 +93,12 @@ struct Commit {
 
 <br>
 
+## Running tests
+
+By default, `go test` calls `go vet` with the flags `atomic,bool,buildtags,nilfunc,printf` so that all warning generated
+by vet cause test failures. The `printf` check causes a lot of spurious failures, so it's better to run `go test
+-vet=atomic,bool,buildtags,nilfunc ./...`. You can use the provided [Makefile](Makefile) to run tests with `make test`.
+
 ## Status
 
 ### Data Format
