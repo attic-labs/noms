@@ -130,6 +130,18 @@ func compareEncodedNomsValues(a, b []byte) int {
 	switch aKind {
 	case BoolKind:
 		return bytes.Compare(a, b)
+	case IntegerKind:
+		reader := binaryNomsReader{a[1:], 0}
+		aInt := reader.readInteger()
+		reader.buff, reader.offset = b[1:], 0
+		bInt := reader.readInteger()
+		if aInt == bInt {
+			return 0
+		}
+		if aInt < bInt {
+			return -1
+		}
+		return 1
 	case NumberKind:
 		reader := binaryNomsReader{a[1:], 0}
 		aNum := reader.readNumber()

@@ -62,13 +62,13 @@ func TestWriteHumanReadableRef(t *testing.T) {
 func TestWriteHumanReadableCollections(t *testing.T) {
 	vrw := newTestValueStore()
 
-	l := NewList(vrw, Number(0), Number(1), Number(2), Number(3))
+	l := NewList(vrw, Integer(0), Integer(1), Integer(2), Integer(3))
 	assertWriteHRSEqual(t, "[  // 4 items\n  0,\n  1,\n  2,\n  3,\n]", l)
 
 	s := NewSet(vrw, Number(0), Number(1), Number(2), Number(3))
 	assertWriteHRSEqual(t, "set {  // 4 items\n  0,\n  1,\n  2,\n  3,\n}", s)
 
-	m := NewMap(vrw, Number(0), Bool(false), Number(1), Bool(true))
+	m := NewMap(vrw, Number(0), Bool(false), Integer(1), Bool(true))
 	assertWriteHRSEqual(t, "map {\n  0: false,\n  1: true,\n}", m)
 
 	l2 := NewList(vrw)
@@ -79,7 +79,7 @@ func TestWriteHumanReadableCollections(t *testing.T) {
 
 	nums := make([]Value, 2000)
 	for i := range nums {
-		nums[i] = Number(0)
+		nums[i] = Integer(0)
 	}
 	l4 := NewList(vrw, nums...)
 	assertWriteHRSEqual(t, "[  // 2,000 items\n"+strings.Repeat("  0,\n", 2000)+"]", l4)
@@ -88,8 +88,8 @@ func TestWriteHumanReadableCollections(t *testing.T) {
 func TestWriteHumanReadableNested(t *testing.T) {
 	vrw := newTestValueStore()
 
-	l := NewList(vrw, Number(0), Number(1))
-	l2 := NewList(vrw, Number(2), Number(3))
+	l := NewList(vrw, Number(0.1), Number(1.2))
+	l2 := NewList(vrw, Integer(2), Integer(3))
 
 	s := NewSet(vrw, String("a"), String("b"))
 	s2 := NewSet(vrw, String("c"), String("d"))
@@ -97,18 +97,18 @@ func TestWriteHumanReadableNested(t *testing.T) {
 	m := NewMap(vrw, s, l, s2, l2)
 	assertWriteHRSEqual(t, `map {
   set {
+    "a",
+    "b",
+  }: [
+    0.1,
+    1.2,
+  ],
+  set {
     "c",
     "d",
   }: [
     2,
     3,
-  ],
-  set {
-    "a",
-    "b",
-  }: [
-    0,
-    1,
   ],
 }`, m)
 }

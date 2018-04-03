@@ -308,7 +308,7 @@ func getMetaChildren(v types.Value) (children []nodeChild) {
 
 func nodeHasChildren(v types.Value) bool {
 	switch k := v.Kind(); k {
-	case types.BlobKind, types.BoolKind, types.NumberKind, types.StringKind:
+	case types.BlobKind, types.BoolKind, types.NumberKind, types.IntegerKind, types.StringKind:
 		return false
 	case types.RefKind:
 		return true

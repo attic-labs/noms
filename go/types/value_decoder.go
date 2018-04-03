@@ -190,6 +190,9 @@ func (r *valueDecoder) readValue() Value {
 	case NumberKind:
 		r.skipKind()
 		return r.readNumber()
+	case IntegerKind:
+		r.skipKind()
+		return r.readInteger()
 	case StringKind:
 		r.skipKind()
 		return String(r.readString())
@@ -224,6 +227,9 @@ func (r *valueDecoder) skipValue() {
 	case NumberKind:
 		r.skipKind()
 		r.skipNumber()
+	case IntegerKind:
+		r.skipKind()
+		r.skipInteger()
 	case StringKind:
 		r.skipKind()
 		r.skipString()
@@ -263,6 +269,10 @@ func (r *valueDecoder) readTypeOfValue() *Type {
 		r.skipKind()
 		r.skipNumber()
 		return NumberType
+	case IntegerKind:
+		r.skipKind()
+		r.skipInteger()
+		return IntegerType
 	case StringKind:
 		r.skipKind()
 		r.skipString()
@@ -284,7 +294,7 @@ func (r *valueDecoder) readTypeOfValue() *Type {
 }
 
 // isValueSameTypeForSure may return false even though the type of the value is
-// equal. We do that in cases wherer it would be too expensive to compute the
+// equal. We do that in cases where it would be too expensive to compute the
 // type.
 // If this returns false the decoder might not have visited the whole value and
 // its offset is no longer valid.
@@ -295,7 +305,7 @@ func (r *valueDecoder) isValueSameTypeForSure(t *Type) bool {
 	}
 
 	switch k {
-	case BlobKind, BoolKind, NumberKind, StringKind:
+	case BlobKind, BoolKind, NumberKind, IntegerKind, StringKind:
 		r.skipValue()
 		return true
 	case ListKind, MapKind, RefKind, SetKind:

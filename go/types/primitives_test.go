@@ -15,6 +15,7 @@ func TestPrimitives(t *testing.T) {
 		Bool(true), Bool(false),
 		Number(0), Number(-1),
 		Number(-0.1), Number(0.1),
+		Integer(-1), Integer(1),
 	}
 
 	for i := range data {
@@ -35,6 +36,7 @@ func TestPrimitivesType(t *testing.T) {
 	}{
 		{Bool(false), BoolKind},
 		{Number(0), NumberKind},
+		{Integer(0), IntegerKind},
 	}
 
 	for _, d := range data {

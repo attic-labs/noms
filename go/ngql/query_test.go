@@ -16,6 +16,7 @@ import (
 	"github.com/attic-labs/noms/go/marshal"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/test"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -1021,19 +1022,19 @@ func (suite *QueryGraphQLSuite) TestMutationCollectionArgs() {
 
 func (suite *QueryGraphQLSuite) TestMapWithComplexKeys() {
 	m := types.NewMap(suite.vs,
-		types.NewList(suite.vs, types.String("a")), types.Number(1),
-		types.NewList(suite.vs, types.String("c")), types.Number(2),
-		types.NewList(suite.vs, types.String("e")), types.Number(3),
-		types.NewList(suite.vs, types.String("g")), types.Number(4),
+		types.NewList(suite.vs, types.String("a")), types.Number(1.1),
+		types.NewList(suite.vs, types.String("c")), types.Number(2.3),
+		types.NewList(suite.vs, types.String("e")), types.Number(3.4),
+		types.NewList(suite.vs, types.String("g")), types.Number(4.5),
 	)
 
-	suite.assertQueryResult(m, `{root{values(key: ["e"])}}`, `{"data":{"root":{"values":[3]}}}`)
+	suite.assertQueryResult(m, `{root{values(key: ["e"])}}`, `{"data":{"root":{"values":[3.4]}}}`)
 	suite.assertQueryResult(m, `{root{values(key: [])}}`, `{"data":{"root":{"values":[]}}}`)
 
 	// The ordering here depends on the hash of the value...
-	suite.assertQueryResult(m, `{root{values(key: ["a"], through: ["e"])}}`, `{"data":{"root":{"values":[1, 2, 3]}}}`)
+	suite.assertQueryResult(m, `{root{values(key: ["a"], through: ["e"])}}`, `{"data":{"root":{"values":[1.1, 2.3, 3.4]}}}`)
 
-	suite.assertQueryResult(m, `{root{values(keys: [["a"],["b"],["c"]])}}`, `{"data":{"root":{"values":[1, null, 2]}}}`)
+	suite.assertQueryResult(m, `{root{values(keys: [["a"],["b"],["c"]])}}`, `{"data":{"root":{"values":[1.1, null, 2.3]}}}`)
 	suite.assertQueryResult(m, `{
                 root {
                         keys(keys: [["a"],["b"],["c"]]) {
@@ -1118,8 +1119,11 @@ func (suite *QueryGraphQLSuite) TestInputToNomsValue() {
 		suite.True(expected.Equals(InputToNomsValue(suite.vs, val, types.TypeOf(expected))))
 	}
 
-	test(types.Number(42), int(42))
-	test(types.Number(0), int(0))
+	test(types.Integer(42), int(42))
+	test(types.Integer(0), int(0))
+	test(types.Integer(math.MaxInt64), math.MaxInt64)
+	test(types.Integer(42), int64(42))
+	test(types.Integer(0), int64(0))
 
 	test(types.Number(1.23), float64(1.23))
 	test(types.Number(0), float64(0))
@@ -1137,23 +1141,23 @@ func (suite *QueryGraphQLSuite) TestInputToNomsValue() {
 	test(types.NewSet(suite.vs, types.Number(1), types.Number(2)), []interface{}{float64(1), float64(2)})
 
 	test(types.NewMap(suite.vs,
-		types.String("a"), types.Number(1),
-		types.String("b"), types.Number(2),
+		types.String("a"), types.Number(1.2),
+		types.String("b"), types.Number(2.3),
 	), []interface{}{
-		map[string]interface{}{"key": "a", "value": 1},
-		map[string]interface{}{"key": "b", "value": 2},
+		map[string]interface{}{"key": "a", "value": 1.2},
+		map[string]interface{}{"key": "b", "value": 2.3},
 	})
 	test(types.NewMap(suite.vs,
-		types.NewList(suite.vs, types.String("a")), types.Number(1),
-		types.NewList(suite.vs, types.String("b")), types.Number(2),
+		types.NewList(suite.vs, types.String("a")), types.Number(1.2),
+		types.NewList(suite.vs, types.String("b")), types.Number(2.3),
 	), []interface{}{
-		map[string]interface{}{"key": []interface{}{"a"}, "value": 1},
-		map[string]interface{}{"key": []interface{}{"b"}, "value": 2},
+		map[string]interface{}{"key": []interface{}{"a"}, "value": 1.2},
+		map[string]interface{}{"key": []interface{}{"b"}, "value": 2.3},
 	})
 
 	test(types.NewMap(suite.vs,
-		types.NewStruct("S", types.StructData{"a": types.Number(1)}), types.Number(11),
-		types.NewStruct("S", types.StructData{"a": types.Number(2)}), types.Number(22),
+		types.NewStruct("S", types.StructData{"a": types.Number(1)}), types.Integer(11),
+		types.NewStruct("S", types.StructData{"a": types.Number(2)}), types.Integer(22),
 	), []interface{}{
 		map[string]interface{}{"key": map[string]interface{}{"a": float64(1)}, "value": 11},
 		map[string]interface{}{"key": map[string]interface{}{"a": float64(2)}, "value": 22},

@@ -122,6 +122,9 @@ func (r *refWalker) walkValue(cb RefCallback) {
 	case NumberKind:
 		r.skipKind()
 		r.skipNumber()
+	case IntegerKind:
+		r.skipKind()
+		r.skipInteger()
 	case StringKind:
 		r.skipKind()
 		r.skipString()

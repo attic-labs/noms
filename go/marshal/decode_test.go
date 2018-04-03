@@ -55,29 +55,29 @@ func TestDecode(tt *testing.T) {
 
 	for _, n := range []int8{0, 42, math.MaxInt8} {
 		var i8 int8
-		t(types.Number(n), &i8, int8(n))
+		t(types.Integer(n), &i8, int8(n))
 	}
 
 	for _, n := range []int16{0, 42, math.MaxInt16} {
 		var i16 int16
-		t(types.Number(n), &i16, int16(n))
+		t(types.Integer(n), &i16, int16(n))
 	}
 
 	for _, n := range []int32{0, 42, math.MaxInt32} {
 		var i32 int32
-		t(types.Number(n), &i32, int32(n))
+		t(types.Integer(n), &i32, int32(n))
 	}
 
 	// int is at least int32
 	for _, n := range []int{0, 42, math.MaxInt32} {
 		var i int
-		t(types.Number(n), &i, int(n))
+		t(types.Integer(n), &i, int(n))
 	}
 
 	// There is precision loss for values above Math.pow(2, 53) - 1
 	for _, n := range []int64{0, 42, int64(math.Pow(2, 53) - 1)} {
 		var i64 int64
-		t(types.Number(n), &i64, int64(n))
+		t(types.Integer(n), &i64, int64(n))
 	}
 
 	for _, n := range []uint8{0, 42, math.MaxUint8} {
@@ -156,7 +156,7 @@ func TestDecode(tt *testing.T) {
 	}
 	t(types.NewStruct("", types.StructData{
 		"y": types.Bool(true),
-		"x": types.Number(42),
+		"x": types.Integer(42),
 	}), &as, struct {
 		X int32
 		Y bool
@@ -193,19 +193,19 @@ func TestDecode(tt *testing.T) {
 	}
 	var t5 SomeOtherName
 	t(types.NewStruct("aeiou", types.StructData{
-		"a": types.Number(42),
+		"a": types.Integer(42),
 	}), &t5, SomeOtherName{42})
 
 	var t6 SomeOtherName
 	t(types.NewStruct("SomeOtherName", types.StructData{
-		"a": types.Number(42),
+		"a": types.Integer(42),
 	}), &t6, SomeOtherName{42})
 
 	var t7 struct {
 		A int
 	}
 	t(types.NewStruct("SomeOtherName", types.StructData{
-		"a": types.Number(42),
+		"a": types.Integer(42),
 	}), &t7, struct{ A int }{42})
 }
 
@@ -322,18 +322,6 @@ func TestDecodeOverflows(tt *testing.T) {
 	var ui32 uint32
 	t(&ui32, math.Pow(2, 32), "uint32")
 	t(&ui32, -1, "uint32")
-
-	var i8 int8
-	t(&i8, 128, "int8")
-	t(&i8, -128-1, "int8")
-
-	var i16 int16
-	t(&i16, math.Pow(2, 15), "int16")
-	t(&i16, -math.Pow(2, 15)-1, "int16")
-
-	var i32 int32
-	t(&i32, math.Pow(2, 31), "int32")
-	t(&i32, -math.Pow(2, 31)-1, "int32")
 }
 
 func TestDecodeMissingField(t *testing.T) {
@@ -343,8 +331,8 @@ func TestDecodeMissingField(t *testing.T) {
 	}
 	var s S
 	assertDecodeErrorMessage(t, types.NewStruct("S", types.StructData{
-		"a": types.Number(42),
-	}), &s, "Cannot unmarshal Struct S {\n  a: Number,\n} into Go value of type marshal.S, missing field \"b\"")
+		"a": types.Integer(42),
+	}), &s, "Cannot unmarshal Struct S {\n  a: Int,\n} into Go value of type marshal.S, missing field \"b\"")
 }
 
 func TestDecodeEmbeddedStruct(tt *testing.T) {
@@ -358,7 +346,7 @@ func TestDecodeEmbeddedStruct(tt *testing.T) {
 	}
 	var ts TestStruct
 	err := Unmarshal(types.NewStruct("S", types.StructData{
-		"x": types.Number(1),
+		"x": types.Integer(1),
 	}), &ts)
 	assert.NoError(err)
 	assert.Equal(TestStruct{EmbeddedStruct{1}}, ts)
@@ -369,7 +357,7 @@ func TestDecodeEmbeddedStruct(tt *testing.T) {
 	}
 	var ts2 OuterTest
 	err = Unmarshal(types.NewStruct("S", types.StructData{
-		"x": types.Number(2),
+		"x": types.Integer(2),
 		"y": types.Bool(true),
 	}), &ts2)
 	assert.NoError(err)
@@ -388,7 +376,7 @@ func TestDecodeEmbeddedStructSkip(tt *testing.T) {
 	}
 	ts := TestStruct{EmbeddedStruct: EmbeddedStruct{42}}
 	err := Unmarshal(types.NewStruct("S", types.StructData{
-		"y": types.Number(2),
+		"y": types.Integer(2),
 	}), &ts)
 	assert.NoError(err)
 	assert.Equal(TestStruct{EmbeddedStruct{42}, 2}, ts)
@@ -398,11 +386,11 @@ func TestDecodeEmbeddedStructNamed(tt *testing.T) {
 	assert := assert.New(tt)
 
 	type EmbeddedStruct struct {
-		X int
+		X float64
 	}
 	type TestStruct struct {
 		EmbeddedStruct `noms:"em"`
-		Y              int
+		Y              float64
 	}
 	ts := TestStruct{EmbeddedStruct: EmbeddedStruct{42}}
 	err := Unmarshal(types.NewStruct("S", types.StructData{
@@ -419,7 +407,7 @@ func TestDecodeEmbeddedStructOriginal(tt *testing.T) {
 	assert := assert.New(tt)
 
 	type EmbeddedStruct struct {
-		X int
+		X float64
 		O types.Struct `noms:",original"`
 	}
 	type TestStruct struct {
@@ -427,13 +415,13 @@ func TestDecodeEmbeddedStructOriginal(tt *testing.T) {
 	}
 	var ts TestStruct
 	nomsStruct := types.NewStruct("S", types.StructData{
-		"x": types.Number(1),
+		"x": types.Number(1.234),
 	})
 	err := Unmarshal(nomsStruct, &ts)
 	assert.NoError(err)
 	expected := TestStruct{
 		EmbeddedStruct: EmbeddedStruct{
-			X: 1,
+			X: 1.234,
 			O: nomsStruct,
 		},
 	}
@@ -488,7 +476,7 @@ func TestDecodeNamedFields(t *testing.T) {
 	}
 	var s S
 	err := Unmarshal(types.NewStruct("S", types.StructData{
-		"a":   types.Number(42),
+		"a":   types.Integer(42),
 		"B":   types.Bool(true),
 		"ccc": types.String("Hi"),
 	}), &s)
@@ -502,7 +490,7 @@ func TestDecodeInvalidNamedFields(t *testing.T) {
 	}
 	var s S
 	assertDecodeErrorMessage(t, types.NewStruct("S", types.StructData{
-		"a": types.Number(42),
+		"a": types.Integer(42),
 	}), &s, "Invalid struct field name: 1a")
 }
 
@@ -669,13 +657,13 @@ func TestDecodeStructWithSlice(t *testing.T) {
 	}
 	var s S
 	err := Unmarshal(types.NewStruct("S", types.StructData{
-		"list": types.NewList(vs, types.Number(1), types.Number(2), types.Number(3)),
+		"list": types.NewList(vs, types.Integer(1), types.Integer(2), types.Integer(3)),
 	}), &s)
 	assert.NoError(err)
 	assert.Equal(S{[]int{1, 2, 3}}, s)
 
 	err = Unmarshal(types.NewStruct("S", types.StructData{
-		"list": types.NewSet(vs, types.Number(1), types.Number(2), types.Number(3)),
+		"list": types.NewSet(vs, types.Integer(1), types.Integer(2), types.Integer(3)),
 	}), &s)
 	assert.NoError(err)
 	assert.Equal(S{[]int{1, 2, 3}}, s)
@@ -754,14 +742,14 @@ func TestDecodeRecursive(t *testing.T) {
 			vs,
 			types.NewStruct("Node", types.StructData{
 				"children": types.NewList(vs),
-				"value":    types.Number(2),
+				"value":    types.Integer(2),
 			}),
 			types.NewStruct("Node", types.StructData{
 				"children": types.NewList(vs),
-				"value":    types.Number(3),
+				"value":    types.Integer(3),
 			}),
 		),
-		"value": types.Number(1),
+		"value": types.Integer(1),
 	})
 
 	var n Node
@@ -786,9 +774,9 @@ func TestDecodeMap(t *testing.T) {
 
 	testMap := types.NewMap(
 		vs,
-		types.String("a"), types.Number(1),
-		types.String("b"), types.Number(2),
-		types.String("c"), types.Number(3))
+		types.String("a"), types.Integer(1),
+		types.String("b"), types.Integer(2),
+		types.String("c"), types.Integer(3))
 	expectedMap := map[string]int{"a": 1, "b": 2, "c": 3}
 	err := Unmarshal(testMap, &m)
 	assert.NoError(err)
@@ -797,8 +785,8 @@ func TestDecodeMap(t *testing.T) {
 	m = map[string]int{"b": 2, "c": 333}
 	err = Unmarshal(types.NewMap(
 		vs,
-		types.String("a"), types.Number(1),
-		types.String("c"), types.Number(3)), &m)
+		types.String("a"), types.Integer(1),
+		types.String("c"), types.Integer(3)), &m)
 	assert.NoError(err)
 	assert.Equal(expectedMap, m)
 
@@ -897,13 +885,13 @@ func TestDecodeSet(t *testing.T) {
 	defer vs.Close()
 
 	type T struct {
-		A map[int]struct{} `noms:",set"`
-		B map[int]struct{}
+		A map[float64]struct{} `noms:",set"`
+		B map[float64]struct{}
 		C map[string]struct{} `noms:",set"`
 		D map[string]struct{}
-		E []int
-		F []int `noms:",set"`
-		G []int
+		E []float64
+		F []float64 `noms:",set"`
+		G []float64
 	}
 
 	ns := types.NewStruct("T", types.StructData{
@@ -919,13 +907,13 @@ func TestDecodeSet(t *testing.T) {
 	gs := T{}
 	assert.NoError(Unmarshal(ns, &gs))
 	assert.Equal(T{
-		A: map[int]struct{}{0: {}, 1: {}, 2: {}},
-		B: map[int]struct{}{3: {}, 4: {}, 5: {}},
+		A: map[float64]struct{}{0: {}, 1: {}, 2: {}},
+		B: map[float64]struct{}{3: {}, 4: {}, 5: {}},
 		C: map[string]struct{}{"0": {}, "1": {}, "2": {}},
 		D: map[string]struct{}{"3": {}, "4": {}, "5": {}},
-		E: []int{6, 7, 8},
-		F: []int{9, 10, 11},
-		G: []int{12, 13, 14},
+		E: []float64{6, 7, 8},
+		F: []float64{9, 10, 11},
+		G: []float64{12, 13, 14},
 	}, gs)
 
 	ns2 := types.NewStruct("T", types.StructData{
@@ -939,11 +927,11 @@ func TestDecodeSet(t *testing.T) {
 	})
 
 	gs2 := T{
-		A: map[int]struct{}{},
+		A: map[float64]struct{}{},
 	}
 	assert.NoError(Unmarshal(ns2, &gs2))
 	assert.Equal(T{
-		A: map[int]struct{}{},
+		A: map[float64]struct{}{},
 	}, gs2)
 }
 
@@ -1012,8 +1000,8 @@ func TestDecodeNamedSet(t *testing.T) {
 	}
 
 	ns := types.NewStruct("T", types.StructData{
-		"a":   types.NewSet(vs, types.Number(0)),
-		"foo": types.NewSet(vs, types.Number(1)),
+		"a":   types.NewSet(vs, types.Integer(0)),
+		"foo": types.NewSet(vs, types.Integer(1)),
 	})
 
 	gs := T{}
@@ -1066,14 +1054,14 @@ func TestDecodeOmitEmpty(t *testing.T) {
 	type S struct {
 		Foo int `noms:",omitempty"`
 		Bar struct {
-			Baz    int
-			Hotdog int `noms:",omitempty"`
+			Baz    float64
+			Hotdog float64 `noms:",omitempty"`
 		}
 	}
 	expected := S{
 		Bar: struct {
-			Baz    int
-			Hotdog int `noms:",omitempty"`
+			Baz    float64
+			Hotdog float64 `noms:",omitempty"`
 		}{
 			Baz: 42,
 		},
@@ -1097,7 +1085,7 @@ func TestDecodeOriginal(t *testing.T) {
 		Baz types.Struct `noms:",original"`
 	}
 	input := types.NewStruct("S", types.StructData{
-		"foo": types.Number(42),
+		"foo": types.Integer(42),
 	})
 	expected := S{
 		Foo: 42,

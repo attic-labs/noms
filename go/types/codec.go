@@ -60,7 +60,7 @@ type nomsWriter interface {
 	writeNumber(v Number)
 	writeString(v string)
 	writeUint8(v uint8)
-
+	writeInteger(i Integer)
 	writeRaw(buff []byte)
 }
 
@@ -147,6 +147,17 @@ func (b *binaryNomsReader) skipString() {
 	b.offset += size
 }
 
+func (b *binaryNomsReader) readInteger() Integer {
+	v, count := binary.Varint(b.buff[b.offset:])
+	b.offset += uint32(count)
+	return Integer(v)
+}
+
+func (b *binaryNomsReader) skipInteger() {
+	_, count := binary.Varint(b.buff[b.offset:])
+	b.offset += uint32(count)
+}
+
 func (b *binaryNomsReader) readHash() hash.Hash {
 	h := hash.Hash{}
 	copy(h[:], b.buff[b.offset:b.offset+hash.ByteLen])
@@ -220,6 +231,12 @@ func (b *binaryNomsWriter) writeNumber(v Number) {
 	count := binary.PutVarint(b.buff[b.offset:], i)
 	b.offset += uint32(count)
 	count = binary.PutVarint(b.buff[b.offset:], int64(exp))
+	b.offset += uint32(count)
+}
+
+func (b *binaryNomsWriter) writeInteger(i Integer) {
+	b.ensureCapacity(binary.MaxVarintLen64)
+	count := binary.PutVarint(b.buff[b.offset:], int64(i))
 	b.offset += uint32(count)
 }
 

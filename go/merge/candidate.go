@@ -36,7 +36,8 @@ func (mc mapCandidate) get(k types.Value) types.Value {
 
 func (mc mapCandidate) pathConcat(change types.ValueChanged, path types.Path) (out types.Path) {
 	out = append(out, path...)
-	if kind := change.Key.Kind(); kind == types.BoolKind || kind == types.StringKind || kind == types.NumberKind {
+
+	if kind := change.Key.Kind(); types.IsPrimitiveKind(kind) {
 		out = append(out, types.NewIndexPath(change.Key))
 	} else {
 		out = append(out, types.NewHashIndexPath(change.Key.Hash()))
@@ -62,7 +63,7 @@ func (sc setCandidate) get(k types.Value) types.Value {
 
 func (sc setCandidate) pathConcat(change types.ValueChanged, path types.Path) (out types.Path) {
 	out = append(out, path...)
-	if kind := change.Key.Kind(); kind == types.BoolKind || kind == types.StringKind || kind == types.NumberKind {
+	if kind := change.Key.Kind(); types.IsPrimitiveKind(kind) {
 		out = append(out, types.NewIndexPath(change.Key))
 	} else {
 		out = append(out, types.NewHashIndexPath(change.Key.Hash()))

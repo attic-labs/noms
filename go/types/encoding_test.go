@@ -13,32 +13,35 @@ import (
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
 func toBinaryNomsReaderData(data []interface{}) []byte {
 	w := newBinaryNomsWriter()
 	for _, v := range data {
-		switch v := v.(type) {
+		switch val := v.(type) {
 		case uint8:
-			w.writeUint8(v)
+			w.writeUint8(val)
 		case string:
-			w.writeString(v)
+			w.writeString(val)
 		case Number:
-			w.writeNumber(v)
+			w.writeNumber(val)
+		case Integer:
+			w.writeInteger(val)
 		case uint64:
-			w.writeCount(v)
+			w.writeCount(val)
 		case bool:
-			w.writeBool(v)
+			w.writeBool(val)
 		case hash.Hash:
-			w.writeHash(v)
+			w.writeHash(val)
 		case []byte:
-			w.writeCount(uint64(len(v)))
-			w.writeBytes(v)
+			w.writeCount(uint64(len(val)))
+			w.writeBytes(val)
 		case NomsKind:
-			w.writeUint8(uint8(v))
+			w.writeUint8(uint8(val))
 		default:
-			panic("unreachable")
+			panic(errors.Errorf("ran into type %T that couldn't be encoded", v))
 		}
 	}
 	return w.data()
@@ -166,6 +169,36 @@ func TestWritePrimitives(t *testing.T) {
 			NumberKind, Number(1e+20),
 		},
 		Number(1e20))
+
+	assertEncoding(t,
+		[]interface{}{
+			IntegerKind, Integer(0),
+		},
+		Integer(0))
+
+	assertEncoding(t,
+		[]interface{}{
+			IntegerKind, Integer(0),
+		},
+		Integer(0))
+
+	assertEncoding(t,
+		[]interface{}{
+			IntegerKind, Integer(1000000000000000000),
+		},
+		Integer(1e18))
+
+	assertEncoding(t,
+		[]interface{}{
+			IntegerKind, Integer(math.MinInt64),
+		},
+		Integer(math.MinInt64))
+
+	assertEncoding(t,
+		[]interface{}{
+			IntegerKind, Integer(math.MaxInt64),
+		},
+		Integer(math.MaxInt64))
 
 	assertEncoding(t,
 		[]interface{}{
@@ -506,6 +539,7 @@ func TestWriteListOfTypes(t *testing.T) {
 	)
 }
 
+// TODO(ORBAT): why does this fail?
 func nomsTestWriteRecursiveStruct(t *testing.T) {
 	vrw := newTestValueStore()
 
@@ -530,9 +564,9 @@ func TestWriteUnionList(t *testing.T) {
 	assertEncoding(t,
 		[]interface{}{
 			ListKind, uint64(0), uint64(3), /* len */
-			NumberKind, Number(23), StringKind, "hi", NumberKind, Number(42),
+			NumberKind, Number(23), StringKind, "hi", IntegerKind, Integer(42),
 		},
-		NewList(vrw, Number(23), String("hi"), Number(42)),
+		NewList(vrw, Number(23), String("hi"), Integer(42)),
 	)
 }
 

@@ -222,9 +222,18 @@ func StringToValue(s string, k types.NomsKind) (types.Value, error) {
 		}
 		fval, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Could not parse '%s' into number (%s)", s, err)
+			return nil, fmt.Errorf("could not parse '%s' into number (%s)", s, err)
 		}
 		return types.Number(fval), nil
+	case types.IntegerKind:
+		if s == "" {
+			return types.Integer(int64(0)), nil
+		}
+		ival, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse '%s' into integer (%s)", s, err)
+		}
+		return types.Integer(ival), nil
 	case types.BoolKind:
 		// TODO: This should probably be configurable.
 		switch s {
@@ -233,7 +242,7 @@ func StringToValue(s string, k types.NomsKind) (types.Value, error) {
 		case "false", "0", "n", "no", "N", "NO", "":
 			return types.Bool(false), nil
 		default:
-			return nil, fmt.Errorf("Could not parse '%s' into bool", s)
+			return nil, fmt.Errorf("could not parse '%s' into bool", s)
 		}
 	case types.StringKind:
 		return types.String(s), nil
