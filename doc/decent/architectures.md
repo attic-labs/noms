@@ -13,7 +13,7 @@ Noms can be used to implement apps in a peer-to-peer configuration. Each instanc
   
 ![P2P Architecture](./p2p-arch.png)
  
-Peers that are listening for these message can decide if that data is relevent to them. Those that are interested can pull the new data from the publisher. The two clients efficiently communicate so that only data that isn't present in the requesting client is transmitted (much the same way that one git client sends source changes to another).
+Peers that are listening for these message can decide if that data is relevant to them. Those that are interested can pull the new data from the publisher. The two clients efficiently communicate so that only data that isn't present in the requesting client is transmitted (much the same way that one git client sends source changes to another).
 
 Peers can use a flow similar to the following in order to sync changes with one another:
 
