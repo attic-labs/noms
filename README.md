@@ -133,3 +133,7 @@ Interested in using Noms? Awesome! We would be happy to work with you to help un
 
 - [Mailing List](https://groups.google.com/forum/#!forum/nomsdb)
 - [Twitter](https://twitter.com/nomsdb)
+
+## Licensing
+
+Noms is open source software, licensed by Attic Labs, Inc. under the Apache License, Version 2.0.
