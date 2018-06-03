@@ -93,7 +93,7 @@ IsSubtype(N1, N2) => True if all the components of N2 (signedness, np, ne, dp, d
 Just because we have one Noms type doesn't mean we need one uniform serialization. In order to achieve our goal of zero copy encode/decode being possible, we will use the common encodings of standard numeric types.
 
 * For numbers that fit in standard `(u)int(8|16|32|64)` just encode them that way (little-endian).
-* For numbers that fit in `float(32|64)` without loss of precision, canonicaliz them and store as standard floats.
+* For numbers that fit in `float(32|64)` without loss of precision, canonicalize them and store as standard floats.
 * For other numbers, we will do a custom encoding, likely a variant of floating point but with arbitrary size for binary numbers and the same but with the denominator too for rational numbers.
 
 # Other notes
