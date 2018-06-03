@@ -36,30 +36,34 @@ It's now clear to me that desiderata include:
 * I do not think a database system like Noms should support fixed-size (e.g., floating point) fractional values.
 * I do not care if it is possible to represent every possible IEEE float (e.g., NaN, Infinity, etc)
 
-# Proposal for type system integration
+# Proposal
 
-Noms can encode arbitrarily large and precise rational numbers.
+Modify Noms to support arbitrarily large and precise rational numbers using the following conceptual representation:
 
-The conceptual representation of Noms numbers is: `(np * 2^ne) / (dp * 2^de)` where:
+```
+(np * 2^ne) / (dp * 2^de)
+```
 
-- np: numerator precision (signed integer)
-- ne: numerator exponent (unsigned integer)
-- dp: denominator precision (unsigned integer)
-- de: denominator exponent (unsigned integer)
+Where:
+
+- `np`: numerator precision (signed integer)
+- `ne`: numerator exponent (unsigned integer)
+- `dp`: denominator precision (unsigned integer)
+- `de`: denominator exponent (unsigned integer)
 
 Both `np` and `dp` are interpreted as if they had a leading radix point. That is, they are always <= 0.
 
 ## Examples of conceptual representation of numbers in Noms
 
-| Number | `np` | `ne` | `dp` | `de` | Explanation |
+| Number | `np` (in binary) | `ne` | `dp` (in binary) | `de` | Explanation |
 |--------|----|----|----|----|-------------|
-| 0 | 1 | 1 | 1 | 1 | (0.5 * 2^1) / (0.5 * 2^1) = 0 |
-| 1 | 1 | 1 | 1 | 1 | (0.5 * 2^1) / (0.5 * 2^1) = 1 |
-| 2 | 1 | 2 | 1 | 1 | (0.5 * 2^2) / (0.5 * 2^1) = 2 |
-| 42 | 65625 | 6 | 1 | 1 | (0.65625 * 2^6) / (0.5 * 2^1) = 42 |
-| -88.8 | -69375 | 7 | 1 | 1 | (-0.69375 * 2^7) / (0.5 * 2^1) = -88.8 |
-| 2^100 | 1 | 100 | 1 | 1 | (0.5 * 2^100) / (0.5 * 2^1) = 2^100 |
-| 1/33 | 1 | 1 | 515625 | 6 | (0.5 * 2^1) / (0.515625 * 2^6) = 1/33 |
+| 0 | 1 | 1 | 1 | 1 | (b(0.1) * 2^1) / (b(0.1) * 2^1) = 0 |
+| 1 | 1 | 1 | 1 | 1 | (b(0.1) * 2^1) / (b(0.1) * 2^1) = 1 |
+| 2 | 1 | 2 | 1 | 1 | (b(0.1) * 2^2) / (b(0.1) * 2^1) = 2 |
+| 42 | 101010 | 6 | 1 | 1 | (b(0.101010) * 2^6) / (b(0.1) * 2^1) = 42 |
+| -88.8 | -1101111000 | 7 | 1 | 1 | (b(-0.1101111000) * 2^7) / (b(0.1) * 2^1) = -88.8 |
+| 2^100 | 1 | 100 | 1 | 1 | (b(0.1) * 2^100) / (b(0.1) * 2^1) = 2^100 |
+| 1/33 | 1 | 1 | 100001 | 6 | (b(0.1) * 2^1) / (b(0.100001) * 2^6) = 1/33 |
 
 ## The Noms Number Type
 
@@ -76,11 +80,13 @@ The Noms Number type looks like:
 Number<signed, npb, ne [, dpb, de]>
 ```
 
-`signed`: An enum, `Signed|Unsigned` - whether `np` can be negative
-`nbp`: Max number of bits required to represent `|np|` precisely in binary in the class
-`ne`: Max value of `ne` from the class
-`dbp`: Max number of bits required to represent `dp` precisely in binary in the class
-`de`: Max value of `de` from the class
+* `signed`: An enum, `Signed|Unsigned` - whether `np` can be negative
+* `nbp`: Max number of bits required to represent `|np|` precisely in binary in the class
+* `ne`: Max value of `ne` from the class
+* `dbp`: Max number of bits required to represent `dp` precisely in binary in the class
+* `de`: Max value of `de` from the class
+
+Notes:
 
 * `dbp` and `de` must be omitted in the case the number can be represented precisely in binary.
 * If the number cannot be represented precisely in binary, then always `ne >= nbp` and `de >= dbp` (that is, both the numerator and denominator are integral).
@@ -89,13 +95,13 @@ Returning to our examples from above, here are the types of the numbers:
 
 | Number | Representation | Type | Explanatation
 |--------|----------------|------|-------------|
-| 0 | 0*2^1 | Number<Unsigned, 1, 1> |
-| 1 | 0.5*2^1 | Number<Unsigned, 1, 1> |
-| 2 | 0.5*2^2 | Number<Unsigned, 1, 2> |
-| 42 | 0.65625*2^6 | Number<Unsigned, 6, 6> | It takes 6 bits to represent 42
-| -88.8 | -0.69375*2^7 | Number<Signed, 10, 7> | It takes 10 bits to represent 888
-| 2^100 | 0.5*2^100 | Number<Unsigned, 1, 100> |
-| 1/33 | (0.5*2^1) / (0.515625*2^6) | Number<Unsigned, 1, 1, 6, 6> | It takes 6 bits to represent 33
+| 0 | b(0)*2^1 | Number<Unsigned, 1, 1> |
+| 1 | b(0.1)*2^1 | Number<Unsigned, 1, 1> |
+| 2 | b(0.1)*2^2 | Number<Unsigned, 1, 2> |
+| 42 | b(0.101010)*2^6 | Number<Unsigned, 6, 6> | It takes 6 bits to represent 42
+| -88.8 | b(-0.1101111000)*2^7 | Number<Signed, 10, 7> | It takes 10 bits to represent 888
+| 2^100 | b(0.1)*2^101 | Number<Unsigned, 1, 100> |
+| 1/33 | (b(0.1)*2^1) / (b(0.100001)*2^6) | Number<Unsigned, 1, 1, 6, 6> | It takes 6 bits to represent 33
 
 ### Useful features of the Noms number type
 
