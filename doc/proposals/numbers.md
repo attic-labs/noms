@@ -38,49 +38,124 @@ It's now clear to me that desiderata include:
 
 # Proposal for type system integration
 
+Noms can encode arbitrarily large and precise rational numbers.
+
+The conceptual representation of Noms numbers is: `(np * 2^ne) / (dp * 2^de)` where:
+
+- np: numerator precision (signed integer)
+- ne: numerator exponent (unsigned integer)
+- dp: denominator precision (unsigned integer)
+- de: denominator exponent (unsigned integer)
+
+Both `np` and `dp` are interpreted as if they had a leading radix point. That is, they are always <= 0.
+
+## Examples of conceptual representation of numbers in Noms
+
+| Number | `np` | `ne` | `dp` | `de` | Explanation |
+|--------|----|----|----|----|-------------|
+| 0 | 1 | 1 | 1 | 1 | (0.5 * 2^1) / (0.5 * 2^1) = 0 |
+| 1 | 1 | 1 | 1 | 1 | (0.5 * 2^1) / (0.5 * 2^1) = 1 |
+| 2 | 1 | 2 | 1 | 1 | (0.5 * 2^2) / (0.5 * 2^1) = 2 |
+| 42 | 65625 | 6 | 1 | 1 | (0.65625 * 2^6) / (0.5 * 2^1) = 42 |
+| -88.8 | -69375 | 7 | 1 | 1 | (-0.69375 * 2^7) / (0.5 * 2^1) = -88.8 |
+| 2^100 | 1 | 100 | 1 | 1 | (0.5 * 2^100) / (0.5 * 2^1) = 2^100 |
+| 1/33 | 1 | 1 | 515625 | 6 | (0.5 * 2^1) / (0.515625 * 2^6) = 1/33 |
+
+## The Noms Number Type
+
+The Noms Number type describes a class of numbers compactly by assigning ranges to the four components `np`, `ne`, `dp`, and `de`. Specifically, the number type tells users:
+
+* Whether the class of numbers is signed
+* How many bits are required to precisely represent the number in binary
+* How many bits are required to represent the number in floating point
+* Whether the number is fractional or not
+
+The Noms Number type looks like:
+
 ```
-// All Numbers in Noms are represented with a single type.
-// Binary numbers have the form: np * 2^(ne-1), where:
-// - np: signed integer
-// - ne: unsigned integer
-// - ne can be less than np, in which case the number is non-integral
-// Rational numbers have the form: (np * 2^(ne-1)) / (dp * 2^(de-1)), where np and ne have same meaning as binary numbers, and:
-// - dp, de: unsigned integers
-// - ne >= np and de >= dp
-Number<signed, numprec, numexp[, denprec, denexp]>
+Number<signed, npb, ne [, dpb, de]>
+```
 
-// For user convenience, when we print number types, we will simplify them by default:
-Number<Signed, 6, 6> -> uint8
-Number<Unsigned, 14, 4> -> float32
-Number<Unsigned, 2, 100> -> bigint<unsigned, 2, 100>
-Number<Signed, 100, 2> -> bigfloat<signed, 100, 2>
-Number<Signed, 1, 1, 2, 2> -> rational<signed, 1, 2>
+`signed`: An enum, `Signed|Unsigned` - whether `np` can be negative
+`nbp`: Max number of bits required to represent `|np|` precisely in binary in the class
+`ne`: Max value of `ne` from the class
+`dbp`: Max number of bits required to represent `dp` precisely in binary in the class
+`de`: Max value of `de` from the class
 
-Set<42, 88.8, -17>.Type() -> Set<float32> (but internally we know that it is Number<Signed, 10, 7>)
+* `dbp` and `de` must be omitted in the case the number can be represented precisely in binary.
+* If the number cannot be represented precisely in binary, then always `ne >= nbp` and `de >= dbp` (that is, both the numerator and denominator are integral).
 
-So this tells you, as a user that you can safely decode all the values in this set into the standard IEEE 32-bit float type.
+Returning to our examples from above, here are the types of the numbers:
+
+| Number | Representation | Type | Explanatation
+|--------|----------------|------|-------------|
+| 0 | 0*2^1 | Number<Unsigned, 1, 1> |
+| 1 | 0.5*2^1 | Number<Unsigned, 1, 1> |
+| 2 | 0.5*2^2 | Number<Unsigned, 1, 2> |
+| 42 | 0.65625*2^6 | Number<Unsigned, 6, 6> | It takes 6 bits to represent 42
+| -88.8 | -0.69375*2^7 | Number<Signed, 10, 7> | It takes 10 bits to represent 888
+| 2^100 | 0.5*2^100 | Number<Unsigned, 1, 100> |
+| 1/33 | (0.5*2^1) / (0.515625*2^6) | Number<Unsigned, 1, 1, 6, 6> | It takes 6 bits to represent 33
+
+### Useful features of the Noms number type
+
+* You can tell if a class of number will fit in `uint8`, `int33`, `float64`, or whatever precisely
+* You can tell if a class of numbers can be represented in binary (`dbp` and `de` are omitted
+* You can tell if a class of numbers is integral (`nbp` >= `ne`)
+* You can tell if a class of numbers would benefit from scientific notation (`ne` significantly larger than `nbp`)
+
+## Number type shorthand
+
+For user convenience, when Noms number types are displayed, we shorten them into the following classes:
+
+| Shorthand | Condition |
+|-----------|-----------|
+| uint8 | Can be represented precisely by uint8 |
+| uint16 | "" |
+| uint32 | "" |
+| uint64 | "" |
+| int8 | "" |
+| int16 | "" |
+| int32 | "" |
+| int64 | "" |
+| float32 | <can be represented precisely by IEEE float 32> |
+| float64 | <can be represented precisely by IEEE float 64> |
+| bigint<signed, nbp, ne> | integer too big for uint64 or int64 |
+| bigfloat<signed, nbp, ne> | non-integer too big for float32 or float64 |
+| rational<signed, nbp, ne, dbp, de> | `dbp` and `de` specified
+
+So if you did `noms show` on `Set<42, 88.8, -17>`, you'd see `Set<float32>`. But internally we know that it is actually `Number<Signed, 10, 7>`.
+
+This tells you that you can safely decode all the values in this set into the standard IEEE 32-bit float type.
 
 // FUTURE: We could also optionally support the opposite -> specifying shorthand types and interpreting them internally as the long form
+
+## Type accretion support
+
+Type accretion is just taking the max of each component of the number type:
+
+```
+Accrete(NT1, NT2) =>
+    Number<
+      Max(NT1.Signed, NT2.Signed),
+      Max(NT1.nbp, NT2.nbp),
+      Max(NT1.ne, NT2.ne),
+      Max(NT1.dbp, NT2.dbp),
+      Max(NT1.de, NT2.de)>
 ```
 
-# Type accretion support
+Examples:
 
-Given above, we can implement correct type accretion:
+| N1 | N2 | NT1 | NT2 | Accreted Type | Accreted Type Shorthand | Notes |
+|----|----|-----|-----|---------------|-------------------------|-------|
+| 42 | 7  | Number<Unsigned, 6, 6> | Number<Unsigned, 3, 3> | Number<Unsigned, 6, 6> | uint8 | |
+| 255 | -255 | Number<Unsigned, 8, 8> | Number<Signed, 8, 8> | Number<Signed, 8, 8> | int16 | |
+| -20.47 | 88.8 | Number<Signed, 11, 5> | Number<Unsigned, 10, 7> | Number<Signed, 11, 7> | float32 | |
+| 2^64-1 | -1/(2^64-1) | Number<Unsigned, 1, 64> | Number<Signed, 64, 0> | Number<Signed, 64, 64> | bigfloat<64, 64> | *Not float64* - cannot represent 64 bits of precision precisely in `float64` |
 
-```
-A=accrete(...type)
-n=Number
+Implementing type accretion is why it is important for types to carry information about number of bits required for both precision and exponent. Sometimes accreting something that would fit in `uint64` with `float64` will yield `float64`. Sometimes it will yield `bigfloat`.
 
-A(42, 7) => Number<Unsigned, 6, 6> or "uint8"
-A(42, -42) => Number<Signed, 6, 6> or "int8"
-A(42, 88.8) => Number<Unsigned, 10, 7> or "float32"
-A(2^64, 1/(2^64) => Number<Unsigned, 64, 64> or "bigfloat<signed, 64, 64>" (note: *not* float64!)
-... etc ...
-```
-
-Implementing type accretion is why it is important for types to carry information about number of bits required for both precision and exponent.
-
-# Subtyping
+## Subtyping
 
 Subtype checking is elegant:
 
@@ -88,7 +163,7 @@ Subtype checking is elegant:
 IsSubtype(N1, N2) => True if all the components of N2 (signedness, np, ne, dp, de) are >= those of N1
 ```
 
-# Serialization
+## Serialization
 
 Just because we have one Noms type doesn't mean we need one uniform serialization. In order to achieve our goal of zero copy encode/decode being possible, we will use the common encodings of standard numeric types.
 
