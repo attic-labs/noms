@@ -20,6 +20,7 @@ It's now clear to me that desiderata include:
   * Whether the number can be represented precisely in binary
   * The number of bits required to represent a number precisely
   * Whether the number is signed
+* This should work with type accretion so that if you have a huge set of numbers, you can know what numeric type you can use to decode them
 * It must remain the case that every unique numeric value in the system has one (and only one) encoding and hash
   * This implies that the value `uint64(42)` is not possible in Noms. The type of `42` is always `uint8` (or something similarly specific).
 * It should be possible to use native Go numeric types like `int64`, `float`, and `big.Rat` to work with Noms numbers in the cases they fit
@@ -55,7 +56,9 @@ Number<Unsigned, 2, 100> -> bigint<unsigned, 2, 100>
 Number<Signed, 100, 2> -> bigfloat<signed, 100, 2>
 Number<Signed, 1, 1, 2, 2> -> rational<signed, 1, 2>
 
-Set<42, 88.8, -17>.Type() -> float32 (but internally we know that it is Number<Signed, 10, 7>)
+Set<42, 88.8, -17>.Type() -> Set<float32> (but internally we know that it is Number<Signed, 10, 7>)
+
+So this tells you, as a user that you can saely decode all the values in this set into the standard IEEE 32-bit float type.
 
 // FUTURE: We could also optionally support the opposite -> specifying shorthand types and interpreting them internally as the long form
 ```
@@ -76,6 +79,14 @@ A(2^64, 1/(2^64) => Number<Unsigned, 64, 64> or "bigfloat<signed, 64, 64>" (note
 ```
 
 Implementing type accretion is why it is important for types to carry information about number of bits required for both precision and exponent.
+
+# Subtyping
+
+Subtype checking is elegant:
+
+```
+IsSubtype(N1, N2) => True if all the components of N2 (signedness, np, ne, dp, de) are >= those of N1
+```
 
 # Serialization
 
