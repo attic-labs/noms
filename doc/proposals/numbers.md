@@ -21,9 +21,9 @@ It's now clear to me that desiderata include:
   * The number of bits required to represent a number precisely
   * Whether the number is signed
 * It must remain the case that every unique numeric value in the system has one (and only one) encoding and hash
-  * This implies that the value `uint64(42)` is not possible in Noms. The type of `42` is always `uint8`.
+  * This implies that the value `uint64(42)` is not possible in Noms. The type of `42` is always `uint8` (or something similarly specific).
 * It should be possible to use native Go numeric types like `int64`, `float`, and `big.Rat` to work with Noms numbers in the cases they fit
-* It should be possible to conveniently work with _all_ Noms values via some consistent interface if so desired
+* It should be possible to conveniently work with _all_ Noms numeric values via some consistent interface if so desired
 
 ## Efficiency
 
