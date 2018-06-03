@@ -154,10 +154,10 @@ Examples:
 
 | N1 | N2 | NT1 | NT2 | Accreted Type | Accreted Type Shorthand | Notes |
 |----|----|-----|-----|---------------|-------------------------|-------|
-| 42 | 7  | Number<Unsigned, 6, 6> | Number<Unsigned, 3, 3> | Number<Unsigned, 6, 6> | uint8 | |
-| 255 | -255 | Number<Unsigned, 8, 8> | Number<Signed, 8, 8> | Number<Signed, 8, 8> | int16 | |
-| -20.47 | 88.8 | Number<Signed, 11, 5> | Number<Unsigned, 10, 7> | Number<Signed, 11, 7> | float32 | |
-| 2^64-1 | -1/(2^64-1) | Number<Unsigned, 1, 64> | Number<Signed, 64, 0> | Number<Signed, 64, 64> | bigfloat<64, 64> | *Not float64* - cannot represent 64 bits of precision precisely in `float64` |
+| 42 | 7  | `Number<Unsigned, 6, 6>` | `Number<Unsigned, 3, 3>` | `Number<Unsigned, 6, 6>` | `uint8` | |
+| 255 | -255 | `Number<Unsigned, 8, 8>` | `Number<Signed, 8, 8>` | `Number<Signed, 8, 8>` | `int16` | |
+| -20.47 | 88.8 | `Number<Signed, 11, 5>` | `Number<Unsigned, 10, 7>` | `Number<Signed, 11, 7>` | `float32` | |
+| 2^64-1 | -1/(2^64-1) | `Number<Unsigned, 1, 64>` | `Number<Signed, 64, 0>` | `Number<Signed, 64, 64>` | `bigfloat<64, 64>` | *Not float64* - cannot represent 64 bits of precision precisely in `float64` |
 
 Implementing type accretion is why it is important for types to carry information about number of bits required for both precision and exponent. Sometimes accreting something that would fit in `uint64` with `float64` will yield `float64`. Sometimes it will yield `bigfloat`.
 
