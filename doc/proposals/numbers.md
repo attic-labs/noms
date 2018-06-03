@@ -62,7 +62,7 @@ Both `np` and `dp` are interpreted as if they had a leading radix point. That is
 | 2 | 1 | 2 | 1 | 1 | (b(0.1) * 2^2) / (b(0.1) * 2^1) = 2 |
 | 42 | 101010 | 6 | 1 | 1 | (b(0.101010) * 2^6) / (b(0.1) * 2^1) = 42 |
 | -88.8 | -1101111000 | 7 | 1 | 1 | (b(-0.1101111000) * 2^7) / (b(0.1) * 2^1) = -88.8 |
-| 2^100 | 1 | 100 | 1 | 1 | (b(0.1) * 2^100) / (b(0.1) * 2^1) = 2^100 |
+| 2^100 | 1 | 101 | 1 | 1 | (b(0.1) * 2^101) / (b(0.1) * 2^1) = 2^100 |
 | 1/33 | 1 | 1 | 100001 | 6 | (b(0.1) * 2^1) / (b(0.100001) * 2^6) = 1/33 |
 
 ## The Noms Number Type
@@ -70,9 +70,9 @@ Both `np` and `dp` are interpreted as if they had a leading radix point. That is
 The Noms Number type describes a class of numbers compactly by assigning ranges to the four components `np`, `ne`, `dp`, and `de`. Specifically, the number type tells users:
 
 * Whether the class of numbers is signed
-* How many bits are required to precisely represent the number in binary
-* How many bits are required to represent the number in floating point
-* Whether the number is fractional or not
+* How many bits are required at most to precisely represent the members of the class in binary
+* How many bits are required at most to precisely represent the members of the class in binary floating point
+* Whether the class contains non-integral values
 
 The Noms Number type looks like:
 
@@ -106,9 +106,9 @@ Returning to our examples from above, here are the types of the numbers:
 ### Useful features of the Noms number type
 
 * You can tell if a class of number will fit in `uint8`, `int33`, `float64`, or whatever precisely
-* You can tell if a class of numbers can be represented in binary (`dbp` and `de` are omitted
+* You can tell if a class of numbers can be represented precisely in binary (`dbp` and `de` are omitted)
 * You can tell if a class of numbers is integral (`nbp` >= `ne`)
-* You can tell if a class of numbers would benefit from scientific notation (`ne` significantly larger than `nbp`)
+* You can tell if a class of numbers would benefit from being stored in variable-width floating point (`ne` significantly larger than `nbp`)
 
 ## Number type shorthand
 
