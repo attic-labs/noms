@@ -12,7 +12,7 @@ It's now clear to me that desiderata include:
 
 * It should be possible to store arbitrarily large integers in Noms
 * It should be possible to store arbitrarily precise non-integral numbers in Noms
-* It should be possible to store arbitrarily precise rational, non-integral, non-binary numbers precisely in Noms
+* It should be possible to store arbitrarily precise rational, non-integral, non-binary numbers in Noms
 
 ## Integration
 
