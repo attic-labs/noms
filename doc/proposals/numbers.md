@@ -40,11 +40,11 @@ It's now clear to me that desiderata include:
 
 ```
 // All Numbers in Noms are represented with a single type.
-// Binary numbers have the form: np * 2^ne, where:
+// Binary numbers have the form: np * 2^(ne-1), where:
 // - np: signed integer
 // - ne: unsigned integer
 // - ne can be less than np, in which case the number is non-integral
-// Rational numbers have the form: (np * 2^ne) / (dp * 2^de), where np and ne have same meaning as binary numbers, and:
+// Rational numbers have the form: (np * 2^(ne-1)) / (dp * 2^(de-1)), where np and ne have same meaning as binary numbers, and:
 // - dp, de: unsigned integers
 // - ne >= np and de >= dp
 Number<signed, numprec, numexp[, denprec, denexp]>
@@ -58,7 +58,7 @@ Number<Signed, 1, 1, 2, 2> -> rational<signed, 1, 2>
 
 Set<42, 88.8, -17>.Type() -> Set<float32> (but internally we know that it is Number<Signed, 10, 7>)
 
-So this tells you, as a user that you can saely decode all the values in this set into the standard IEEE 32-bit float type.
+So this tells you, as a user that you can safely decode all the values in this set into the standard IEEE 32-bit float type.
 
 // FUTURE: We could also optionally support the opposite -> specifying shorthand types and interpreting them internally as the long form
 ```
