@@ -23,7 +23,7 @@ It's now clear to me that desiderata include:
 * This should work with type accretion so that if you have a huge set of numbers, you can know what numeric type you can use to decode them
 * It must remain the case that every unique numeric value in the system has one (and only one) encoding and hash
   * This implies that the value `uint64(42)` is not possible in Noms. The type of `42` is always `uint8` (or something similarly specific).
-* It should be possible to use native Go numeric types like `int64`, `float`, and `big.Rat` to work with Noms numbers in the cases they fit
+* It should be possible to use native Go numeric types like `int64`, `float32`, and `big.Rat` to work with Noms numbers in the cases they fit
 * It should be possible to conveniently work with _all_ Noms numeric values via some consistent interface if so desired
 
 ## Efficiency
