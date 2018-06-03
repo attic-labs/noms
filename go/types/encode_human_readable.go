@@ -175,7 +175,8 @@ func (w *hrsWriter) Write(v Value) {
 		w.write(strconv.FormatBool(bool(v.(Bool))))
 	case NumberKind:
 		w.write(strconv.FormatFloat(float64(v.(Number)), w.floatFormat, -1, 64))
-
+	case IntegerKind:
+		w.write(strconv.FormatInt(int64(v.(Integer)), 10))
 	case StringKind:
 		w.write(strconv.Quote(string(v.(String))))
 
@@ -314,9 +315,12 @@ func (w *hrsWriter) writeSize(v Value) {
 }
 
 func (w *hrsWriter) writeType(t *Type, seenStructs map[*Type]struct{}) {
-	switch t.TargetKind() {
-	case BlobKind, BoolKind, NumberKind, StringKind, TypeKind, ValueKind:
+	tk := t.TargetKind()
+	if IsPrimitiveKind(tk) {
 		w.write(t.TargetKind().String())
+		return
+	}
+	switch tk {
 	case ListKind, RefKind, SetKind, MapKind:
 		w.write(t.TargetKind().String())
 		w.write("<")

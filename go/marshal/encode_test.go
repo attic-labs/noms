@@ -43,29 +43,29 @@ func TestEncode(tt *testing.T) {
 	}
 
 	for _, n := range []int8{0, 42, math.MaxInt8} {
-		t(types.Number(n), n)
-		t(types.Number(-n), -n)
+		t(types.Integer(n), n)
+		t(types.Integer(-n), -n)
 	}
 
 	for _, n := range []int16{0, 42, math.MaxInt16} {
-		t(types.Number(n), n)
-		t(types.Number(-n), -n)
+		t(types.Integer(n), n)
+		t(types.Integer(-n), -n)
 	}
 
 	for _, n := range []int32{0, 42, math.MaxInt32} {
-		t(types.Number(n), n)
-		t(types.Number(-n), -n)
+		t(types.Integer(n), n)
+		t(types.Integer(-n), -n)
 	}
 
 	// int is at least int32
 	for _, n := range []int{0, 42, math.MaxInt32} {
-		t(types.Number(n), n)
-		t(types.Number(-n), -n)
+		t(types.Integer(n), n)
+		t(types.Integer(-n), -n)
 	}
 
 	for _, n := range []int64{0, 42, math.MaxInt64} {
-		t(types.Number(n), n)
-		t(types.Number(-n), -n)
+		t(types.Integer(n), n)
+		t(types.Integer(-n), -n)
 	}
 
 	for _, n := range []uint8{0, 42, math.MaxUint8} {
@@ -96,7 +96,7 @@ func TestEncode(tt *testing.T) {
 		t(types.String(s), s)
 	}
 
-	t(types.NewList(vs, types.Number(42)), types.NewList(vs, types.Number(42)))
+	t(types.NewList(vs, types.Integer(42)), types.NewList(vs, types.Integer(42)))
 	t(types.NewMap(vs, types.Number(42), types.String("hi")), types.NewMap(vs, types.Number(42), types.String("hi")))
 	t(types.NewSet(vs, types.String("bye")), types.NewSet(vs, types.String("bye")))
 	t(types.NewBlob(vs, bytes.NewBufferString("hello")), types.NewBlob(vs, bytes.NewBufferString("hello")))

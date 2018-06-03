@@ -51,9 +51,10 @@ func main() {
 
 	// I don't want to allocate a new types.Value every time someone calls zeroVal(), so instead have a map of canned Values to reference.
 	zeroVals := map[types.NomsKind]types.Value{
-		types.BoolKind:   types.Bool(false),
-		types.NumberKind: types.Number(0),
-		types.StringKind: types.String(""),
+		types.BoolKind:    types.Bool(false),
+		types.NumberKind:  types.Number(0),
+		types.IntegerKind: types.Integer(0),
+		types.StringKind:  types.String(""),
 	}
 
 	zeroVal := func(t *types.Type) types.Value {

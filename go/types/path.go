@@ -244,8 +244,12 @@ func NewIndexIntoKeyPath(idx Value) IndexPath {
 }
 
 func ValueCanBePathIndex(v Value) bool {
-	k := v.Kind()
-	return k == StringKind || k == BoolKind || k == NumberKind
+	switch v.Kind() {
+	case StringKind, BoolKind, NumberKind, IntegerKind:
+		return true
+	default:
+		return false
+	}
 }
 
 func newIndexPath(idx Value, intoKey bool) IndexPath {

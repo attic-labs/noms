@@ -12,6 +12,7 @@ type NomsKind uint8
 const (
 	BoolKind NomsKind = iota
 	NumberKind
+	IntegerKind
 	StringKind
 	BlobKind
 	ValueKind
@@ -32,19 +33,20 @@ const (
 )
 
 var KindToString = map[NomsKind]string{
-	BlobKind:   "Blob",
-	BoolKind:   "Bool",
-	CycleKind:  "Cycle",
-	ListKind:   "List",
-	MapKind:    "Map",
-	NumberKind: "Number",
-	RefKind:    "Ref",
-	SetKind:    "Set",
-	StructKind: "Struct",
-	StringKind: "String",
-	TypeKind:   "Type",
-	UnionKind:  "Union",
-	ValueKind:  "Value",
+	BlobKind:    "Blob",
+	BoolKind:    "Bool",
+	CycleKind:   "Cycle",
+	ListKind:    "List",
+	MapKind:     "Map",
+	NumberKind:  "Number",
+	IntegerKind: "Int",
+	RefKind:     "Ref",
+	SetKind:     "Set",
+	StructKind:  "Struct",
+	StringKind:  "String",
+	TypeKind:    "Type",
+	UnionKind:   "Union",
+	ValueKind:   "Value",
 }
 
 // String returns the name of the kind.
@@ -55,7 +57,7 @@ func (k NomsKind) String() string {
 // IsPrimitiveKind returns true if k represents a Noms primitive type, which excludes collections (List, Map, Set), Refs, Structs, Symbolic and Unresolved types.
 func IsPrimitiveKind(k NomsKind) bool {
 	switch k {
-	case BoolKind, NumberKind, StringKind, BlobKind, ValueKind, TypeKind:
+	case BoolKind, NumberKind, IntegerKind, StringKind, BlobKind, ValueKind, TypeKind:
 		return true
 	default:
 		return false

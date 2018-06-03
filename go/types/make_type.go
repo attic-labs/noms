@@ -16,6 +16,8 @@ func MakePrimitiveType(k NomsKind) *Type {
 		return BoolType
 	case NumberKind:
 		return NumberType
+	case IntegerKind:
+		return IntegerType
 	case StringKind:
 		return StringType
 	case BlobKind:
@@ -75,6 +77,7 @@ func makePrimitiveType(k NomsKind) *Type {
 
 var BoolType = makePrimitiveType(BoolKind)
 var NumberType = makePrimitiveType(NumberKind)
+var IntegerType = makePrimitiveType(IntegerKind)
 var StringType = makePrimitiveType(StringKind)
 var BlobType = makePrimitiveType(BlobKind)
 var TypeType = makePrimitiveType(TypeKind)

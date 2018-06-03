@@ -114,9 +114,10 @@ func cloneTypeTreeAndReplaceNamedStructs(t *Type, namedStructs map[string]struct
 	var rec func(t *Type) *Type
 	rec = func(t *Type) *Type {
 		kind := t.TargetKind()
-		switch kind {
-		case BoolKind, NumberKind, StringKind, BlobKind, ValueKind, TypeKind:
+		if IsPrimitiveKind(kind) {
 			return t
+		}
+		switch kind {
 		case ListKind, MapKind, RefKind, SetKind, UnionKind:
 			elemTypes := make(typeSlice, len(t.Desc.(CompoundDesc).ElemTypes))
 			for i, et := range t.Desc.(CompoundDesc).ElemTypes {
@@ -166,10 +167,10 @@ func cloneTypeTreeAndReplaceNamedStructs(t *Type, namedStructs map[string]struct
 
 func foldUnions(t *Type, seenStructs typeset, intersectStructs bool) *Type {
 	kind := t.TargetKind()
+	if IsPrimitiveKind(kind) || kind == CycleKind {
+		return t
+	}
 	switch kind {
-	case BoolKind, NumberKind, StringKind, BlobKind, ValueKind, TypeKind, CycleKind:
-		break
-
 	case ListKind, MapKind, RefKind, SetKind:
 		elemTypes := t.Desc.(CompoundDesc).ElemTypes
 		for i, et := range elemTypes {

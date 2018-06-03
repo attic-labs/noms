@@ -151,7 +151,11 @@ func (tc *TypeConverter) nomsTypeToGraphQLType(nomsType *types.Type, boxedIfScal
 		if boxedIfScalar {
 			gqlType = tc.scalarToValue(nomsType, gqlType)
 		}
-
+	case types.IntegerKind:
+		gqlType = graphql.Int
+		if boxedIfScalar {
+			gqlType = tc.scalarToValue(nomsType, gqlType)
+		}
 	case types.StringKind:
 		gqlType = graphql.String
 		if boxedIfScalar {
@@ -219,7 +223,8 @@ func (tc *TypeConverter) nomsTypeToGraphQLInputType(nomsType *types.Type) (graph
 	switch nomsType.TargetKind() {
 	case types.NumberKind:
 		gqlType = graphql.Float
-
+	case types.IntegerKind:
+		gqlType = graphql.Int
 	case types.StringKind:
 		gqlType = graphql.String
 
@@ -707,7 +712,8 @@ func getTypeName(nomsType *types.Type, suffix string) string {
 
 	case types.NumberKind:
 		return "Number"
-
+	case types.IntegerKind:
+		return "Int"
 	case types.StringKind:
 		return "String"
 
@@ -969,8 +975,16 @@ func InputToNomsValue(vrw types.ValueReadWriter, arg interface{}, nomsType *type
 	case types.BoolKind:
 		return types.Bool(arg.(bool))
 	case types.NumberKind:
-		if i, ok := arg.(int); ok {
+		if i, ok := arg.(float64); ok {
 			return types.Number(i)
+		}
+		return types.Number(arg.(float64))
+	case types.IntegerKind:
+		switch i := arg.(type) {
+		case int:
+			return types.Integer(i)
+		case int64:
+			return types.Integer(i)
 		}
 		return types.Number(arg.(float64))
 	case types.StringKind:

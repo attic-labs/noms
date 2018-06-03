@@ -208,9 +208,10 @@ func float64Encoder(v reflect.Value, vrw types.ValueReadWriter) types.Value {
 }
 
 func intEncoder(v reflect.Value, vrw types.ValueReadWriter) types.Value {
-	return types.Number(float64(v.Int()))
+	return types.Integer(int64(v.Int()))
 }
 
+// TODO(ORBAT): unsigned integer type
 func uintEncoder(v reflect.Value, vrw types.ValueReadWriter) types.Value {
 	return types.Number(float64(v.Uint()))
 }

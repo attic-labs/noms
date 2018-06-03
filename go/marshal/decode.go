@@ -153,8 +153,12 @@ func (e *UnmarshalTypeMismatchError) Error() string {
 	return fmt.Sprintf("Cannot unmarshal %s into Go value of type %s%s", types.TypeOf(e.Value).Describe(), ts, e.details)
 }
 
-func overflowError(v types.Number, t reflect.Type) *UnmarshalTypeMismatchError {
+func overflowErrorNum(v types.Number, t reflect.Type) *UnmarshalTypeMismatchError {
 	return &UnmarshalTypeMismatchError{v, t, fmt.Sprintf(" (%g does not fit in %s)", v, t)}
+}
+
+func overflowErrorInt(v types.Integer, t reflect.Type) *UnmarshalTypeMismatchError {
+	return &UnmarshalTypeMismatchError{v, t, fmt.Sprintf(" (%d does not fit in %s)", v, t)}
 }
 
 // unmarshalNomsError wraps errors from Marshaler.UnmarshalNoms. These should
@@ -233,11 +237,13 @@ func floatDecoder(v types.Value, rv reflect.Value) {
 	}
 }
 
+// TODO(ORBAT): implement
 func intDecoder(v types.Value, rv reflect.Value) {
-	if n, ok := v.(types.Number); ok {
+	if n, ok := v.(types.Integer); ok {
 		i := int64(n)
+		// i will overflow rv if rv is of type int, and the platform's int is 32 bits
 		if rv.OverflowInt(i) {
-			panic(overflowError(n, rv.Type()))
+			panic(overflowErrorInt(n, rv.Type()))
 		}
 		rv.SetInt(i)
 	} else {
@@ -245,11 +251,12 @@ func intDecoder(v types.Value, rv reflect.Value) {
 	}
 }
 
+// TODO(ORBAT): unsigned integer type
 func uintDecoder(v types.Value, rv reflect.Value) {
 	if n, ok := v.(types.Number); ok {
 		u := uint64(n)
 		if rv.OverflowUint(u) {
-			panic(overflowError(n, rv.Type()))
+			panic(overflowErrorNum(n, rv.Type()))
 		}
 		rv.SetUint(u)
 	} else {
@@ -568,6 +575,8 @@ func getGoTypeForNomsType(nt *types.Type, rt reflect.Type, v types.Value) reflec
 		return reflect.TypeOf(false)
 	case types.NumberKind:
 		return reflect.TypeOf(float64(0))
+	case types.IntegerKind:
+		return reflect.TypeOf(int64(0))
 	case types.StringKind:
 		return reflect.TypeOf("")
 	case types.ListKind, types.SetKind:
