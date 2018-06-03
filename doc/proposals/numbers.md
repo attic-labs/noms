@@ -1,8 +1,8 @@
 # It's time to fix numbers in Noms
 
-Currently numbers in Noms are are stored as arbitrary precision decimal numbers.
+Currently numbers in Noms are are stored as arbitrary precision binary numbers. So it's not possible to store values such as `0.1` precisely in Noms.
 
-However, the API represents numbers as `float64`, so it is not possible to store even 64-bit integers in Noms accurately today.
+Also, the API represents numbers as `float64`, so it is not possible to store even 64-bit integers in Noms accurately today.
 
 The last time we looked at this, we concluded we didn't have a clear enough idea of the desired properties for numbers, so we decided to wait for more information.
 
