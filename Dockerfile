@@ -6,6 +6,9 @@ ENV GOOS=linux
 
 RUN mkdir -pv $NOMS_SRC
 COPY . ${NOMS_SRC}
+RUN cd $NOMS_SRC/cmd/noms; \
+  go build; \
+  go test
 RUN go install -v github.com/attic-labs/noms/cmd/noms
 RUN cp $GOPATH/bin/noms /bin/noms
 
