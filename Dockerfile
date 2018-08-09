@@ -18,7 +18,6 @@ COPY --from=build /bin/noms /bin/noms
 VOLUME /data
 EXPOSE 8000
 
-ENV NOMS_VERSION_NEXT=1
 ENTRYPOINT [ "noms" ]
 
 CMD ["serve", "/data"]
