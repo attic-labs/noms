@@ -258,10 +258,12 @@ func (m *merger) threeWayStructMerge(a, b, parent types.Struct, path types.Path)
 		if f, ok := change.Key.(types.String); ok {
 			field := string(f)
 			data := types.StructData{}
-			targetVal.IterFields(func(name string, v types.Value) {
+			targetVal.IterFields(func(name string, v types.Value) bool {
 				if name != field {
 					data[name] = v
 				}
+
+				return false
 			})
 			if change.ChangeType == types.DiffChangeAdded || change.ChangeType == types.DiffChangeModified {
 				data[field] = newVal

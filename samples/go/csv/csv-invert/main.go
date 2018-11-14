@@ -87,10 +87,12 @@ func main() {
 	filledCols := make(map[string]struct{}, len(streams))
 	l.IterAll(func(v types.Value, index uint64) {
 		// First, iterate the fields that are present in |v| and append values to the correct lists
-		v.(types.Struct).IterFields(func(name string, value types.Value) {
+		v.(types.Struct).IterFields(func(name string, value types.Value) bool {
 			ln := lowers[name]
 			filledCols[ln] = struct{}{}
 			streams[ln].ch <- value
+
+			return false
 		})
 		// Second, iterate all the streams, skipping the ones we already sent a value for, and send an empty String for the remaining ones.
 		for lowerName, stream := range streams {

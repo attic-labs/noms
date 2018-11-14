@@ -330,3 +330,39 @@ func TestStructWithNil(t *testing.T) {
 		})
 	})
 }
+
+func TestStructIterFields(t *testing.T) {
+	assert := assert.New(t)
+
+	tstruct := NewStruct("A", StructData{
+		"a": String("aaa"),
+		"b": String("bbb"),
+		"c": String("ccc"),
+	})
+
+	// Iterate over all.
+	i := 0
+	tstruct.IterFields(func(k string, v Value) bool {
+		assert.True(tstruct.Get(k).Equals(v))
+
+		i += 1
+
+		return false
+	})
+
+	assert.Equal(3, i)
+
+	// Iterate and stop.
+	i = 0
+	tstruct.IterFields(func(k string, v Value) bool {
+		if k == "b" {
+			return true
+		}
+
+		i += 1
+
+		return false
+	})
+
+	assert.Equal(1, i)
+}

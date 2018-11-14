@@ -204,10 +204,12 @@ func (s Struct) Name() string {
 
 // IterFields iterates over the fields, calling cb for every field in the
 // struct.
-func (s Struct) IterFields(cb func(name string, value Value)) {
+func (s Struct) IterFields(cb func(name string, value Value) (stop bool)) {
 	dec, count := s.decoderSkipToFields()
 	for i := uint64(0); i < count; i++ {
-		cb(dec.readString(), dec.readValue())
+		if cb(dec.readString(), dec.readValue()) {
+			break
+		}
 	}
 }
 
