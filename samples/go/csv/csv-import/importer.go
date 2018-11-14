@@ -206,12 +206,14 @@ func main() {
 					d.PanicIfFalse(isStruct)
 					d.PanicIfFalse(hstr.Name() == "Columnar")
 					str := value.(types.Struct)
-					hstr.IterFields(func(fieldname string, v types.Value) {
+					hstr.IterFields(func(fieldname string, v types.Value) bool {
 						hl := v.(types.Ref).TargetValue(db).(types.List)
 						nl := str.Get(fieldname).(types.Ref).TargetValue(db).(types.List)
 						l := hl.Concat(nl)
 						r := db.WriteValue(l)
 						str = str.Set(fieldname, r)
+
+						return false
 					})
 					value = str
 				default:

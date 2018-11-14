@@ -203,12 +203,14 @@ func getNodeChildren(v types.Value, parentPath string) (children []nodeChild) {
 	case types.Struct:
 		children = make([]nodeChild, v.Len())
 		i := 0
-		v.IterFields(func(name string, v types.Value) {
+		v.IterFields(func(name string, v types.Value) bool {
 			children[i] = nodeChild{
 				Label: name,
 				Value: info(v, childPath(".%s", name)),
 			}
 			i++
+
+			return false
 		})
 	case *types.Type:
 		switch d := v.Desc.(type) {
