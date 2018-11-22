@@ -44,7 +44,7 @@ many features, such as:
 
 	flag.Parse(false)
 	if *clientID == "" || *clientSecret == "" || *authURL == "" || *tokenURL == "" {
-		fmt.Fprintln(os.Stderr, "Required parameter not specified\n")
+		fmt.Fprintln(os.Stderr, "Required parameter not specified")
 		flag.PrintDefaults()
 		return
 	}
@@ -68,7 +68,7 @@ many features, such as:
 	//url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline)
 
 	url := conf.AuthCodeURL("state")
-	fmt.Println("Visit the following URL, then paste the resulting code below:\n")
+	fmt.Println("Visit the following URL, then paste the resulting code below:")
 	fmt.Printf("%s\n\n", url)
 
 	var code string
