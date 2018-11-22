@@ -124,7 +124,7 @@ func compareEncodedNomsValues(a, b []byte) int {
 	}
 	aKind, bKind := NomsKind(a[0]), NomsKind(b[0])
 	if aKind != bKind {
-		d.Panic("compareEncodedNomsValues, aKind:", aKind, "!= bKind:", bKind)
+		d.Panic("compareEncodedNomsValues, aKind: %s != bKind: %s", aKind, bKind)
 	}
 
 	switch aKind {
