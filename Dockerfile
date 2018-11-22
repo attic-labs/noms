@@ -1,7 +1,7 @@
 FROM golang:latest AS build
 
 ENV NOMS_SRC=$GOPATH/src/github.com/attic-labs/noms
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
 ENV GOOS=linux
 ENV NOMS_VERSION_NEXT=1
 
