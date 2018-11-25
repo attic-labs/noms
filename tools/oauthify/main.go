@@ -69,7 +69,7 @@ many features, such as:
 
 	url := conf.AuthCodeURL("state")
 	fmt.Println("Visit the following URL, then paste the resulting code below:")
-	fmt.Printf("%s\n\n", url)
+	fmt.Printf("\n%s\n\n", url)
 
 	var code string
 	if _, err := fmt.Scan(&code); err != nil {
