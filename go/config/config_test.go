@@ -147,6 +147,7 @@ func TestConfig(t *testing.T) {
 }
 
 func TestUnreadableConfig(t *testing.T) {
+	// BUG 3816
 	if os.Getenv("DOCKER") != "" {
 		t.Skip("Skipping testing in Docker environment")
 	}
