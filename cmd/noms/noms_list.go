@@ -64,10 +64,14 @@ func nomsListAppend(specStr string, args []string) int {
 	sp, err := spec.ForPath(specStr)
 	d.PanicIfError(err)
 	rootVal, basePath := splitPath(sp)
-	if list, ok := rootVal.(types.List); ok {
+	listVal := basePath.Resolve(rootVal, sp.GetDatabase())
+	if listVal == nil {
+		d.CheckErrorNoUsage(fmt.Errorf("no value at path: %s", specStr))
+	}
+	if list, ok := listVal.(types.List); ok {
 		applyListInserts(sp, rootVal, basePath, list.Len(), args)
 	} else {
-		d.CheckErrorNoUsage(fmt.Errorf("%s is not a list", specStr))
+		d.CheckErrorNoUsage(fmt.Errorf("value at %s is not list", specStr))
 	}
 	return 0
 }
