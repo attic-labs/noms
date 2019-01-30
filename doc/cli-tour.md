@@ -4,9 +4,9 @@
 <br><br>
 # A Short Tour of the Noms CLI
 
-This is a quick introduction to the Noms command-line interface. It should only take a few minutes to read, but there's also a screencast if you prefer:
+This is a quick introduction to the Noms command-line interface. It should only take a few minutes to read. There's also a screencast covering some of this if you prefer:
 
-[<img src="cli-screencast.png" width="500">](https://www.youtube.com/watch?v=NeBsaNdAn68)
+[<img src="cli-screencast.png" width="500">](https://www.youtube.com/watch?v=ncITL4xdXh4)
 
 ## Install Noms
 
