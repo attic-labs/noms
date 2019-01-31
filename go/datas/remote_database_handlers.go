@@ -6,6 +6,7 @@ package datas
 
 import (
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -575,9 +576,21 @@ func handleGraphQL(w http.ResponseWriter, req *http.Request, ps URLParams, cs ch
 		d.Panic("Must specify one (and only one) of ds (dataset) or h (hash)")
 	}
 
-	query := req.FormValue("query")
-	if query == "" {
-		d.Panic("Expected query")
+	var query string
+	if req.Header.Get("Content-Type") == "application/json" {
+		var body struct {
+			Query string
+		}
+		err := json.NewDecoder(req.Body).Decode(&body)
+		if err != nil {
+			d.Panic("invalid query: %s", err)
+		}
+		query = body.Query
+	} else {
+		query = req.FormValue("query")
+		if query == "" {
+			d.Panic("Expected query")
+		}
 	}
 
 	// Note: we don't close this becaues |cs| will be closed by the generic endpoint handler
