@@ -122,7 +122,7 @@ func (s *RemoteDatabaseServer) corsHandle(f httprouter.Handle) httprouter.Handle
 		// Can't use * when clients are using cookies.
 		w.Header().Add("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 		w.Header().Add("Access-Control-Allow-Methods", "GET, POST")
-		w.Header().Add("Access-Control-Allow-Headers", NomsVersionHeader)
+		w.Header().Add("Access-Control-Allow-Headers", "*")
 		w.Header().Add("Access-Control-Expose-Headers", NomsVersionHeader)
 		w.Header().Add(NomsVersionHeader, constants.NomsVersion)
 		f(w, r, ps)
