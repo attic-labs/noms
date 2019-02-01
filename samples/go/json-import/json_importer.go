@@ -29,7 +29,7 @@ func main() {
 	kingpin.CommandLine.HelpFlag.Short('h')
 
 	source := kingpin.Arg("source", "file or url to import").Required().String()
-	destDB := kingpin.Arg("dest-db", "database to import to").Required().String()
+	destDB := kingpin.Arg("dest-db", "database to import to").String()
 	quiet := kingpin.Flag("quiet", "don't print out import progress").Short('q').Bool()
 
 	verbose.RegisterVerboseFlags(flag.CommandLine)
