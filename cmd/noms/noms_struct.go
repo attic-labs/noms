@@ -137,7 +137,5 @@ func appplyPatch(sp spec.Spec, rootVal types.Value, basePath types.Path, patch d
 		Hash: r.TargetHash(),
 		Path: basePath,
 	}
-	newSpec := sp
-	newSpec.Path = newAbsPath
-	fmt.Println(newSpec.String())
+	fmt.Println(newAbsPath.String())
 }
