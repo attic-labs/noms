@@ -20,7 +20,7 @@ func nomsBlob(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandle
 	blobPut := blob.Command("put", "imports a blob to a dataset")
 	concurrency := blobPut.Flag("concurrency", "number of concurrent HTTP calls to retrieve remote resources").Default(strconv.Itoa(runtime.NumCPU())).Int()
 	putFile := blobPut.Arg("file", "a file to import").Required().String()
-	putDs := blobPut.Arg("dataset", "the path to import to").Required().String()
+	putDB := blobPut.Arg("dbSpec", "the database to import into").String()
 
 	blobGet := blob.Command("export", "exports a blob from a dataset")
 	getDs := blobGet.Arg("dataset", "the dataset to export").Required().String()
@@ -29,7 +29,7 @@ func nomsBlob(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandle
 	return blob, func(input string) int {
 		switch input {
 		case blobPut.FullCommand():
-			return nomsBlobPut(*putFile, *putDs, *concurrency)
+			return nomsBlobPut(*putFile, *putDB, *concurrency)
 		case blobGet.FullCommand():
 			return nomsBlobGet(*getDs, *getPath)
 		}
