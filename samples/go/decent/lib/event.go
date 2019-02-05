@@ -249,7 +249,7 @@ func (d IPFSEventDelegate) HashFromMsgData(msgData string) (hash.Hash, error) {
 	var err error
 	h, ok := hash.MaybeParse(msgData)
 	if !ok {
-		err = fmt.Errorf("Failed to parse hash from msgData: %s", msgData)
+		err = fmt.Errorf("failed to parse hash from msgData: %s", msgData)
 	}
 	return h, err
 }

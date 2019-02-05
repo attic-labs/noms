@@ -222,7 +222,7 @@ func StringToValue(s string, k types.NomsKind) (types.Value, error) {
 		}
 		fval, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			return nil, fmt.Errorf("Could not parse '%s' into number (%s)", s, err)
+			return nil, fmt.Errorf("could not parse '%s' into number (%s)", s, err)
 		}
 		return types.Number(fval), nil
 	case types.BoolKind:
@@ -233,7 +233,7 @@ func StringToValue(s string, k types.NomsKind) (types.Value, error) {
 		case "false", "0", "n", "no", "N", "NO", "":
 			return types.Bool(false), nil
 		default:
-			return nil, fmt.Errorf("Could not parse '%s' into bool", s)
+			return nil, fmt.Errorf("could not parse '%s' into bool", s)
 		}
 	case types.StringKind:
 		return types.String(s), nil

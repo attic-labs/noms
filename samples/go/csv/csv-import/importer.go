@@ -90,11 +90,11 @@ func main() {
 		db, val, err := cfg.GetPath(*path)
 		d.CheckError(err)
 		if val == nil {
-			d.CheckError(fmt.Errorf("Path %s not found\n", *path))
+			d.CheckError(fmt.Errorf("path %s not found\n", *path))
 		}
 		blob, ok := val.(types.Blob)
 		if !ok {
-			d.CheckError(fmt.Errorf("Path %s not a Blob: %s\n", *path, types.EncodedValue(types.TypeOf(val))))
+			d.CheckError(fmt.Errorf("path %s not a Blob: %s\n", *path, types.EncodedValue(types.TypeOf(val))))
 		}
 		defer db.Close()
 		preader, pwriter := io.Pipe()
@@ -166,14 +166,14 @@ func main() {
 		uniqueHeaders[header] = true
 	}
 	if len(uniqueHeaders) != len(headers) {
-		d.CheckErrorNoUsage(fmt.Errorf("Invalid headers specified, headers must be unique"))
+		d.CheckErrorNoUsage(fmt.Errorf("invalid headers specified, headers must be unique"))
 	}
 
 	kinds := []types.NomsKind{}
 	if *columnTypes != "" {
 		kinds = csv.StringsToKinds(strings.Split(*columnTypes, ","))
 		if len(kinds) != len(uniqueHeaders) {
-			d.CheckErrorNoUsage(fmt.Errorf("Invalid column-types specified, column types do not correspond to number of headers"))
+			d.CheckErrorNoUsage(fmt.Errorf("invalid column-types specified, column types do not correspond to number of headers"))
 		}
 	}
 

@@ -163,7 +163,7 @@ func openIndex(idxName string, im *indexManager) error {
 
 	index, ok := commit.Get(datas.ValueField).(types.Map)
 	if !ok {
-		return fmt.Errorf("Value of commit at '%s' is not a valid index", idxName)
+		return fmt.Errorf("value of commit at '%s' is not a valid index", idxName)
 	}
 
 	// Todo: make this type be Map<String | Number>, Set<Value>> once Issue #2326 gets resolved and

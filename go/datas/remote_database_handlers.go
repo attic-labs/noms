@@ -590,7 +590,7 @@ func handleGraphQL(w http.ResponseWriter, req *http.Request, ps URLParams, cs ch
 		var ok bool
 		rootValue, ok = dataset.MaybeHead()
 		if !ok {
-			err = fmt.Errorf("Dataset %s not found", ds)
+			err = fmt.Errorf("dataset %s not found", ds)
 		}
 	} else {
 		rootValue = db.ReadValue(hash.Parse(h))

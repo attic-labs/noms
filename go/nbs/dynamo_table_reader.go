@@ -93,7 +93,7 @@ func (dts *ddbTableStore) readTable(name addr) (data []byte, err error) {
 		} else if len(result.Item) == 0 {
 			return nil, tableNotInDynamoErr{name.String(), dts.table}
 		} else if result.Item[dataAttr] == nil || result.Item[dataAttr].B == nil {
-			return nil, fmt.Errorf("NBS table %s in DynamoDB table %s is malformed", name, dts.table)
+			return nil, fmt.Errorf("nBS table %s in DynamoDB table %s is malformed", name, dts.table)
 		}
 		return result.Item[dataAttr].B, nil
 	}

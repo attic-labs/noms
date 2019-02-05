@@ -52,7 +52,7 @@ func runMerge(args []string) int {
 	cfg := config.NewResolver()
 
 	if len(args) != 4 {
-		d.CheckErrorNoUsage(fmt.Errorf("Incorrect number of arguments"))
+		d.CheckErrorNoUsage(fmt.Errorf("incorrect number of arguments"))
 	}
 	db, err := cfg.GetDatabase(args[0])
 	d.CheckError(err)
@@ -78,7 +78,7 @@ func runMerge(args []string) int {
 func resolveDatasets(db datas.Database, leftName, rightName, outName string) (leftDS, rightDS, outDS datas.Dataset) {
 	makeDS := func(dsName string) datas.Dataset {
 		if !datasetRe.MatchString(dsName) {
-			d.CheckErrorNoUsage(fmt.Errorf("Invalid dataset %s, must match %s", dsName, datas.DatasetRe.String()))
+			d.CheckErrorNoUsage(fmt.Errorf("invalid dataset %s, must match %s", dsName, datas.DatasetRe.String()))
 		}
 		return db.GetDataset(dsName)
 	}
@@ -142,7 +142,7 @@ func decidePolicy(policy string) merge.Policy {
 			return cliResolve(os.Stdin, os.Stdout, aType, bType, a, b, path)
 		}
 	default:
-		d.CheckErrorNoUsage(fmt.Errorf("Unsupported merge policy: %s. Choices are n, l, r and a.", policy))
+		d.CheckErrorNoUsage(fmt.Errorf("unsupported merge policy: %s. Choices are n, l, r and a", policy))
 	}
 	return merge.NewThreeWay(resolve)
 }

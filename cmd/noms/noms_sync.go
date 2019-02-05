@@ -49,7 +49,7 @@ func runSync(args []string) int {
 	defer sourceStore.Close()
 
 	if sourceObj == nil {
-		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[0]))
+		d.CheckErrorNoUsage(fmt.Errorf("object not found: %s", args[0]))
 	}
 
 	sinkDB, sinkDataset, err := cfg.GetDataset(args[1])

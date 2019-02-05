@@ -18,7 +18,7 @@ func StringToRune(delimiter string) (rune, error) {
 
 	d, runeSize := utf8.DecodeRuneInString(delimiter)
 	if d == utf8.RuneError {
-		return 0, fmt.Errorf("Invalid utf8 string in delimiter flag: %s", delimiter)
+		return 0, fmt.Errorf("invalid utf8 string in delimiter flag: %s", delimiter)
 	}
 	if dlimLen != runeSize {
 		return 0, fmt.Errorf("delimiter flag is too long. It must contain exactly one character (rune), but instead it is: %s", delimiter)

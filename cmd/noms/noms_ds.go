@@ -42,7 +42,7 @@ func runDs(args []string) int {
 
 		oldCommitRef, errBool := set.MaybeHeadRef()
 		if !errBool {
-			d.CheckError(fmt.Errorf("Dataset %v not found", set.ID()))
+			d.CheckError(fmt.Errorf("dataset %v not found", set.ID()))
 		}
 
 		_, err = set.Database().Delete(set)

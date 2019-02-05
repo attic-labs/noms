@@ -270,7 +270,7 @@ func (m *merger) threeWayStructMerge(a, b, parent types.Struct, path types.Path)
 			}
 			return structCandidate{types.NewStruct(targetVal.Name(), data)}
 		}
-		panic(fmt.Errorf("Bad key type in diff: %s", types.TypeOf(change.Key).Describe()))
+		panic(fmt.Errorf("bad key type in diff: %s", types.TypeOf(change.Key).Describe()))
 	}
 	return m.threeWayOrderedSequenceMerge(structCandidate{a}, structCandidate{b}, structCandidate{parent}, apply, path)
 }

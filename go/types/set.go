@@ -120,7 +120,7 @@ func (s Set) First() Value {
 
 func (s Set) At(idx uint64) Value {
 	if idx >= s.Len() {
-		panic(fmt.Errorf("Out of bounds: %d >= %d", idx, s.Len()))
+		panic(fmt.Errorf("out of bounds: %d >= %d", idx, s.Len()))
 	}
 
 	cur := newCursorAtIndex(s.orderedSequence, idx)

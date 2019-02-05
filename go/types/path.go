@@ -104,7 +104,7 @@ func constructPath(p Path, str string) (Path, error) {
 			}
 			idx, err := strconv.ParseInt(arg, 10, 64)
 			if err != nil {
-				return Path{}, fmt.Errorf("Invalid position: %s", arg)
+				return Path{}, fmt.Errorf("invalid position: %s", arg)
 			}
 			return constructPath(append(p, NewAtAnnotation(idx)), rem)
 
@@ -113,14 +113,14 @@ func constructPath(p Path, str string) (Path, error) {
 				return Path{}, fmt.Errorf("@key annotation does not support arguments")
 			}
 			if len(p) == 0 {
-				return Path{}, fmt.Errorf("Cannot use @key annotation at beginning of path")
+				return Path{}, fmt.Errorf("cannot use @key annotation at beginning of path")
 			}
 			lastPart := p[len(p)-1]
 			if ki, ok := lastPart.(keyIndexable); ok {
 				p[len(p)-1] = ki.setIntoKey(true).(PathPart)
 				return constructPath(p, rem)
 			}
-			return Path{}, fmt.Errorf("Cannot use @key annotation on: %s", lastPart.String())
+			return Path{}, fmt.Errorf("cannot use @key annotation on: %s", lastPart.String())
 
 		case "target":
 			if hasArg {
@@ -135,14 +135,14 @@ func constructPath(p Path, str string) (Path, error) {
 			return constructPath(append(p, TypeAnnotation{}), rem)
 
 		default:
-			return Path{}, fmt.Errorf("Unsupported annotation: @%s", ann)
+			return Path{}, fmt.Errorf("unsupported annotation: @%s", ann)
 		}
 
 	case ']':
 		return Path{}, errors.New("] is missing opening [")
 
 	default:
-		return Path{}, fmt.Errorf("Invalid operator: %c", op)
+		return Path{}, fmt.Errorf("invalid operator: %c", op)
 	}
 }
 

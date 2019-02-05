@@ -145,7 +145,7 @@ func (m Map) Last() (Value, Value) {
 
 func (m Map) At(idx uint64) (key, value Value) {
 	if idx >= m.Len() {
-		panic(fmt.Errorf("Out of bounds: %d >= %d", idx, m.Len()))
+		panic(fmt.Errorf("out of bounds: %d >= %d", idx, m.Len()))
 	}
 
 	cur := newCursorAtIndex(m.orderedSequence, idx)

@@ -38,12 +38,12 @@ func main() {
 
 	head, present := inDS.MaybeHead()
 	if !present {
-		d.CheckErrorNoUsage(fmt.Errorf("The dataset %s has no head", flag.Arg(0)))
+		d.CheckErrorNoUsage(fmt.Errorf("the dataset %s has no head", flag.Arg(0)))
 	}
 	v := head.Get(datas.ValueField)
 	l, isList := v.(types.List)
 	if !isList {
-		d.CheckErrorNoUsage(fmt.Errorf("The head value of %s is not a list, but rather %s", flag.Arg(0), types.TypeOf(v).Describe()))
+		d.CheckErrorNoUsage(fmt.Errorf("the head value of %s is not a list, but rather %s", flag.Arg(0), types.TypeOf(v).Describe()))
 	}
 
 	outDB, outDS, err := cfg.GetDataset(flag.Arg(1))

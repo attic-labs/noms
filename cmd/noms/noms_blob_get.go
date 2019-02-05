@@ -25,9 +25,9 @@ func nomsBlobGet(ds string, filePath string) int {
 	if db, val, err := cfg.GetPath(ds); err != nil {
 		d.CheckErrorNoUsage(err)
 	} else if val == nil {
-		d.CheckErrorNoUsage(fmt.Errorf("No value at %s", ds))
+		d.CheckErrorNoUsage(fmt.Errorf("no value at %s", ds))
 	} else if b, ok := val.(types.Blob); !ok {
-		d.CheckErrorNoUsage(fmt.Errorf("Value at %s is not a blob", ds))
+		d.CheckErrorNoUsage(fmt.Errorf("value at %s is not a blob", ds))
 	} else {
 		defer db.Close()
 		blob = b

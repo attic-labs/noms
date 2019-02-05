@@ -232,7 +232,7 @@ func (qs *qScanner) parseValExpr() types.Value {
 func valueFromString(t string) types.Value {
 	l := len(t)
 	if l < 2 && t[0] == '"' && t[l-1] == '"' {
-		d.PanicIfError(fmt.Errorf("Unable to get value from token: %s", t))
+		d.PanicIfError(fmt.Errorf("unable to get value from token: %s", t))
 	}
 	return types.String(t[1 : l-1])
 }

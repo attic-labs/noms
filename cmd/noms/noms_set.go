@@ -73,7 +73,7 @@ func nomsSetDel(specStr string, args []string) int {
 
 func applySetEdits(sp spec.Spec, rootVal types.Value, basePath types.Path, ct types.DiffChangeType, args []string) {
 	if rootVal == nil {
-		d.CheckErrorNoUsage(fmt.Errorf("No value at: %s", sp.String()))
+		d.CheckErrorNoUsage(fmt.Errorf("no value at: %s", sp.String()))
 		return
 	}
 	db := sp.GetDatabase()
@@ -125,12 +125,12 @@ func argumentToValue(arg string, db datas.Database) (types.Value, error) {
 				i++
 				c = arg[i]
 				if c != '\\' && c != '"' {
-					return nil, fmt.Errorf("Invalid string argument: %s: Only '\\' and '\"' can be escaped", arg)
+					return nil, fmt.Errorf("invalid string argument: %s: Only '\\' and '\\"' can be escaped", arg)
 				}
 			}
 			buf.WriteByte(c)
 		}
-		return nil, fmt.Errorf("Invalid string argument: %s", arg)
+		return nil, fmt.Errorf("invalid string argument: %s", arg)
 	}
 	if arg[0] == '@' {
 		p, err := spec.NewAbsolutePath(arg[1:])

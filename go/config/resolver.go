@@ -28,7 +28,7 @@ func NewResolver() *Resolver {
 	c, err := FindNomsConfig()
 	if err != nil {
 		if err != NoConfig {
-			panic(fmt.Errorf("Failed to read .nomsconfig due to: %v", err))
+			panic(fmt.Errorf("failed to read .nomsconfig due to: %v", err))
 		}
 		return &Resolver{}
 	}

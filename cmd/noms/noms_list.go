@@ -104,7 +104,7 @@ func nomsListDel(specStr string, pos uint64, len uint64) int {
 
 func applyListInserts(sp spec.Spec, rootVal types.Value, basePath types.Path, pos uint64, args []string) {
 	if rootVal == nil {
-		d.CheckErrorNoUsage(fmt.Errorf("No value at: %s", sp.String()))
+		d.CheckErrorNoUsage(fmt.Errorf("no value at: %s", sp.String()))
 		return
 	}
 	db := sp.GetDatabase()
@@ -112,7 +112,7 @@ func applyListInserts(sp spec.Spec, rootVal types.Value, basePath types.Path, po
 	for i := 0; i < len(args); i++ {
 		vv, err := argumentToValue(args[i], db)
 		if err != nil {
-			d.CheckError(fmt.Errorf("Invalid value: %s at position %d: %s", args[i], i, err))
+			d.CheckError(fmt.Errorf("invalid value: %s at position %d: %s", args[i], i, err))
 		}
 		patch = append(patch, diff.Difference{
 			Path:       append(basePath, types.NewIndexPath(types.Number(pos+uint64(i)))),

@@ -405,8 +405,8 @@ func (nbs *NomsBlockStore) Commit(current, last hash.Hash) bool {
 
 var (
 	errLastRootMismatch           = fmt.Errorf("last does not match nbs.Root()")
-	errOptimisticLockFailedRoot   = fmt.Errorf("Root moved")
-	errOptimisticLockFailedTables = fmt.Errorf("Tables changed")
+	errOptimisticLockFailedRoot   = fmt.Errorf("root moved")
+	errOptimisticLockFailedTables = fmt.Errorf("tables changed")
 )
 
 func (nbs *NomsBlockStore) updateManifest(current, last hash.Hash) error {

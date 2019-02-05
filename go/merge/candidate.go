@@ -87,7 +87,7 @@ func (sc structCandidate) get(key types.Value) types.Value {
 		val, _ := sc.s.MaybeGet(string(field))
 		return val
 	}
-	panic(fmt.Errorf("Bad key type in diff: %s", types.TypeOf(key).Describe()))
+	panic(fmt.Errorf("bad key type in diff: %s", types.TypeOf(key).Describe()))
 }
 
 func (sc structCandidate) pathConcat(change types.ValueChanged, path types.Path) (out types.Path) {

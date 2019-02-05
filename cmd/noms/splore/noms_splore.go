@@ -79,7 +79,7 @@ func run(mux *http.ServeMux, port int, browser bool, spStr string) int {
 		sp = dbSp
 		getValue = func() types.Value { return sp.GetDatabase().Datasets() }
 	} else {
-		d.CheckError(fmt.Errorf("Not a path or database: %s", spStr))
+		d.CheckError(fmt.Errorf("not a path or database: %s", spStr))
 	}
 
 	defer sp.Close()

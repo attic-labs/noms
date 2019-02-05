@@ -63,7 +63,7 @@ func NewAbsolutePath(str string) (AbsolutePath, error) {
 	} else {
 		datasetParts := datasetCapturePrefixRe.FindStringSubmatch(str)
 		if datasetParts == nil {
-			return AbsolutePath{}, fmt.Errorf("Invalid dataset name: %s", str)
+			return AbsolutePath{}, fmt.Errorf("invalid dataset name: %s", str)
 		}
 
 		dataset = datasetParts[1]
@@ -130,12 +130,12 @@ func ReadAbsolutePaths(db datas.Database, paths ...string) ([]types.Value, error
 	for _, ps := range paths {
 		p, err := NewAbsolutePath(ps)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid input path '%s'", ps)
+			return nil, fmt.Errorf("invalid input path '%s'", ps)
 		}
 
 		v := p.Resolve(db)
 		if v == nil {
-			return nil, fmt.Errorf("Input path '%s' does not exist in database", ps)
+			return nil, fmt.Errorf("input path '%s' does not exist in database", ps)
 		}
 
 		r = append(r, v)
