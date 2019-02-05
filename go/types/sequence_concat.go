@@ -4,8 +4,6 @@
 
 package types
 
-import "github.com/attic-labs/noms/go/d"
-
 type newSequenceChunkerFn func(cur *sequenceCursor, vrw ValueReadWriter) *sequenceChunker
 
 func concat(fst, snd sequence, newSequenceChunker newSequenceChunkerFn) sequence {
@@ -20,9 +18,6 @@ func concat(fst, snd sequence, newSequenceChunker newSequenceChunkerFn) sequence
 	// cursor to the end of fst, then finalizing chunking to the start of snd - by
 	// swapping fst cursors for snd cursors in the middle of chunking.
 	vrw := fst.valueReadWriter()
-	if vrw != snd.valueReadWriter() {
-		d.Panic("cannot concat sequences from different databases")
-	}
 	chunker := newSequenceChunker(newCursorAtIndex(fst, fst.numLeaves()), vrw)
 
 	for cur, ch := newCursorAtIndex(snd, 0), chunker; ch != nil; ch = ch.parent {
