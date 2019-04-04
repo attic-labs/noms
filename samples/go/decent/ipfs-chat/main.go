@@ -1,3 +1,6 @@
+// See: https://github.com/attic-labs/noms/issues/3808
+// +build ignore
+
 // Copyright 2017 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
@@ -21,7 +24,7 @@ import (
 	"github.com/attic-labs/noms/samples/go/decent/lib"
 	"github.com/ipfs/go-ipfs/core"
 	"github.com/jroimartin/gocui"
-	"gopkg.in/alecthomas/kingpin.v2"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 func main() {

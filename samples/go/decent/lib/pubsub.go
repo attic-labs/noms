@@ -1,3 +1,6 @@
+// See: https://github.com/attic-labs/noms/issues/3808
+// +build ignore
+
 // Copyright 2017 Attic Labs, Inc. All rights reserved.
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
@@ -13,7 +16,7 @@ import (
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/samples/go/decent/dbg"
 	"github.com/ipfs/go-ipfs/core"
-	"github.com/jbenet/go-base58"
+	"github.com/mr-tron/base58/base58"
 )
 
 var (
