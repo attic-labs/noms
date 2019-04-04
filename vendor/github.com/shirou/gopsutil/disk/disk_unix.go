@@ -2,7 +2,9 @@
 
 package disk
 
-import "syscall"
+import (
+	"syscall"
+)
 
 func Usage(path string) (*UsageStat, error) {
 	stat := syscall.Statfs_t{}
@@ -22,9 +24,13 @@ func Usage(path string) (*UsageStat, error) {
 	}
 
 	ret.InodesUsed = (ret.InodesTotal - ret.InodesFree)
-	ret.InodesUsedPercent = (float64(ret.InodesUsed) / float64(ret.InodesTotal)) * 100.0
+	if ret.InodesUsed > 0.0 || ret.InodesTotal > 0.0 {
+		ret.InodesUsedPercent = (float64(ret.InodesUsed) / float64(ret.InodesTotal)) * 100.0
+	}
 	ret.Used = (uint64(stat.Blocks) - uint64(stat.Bfree)) * uint64(bsize)
-	ret.UsedPercent = (float64(ret.Used) / float64(ret.Total)) * 100.0
+	if ret.Used > 0.0 || ret.Total > 0.0 {
+		ret.UsedPercent = (float64(ret.Used) / float64(ret.Total)) * 100.0
+	}
 
 	return ret, nil
 }
