@@ -218,7 +218,7 @@ func TestBlobConcat(t *testing.T) {
 
 	split := func(b Blob, at int64) (Blob, Blob) {
 		read1, read2 := b.Reader(), b.Reader()
-		b1 := NewBlob(vs, &io.LimitedReader{read1, at})
+		b1 := NewBlob(vs, &io.LimitedReader{R: read1, N: at})
 		read2.Seek(at, 0)
 		b2 := NewBlob(vs, read2)
 		return reload(b1), reload(b2)
@@ -227,7 +227,7 @@ func TestBlobConcat(t *testing.T) {
 	// Random 1MB Blob.
 	// Note that List.Concat is exhaustively tested, don't worry here.
 	r := rand.New(rand.NewSource(0))
-	b := NewBlob(vs, &io.LimitedReader{r, 1e6})
+	b := NewBlob(vs, &io.LimitedReader{R: r, N: 1e6})
 	b = reload(b)
 
 	b1 := NewEmptyBlob(vs).Concat(b)

@@ -37,7 +37,12 @@ func threeWayListMerge(a, b, parent types.List) (merged types.List, err error) {
 	zeroSplice := types.Splice{}
 	zeroToInvalid := func(sp types.Splice) types.Splice {
 		if sp == zeroSplice {
-			return types.Splice{types.SPLICE_UNASSIGNED, types.SPLICE_UNASSIGNED, types.SPLICE_UNASSIGNED, types.SPLICE_UNASSIGNED}
+			return types.Splice{
+				SpAt:      types.SPLICE_UNASSIGNED,
+				SpRemoved: types.SPLICE_UNASSIGNED,
+				SpAdded:   types.SPLICE_UNASSIGNED,
+				SpFrom:    types.SPLICE_UNASSIGNED,
+			}
 		}
 		return sp
 	}

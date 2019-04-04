@@ -61,9 +61,9 @@ b,2,false
 	assert.Equal(uint64(2), m.Len())
 	assert.True(types.TypeOf(m).Equals(
 		types.MakeMapType(types.StringType, types.MakeStructType("test",
-			types.StructField{"A", types.StringType, false},
-			types.StructField{"B", types.NumberType, false},
-			types.StructField{"C", types.BoolType, false},
+			types.StructField{Name: "A", Type: types.StringType, Optional: false},
+			types.StructField{Name: "B", Type: types.NumberType, Optional: false},
+			types.StructField{Name: "C", Type: types.BoolType, Optional: false},
 		))))
 
 	assert.True(m.Get(types.String("a")).Equals(types.NewStruct("test", types.StructData{

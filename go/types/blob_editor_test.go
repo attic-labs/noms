@@ -60,7 +60,7 @@ func TestBlobReadWriteFuzzer(t *testing.T) {
 				be.Seek(int64(idx), 0)
 
 				l := nextRandInt(0, maxInsertCount)
-				data, err := ioutil.ReadAll(&io.LimitedReader{r, int64(l)})
+				data, err := ioutil.ReadAll(&io.LimitedReader{R: r, N: int64(l)})
 				assert.NoError(t, err)
 				f.Write(data)
 				be.Write(data)

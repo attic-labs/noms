@@ -232,7 +232,7 @@ func TestMarshalTypeOmitEmpty(t *testing.T) {
 	var s S
 	typ, err := MarshalType(s)
 	assert.NoError(err)
-	assert.True(types.MakeStructType("S", types.StructField{"string", types.StringType, true}).Equals(typ))
+	assert.True(types.MakeStructType("S", types.StructField{Name: "string", Type: types.StringType, Optional: true}).Equals(typ))
 }
 
 func ExampleMarshalType() {
@@ -414,9 +414,9 @@ func TestMarshalTypeSetWithTags(t *testing.T) {
 	typ, err := MarshalType(s)
 	assert.NoError(err)
 	assert.True(types.MakeStructType("S",
-		types.StructField{"foo", types.MakeSetType(types.NumberType), false},
-		types.StructField{"b", types.MakeSetType(types.NumberType), true},
-		types.StructField{"bar", types.MakeSetType(types.NumberType), true},
+		types.StructField{Name: "foo", Type: types.MakeSetType(types.NumberType), Optional: false},
+		types.StructField{Name: "b", Type: types.MakeSetType(types.NumberType), Optional: true},
+		types.StructField{Name: "bar", Type: types.MakeSetType(types.NumberType), Optional: true},
 	).Equals(typ))
 }
 
@@ -458,7 +458,7 @@ func TestMarshalTypeOriginal(t *testing.T) {
 	typ, err := MarshalType(s)
 	assert.NoError(err)
 	assert.True(types.MakeStructType("S",
-		types.StructField{"foo", types.NumberType, true},
+		types.StructField{Name: "foo", Type: types.NumberType, Optional: true},
 	).Equals(typ))
 }
 
@@ -585,7 +585,7 @@ func TestMarshalTypeStructName(t *testing.T) {
 
 	var ts TestStructWithNameImpl
 	typ := MustMarshalType(ts)
-	assert.True(types.MakeStructType("A", types.StructField{"x", types.NumberType, false}).Equals(typ), typ.Describe())
+	assert.True(types.MakeStructType("A", types.StructField{Name: "x", Type: types.NumberType, Optional: false}).Equals(typ), typ.Describe())
 }
 
 func TestMarshalTypeStructName2(t *testing.T) {
@@ -593,7 +593,7 @@ func TestMarshalTypeStructName2(t *testing.T) {
 
 	var ts TestStructWithNameImpl2
 	typ := MustMarshalType(ts)
-	assert.True(types.MakeStructType("", types.StructField{"x", types.NumberType, false}).Equals(typ), typ.Describe())
+	assert.True(types.MakeStructType("", types.StructField{Name: "x", Type: types.NumberType, Optional: false}).Equals(typ), typ.Describe())
 }
 
 type OutPhoto struct {
