@@ -3,6 +3,7 @@
 [Use Cases](#use-cases)&nbsp; | &nbsp;[Setup](#setup)&nbsp; | &nbsp;[Status](#status)&nbsp; | &nbsp;[Documentation](./doc/intro.md)&nbsp; | &nbsp;[Contact](#contact-us)
 <br><br>
 
+[![Build Status](https://travis-ci.org/attic-labs/noms.svg?branch=master)](https://travis-ci.org/attic-labs/noms)
 [![Docker Build Status](https://img.shields.io/docker/build/noms/noms.svg)](https://hub.docker.com/r/noms/noms/)
 [![GoDoc](https://godoc.org/github.com/attic-labs/noms?status.svg)](https://godoc.org/github.com/attic-labs/noms)
 
