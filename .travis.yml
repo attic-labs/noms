@@ -12,12 +12,15 @@ script:
 - go build ./...
 - go test ./...
 - go vet ./...
-- gox -os="linux darwin" -arch="amd64" ./cmd/noms
-- gox -os="linux darwin" -arch="amd64" ./samples/go/csv/csv-import
-- gox -os="linux darwin" -arch="amd64" ./samples/go/csv/csv-export
-- gox -os="linux darwin" -arch="amd64" ./samples/go/json-import
-- gox -os="linux darwin" -arch="amd64" ./samples/go/url-fetch
-- gox -os="linux darwin" -arch="amd64" ./samples/go/xml-import
+- mkdir linux
+- mkdir darwin
+- gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./cmd/noms
+- gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./samples/go/csv/csv-import
+- gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./samples/go/csv/csv-export
+- gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./samples/go/json-import
+- gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./samples/go/url-fetch
+- gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./samples/go/xml-import
+- mv darwin osx
 deploy:
   overwrite: true
   provider: releases
@@ -25,24 +28,8 @@ deploy:
   api_key:
     secure: "N2LCdQDlPquU31TK8WZwlYPRT7SSyfsGPBpNPSp5gpJPtF5hlqLf96Fd1R7SYn/LfTcri8baFMxgPVK4FowAzIsTxwkG57vCnJR24atOFVLkaKzVPdQZ30zXDHq2WO1zYw7KzAZq49YWdzwKSShzT7+SpiNZWEE2UiB5ZSQcd7/fii1TUkphzWPeHCB+d9wf1qUyJmm6HQ3PKe9yYRQHczGin6INUV5o+nzlRws2+5Kj7eg519htLgRY0oloncY0fdwTEwbSTTkkja3eoAWQrdPMJH7mDMwpbdgPl3jW8wDdTPHO5mQHRF4GvJHrY18qMJ9Kf8iQ3bdRtIS5XM8kvo8+Le22XQbYH7Q7Ryj/bJN+71KpVLwqWQhOr3fWRrL7r8DDPAG/myw0SK1uMaXCzT3KiYckJv7Q3el9MkHNblvFNxWC4tIrwE0LtP4hbSiIlZ/MV58yJxU8WXVej9AoFnKHLA7hgJUhHy0EIlfeETalDBrqNrh40iNP0maUrhpNJxLGtpOgAUhrdQ3gd//6pWwejkfvMTQ2b+1Qq11wWsSmRI/U1WGbcO/wzjKgVv2PT2sYPgx7TPwPWje5uFTZ4/sehwGG/LDcvuZ5uBXLRcpFIz9oh31nIFzsxhdatSKaaK4zlMzkxec+xqBGe0SVKeL/rW0MeQUbeSqyAf0wtBQ="
   file:
-  - noms_windows_amd64.exe
-  - noms_darwin_amd64
-  - noms_linux_amd64
-  - csv-import_windows_amd64.exe
-  - csv-import_darwin_amd64
-  - csv-import_linux_amd64
-  - csv-export_windows_amd64.exe
-  - csv-export_darwin_amd64
-  - csv-export_linux_amd64
-  - json-import_windows_amd64.exe
-  - json-import_darwin_amd64
-  - json-import_linux_amd64
-  - url-fetch_windows_amd64.exe
-  - url-fetch_darwin_amd64
-  - url-fetch_linux_amd64
-  - xml-import_windows_amd64.exe
-  - xml-import_darwin_amd64
-  - xml-import_linux_amd64
+  - linux
+  - osx
   on:
     repo: attic-labs/noms
     tags: true
