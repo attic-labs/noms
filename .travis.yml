@@ -3,6 +3,9 @@ go:
 - 1.x
 os:
 - linux
+env:
+- GO111MODULE=auto
+- NOMS_VERSION_NEXT=1
 before_install:
 # gox simplifies building for multiple architectures
 - go get github.com/mitchellh/gox
