@@ -3,7 +3,6 @@ FROM golang:latest AS build
 ENV NOMS_SRC=$GOPATH/src/github.com/attic-labs/noms
 ENV CGO_ENABLED=1
 ENV GOOS=linux
-ENV NOMS_VERSION_NEXT=1
 ENV DOCKER=1
 
 RUN mkdir -pv $NOMS_SRC
@@ -19,7 +18,6 @@ COPY --from=build /bin/noms /bin/noms
 VOLUME /data
 EXPOSE 8000
 
-ENV NOMS_VERSION_NEXT=1
 ENTRYPOINT [ "noms" ]
 
 CMD ["serve", "/data"]

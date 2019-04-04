@@ -17,10 +17,6 @@ echo $GOPATH
 go version
 ```
 
-## Setup Noms Environment
-
-Add `NOMS_VERSION_NEXT=1` to your environment. The current trunk codebase is a development version of the format and this environment variable is a safety check to ensure people aren't accidentally using this development format against production servers.
-
 ## Get and build Noms
 
 ```shell

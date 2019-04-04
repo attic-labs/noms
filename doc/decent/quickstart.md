@@ -35,9 +35,8 @@ The steps you’ll need to take are:
     matter what order messages are added.
 
 3. Vendor the code into your project. 
-4. Set `NOMS_VERSION_NEXT=1` in your environment.
-5. Decide which type of storage you'd like to use: memory (convenient for playing around), disk, IPFS, or S3. (If you want to implement a store on top of another type of storage that's possible too; email us or reach out on slack and we can help.)
-6. Set up and instantiate a database for your storage. Generally, you use the spec package to parse a [dataset spec](https://github.com/attic-labs/noms/blob/master/doc/spelling.md) like `mem::mydataset` which you can then ask for  [`Database`](https://github.com/attic-labs/noms/blob/master/go/datas/database.go) and [`Dataset`](https://github.com/attic-labs/noms/blob/master/go/datas/dataset.go).
+4. Decide which type of storage you'd like to use: memory (convenient for playing around), disk, IPFS, or S3. (If you want to implement a store on top of another type of storage that's possible too; email us or reach out on slack and we can help.)
+5. Set up and instantiate a database for your storage. Generally, you use the spec package to parse a [dataset spec](https://github.com/attic-labs/noms/blob/master/doc/spelling.md) like `mem::mydataset` which you can then ask for  [`Database`](https://github.com/attic-labs/noms/blob/master/go/datas/database.go) and [`Dataset`](https://github.com/attic-labs/noms/blob/master/go/datas/dataset.go).
    * **Memory**: no setup required, just instantiate it:
 
 ```go

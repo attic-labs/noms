@@ -48,9 +48,6 @@ Embed Noms into mobile applications, making it easier to build offline-first, fu
 ## Setup
 
 ```shell
-# You probably want to add this to your environment
-export NOMS_VERSION_NEXT=1
-
 go get github.com/attic-labs/noms/cmd/noms
 go install github.com/attic-labs/noms/cmd/noms
 ```
