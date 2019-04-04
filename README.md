@@ -45,11 +45,18 @@ Embed Noms into mobile applications, making it easier to build offline-first, fu
 
 <br>
 
-## Setup
+## Install
 
-```shell
-go get github.com/attic-labs/noms/cmd/noms
-go install github.com/attic-labs/noms/cmd/noms
+1. Download the latest release:
+ - [**Linux**](https://github.com/attic-labs/noms/releases/download/latest/linux.zip)
+ - [**Mac OS**](https://github.com/attic-labs/noms/releases/download/latest/osx.zip)
+2. Unzip the directory somewhere and add it to your `$PATH`
+3. Verify Noms is installed correctly:
+
+```
+$ noms version
+format version: 7.18
+built from <developer build>
 ```
 
 <br>
