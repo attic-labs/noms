@@ -103,8 +103,9 @@ func applySetEdits(sp spec.Spec, rootVal types.Value, basePath types.Path, ct ty
 }
 
 func argumentToValue(arg string, db datas.Database) (types.Value, error) {
-	d.PanicIfTrue(arg == "")
-
+	if arg == "" {
+		return types.String(""), nil
+	}
 	if arg == "true" {
 		return types.Bool(true), nil
 	}
