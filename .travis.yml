@@ -21,6 +21,8 @@ script:
 - gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./samples/go/url-fetch
 - gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./samples/go/xml-import
 - mv darwin osx
+- zip -r linux linux
+- zip -r osx osx
 deploy:
   overwrite: true
   provider: releases
@@ -28,8 +30,8 @@ deploy:
   api_key:
     secure: "N2LCdQDlPquU31TK8WZwlYPRT7SSyfsGPBpNPSp5gpJPtF5hlqLf96Fd1R7SYn/LfTcri8baFMxgPVK4FowAzIsTxwkG57vCnJR24atOFVLkaKzVPdQZ30zXDHq2WO1zYw7KzAZq49YWdzwKSShzT7+SpiNZWEE2UiB5ZSQcd7/fii1TUkphzWPeHCB+d9wf1qUyJmm6HQ3PKe9yYRQHczGin6INUV5o+nzlRws2+5Kj7eg519htLgRY0oloncY0fdwTEwbSTTkkja3eoAWQrdPMJH7mDMwpbdgPl3jW8wDdTPHO5mQHRF4GvJHrY18qMJ9Kf8iQ3bdRtIS5XM8kvo8+Le22XQbYH7Q7Ryj/bJN+71KpVLwqWQhOr3fWRrL7r8DDPAG/myw0SK1uMaXCzT3KiYckJv7Q3el9MkHNblvFNxWC4tIrwE0LtP4hbSiIlZ/MV58yJxU8WXVej9AoFnKHLA7hgJUhHy0EIlfeETalDBrqNrh40iNP0maUrhpNJxLGtpOgAUhrdQ3gd//6pWwejkfvMTQ2b+1Qq11wWsSmRI/U1WGbcO/wzjKgVv2PT2sYPgx7TPwPWje5uFTZ4/sehwGG/LDcvuZ5uBXLRcpFIz9oh31nIFzsxhdatSKaaK4zlMzkxec+xqBGe0SVKeL/rW0MeQUbeSqyAf0wtBQ="
   file:
-  - linux
-  - osx
+  - linux.zip
+  - osx.zip
   on:
     repo: attic-labs/noms
     tags: true
