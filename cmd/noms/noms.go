@@ -40,6 +40,7 @@ var commands = []*util.Command{
 var kingpinCommands = []util.KingpinCommand{
 	nomsBlob,
 	nomsList,
+	nomsJSON,
 	nomsMap,
 	nomsSet,
 	nomsStats,
