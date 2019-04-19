@@ -1,4 +1,8 @@
-package jsontonoms
+// Copyright 2019 Attic Labs, Inc. All rights reserved.
+// Licensed under the Apache License, version 2.0:
+// http://www.apache.org/licenses/LICENSE-2.0
+
+package json
 
 import (
 	"encoding/json"
@@ -33,8 +37,6 @@ type ToOptions struct {
 	Sets bool
 	// Enable support for encoding Noms Structs. Structs are encoded as JSON objects.
 	Structs bool
-	// Enable support for encoding Noms Structs with names. The name of the struct is encoded as an extra "_name" key of the resulting JSON object.
-	StructNames bool
 }
 
 func toPile(v types.Value, opts ToOptions) (ret interface{}, err error) {
@@ -51,10 +53,7 @@ func toPile(v types.Value, opts ToOptions) (ret interface{}, err error) {
 		}
 		r := map[string]interface{}{}
 		if v.Name() != "" {
-			if !opts.StructNames {
-				return nil, errors.New("Named struct marshaling not enabled")
-			}
-			r["_name"] = v.Name()
+			return nil, errors.New("Named struct marshaling not supported")
 		}
 		v.IterFields(func(k string, cv types.Value) (stop bool) {
 			var cp interface{}

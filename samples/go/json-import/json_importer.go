@@ -17,7 +17,7 @@ import (
 	"github.com/attic-labs/kingpin"
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/util/jsontonoms"
+	jsontonoms "github.com/attic-labs/noms/go/util/json"
 	"github.com/attic-labs/noms/go/util/progressreader"
 	"github.com/attic-labs/noms/go/util/status"
 	"github.com/attic-labs/noms/go/util/verbose"
