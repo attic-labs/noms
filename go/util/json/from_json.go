@@ -2,16 +2,18 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package jsontonoms
+package json
 
 import (
+	"encoding/json"
+	"io"
 	"reflect"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/types"
 )
 
-func nomsValueFromDecodedJSONBase(vrw types.ValueReadWriter, o interface{}, useStruct bool, namedStructs bool) types.Value {
+func nomsValueFromDecodedJSONBase(vrw types.ValueReadWriter, o interface{}, useStruct bool) types.Value {
 	switch o := o.(type) {
 	case string:
 		return types.String(o)
@@ -24,7 +26,7 @@ func nomsValueFromDecodedJSONBase(vrw types.ValueReadWriter, o interface{}, useS
 	case []interface{}:
 		items := make([]types.Value, 0, len(o))
 		for _, v := range o {
-			nv := nomsValueFromDecodedJSONBase(vrw, v, useStruct, namedStructs)
+			nv := nomsValueFromDecodedJSONBase(vrw, v, useStruct)
 			if nv != nil {
 				items = append(items, nv)
 			}
@@ -36,13 +38,7 @@ func nomsValueFromDecodedJSONBase(vrw types.ValueReadWriter, o interface{}, useS
 			structName := ""
 			fields := make(types.StructData, len(o))
 			for k, v := range o {
-				if namedStructs && k == "_name" {
-					if s1, isString := v.(string); isString {
-						structName = s1
-						continue
-					}
-				}
-				nv := nomsValueFromDecodedJSONBase(vrw, v, useStruct, namedStructs)
+				nv := nomsValueFromDecodedJSONBase(vrw, v, useStruct)
 				if nv != nil {
 					k := types.EscapeStructField(k)
 					fields[k] = nv
@@ -52,7 +48,7 @@ func nomsValueFromDecodedJSONBase(vrw types.ValueReadWriter, o interface{}, useS
 		} else {
 			kv := make([]types.Value, 0, len(o)*2)
 			for k, v := range o {
-				nv := nomsValueFromDecodedJSONBase(vrw, v, useStruct, namedStructs)
+				nv := nomsValueFromDecodedJSONBase(vrw, v, useStruct)
 				if nv != nil {
 					kv = append(kv, types.String(k), nv)
 				}
@@ -82,13 +78,23 @@ func nomsValueFromDecodedJSONBase(vrw types.ValueReadWriter, o interface{}, useS
 //  - []interface{}
 //  - map[string]interface{}
 func NomsValueFromDecodedJSON(vrw types.ValueReadWriter, o interface{}, useStruct bool) types.Value {
-	return nomsValueFromDecodedJSONBase(vrw, o, useStruct, false)
+	return nomsValueFromDecodedJSONBase(vrw, o, useStruct)
 }
 
-// NomsValueUsingNamedStructsFromDecodedJSON performs the same function as
-// NomsValueFromDecodedJson except that it always decodes JSON objects into
-// structs. If the JSON object has a string field name '_name' it uses the
-// value of that field as the name of the Noms struct.
-func NomsValueUsingNamedStructsFromDecodedJSON(vrw types.ValueReadWriter, o interface{}) types.Value {
-	return nomsValueFromDecodedJSONBase(vrw, o, true, true)
+func FromJSON(r io.Reader, vrw types.ValueReadWriter, opts FromOptions) (types.Value, error) {
+	dec := json.NewDecoder(r)
+	// TODO: This is pretty inefficient. It would be better to parse the JSON directly into Noms values,
+	// rather than going through a pile of Go interfaces.
+	var pile interface{}
+	err := dec.Decode(&pile)
+	if err != nil {
+		return nil, err
+	}
+	return NomsValueFromDecodedJSON(vrw, pile, false), nil
+}
+
+// FromOptions controls how FromJSON works.
+type FromOptions struct {
+	// If true, JSON objects are decoded into Noms Structs. Otherwise, they are decoded into Maps.
+	Structs bool
 }

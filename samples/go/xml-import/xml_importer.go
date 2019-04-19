@@ -19,7 +19,7 @@ import (
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/spec"
 	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/jsontonoms"
+	jsontonoms "github.com/attic-labs/noms/go/util/json"
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/clbanning/mxj"

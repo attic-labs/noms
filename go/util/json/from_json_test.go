@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package jsontonoms
+package json
 
 import (
 	"testing"
@@ -95,33 +95,6 @@ func (suite *LibTestSuite) TestCompositeTypeWithStruct() {
 		"list":   []interface{}{false, true},
 		"struct": map[string]interface{}{"nested": "string"},
 	}, true)
-
-	suite.True(tstruct.Equals(o))
-}
-
-func (suite *LibTestSuite) TestCompositeTypeWithNamedStruct() {
-	vs := suite.vs
-
-	// {
-	//  "_name": "TStruct1",
-	//  "string": "string",
-	//  "list": [false true],
-	//  "id": {"_name", "Id", "owner": "string", "value": "string"}
-	// }
-	tstruct := types.NewStruct("TStruct1", types.StructData{
-		"string": types.String("string"),
-		"list":   types.NewList(vs).Edit().Append(types.Bool(false)).Append(types.Bool(true)).List(),
-		"struct": types.NewStruct("Id", types.StructData{
-			"owner": types.String("string"),
-			"value": types.String("string"),
-		}),
-	})
-	o := NomsValueUsingNamedStructsFromDecodedJSON(vs, map[string]interface{}{
-		"_name":  "TStruct1",
-		"string": "string",
-		"list":   []interface{}{false, true},
-		"struct": map[string]interface{}{"_name": "Id", "owner": "string", "value": "string"},
-	})
 
 	suite.True(tstruct.Equals(o))
 }

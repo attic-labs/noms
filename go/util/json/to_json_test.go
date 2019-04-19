@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package jsontonoms
+package json
 
 import (
 	"bytes"
@@ -47,15 +47,12 @@ func (suite *ToJSONSuite) TestToJSON() {
 		{"foobar", types.String("foobar"), ToOptions{}, `"foobar"`, ""},
 		{"strings with newlines", types.String(`"\nmonkey`), ToOptions{}, `"\"\\nmonkey"`, ""},
 		{"structs when not enabled", types.NewStruct("", types.StructData{}), ToOptions{}, "", "Struct marshaling not enabled"},
+		{"named struct", types.NewStruct("Person", types.StructData{}), ToOptions{Structs: true}, "", "Named struct marshaling not supported"},
 		{"struct nested errors", types.NewStruct("", types.StructData{"foo": types.NewList(suite.vs)}), ToOptions{Structs: true}, "", "List marshaling not enabled"},
 		{"empty struct", types.NewStruct("", types.StructData{}), ToOptions{Structs: true}, "{}", ""},
 		{"non-empty struct", types.NewStruct("", types.StructData{"str": types.String("bar"), "num": types.Number(42)}), ToOptions{Structs: true}, `{
 	"num": 42,
 	"str": "bar"
-}`, ""},
-		{"named struct when not enabled", types.NewStruct("Person", types.StructData{}), ToOptions{Structs: true}, "", "Named struct marshaling not enabled"},
-		{"named struct", types.NewStruct("Person", types.StructData{}), ToOptions{Structs: true, StructNames: true}, `{
-	"_name": "Person"
 }`, ""},
 		{"list when not enabled", types.NewList(suite.vs), ToOptions{}, "", "List marshaling not enabled"},
 		{"list nested errors", types.NewList(suite.vs, types.NewSet(suite.vs)), ToOptions{Lists: true}, "", "Set marshaling not enabled"},
@@ -79,11 +76,10 @@ func (suite *ToJSONSuite) TestToJSON() {
 	"baz": 42,
 	"foo": "bar"
 }`, ""},
-		{"complex value", types.NewStruct("Person", types.StructData{
+		{"complex value", types.NewStruct("", types.StructData{
 			"list": types.NewList(suite.vs,
 				types.NewSet(suite.vs,
-					types.NewMap(suite.vs, types.String("foo"), types.String("bar"), types.String("hot"), types.Number(42))))}), ToOptions{Structs: true, StructNames: true, Lists: true, Sets: true, Maps: true}, `{
-	"_name": "Person",
+					types.NewMap(suite.vs, types.String("foo"), types.String("bar"), types.String("hot"), types.Number(42))))}), ToOptions{Structs: true, Lists: true, Sets: true, Maps: true}, `{
 	"list": [
 		[
 			{
@@ -102,6 +98,7 @@ func (suite *ToJSONSuite) TestToJSON() {
 			suite.EqualError(err, t.expError, t.desc)
 			suite.Equal("", string(buf.Bytes()), t.desc)
 		} else {
+			suite.NoError(err)
 			suite.Equal(t.exp+"\n", string(buf.Bytes()), t.desc)
 		}
 	}
