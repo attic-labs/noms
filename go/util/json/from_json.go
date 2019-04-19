@@ -90,7 +90,7 @@ func FromJSON(r io.Reader, vrw types.ValueReadWriter, opts FromOptions) (types.V
 	if err != nil {
 		return nil, err
 	}
-	return NomsValueFromDecodedJSON(vrw, pile, false), nil
+	return NomsValueFromDecodedJSON(vrw, pile, opts.Structs), nil
 }
 
 // FromOptions controls how FromJSON works.
