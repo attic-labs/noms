@@ -17,7 +17,6 @@ script:
 - gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./cmd/noms
 - gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./samples/go/csv/csv-import
 - gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./samples/go/csv/csv-export
-- gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./samples/go/json-import
 - gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./samples/go/url-fetch
 - gox -os="linux darwin" -arch="amd64" -output="{{.OS}}/{{.Dir}}" ./samples/go/xml-import
 - mv darwin osx
