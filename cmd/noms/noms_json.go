@@ -31,13 +31,14 @@ func nomsJSON(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandle
 	structsOut := jsonOut.Flag("structs", "Enable export of Noms structs (to JSON objects)").Default("false").Bool()
 	fromPath := jsonOut.Arg("path", "Absolute path to value to export").Required().String()
 	toFile := jsonOut.Arg("to", "File to export to, or '@' to export to stdout").Required().String()
+	indent := jsonOut.Flag("indent", "Number of spaces to indent when pretty-printing").Default("\t").String()
 
 	return jsonCmd, func(input string) int {
 		switch input {
 		case jsonIn.FullCommand():
 			return nomsJSONIn(*fromFile, *toDB, json.FromOptions{Structs: *structsIn})
 		case jsonOut.FullCommand():
-			return nomsJSONOut(*fromPath, *toFile, json.ToOptions{Lists: true, Maps: true, Sets: true, Structs: *structsOut})
+			return nomsJSONOut(*fromPath, *toFile, json.ToOptions{Lists: true, Maps: true, Sets: true, Structs: *structsOut, Indent: *indent})
 		}
 		d.Panic("notreached")
 		return 1

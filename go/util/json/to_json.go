@@ -23,7 +23,7 @@ func ToJSON(v types.Value, w io.Writer, opts ToOptions) error {
 	}
 
 	enc := json.NewEncoder(w)
-	enc.SetIndent("", "\t")
+	enc.SetIndent("", opts.Indent)
 	return enc.Encode(p)
 }
 
@@ -37,6 +37,8 @@ type ToOptions struct {
 	Sets bool
 	// Enable support for encoding Noms Structs. Structs are encoded as JSON objects.
 	Structs bool
+	// String to use for indent when pretty-printing
+	Indent string
 }
 
 func toPile(v types.Value, opts ToOptions) (ret interface{}, err error) {
