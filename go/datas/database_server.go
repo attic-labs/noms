@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/constants"
@@ -59,23 +60,32 @@ func (s *RemoteDatabaseServer) Run() {
 	d.Chk.NoError(err)
 	log.Printf("Listening on port %d...\n", s.port)
 
-	router := httprouter.New()
+	// Note: we implement trailing trailing-slash removal ourselves because
+	// httprouter doesn't handle the redirects properly with CORS.
+	router := httprouter.Router{}
 
-	router.POST(constants.GetRefsPath, s.corsHandle(s.makeHandle(HandleGetRefs)))
-	router.GET(constants.GetBlobPath, s.corsHandle(s.makeHandle(HandleGetBlob)))
-	router.OPTIONS(constants.GetRefsPath, s.corsHandle(noopHandle))
-	router.POST(constants.HasRefsPath, s.corsHandle(s.makeHandle(HandleHasRefs)))
-	router.OPTIONS(constants.HasRefsPath, s.corsHandle(noopHandle))
-	router.GET(constants.RootPath, s.corsHandle(s.makeHandle(HandleRootGet)))
-	router.POST(constants.RootPath, s.corsHandle(s.makeHandle(HandleRootPost)))
-	router.OPTIONS(constants.RootPath, s.corsHandle(noopHandle))
-	router.POST(constants.WriteValuePath, s.corsHandle(s.makeHandle(HandleWriteValue)))
-	router.OPTIONS(constants.WriteValuePath, s.corsHandle(noopHandle))
-	router.GET(constants.BasePath, s.corsHandle(s.makeHandle(HandleBaseGet)))
+	get := func(path string, hndlr Handler) {
+		router.GET(path, s.corsHandle(s.makeHandle(hndlr)))
+		router.GET(strings.TrimSuffix(path, "/"), s.corsHandle(s.makeHandle(hndlr)))
+	}
+	get(constants.GetBlobPath, HandleGetBlob)
+	get(constants.GraphQLPath, HandleGraphQL)
+	get(constants.RootPath, HandleRootGet)
 
-	router.GET(constants.GraphQLPath, s.corsHandle(s.makeHandle(HandleGraphQL)))
-	router.POST(constants.GraphQLPath, s.corsHandle(s.makeHandle(HandleGraphQL)))
-	router.OPTIONS(constants.GraphQLPath, s.corsHandle(noopHandle))
+	post := func(path string, hndlr Handler) {
+		router.OPTIONS(path, s.corsHandle(noopHandle))
+		router.POST(path, s.corsHandle(s.makeHandle(hndlr)))
+		if path != "/" {
+			router.OPTIONS(strings.TrimSuffix(path, "/"), s.corsHandle(noopHandle))
+			router.POST(strings.TrimSuffix(path, "/"), s.corsHandle(s.makeHandle(hndlr)))
+		}
+	}
+	post(constants.BasePath, HandleBaseGet)
+	post(constants.GetRefsPath, HandleGetRefs)
+	post(constants.GraphQLPath, HandleGraphQL)
+	post(constants.HasRefsPath, HandleHasRefs)
+	post(constants.RootPath, HandleRootGet)
+	post(constants.WriteValuePath, HandleWriteValue)
 
 	router.GET(constants.StatsPath, s.corsHandle(s.makeHandle(HandleStats)))
 	router.OPTIONS(constants.StatsPath, s.corsHandle(noopHandle))
