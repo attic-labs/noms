@@ -50,45 +50,24 @@ func (suite *ToJSONSuite) TestToJSON() {
 		{"named struct", types.NewStruct("Person", types.StructData{}), ToOptions{Structs: true}, "", "Named struct marshaling not supported"},
 		{"struct nested errors", types.NewStruct("", types.StructData{"foo": types.NewList(suite.vs)}), ToOptions{Structs: true}, "", "List marshaling not enabled"},
 		{"empty struct", types.NewStruct("", types.StructData{}), ToOptions{Structs: true}, "{}", ""},
-		{"non-empty struct", types.NewStruct("", types.StructData{"str": types.String("bar"), "num": types.Number(42)}), ToOptions{Structs: true}, `{
-	"num": 42,
-	"str": "bar"
-}`, ""},
+		{"non-empty struct", types.NewStruct("", types.StructData{"str": types.String("bar"), "num": types.Number(42)}), ToOptions{Structs: true}, `{"num":42,"str":"bar"}`, ""},
 		{"list when not enabled", types.NewList(suite.vs), ToOptions{}, "", "List marshaling not enabled"},
 		{"list nested errors", types.NewList(suite.vs, types.NewSet(suite.vs)), ToOptions{Lists: true}, "", "Set marshaling not enabled"},
 		{"empty list", types.NewList(suite.vs), ToOptions{Lists: true}, "[]", ""},
-		{"non-empty list", types.NewList(suite.vs, types.Number(42), types.String("foo")), ToOptions{Lists: true}, `[
-	42,
-	"foo"
-]`, ""},
+		{"non-empty list", types.NewList(suite.vs, types.Number(42), types.String("foo")), ToOptions{Lists: true}, `[42,"foo"]`, ""},
 		{"sets when not enabled", types.NewSet(suite.vs), ToOptions{}, "", "Set marshaling not enabled"},
 		{"set nested errors", types.NewSet(suite.vs, types.NewList(suite.vs)), ToOptions{Sets: true}, "", "List marshaling not enabled"},
 		{"empty set", types.NewSet(suite.vs), ToOptions{Sets: true}, "[]", ""},
-		{"non-empty set", types.NewSet(suite.vs, types.Number(42), types.String("foo")), ToOptions{Sets: true}, `[
-	42,
-	"foo"
-]`, ""},
+		{"non-empty set", types.NewSet(suite.vs, types.Number(42), types.String("foo")), ToOptions{Sets: true}, `[42,"foo"]`, ""},
 		{"maps when not enabled", types.NewMap(suite.vs), ToOptions{}, "", "Map marshaling not enabled"},
 		{"map nested errors", types.NewMap(suite.vs, types.String("foo"), types.NewSet(suite.vs)), ToOptions{Maps: true}, "", "Set marshaling not enabled"},
 		{"map non-string key", types.NewMap(suite.vs, types.Number(42), types.Number(42)), ToOptions{Maps: true}, "", "Map key kind Number not supported"},
 		{"empty map", types.NewMap(suite.vs), ToOptions{Maps: true}, "{}", ""},
-		{"non-empty map", types.NewMap(suite.vs, types.String("foo"), types.String("bar"), types.String("baz"), types.Number(42)), ToOptions{Maps: true}, `{
-	"baz": 42,
-	"foo": "bar"
-}`, ""},
+		{"non-empty map", types.NewMap(suite.vs, types.String("foo"), types.String("bar"), types.String("baz"), types.Number(42)), ToOptions{Maps: true}, `{"baz":42,"foo":"bar"}`, ""},
 		{"complex value", types.NewStruct("", types.StructData{
 			"list": types.NewList(suite.vs,
 				types.NewSet(suite.vs,
-					types.NewMap(suite.vs, types.String("foo"), types.String("bar"), types.String("hot"), types.Number(42))))}), ToOptions{Structs: true, Lists: true, Sets: true, Maps: true}, `{
-	"list": [
-		[
-			{
-				"foo": "bar",
-				"hot": 42
-			}
-		]
-	]
-}`, ""},
+					types.NewMap(suite.vs, types.String("foo"), types.String("bar"), types.String("hot"), types.Number(42))))}), ToOptions{Structs: true, Lists: true, Sets: true, Maps: true}, `{"list":[[{"foo":"bar","hot":42}]]}`, ""},
 	}
 
 	for _, t := range tc {
