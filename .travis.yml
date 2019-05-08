@@ -4,7 +4,7 @@ go:
 os:
 - linux
 env:
-- GO111MODULE=auto
+- GO111MODULE=on
 before_install:
 # gox simplifies building for multiple architectures
 - go get github.com/mitchellh/gox
