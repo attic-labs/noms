@@ -106,15 +106,14 @@ Nobody is working on this right now. You shouldn't rely on it unless you're will
 
 ### Major Open Issues
 
- - [x] Horizontal scalability (Done! See: [nbs](./go/nbs/README.md))
- - [x] Automatic merge (Done! See: [CommitOptions.Policy](https://godoc.org/github.com/attic-labs/noms/go/datas#CommitOptions) and the `noms merge` subcommand).
- - [ ] Query language
-   - We started trying to hack in GraphQL but it's incomplete and maybe not the right thing. See: [ngql](./go/ngql/README.md)
- - [ ] Garbage Collection (https://github.com/attic-labs/noms/issues/3374)
- - [x] Optional fields (https://github.com/attic-labs/noms/issues/2327)
- - [ ] Migration (https://github.com/attic-labs/noms/issues/3363)
- - [ ] Sync performance with long commit chains (https://github.com/attic-labs/noms/issues/2233)
- - [ ] [Various other smaller bugs and improvements](https://github.com/attic-labs/noms/issues?q=is%3Aissue+is%3Aopen+label%3AP0)
+These are the major things you'd probably want to fix before relying on this for most systems.
+
+* Sync performance with long commit chains (https://github.com/attic-labs/noms/issues/2233)
+* Migration (https://github.com/attic-labs/noms/issues/3363)
+* Garbage Collection (https://github.com/attic-labs/noms/issues/3374)
+* Query language
+ - We started trying to hack in GraphQL but it's incomplete and maybe not the right thing. See: [ngql](./go/ngql/README.md)
+* [Various other smaller bugs and improvements](https://github.com/attic-labs/noms/issues?q=is%3Aissue+is%3Aopen+label%3AP0)
 
 <br>
 
