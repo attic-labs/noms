@@ -106,7 +106,6 @@ Nobody is working on this right now. You shouldn't rely on it unless you're will
 
 ### Major Open Issues
 
-We plan to implement the following for Noms version 8:
  - [x] Horizontal scalability (Done! See: [nbs](./go/nbs/README.md))
  - [x] Automatic merge (Done! See: [CommitOptions.Policy](https://godoc.org/github.com/attic-labs/noms/go/datas#CommitOptions) and the `noms merge` subcommand).
  - [ ] Query language
