@@ -112,7 +112,7 @@ These are the major things you'd probably want to fix before relying on this for
 * Migration (https://github.com/attic-labs/noms/issues/3363)
 * Garbage Collection (https://github.com/attic-labs/noms/issues/3374)
 * Query language
- - We started trying to hack in GraphQL but it's incomplete and maybe not the right thing. See: [ngql](./go/ngql/README.md)
+  * We started trying to hack in GraphQL but it's incomplete and maybe not the right thing. See: [ngql](./go/ngql/README.md)
 * [Various other smaller bugs and improvements](https://github.com/attic-labs/noms/issues?q=is%3Aissue+is%3Aopen+label%3AP0)
 
 <br>
