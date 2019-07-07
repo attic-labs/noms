@@ -11,7 +11,7 @@ Like most databases, Noms features a rich data model, atomic
 transactions, support for large-scale data, and efficient searches,
 scans, reads, and updates.
 
-Unlike any other database, Noms has built-in multiparty sync and
+Unlike most other databases, Noms has built-in multiparty sync and
 conflict resolution. This feature makes Noms a very good fit for P2P
 decentralized applications.
 
