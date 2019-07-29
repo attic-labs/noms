@@ -3,10 +3,10 @@ Contributing to Noms
 
 ## Install Go
 
-First setup Go on your machine per https://golang.org/doc/install. You need *at least* Go version 1.11.
+First setup Go on your machine per https://golang.org/doc/install. You need *at least* Go version 1.11. You can test that you're setup correctly like so:
 
 ```shell
-# We need at least version 1.11
+# Must be at least 1.11
 go version
 ```
 
