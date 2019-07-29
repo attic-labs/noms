@@ -3,27 +3,23 @@ Contributing to Noms
 
 ## Install Go
 
-First setup Go on your machine per https://golang.org/doc/install.
-
-Don't forget to [setup your `$GOPATH` and `$BIN` environment variables](https://golang.org/doc/install) correctly. Everybody forgets that.
-
-You can test your setup like so:
+First setup Go on your machine per https://golang.org/doc/install. You need *at least* Go version 1.11.
 
 ```shell
-# This should print something
-echo $GOPATH
-
-# We need at least version 1.7
+# We need at least version 1.11
 go version
 ```
 
 ## Get and build Noms
 
+Noms uses [Go modules](https://github.com/golang/go/wiki/Modules) a new feature of Go. Therefore if you're an existing Go user, you need to be careful to check out into a directory **other than $GOPATH** (or else use the environment variable GO11MODULES=on to force it on). Hopefully this gets easier to understand in future Go versions when Go modules become stabilized.
+
 ```shell
-go get github.com/attic-labs/noms/cmd/noms
-cd $GOPATH/src/github.com/attic-labs/noms/cmd/noms
-go build
-go test
+cd <any directory other than $GOPATH>
+git clone https://github.com/attic-labs/noms
+cd noms
+go install ./cmd/noms
+go test ./...
 ```
 
 ## License
