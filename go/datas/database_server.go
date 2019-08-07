@@ -47,6 +47,31 @@ func (s *RemoteDatabaseServer) Port() int {
 	return s.port
 }
 
+func Router(cs chunks.ChunkStore, prefix string) *httprouter.Router {
+	router := httprouter.New()
+
+	router.POST(prefix+constants.GetRefsPath, corsHandle(makeHandle(HandleGetRefs, cs)))
+	router.GET(prefix+constants.GetBlobPath, corsHandle(makeHandle(HandleGetBlob, cs)))
+	router.OPTIONS(prefix+constants.GetRefsPath, corsHandle(noopHandle))
+	router.POST(prefix+constants.HasRefsPath, corsHandle(makeHandle(HandleHasRefs, cs)))
+	router.OPTIONS(prefix+constants.HasRefsPath, corsHandle(noopHandle))
+	router.GET(prefix+constants.RootPath, corsHandle(makeHandle(HandleRootGet, cs)))
+	router.POST(prefix+constants.RootPath, corsHandle(makeHandle(HandleRootPost, cs)))
+	router.OPTIONS(prefix+constants.RootPath, corsHandle(noopHandle))
+	router.POST(prefix+constants.WriteValuePath, corsHandle(makeHandle(HandleWriteValue, cs)))
+	router.OPTIONS(prefix+constants.WriteValuePath, corsHandle(noopHandle))
+	router.GET(prefix+constants.BasePath, corsHandle(makeHandle(HandleBaseGet, cs)))
+
+	router.GET(prefix+constants.GraphQLPath, corsHandle(makeHandle(HandleGraphQL, cs)))
+	router.POST(prefix+constants.GraphQLPath, corsHandle(makeHandle(HandleGraphQL, cs)))
+	router.OPTIONS(prefix+constants.GraphQLPath, corsHandle(noopHandle))
+
+	router.GET(prefix+constants.StatsPath, corsHandle(makeHandle(HandleStats, cs)))
+	router.OPTIONS(prefix+constants.StatsPath, corsHandle(noopHandle))
+
+	return router
+}
+
 // Run blocks while the RemoteDatabaseServer is listening. Running on a separate go routine is supported.
 func (s *RemoteDatabaseServer) Run() {
 
@@ -59,26 +84,7 @@ func (s *RemoteDatabaseServer) Run() {
 	d.Chk.NoError(err)
 	log.Printf("Listening on port %d...\n", s.port)
 
-	router := httprouter.New()
-
-	router.POST(constants.GetRefsPath, s.corsHandle(s.makeHandle(HandleGetRefs)))
-	router.GET(constants.GetBlobPath, s.corsHandle(s.makeHandle(HandleGetBlob)))
-	router.OPTIONS(constants.GetRefsPath, s.corsHandle(noopHandle))
-	router.POST(constants.HasRefsPath, s.corsHandle(s.makeHandle(HandleHasRefs)))
-	router.OPTIONS(constants.HasRefsPath, s.corsHandle(noopHandle))
-	router.GET(constants.RootPath, s.corsHandle(s.makeHandle(HandleRootGet)))
-	router.POST(constants.RootPath, s.corsHandle(s.makeHandle(HandleRootPost)))
-	router.OPTIONS(constants.RootPath, s.corsHandle(noopHandle))
-	router.POST(constants.WriteValuePath, s.corsHandle(s.makeHandle(HandleWriteValue)))
-	router.OPTIONS(constants.WriteValuePath, s.corsHandle(noopHandle))
-	router.GET(constants.BasePath, s.corsHandle(s.makeHandle(HandleBaseGet)))
-
-	router.GET(constants.GraphQLPath, s.corsHandle(s.makeHandle(HandleGraphQL)))
-	router.POST(constants.GraphQLPath, s.corsHandle(s.makeHandle(HandleGraphQL)))
-	router.OPTIONS(constants.GraphQLPath, s.corsHandle(noopHandle))
-
-	router.GET(constants.StatsPath, s.corsHandle(s.makeHandle(HandleStats)))
-	router.OPTIONS(constants.StatsPath, s.corsHandle(noopHandle))
+	router := Router(s.cs, "")
 
 	srv := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -106,16 +112,16 @@ func (s *RemoteDatabaseServer) Run() {
 	srv.Serve(l)
 }
 
-func (s *RemoteDatabaseServer) makeHandle(hndlr Handler) httprouter.Handle {
+func makeHandle(hndlr Handler, cs chunks.ChunkStore) httprouter.Handle {
 	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-		hndlr(w, req, ps, s.cs)
+		hndlr(w, req, ps, cs)
 	}
 }
 
 func noopHandle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 }
 
-func (s *RemoteDatabaseServer) corsHandle(f httprouter.Handle) httprouter.Handle {
+func corsHandle(f httprouter.Handle) httprouter.Handle {
 	// TODO: Implement full pre-flighting?
 	// See: http://www.html5rocks.com/static/images/cors_server_flowchart.png
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
