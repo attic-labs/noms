@@ -16,6 +16,7 @@ import (
 
 	"github.com/attic-labs/noms/cmd/noms/splore"
 	"github.com/attic-labs/noms/cmd/util"
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/util/exit"
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/verbose"
@@ -78,6 +79,7 @@ func main() {
 	blockProfileVal := noms.Flag("blockprofile", "write block profile to file").String()
 	verboseVal := noms.Flag("verbose", "show more").Short('v').Bool()
 	quietVal := noms.Flag("quiet", "show less").Short('q').Bool()
+	noms.Flag("send-content-length", "always send the HTTP content-length header (slower, but needed for some bad servers)").BoolVar(&datas.SendContentLengthForWriteRequest)
 
 	// set up docs for non-kingpin commands
 	addNomsDocs(noms)

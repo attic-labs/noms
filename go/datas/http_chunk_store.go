@@ -39,6 +39,11 @@ var customHTTPTransport = http.Transport{
 	ResponseHeaderTimeout: time.Duration(4) * time.Minute,
 }
 
+// Some broken HTTP proxies require the content-length header.
+// For the write request, this is expensive to calculate, so we
+// don't do it by default.
+var SendContentLengthForWriteRequest = false
+
 type httpChunkStore struct {
 	host         *url.URL
 	httpClient   httpDoer
@@ -303,6 +308,7 @@ func (hcs *httpChunkStore) getRefs(batch chunks.ReadBatch) {
 		"Accept-Encoding": {"x-snappy-framed"},
 		"Content-Type":    {"application/octet-stream"},
 	})
+	req.ContentLength = int64(serializedLength(batch))
 
 	res, err := hcs.httpClient.Do(req)
 	d.Chk.NoError(err)
@@ -336,6 +342,7 @@ func (hcs *httpChunkStore) hasRefs(batch chunks.ReadBatch) {
 		"Accept-Encoding": {"x-snappy-framed"},
 		"Content-Type":    {"application/octet-stream"},
 	})
+	req.ContentLength = int64(serializedLength(batch))
 
 	res, err := hcs.httpClient.Do(req)
 	d.Chk.NoError(err)
@@ -390,10 +397,19 @@ func sendWriteRequest(u url.URL, auth, vers string, p *nbs.NomsBlockCache, cli h
 	}()
 
 	body := buildWriteValueRequest(chunkChan)
+	n := int64(0)
+	if SendContentLengthForWriteRequest {
+		nb := &bytes.Buffer{}
+		var err error
+		n, err = io.Copy(nb, body)
+		d.PanicIfError(err)
+		body = ioutil.NopCloser(nb)
+	}
 	req := newRequest("POST", auth, u.String(), body, http.Header{
 		"Content-Encoding": {"x-snappy-framed"},
 		"Content-Type":     {"application/octet-stream"},
 	})
+	req.ContentLength = n
 
 	res, err := cli.Do(req)
 	d.PanicIfError(err)
