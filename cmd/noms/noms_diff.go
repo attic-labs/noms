@@ -7,59 +7,45 @@ package main
 import (
 	"fmt"
 
+	"github.com/attic-labs/kingpin"
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/diff"
 	"github.com/attic-labs/noms/go/util/outputpager"
-	"github.com/attic-labs/noms/go/util/verbose"
-	flag "github.com/juju/gnuflag"
 )
 
-var stat bool
+func nomsDiff(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
+	cmd := noms.Command("diff", "shows the difference between two objects")
+	stat := cmd.Flag("stat", "writes a summary of the changes instead").Bool()
+	o1 := cmd.Arg("object1", "first object - see Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
+	o2 := cmd.Arg("object2", "second object - see Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
 
-var nomsDiff = &util.Command{
-	Run:       runDiff,
-	UsageLine: "diff [--stat] <object1> <object2>",
-	Short:     "Shows the difference between two objects",
-	Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object arguments.",
-	Flags:     setupDiffFlags,
-	Nargs:     2,
-}
+	return cmd, func(input string) int {
+		cfg := config.NewResolver()
+		db1, value1, err := cfg.GetPath(*o1)
+		d.CheckErrorNoUsage(err)
+		if value1 == nil {
+			d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", *o1))
+		}
+		defer db1.Close()
 
-func setupDiffFlags() *flag.FlagSet {
-	diffFlagSet := flag.NewFlagSet("diff", flag.ExitOnError)
-	diffFlagSet.BoolVar(&stat, "stat", false, "Writes a summary of the changes instead")
-	outputpager.RegisterOutputpagerFlags(diffFlagSet)
-	verbose.RegisterVerboseFlags(diffFlagSet)
+		db2, value2, err := cfg.GetPath(*o2)
+		d.CheckErrorNoUsage(err)
+		if value2 == nil {
+			d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", *o2))
+		}
+		defer db2.Close()
 
-	return diffFlagSet
-}
+		if *stat {
+			diff.Summary(value1, value2)
+			return 0
+		}
 
-func runDiff(args []string) int {
-	cfg := config.NewResolver()
-	db1, value1, err := cfg.GetPath(args[0])
-	d.CheckErrorNoUsage(err)
-	if value1 == nil {
-		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[0]))
-	}
-	defer db1.Close()
+		pgr := outputpager.Start()
+		defer pgr.Stop()
 
-	db2, value2, err := cfg.GetPath(args[1])
-	d.CheckErrorNoUsage(err)
-	if value2 == nil {
-		d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", args[1]))
-	}
-	defer db2.Close()
-
-	if stat {
-		diff.Summary(value1, value2)
+		diff.PrintDiff(pgr.Writer, value1, value2, false)
 		return 0
 	}
-
-	pgr := outputpager.Start()
-	defer pgr.Stop()
-
-	diff.PrintDiff(pgr.Writer, value1, value2, false)
-	return 0
 }

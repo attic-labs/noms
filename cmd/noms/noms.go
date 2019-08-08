@@ -25,10 +25,6 @@ import (
 )
 
 var commands = []*util.Command{
-	nomsCommit,
-	nomsConfig,
-	nomsDiff,
-	nomsDs,
 	nomsLog,
 	nomsMerge,
 	nomsRoot,
@@ -40,6 +36,10 @@ var commands = []*util.Command{
 
 var kingpinCommands = []util.KingpinCommand{
 	nomsBlob,
+	nomsCommit,
+	nomsConfig,
+	nomsDiff,
+	nomsDs,
 	nomsList,
 	nomsJSON,
 	nomsMap,
@@ -138,37 +138,6 @@ func addDatabaseArg(cmd *kingpin.CmdClause) (arg *string) {
 
 // addNomsDocs - adds documentation (docs only, not commands) for existing (pre-kingpin) commands.
 func addNomsDocs(noms *kingpin.Application) {
-	// commmit
-	commit := noms.Command("commit", `Commits a specified value as head of the dataset
-If absolute-path is not provided, then it is read from stdin. See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the dataset and absolute-path arguments.
-`)
-	commit.Flag("allow-dupe", "creates a new commit, even if it would be identical (modulo metadata and parents) to the existing HEAD.").Default("0").Int()
-	commit.Flag("date", "alias for -meta 'date=<date>'. '<date>' must be iso8601-formatted. If '<date>' is empty, it defaults to the current date.").String()
-	commit.Flag("message", "alias for -meta 'message=<message>'").String()
-	commit.Flag("meta", "'<key>=<value>' - creates a metadata field called 'key' set to 'value'. Value should be human-readable encoded.").String()
-	commit.Flag("meta-p", "'<key>=<path>' - creates a metadata field called 'key' set to the value at <path>").String()
-	commit.Arg("absolute-path", "the path to read data from").String()
-	// TODO: this should be required, but kingpin does not allow required args after non-required ones. Perhaps a custom type would fix that?
-	commit.Arg("database", "a noms database path").String()
-
-	// config
-	noms.Command("config", "Prints the active configuration if a .nomsconfig file is present")
-
-	// diff
-	diff := noms.Command("diff", `Shows the difference between two objects
-See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object arguments.
-`)
-	diff.Flag("stat", "Writes a summary of the changes instead").Short('s').Bool()
-	diff.Arg("object1", "").Required().String()
-	diff.Arg("object2", "").Required().String()
-
-	// ds
-	ds := noms.Command("ds", `Noms dataset management
-See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
-`)
-	ds.Flag("delete", "dataset to delete").Short('d').String()
-	ds.Arg("database", "a noms database path").String()
-
 	// log
 	log := noms.Command("log", `Displays the history of a path
 See Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the <path-spec> parameter.
