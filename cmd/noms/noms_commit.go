@@ -20,6 +20,8 @@ import (
 func nomsCommit(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
 	commit := noms.Command("commit", "commits a value to a dataset")
 	allowDupe := commit.Flag("allow-dupe", "creates a new commit, even if it would be identical (modulo metadata and parents) to the existing HEAD").Bool()
+	message := commit.Flag("message", "commit message").String()
+	date := commit.Flag("date", "commit date formatted as 2019-08-08T21:52:46Z - defaults to current date").String()
 	path := commit.Arg("absolute-path", "absolute path to value to commit - see See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
 	ds := commit.Arg("dataset", "dataset spec to commit to - see Spelling Datasets at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
 
@@ -34,7 +36,7 @@ func nomsCommit(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHand
 
 		value := absPath.Resolve(db)
 		if value == nil {
-			d.CheckErrorNoUsage(errors.New(fmt.Sprintf("Error resolving value: %s", path)))
+			d.CheckErrorNoUsage(errors.New(fmt.Sprintf("Error resolving value: %s", *path)))
 		}
 
 		oldCommitRef, oldCommitExists := ds.MaybeHeadRef()
@@ -46,7 +48,7 @@ func nomsCommit(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHand
 			}
 		}
 
-		meta, err := spec.CreateCommitMetaStruct(db, "", "", nil, nil)
+		meta, err := spec.CreateCommitMetaStruct(db, *date, *message, nil, nil)
 		d.CheckErrorNoUsage(err)
 
 		ds, err = db.Commit(ds, value, datas.CommitOptions{Meta: meta})

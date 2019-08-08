@@ -113,7 +113,7 @@ func (s *nomsCommitTestSuite) runDuplicateTest(allowDuplicate bool) {
 
 	cliOptions := []string{"commit"}
 	if allowDuplicate {
-		cliOptions = append(cliOptions, "--allow-dupe=1")
+		cliOptions = append(cliOptions, "--allow-dupe")
 	}
 	cliOptions = append(cliOptions, dsName+".value", sp.String())
 
@@ -147,7 +147,7 @@ func (s *nomsCommitTestSuite) TestNomsCommitMetadata() {
 
 	metaOld := sp.GetDataset().Head().Get(datas.MetaField).(types.Struct)
 
-	stdoutString, stderrString, err := s.Run(main, []string{"commit", "--allow-dupe=1", "--message=foo", dsName + ".value", sp.String()})
+	stdoutString, stderrString, err := s.Run(main, []string{"commit", "--allow-dupe", "--message=foo", dsName + ".value", sp.String()})
 	s.Nil(err)
 	s.Empty(stderrString)
 	s.Contains(stdoutString, "New head #")
@@ -164,7 +164,7 @@ func (s *nomsCommitTestSuite) TestNomsCommitMetadata() {
 
 	metaOld = metaNew
 
-	stdoutString, stderrString = s.MustRun(main, []string{"commit", "--allow-dupe=1", "--meta=message=bar", "--date=" + spec.CommitMetaDateFormat[:20], dsName + ".value", sp.String()})
+	stdoutString, stderrString = s.MustRun(main, []string{"commit", "--allow-dupe", "--date=" + spec.CommitMetaDateFormat[:20], dsName + ".value", sp.String()})
 	s.Empty(stderrString)
 	s.Contains(stdoutString, "New head #")
 
@@ -193,24 +193,6 @@ func (s *nomsCommitTestSuite) TestNomsCommitMetadataBadDateFormat() {
 	defer sp.Close()
 
 	s.Panics(func() {
-		s.MustRun(main, []string{"commit", "--allow-dupe=1", "--date=a", "#" + ref.TargetHash().String(), sp.String()})
-	})
-}
-
-func (s *nomsCommitTestSuite) TestNomsCommitInvalidMetadataPaths() {
-	sp, ref := s.setupDataset("commitTestMetadataPaths", true)
-	defer sp.Close()
-
-	s.Panics(func() {
-		s.MustRun(main, []string{"commit", "--allow-dupe=1", "--meta-p=#beef", "#" + ref.TargetHash().String(), sp.String()})
-	})
-}
-
-func (s *nomsCommitTestSuite) TestNomsCommitInvalidMetadataFieldName() {
-	sp, ref := s.setupDataset("commitTestMetadataFields", true)
-	defer sp.Close()
-
-	s.Panics(func() {
-		s.MustRun(main, []string{"commit", "--allow-dupe=1", "--meta=_foo=bar", "#" + ref.TargetHash().String(), sp.String()})
+		s.MustRun(main, []string{"commit", "--allow-dupe", "--date=a", "#" + ref.TargetHash().String(), sp.String()})
 	})
 }
