@@ -10,9 +10,11 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/kingpin"
 	flag "github.com/juju/gnuflag"
 	goisatty "github.com/mattn/go-isatty"
+
+	"github.com/attic-labs/noms/go/d"
 )
 
 var (
@@ -78,6 +80,10 @@ func (p *Pager) closePipe() {
 
 func RegisterOutputpagerFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&noPager, "no-pager", false, "suppress paging functionality")
+}
+
+func RegisterOutputpagerFlagsKingpin(cmd *kingpin.CmdClause) {
+	cmd.Flag("no-pager", "suppress paging functionality").BoolVar(&noPager)
 }
 
 func IsStdoutTty() bool {

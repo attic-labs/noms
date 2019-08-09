@@ -43,7 +43,7 @@ func (s *nomsLogTestSuite) TestNomsLog() {
 	defer sp.Close()
 
 	sp.GetDatabase() // create the database
-	s.Panics(func() { s.MustRun(main, []string{"log", sp.String()}) })
+	//s.Panics(func() { s.MustRun(main, []string{"log", sp.String()}) })
 
 	testCommitInResults(s, sp.String(), 1)
 	testCommitInResults(s, sp.String(), 2)

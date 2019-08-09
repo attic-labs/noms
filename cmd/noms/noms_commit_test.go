@@ -5,7 +5,6 @@
 package main
 
 import (
-	"os"
 	"testing"
 
 	"github.com/attic-labs/noms/go/datas"
@@ -36,42 +35,6 @@ func (s *nomsCommitTestSuite) setupDataset(name string, doCommit bool) (sp spec.
 		s.NoError(err)
 	}
 	return
-}
-
-func (s *nomsCommitTestSuite) TestNomsCommitReadPathFromStdin() {
-	sp, ref := s.setupDataset("commitTestStdin", false)
-	defer sp.Close()
-
-	_, ok := sp.GetDataset().MaybeHead()
-	s.False(ok, "should not have a commit")
-
-	oldStdin := os.Stdin
-	newStdin, stdinWriter, err := os.Pipe()
-	s.NoError(err)
-
-	os.Stdin = newStdin
-	defer func() {
-		os.Stdin = oldStdin
-	}()
-
-	go func() {
-		stdinWriter.Write([]byte("#" + ref.TargetHash().String() + "\n"))
-		stdinWriter.Close()
-	}()
-	stdoutString, stderrString := s.MustRun(main, []string{"commit", sp.String()})
-	s.Empty(stderrString)
-	s.Contains(stdoutString, "New head #")
-
-	sp, _ = spec.ForDataset(sp.String())
-	defer sp.Close()
-
-	commit, ok := sp.GetDataset().MaybeHead()
-	s.True(ok, "should have a commit now")
-	value := commit.Get(datas.ValueField)
-	s.True(value.Hash() == ref.TargetHash(), "commit.value hash == writevalue hash")
-
-	meta := commit.Get(datas.MetaField).(types.Struct)
-	s.NotEmpty(meta.Get("date"))
 }
 
 func (s *nomsCommitTestSuite) TestNomsCommitToDatasetWithoutHead() {
@@ -164,7 +127,7 @@ func (s *nomsCommitTestSuite) TestNomsCommitMetadata() {
 
 	metaOld = metaNew
 
-	stdoutString, stderrString = s.MustRun(main, []string{"commit", "--allow-dupe", "--date=" + spec.CommitMetaDateFormat[:20], dsName + ".value", sp.String()})
+	stdoutString, stderrString = s.MustRun(main, []string{"commit", "--allow-dupe", "--message=bar", "--date=" + spec.CommitMetaDateFormat[:20], dsName + ".value", sp.String()})
 	s.Empty(stderrString)
 	s.Contains(stdoutString, "New head #")
 

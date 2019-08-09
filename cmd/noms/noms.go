@@ -25,7 +25,6 @@ import (
 )
 
 var commands = []*util.Command{
-	nomsLog,
 	nomsMerge,
 	nomsRoot,
 	nomsServe,
@@ -41,6 +40,7 @@ var kingpinCommands = []util.KingpinCommand{
 	nomsDiff,
 	nomsDs,
 	nomsList,
+	nomsLog,
 	nomsJSON,
 	nomsMap,
 	nomsSet,
@@ -138,19 +138,6 @@ func addDatabaseArg(cmd *kingpin.CmdClause) (arg *string) {
 
 // addNomsDocs - adds documentation (docs only, not commands) for existing (pre-kingpin) commands.
 func addNomsDocs(noms *kingpin.Application) {
-	// log
-	log := noms.Command("log", `Displays the history of a path
-See Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the <path-spec> parameter.
-`)
-	log.Flag("color", "value of 1 forces color on, 0 forces color off").Default("-1").Int()
-	log.Flag("max-lines", "max number of lines to show per commit (-1 for all lines)").Default("9").Int()
-	log.Flag("max-commits", "max number of commits to display (0 for all commits)").Short('n').Default("0").Int()
-	log.Flag("oneline", "show a summary of each commit on a single line").Bool()
-	log.Flag("graph", "show ascii-based commit hierarchy on left side of output").Bool()
-	log.Flag("show-value", "show commit value rather than diff information").Bool()
-	log.Flag("tz", "display formatted date comments in specified timezone, must be: local or utc").Enum("local", "utc")
-	log.Arg("path-spec", "").Required().String()
-
 	// merge
 	merge := noms.Command("merge", `Merges and commits the head values of two named datasets
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.

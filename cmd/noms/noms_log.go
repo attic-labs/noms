@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/attic-labs/kingpin"
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
@@ -24,124 +25,120 @@ import (
 	"github.com/attic-labs/noms/go/util/datetime"
 	"github.com/attic-labs/noms/go/util/functions"
 	"github.com/attic-labs/noms/go/util/outputpager"
-	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/attic-labs/noms/go/util/writers"
-	flag "github.com/juju/gnuflag"
 	"github.com/mgutz/ansi"
 )
 
-var (
-	useColor   = false
-	color      int
+const parallelism = 16
+
+type opts struct {
+	useColor   bool
 	maxLines   int
 	maxCommits int
 	oneline    bool
 	showGraph  bool
 	showValue  bool
-)
-
-const parallelism = 16
-
-var nomsLog = &util.Command{
-	Run:       runLog,
-	UsageLine: "log [options] <path-spec>",
-	Short:     "Displays the history of a path",
-	Long:      "Displays the history of a path. See Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the <path-spec> parameter.",
-	Flags:     setupLogFlags,
-	Nargs:     1,
+	path       string
+	tz         *time.Location
 }
 
-func setupLogFlags() *flag.FlagSet {
-	logFlagSet := flag.NewFlagSet("log", flag.ExitOnError)
-	logFlagSet.IntVar(&color, "color", -1, "value of 1 forces color on, 0 forces color off")
-	logFlagSet.IntVar(&maxLines, "max-lines", 9, "max number of lines to show per commit (-1 for all lines)")
-	logFlagSet.IntVar(&maxCommits, "n", 0, "max number of commits to display (0 for all commits)")
-	logFlagSet.BoolVar(&oneline, "oneline", false, "show a summary of each commit on a single line")
-	logFlagSet.BoolVar(&showGraph, "graph", false, "show ascii-based commit hierarchy on left side of output")
-	logFlagSet.BoolVar(&showValue, "show-value", false, "show commit value rather than diff information")
-	logFlagSet.StringVar(&tzName, "tz", "local", "display formatted date comments in specified timezone, must be: local or utc")
-	outputpager.RegisterOutputpagerFlags(logFlagSet)
-	verbose.RegisterVerboseFlags(logFlagSet)
-	return logFlagSet
-}
+func nomsLog(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
+	var o opts
+	var color int
+	var tzName string
 
-func runLog(args []string) int {
-	useColor = shouldUseColor()
-	cfg := config.NewResolver()
+	cmd := noms.Command("log", "lists the history of changes to a path -- see Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md")
+	cmd.Flag("color", "set to 1 to force color on, 0 to force off").Default("-1").IntVar(&color)
 
-	tz, _ := locationFromTimezoneArg(tzName, nil)
-	datetime.RegisterHRSCommenter(tz)
+	cmd.Flag("max-lines", "max number of lines to show per commit (-1 for all lines)").Default("9").IntVar(&o.maxLines)
+	cmd.Flag("max-commits", "max number of commits to display (0 for all commits)").Short('n').Default("0").IntVar(&o.maxCommits)
+	cmd.Flag("oneline", "show a summary of each commit on a single line").BoolVar(&o.oneline)
+	cmd.Flag("graph", "show ascii-based commit hierarchy on left side of output").BoolVar(&o.showGraph)
+	cmd.Flag("show-value", "show commit value rather than diff information").BoolVar(&o.showValue)
+	cmd.Flag("tz", "display formatted date comments in specified timezone, must be: local or utc").Default("tz").StringVar(&tzName)
 
-	resolved := cfg.ResolvePathSpec(args[0])
-	sp, err := spec.ForPath(resolved)
-	d.CheckErrorNoUsage(err)
-	defer sp.Close()
+	cmd.Arg("value", "dataset or value to display history for").Required().StringVar(&o.path)
 
-	pinned, ok := sp.Pin()
-	if !ok {
-		fmt.Fprintf(os.Stderr, "Cannot resolve spec: %s\n", args[0])
-		return 1
-	}
-	defer pinned.Close()
-	database := pinned.GetDatabase()
+	outputpager.RegisterOutputpagerFlagsKingpin(cmd)
 
-	absPath := pinned.Path
-	path := absPath.Path
-	if len(path) == 0 {
-		path = types.MustParsePath(".value")
-	}
+	return cmd, func(input string) int {
+		o.useColor = shouldUseColor(color)
+		cfg := config.NewResolver()
 
-	origCommit, ok := database.ReadValue(absPath.Hash).(types.Struct)
-	if !ok || !datas.IsCommit(origCommit) {
-		d.CheckError(fmt.Errorf("%s does not reference a Commit object", args[0]))
-	}
+		o.tz, _ = locationFromTimezoneArg(tzName, nil)
+		datetime.RegisterHRSCommenter(o.tz)
 
-	iter := NewCommitIterator(database, origCommit)
-	displayed := 0
-	if maxCommits <= 0 {
-		maxCommits = math.MaxInt32
-	}
+		resolved := cfg.ResolvePathSpec(o.path)
+		sp, err := spec.ForPath(resolved)
+		d.CheckErrorNoUsage(err)
+		defer sp.Close()
 
-	bytesChan := make(chan chan []byte, parallelism)
-
-	var done = false
-
-	go func() {
-		for ln, ok := iter.Next(); !done && ok && displayed < maxCommits; ln, ok = iter.Next() {
-			ch := make(chan []byte)
-			bytesChan <- ch
-
-			go func(ch chan []byte, node LogNode) {
-				buff := &bytes.Buffer{}
-				printCommit(node, path, buff, database, tz)
-				ch <- buff.Bytes()
-			}(ch, ln)
-
-			displayed++
+		pinned, ok := sp.Pin()
+		if !ok {
+			fmt.Fprintf(os.Stderr, "Cannot resolve spec: %s\n", o.path)
+			return 1
 		}
-		close(bytesChan)
-	}()
+		defer pinned.Close()
+		database := pinned.GetDatabase()
 
-	pgr := outputpager.Start()
-	defer pgr.Stop()
+		absPath := pinned.Path
+		path := absPath.Path
+		if len(path) == 0 {
+			path = types.MustParsePath(".value")
+		}
 
-	for ch := range bytesChan {
-		commitBuff := <-ch
-		_, err := io.Copy(pgr.Writer, bytes.NewReader(commitBuff))
-		if err != nil {
-			done = true
-			for range bytesChan {
-				// drain the output
+		origCommit, ok := database.ReadValue(absPath.Hash).(types.Struct)
+		if !ok || !datas.IsCommit(origCommit) {
+			d.CheckError(fmt.Errorf("%s does not reference a Commit object", path))
+		}
+
+		iter := NewCommitIterator(database, origCommit)
+		displayed := 0
+		if o.maxCommits <= 0 {
+			o.maxCommits = math.MaxInt32
+		}
+
+		bytesChan := make(chan chan []byte, parallelism)
+
+		var done = false
+
+		go func() {
+			for ln, ok := iter.Next(); !done && ok && displayed < o.maxCommits; ln, ok = iter.Next() {
+				ch := make(chan []byte)
+				bytesChan <- ch
+
+				go func(ch chan []byte, node LogNode) {
+					buff := &bytes.Buffer{}
+					printCommit(node, path, buff, database, o)
+					ch <- buff.Bytes()
+				}(ch, ln)
+
+				displayed++
+			}
+			close(bytesChan)
+		}()
+
+		pgr := outputpager.Start()
+		defer pgr.Stop()
+
+		for ch := range bytesChan {
+			commitBuff := <-ch
+			_, err := io.Copy(pgr.Writer, bytes.NewReader(commitBuff))
+			if err != nil {
+				done = true
+				for range bytesChan {
+					// drain the output
+				}
 			}
 		}
-	}
 
-	return 0
+		return 0
+	}
 }
 
 // Prints the information for one commit in the log, including ascii graph on left side of commits if
 // -graph arg is true.
-func printCommit(node LogNode, path types.Path, w io.Writer, db datas.Database, tz *time.Location) (err error) {
+func printCommit(node LogNode, path types.Path, w io.Writer, db datas.Database, o opts) (err error) {
 	maxMetaFieldNameLength := func(commit types.Struct) int {
 		maxLen := 0
 		if m, ok := commit.MaybeGet(datas.MetaField); ok {
@@ -154,7 +151,7 @@ func printCommit(node LogNode, path types.Path, w io.Writer, db datas.Database, 
 	}
 
 	hashStr := node.commit.Hash().String()
-	if useColor {
+	if o.useColor {
 		hashStr = ansi.Color("commit "+hashStr, "red+h")
 	}
 
@@ -174,7 +171,7 @@ func printCommit(node LogNode, path types.Path, w io.Writer, db datas.Database, 
 		parentValue = parents[0].TargetHash().String()
 	}
 
-	if oneline {
+	if o.oneline {
 		parentStr := fmt.Sprintf("%s %s", parentLabel+":", parentValue)
 		fmt.Fprintf(w, "%s (%s)\n", hashStr, parentStr)
 		return
@@ -182,29 +179,29 @@ func printCommit(node LogNode, path types.Path, w io.Writer, db datas.Database, 
 
 	maxFieldNameLen = max(maxFieldNameLen, len(parentLabel))
 	parentStr := fmt.Sprintf("%-*s %s", maxFieldNameLen+1, parentLabel+":", parentValue)
-	fmt.Fprintf(w, "%s%s\n", genGraph(node, 0), hashStr)
-	fmt.Fprintf(w, "%s%s\n", genGraph(node, 1), parentStr)
+	fmt.Fprintf(w, "%s%s\n", genGraph(node, 0, o), hashStr)
+	fmt.Fprintf(w, "%s%s\n", genGraph(node, 1, o), parentStr)
 	lineno := 1
 
-	if maxLines != 0 {
-		lineno, err = writeMetaLines(node, maxLines, lineno, maxFieldNameLen, w, tz)
+	if o.maxLines != 0 {
+		lineno, err = writeMetaLines(node, o.maxLines, lineno, maxFieldNameLen, w, o)
 		if err != nil && err != writers.MaxLinesErr {
 			fmt.Fprintf(w, "error: %s\n", err)
 			return
 		}
 
-		if showValue {
-			_, err = writeCommitLines(node, path, maxLines, lineno, w, db)
+		if o.showValue {
+			_, err = writeCommitLines(node, path, o.maxLines, lineno, w, db, o)
 		} else {
-			_, err = writeDiffLines(node, path, db, maxLines, lineno, w)
+			_, err = writeDiffLines(node, path, db, o.maxLines, lineno, w, o)
 		}
 	}
 	return
 }
 
 // Generates ascii graph chars to display on the left side of the commit info if -graph arg is true.
-func genGraph(node LogNode, lineno int) string {
-	if !showGraph {
+func genGraph(node LogNode, lineno int, o opts) string {
+	if !o.showGraph {
 		return ""
 	}
 
@@ -255,10 +252,10 @@ func genGraph(node LogNode, lineno int) string {
 	return string(buf)
 }
 
-func writeMetaLines(node LogNode, maxLines, lineno, maxLabelLen int, w io.Writer, tz *time.Location) (int, error) {
+func writeMetaLines(node LogNode, maxLines, lineno, maxLabelLen int, w io.Writer, o opts) (int, error) {
 	if m, ok := node.commit.MaybeGet(datas.MetaField); ok {
 		genPrefix := func(w *writers.PrefixWriter) []byte {
-			return []byte(genGraph(node, int(w.NumLines)))
+			return []byte(genGraph(node, int(w.NumLines), o))
 		}
 		meta := m.(types.Struct)
 		mlw := &writers.MaxLineWriter{Dest: w, MaxLines: uint32(maxLines), NumLines: uint32(lineno)}
@@ -272,7 +269,7 @@ func writeMetaLines(node LogNode, maxLines, lineno, maxLabelLen int, w io.Writer
 				if types.TypeOf(v).Equals(datetime.DateTimeType) {
 					var dt datetime.DateTime
 					dt.UnmarshalNoms(v)
-					fmt.Fprintln(pw, dt.In(tz).Format(time.RFC3339))
+					fmt.Fprintln(pw, dt.In(o.tz).Format(time.RFC3339))
 				} else {
 					types.WriteEncodedValue(pw, v)
 				}
@@ -284,9 +281,9 @@ func writeMetaLines(node LogNode, maxLines, lineno, maxLabelLen int, w io.Writer
 	return lineno, nil
 }
 
-func writeCommitLines(node LogNode, path types.Path, maxLines, lineno int, w io.Writer, db datas.Database) (lineCnt int, err error) {
+func writeCommitLines(node LogNode, path types.Path, maxLines, lineno int, w io.Writer, db datas.Database, o opts) (lineCnt int, err error) {
 	genPrefix := func(pw *writers.PrefixWriter) []byte {
-		return []byte(genGraph(node, int(pw.NumLines)+1))
+		return []byte(genGraph(node, int(pw.NumLines)+1, o))
 	}
 	mlw := &writers.MaxLineWriter{Dest: w, MaxLines: uint32(maxLines), NumLines: uint32(lineno)}
 	pw := &writers.PrefixWriter{Dest: mlw, PrefixFunc: genPrefix, NeedsPrefix: true, NumLines: uint32(lineno)}
@@ -313,9 +310,9 @@ func writeCommitLines(node LogNode, path types.Path, maxLines, lineno int, w io.
 	return int(pw.NumLines), err
 }
 
-func writeDiffLines(node LogNode, path types.Path, db datas.Database, maxLines, lineno int, w io.Writer) (lineCnt int, err error) {
+func writeDiffLines(node LogNode, path types.Path, db datas.Database, maxLines, lineno int, w io.Writer, o opts) (lineCnt int, err error) {
 	genPrefix := func(w *writers.PrefixWriter) []byte {
-		return []byte(genGraph(node, int(w.NumLines)+1))
+		return []byte(genGraph(node, int(w.NumLines)+1, o))
 	}
 	mlw := &writers.MaxLineWriter{Dest: w, MaxLines: uint32(maxLines), NumLines: uint32(lineno)}
 	pw := &writers.PrefixWriter{Dest: mlw, PrefixFunc: genPrefix, NeedsPrefix: true, NumLines: uint32(lineno)}
@@ -362,7 +359,7 @@ func writeDiffLines(node LogNode, path types.Path, db datas.Database, maxLines, 
 	return int(pw.NumLines), err
 }
 
-func shouldUseColor() bool {
+func shouldUseColor(color int) bool {
 	if color != 1 && color != 0 {
 		return outputpager.IsStdoutTty()
 	}

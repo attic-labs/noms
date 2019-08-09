@@ -16,24 +16,25 @@ import (
 )
 
 func nomsDiff(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
-	cmd := noms.Command("diff", "shows the difference between two objects")
+	cmd := noms.Command("diff", "shows the difference between two values")
 	stat := cmd.Flag("stat", "writes a summary of the changes instead").Bool()
-	o1 := cmd.Arg("object1", "first object - see Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
-	o2 := cmd.Arg("object2", "second object - see Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
+	o1 := cmd.Arg("val1", "first value - see Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
+	o2 := cmd.Arg("val2", "second value - see Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
+	outputpager.RegisterOutputpagerFlagsKingpin(cmd)
 
 	return cmd, func(input string) int {
 		cfg := config.NewResolver()
 		db1, value1, err := cfg.GetPath(*o1)
 		d.CheckErrorNoUsage(err)
 		if value1 == nil {
-			d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", *o1))
+			d.CheckErrorNoUsage(fmt.Errorf("Value not found: %s", *o1))
 		}
 		defer db1.Close()
 
 		db2, value2, err := cfg.GetPath(*o2)
 		d.CheckErrorNoUsage(err)
 		if value2 == nil {
-			d.CheckErrorNoUsage(fmt.Errorf("Object not found: %s", *o2))
+			d.CheckErrorNoUsage(fmt.Errorf("Value not found: %s", *o2))
 		}
 		defer db2.Close()
 
