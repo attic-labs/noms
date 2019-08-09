@@ -15,12 +15,13 @@ import (
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
-	flag "github.com/juju/gnuflag"
+
+	"github.com/attic-labs/kingpin"
 )
 
 var (
-	count    = flag.Uint64("count", 100000, "number of elements")
-	blobSize = flag.Uint64("blobsize", 2<<24 /* 32MB */, "size of blob of create")
+	count    = kingpin.Flag("count", "number of elements").Default("100000").Uint64()
+	blobSize = kingpin.Flag("blobsize", "size of blob of create").Default(fmt.Sprintf("%d", 2<<24 /* 32MB */)).Uint64()
 )
 
 const numberSize = uint64(8)
@@ -30,8 +31,8 @@ const boolSize = uint64(1)
 const structSize = uint64(64)
 
 func main() {
-	profile.RegisterProfileFlags(flag.CommandLine)
-	flag.Parse(true)
+	profile.RegisterProfileFlags(kingpin.CommandLine)
+	kingpin.Parse()
 
 	buildCount := *count
 	insertCount := buildCount

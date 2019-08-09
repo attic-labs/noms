@@ -9,44 +9,39 @@ import (
 	"os"
 	"strings"
 
+	"github.com/attic-labs/kingpin"
+
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
-	flag "github.com/juju/gnuflag"
 )
 
 func main() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [options] <dataset-to-invert> <output-dataset>\n", os.Args[0])
-		flag.PrintDefaults()
-	}
+	app := kingpin.New("csv-invert", "")
+	input := app.Arg("input-dataset", "dataset to invert").Required().String()
+	output := app.Arg("output-dataset", "dataset to write to").Required().String()
 
-	profile.RegisterProfileFlags(flag.CommandLine)
-	flag.Parse(true)
-
-	if flag.NArg() != 2 {
-		flag.Usage()
-		return
-	}
+	profile.RegisterProfileFlags(app)
+	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	cfg := config.NewResolver()
-	inDB, inDS, err := cfg.GetDataset(flag.Arg(0))
+	inDB, inDS, err := cfg.GetDataset(*input)
 	d.CheckError(err)
 	defer inDB.Close()
 
 	head, present := inDS.MaybeHead()
 	if !present {
-		d.CheckErrorNoUsage(fmt.Errorf("The dataset %s has no head", flag.Arg(0)))
+		d.CheckErrorNoUsage(fmt.Errorf("The dataset %s has no head", *input))
 	}
 	v := head.Get(datas.ValueField)
 	l, isList := v.(types.List)
 	if !isList {
-		d.CheckErrorNoUsage(fmt.Errorf("The head value of %s is not a list, but rather %s", flag.Arg(0), types.TypeOf(v).Describe()))
+		d.CheckErrorNoUsage(fmt.Errorf("The head value of %s is not a list, but rather %s", *input, types.TypeOf(v).Describe()))
 	}
 
-	outDB, outDS, err := cfg.GetDataset(flag.Arg(1))
+	outDB, outDS, err := cfg.GetDataset(*output)
 	defer outDB.Close()
 
 	// I don't want to allocate a new types.Value every time someone calls zeroVal(), so instead have a map of canned Values to reference.

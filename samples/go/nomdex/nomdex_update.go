@@ -6,13 +6,14 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"sync"
 	"sync/atomic"
 
-	"github.com/attic-labs/noms/cmd/util"
+	"github.com/attic-labs/kingpin"
+	humanize "github.com/dustin/go-humanize"
+
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
@@ -20,9 +21,6 @@ import (
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/status"
-	"github.com/attic-labs/noms/go/util/verbose"
-	humanize "github.com/dustin/go-humanize"
-	flag "github.com/juju/gnuflag"
 )
 
 var (
@@ -78,26 +76,14 @@ The resulting indexes can be used by the 'nomdex find command' for help on that
 see: nomdex find -h
 `
 
-var update = &util.Command{
-	Run:       runUpdate,
-	UsageLine: "up --in-path <path> --out-ds <dspath> --by <relativepath>",
-	Short:     "Build/Update an index",
-	Long:      longUpHelp,
-	Flags:     setupUpdateFlags,
-	Nargs:     0,
-}
-
-func setupUpdateFlags() *flag.FlagSet {
-	flagSet := flag.NewFlagSet("up", flag.ExitOnError)
-	flagSet.StringVar(&inPathArg, "in-path", "", "a value to search for items to index within ")
-	flagSet.StringVar(&outDsArg, "out-ds", "", "name of dataset to save the results to")
-	flagSet.StringVar(&relPathArg, "by", "", "a path relative to all the items in <in-path> to index by")
-	flagSet.StringVar(&txRegexArg, "tx-regex", "", "perform a string transformation on value before putting it in index")
-	flagSet.StringVar(&txReplaceArg, "tx-replace", "", "replace values matched by tx-regex")
-	flagSet.StringVar(&txConvertArg, "tx-convert", "", "convert the result of a tx regex/replace to this type (only does 'number' currently)")
-	verbose.RegisterVerboseFlags(flagSet)
-	profile.RegisterProfileFlags(flagSet)
-	return flagSet
+func registerUpdate() {
+	cmd := kingpin.Command("up", "Build/update an index.")
+	cmd.Flag("in-path", "a value to search for items to index within").Required().StringVar(&inPathArg)
+	cmd.Flag("out-ds", "name of dataset to save the results to").Required().StringVar(&outDsArg)
+	cmd.Flag("by", "a path relative to all the items in <in-path> to index by").Required().StringVar(&relPathArg)
+	cmd.Flag("tx-regex", "perform a string transformation on value before putting it in index").StringVar(&txRegexArg)
+	cmd.Flag("tx-replace", "replace values matched by tx-regex").StringVar(&txReplaceArg)
+	cmd.Flag("tx-convert", "convert the result of a tx regex/replace to this type (only does 'number' currently)").StringVar(&txConvertArg)
 }
 
 type StreamingSetEntry struct {
@@ -114,16 +100,7 @@ type Index struct {
 	mutex      sync.Mutex
 }
 
-func runUpdate(args []string) int {
-	requiredArgs := map[string]string{"in-path": inPathArg, "out-ds": outDsArg, "by": relPathArg}
-	for argName, argValue := range requiredArgs {
-		if argValue == "" {
-			fmt.Fprintf(os.Stderr, "Missing required '%s' arg\n", argName)
-			flag.Usage()
-			return 1
-		}
-	}
-
+func runUpdate() int {
 	defer profile.MaybeStartProfile().Stop()
 
 	cfg := config.NewResolver()

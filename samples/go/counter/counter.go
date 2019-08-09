@@ -8,29 +8,21 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/attic-labs/kingpin"
+
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/verbose"
-	flag "github.com/juju/gnuflag"
 )
 
 func main() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: %s [options] <dataset>\n", os.Args[0])
-		flag.PrintDefaults()
-	}
-
-	verbose.RegisterVerboseFlags(flag.CommandLine)
-
-	flag.Parse(true)
-
-	if flag.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "Missing required dataset argument")
-		return
-	}
+	app := kingpin.New("counter", "")
+	dsStr := app.Arg("ds", "dataset to count in").Required().String()
+	verbose.RegisterVerboseFlags(app)
+	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	cfg := config.NewResolver()
-	db, ds, err := cfg.GetDataset(flag.Arg(0))
+	db, ds, err := cfg.GetDataset(*dsStr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Could not create dataset: %s\n", err)
 		return

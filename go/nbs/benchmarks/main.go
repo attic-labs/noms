@@ -5,6 +5,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/attic-labs/kingpin"
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/nbs"
@@ -21,19 +23,18 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/dustin/go-humanize"
-	flag "github.com/juju/gnuflag"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	count    = flag.Int("c", 10, "Number of iterations to run")
-	dataSize = flag.Uint64("data", 4096, "MiB of data to test with")
-	mtMiB    = flag.Uint64("mem", 64, "Size in MiB of memTable")
-	useNBS   = flag.String("useNBS", "", "Existing Database to use for not-WriteNovel benchmarks")
-	toNBS    = flag.String("toNBS", "", "Write to an NBS store in the given directory")
-	useAWS   = flag.String("useAWS", "", "Name of existing Database to use for not-WriteNovel benchmarks")
-	toAWS    = flag.String("toAWS", "", "Write to an NBS store in AWS")
-	toFile   = flag.String("toFile", "", "Write to a file in the given directory")
+	count    = kingpin.Flag("c", "Number of iterations to run").Default("10").Int()
+	dataSize = kingpin.Flag("data", "MiB of data to test with").Default("4096").Uint64()
+	mtMiB    = kingpin.Flag("mem", "Size in MiB of memTable").Default("64").Uint64()
+	useNBS   = kingpin.Flag("useNBS", "Existing Database to use for not-WriteNovel benchmarks").String()
+	toNBS    = kingpin.Flag("toNBS", "Write to an NBS store in the given directory").String()
+	useAWS   = kingpin.Flag("useAWS", "Name of existing Database to use for not-WriteNovel benchmarks").String()
+	toAWS    = kingpin.Flag("toAWS", "Write to an NBS store in AWS").String()
+	toFile   = kingpin.Flag("toFile", "Write to a file in the given directory").String()
 )
 
 const s3Bucket = "attic-nbs"
@@ -56,13 +57,8 @@ func (pb panickingBencher) StartTimer() {}
 func (pb panickingBencher) StopTimer()  {}
 
 func main() {
-	profile.RegisterProfileFlags(flag.CommandLine)
-	flag.Parse(true)
-
-	if flag.NArg() < 1 {
-		flag.Usage()
-		os.Exit(1)
-	}
+	profile.RegisterProfileFlags(kingpin.CommandLine)
+	kingpin.Parse()
 
 	pb := panickingBencher{*count}
 

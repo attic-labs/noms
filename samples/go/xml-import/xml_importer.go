@@ -5,7 +5,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/attic-labs/kingpin"
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
@@ -23,18 +23,13 @@ import (
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/clbanning/mxj"
-	flag "github.com/juju/gnuflag"
 )
 
 var (
-	noIO          = flag.Bool("benchmark", false, "Run in 'benchmark' mode: walk directories and parse XML files but do not write to Noms")
-	performCommit = flag.Bool("commit", true, "commit the data to head of the dataset (otherwise only write the data to the dataset)")
-	customUsage   = func() {
-		fmtString := `%s walks the given directory, looking for .xml files. When it finds one, the entity inside is parsed into nested Noms maps/lists and committed to the dataset indicated on the command line.`
-		fmt.Fprintf(os.Stderr, fmtString, os.Args[0])
-		fmt.Fprintf(os.Stderr, "\n\nUsage: %s [options] <path/to/root/directory> <dataset>\n", os.Args[0])
-		flag.PrintDefaults()
-	}
+	noIO          = kingpin.Flag("benchmark", "Run in 'benchmark' mode: walk directories and parse XML files but do not write to Noms").Bool()
+	performCommit = kingpin.Flag("commit", "commit the data to head of the dataset (otherwise only write the data to the dataset)").Default("true").Bool()
+	rootDir       = kingpin.Arg("dir", "directory to find for xml files in").Required().String()
+	dataset       = kingpin.Arg("dataset", "dataset to write to").Required().String()
 )
 
 type fileIndex struct {
@@ -55,18 +50,12 @@ func (a refIndexList) Less(i, j int) bool { return a[i].index < a[j].index }
 
 func main() {
 	err := d.Try(func() {
-		spec.RegisterCommitMetaFlags(flag.CommandLine)
-		verbose.RegisterVerboseFlags(flag.CommandLine)
-		profile.RegisterProfileFlags(flag.CommandLine)
-		flag.Usage = customUsage
-		flag.Parse(true)
+		verbose.RegisterVerboseFlags(kingpin.CommandLine)
+		profile.RegisterProfileFlags(kingpin.CommandLine)
+		kingpin.Parse()
 
 		cfg := config.NewResolver()
-		if flag.NArg() != 2 {
-			d.CheckError(errors.New("Expected directory path followed by dataset"))
-		}
-		dir := flag.Arg(0)
-		db, ds, err := cfg.GetDataset(flag.Arg(1))
+		db, ds, err := cfg.GetDataset(*dataset)
 		d.CheckError(err)
 		defer db.Close()
 
@@ -79,7 +68,7 @@ func main() {
 
 		getFilePaths := func() {
 			index := 0
-			err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			err := filepath.Walk(*rootDir, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					d.Panic("Cannot traverse directories")
 				}
@@ -149,7 +138,7 @@ func main() {
 
 		if !*noIO {
 			if *performCommit {
-				additionalMetaInfo := map[string]string{"inputDir": dir}
+				additionalMetaInfo := map[string]string{"inputDir": *rootDir}
 				meta, err := spec.CreateCommitMetaStruct(ds.Database(), "", "", additionalMetaInfo, nil)
 				d.CheckErrorNoUsage(err)
 				_, err = db.Commit(ds, rl, datas.CommitOptions{Meta: meta})

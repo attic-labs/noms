@@ -15,7 +15,7 @@ import (
 )
 
 func nomsBlob(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
-	blob := noms.Command("blob", "interact with blobs")
+	blob := noms.Command("blob", "Interact with blobs.")
 
 	blobPut := blob.Command("put", "imports a blob to a dataset")
 	concurrency := blobPut.Flag("concurrency", "number of concurrent HTTP calls to retrieve remote resources").Default(strconv.Itoa(runtime.NumCPU())).Int()

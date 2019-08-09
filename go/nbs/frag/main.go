@@ -7,44 +7,34 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"sync"
+
+	"github.com/attic-labs/kingpin"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/dustin/go-humanize"
 
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/nbs"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/dustin/go-humanize"
-	flag "github.com/juju/gnuflag"
 )
 
 var (
-	dir    = flag.String("dir", "", "Write to an NBS store in the given directory")
-	table  = flag.String("table", "", "Write to an NBS store in AWS, using this table")
-	bucket = flag.String("bucket", "", "Write to an NBS store in AWS, using this bucket")
-	dbName = flag.String("db", "", "Write to an NBS store in AWS, using this db name")
+	dir    = kingpin.Flag("dir", "Write to an NBS store in the given directory").String()
+	table  = kingpin.Flag("table", "Write to an NBS store in AWS, using this table").String()
+	bucket = kingpin.Flag("bucket", "Write to an NBS store in AWS, using this bucket").String()
+	dbName = kingpin.Flag("db", "Write to an NBS store in AWS, using this db name").String()
 )
 
 const memTableSize = 128 * humanize.MiByte
 
 func main() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [options]\n", os.Args[0])
-		flag.PrintDefaults()
-	}
-
-	profile.RegisterProfileFlags(flag.CommandLine)
-	flag.Parse(true)
-
-	if flag.NArg() != 0 {
-		flag.Usage()
-		return
-	}
+	profile.RegisterProfileFlags(kingpin.CommandLine)
+	kingpin.Parse()
 
 	var store *nbs.NomsBlockStore
 	if *dir != "" {

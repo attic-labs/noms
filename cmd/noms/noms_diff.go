@@ -20,7 +20,7 @@ func nomsDiff(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandle
 	stat := cmd.Flag("stat", "writes a summary of the changes instead").Bool()
 	o1 := cmd.Arg("val1", "first value - see Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
 	o2 := cmd.Arg("val2", "second value - see Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
-	outputpager.RegisterOutputpagerFlagsKingpin(cmd)
+	outputpager.RegisterOutputpagerFlags(cmd)
 
 	return cmd, func(input string) int {
 		cfg := config.NewResolver()

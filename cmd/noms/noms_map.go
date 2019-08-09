@@ -17,7 +17,7 @@ import (
 )
 
 func nomsMap(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
-	maap := noms.Command("map", "interact with maps")
+	maap := noms.Command("map", "Interact with maps.")
 
 	mapNew := maap.Command("new", "creates a new map")
 	newDb := mapNew.Arg("database", "spec to db to create map within").Required().String()

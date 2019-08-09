@@ -15,7 +15,7 @@ import (
 )
 
 func nomsConfig(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
-	cfg := noms.Command("config", "display noms config info")
+	cfg := noms.Command("config", "Display noms config info.")
 
 	return cfg, func(input string) int {
 		c, err := config.FindNomsConfig()

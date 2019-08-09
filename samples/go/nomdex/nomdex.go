@@ -7,58 +7,26 @@ package main
 import (
 	"fmt"
 	"os"
-	"path"
 
-	"github.com/attic-labs/noms/cmd/util"
+	"github.com/attic-labs/kingpin"
+
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/util/exit"
-	flag "github.com/juju/gnuflag"
+	"github.com/attic-labs/noms/go/util/profile"
+	"github.com/attic-labs/noms/go/util/verbose"
 )
 
-var commands = []*util.Command{
-	update,
-	find,
-}
-
-var usageLine = `Nomdex builds indexes to support fast data access.`
-
 func main() {
-	progName := path.Base(os.Args[0])
-	util.InitHelp(progName, commands, usageLine)
-	flag.Usage = util.Usage
-	flag.Parse(false)
+	registerUpdate()
+	registerFind()
+	verbose.RegisterVerboseFlags(kingpin.CommandLine)
+	profile.RegisterProfileFlags(kingpin.CommandLine)
 
-	args := flag.Args()
-	if len(args) < 1 {
-		util.Usage()
-		return
+	switch kingpin.Parse() {
+	case "up":
+		runUpdate()
+	case "find":
+		runFind()
 	}
-
-	if args[0] == "help" {
-		util.Help(args[1:])
-		return
-	}
-
-	for _, cmd := range commands {
-		if cmd.Name() == args[0] {
-			flags := cmd.Flags()
-			flags.Usage = cmd.Usage
-
-			flags.Parse(true, args[1:])
-			args = flags.Args()
-			if cmd.Nargs != 0 && len(args) < cmd.Nargs {
-				cmd.Usage()
-			}
-			exitCode := cmd.Run(args)
-			if exitCode != 0 {
-				exit.Exit(exitCode)
-			}
-			return
-		}
-	}
-
-	fmt.Fprintf(os.Stderr, "noms: unknown command %q\n", args[0])
-	util.Usage()
 }
 
 func printError(err error, msgAndArgs ...interface{}) bool {

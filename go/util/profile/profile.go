@@ -10,39 +10,25 @@ import (
 	"runtime"
 	"runtime/pprof"
 
+	"github.com/attic-labs/kingpin"
+
 	"github.com/attic-labs/noms/go/d"
-	flag "github.com/juju/gnuflag"
 )
 
 var (
-	cpuProfile      string
-	memProfile      string
-	blockProfile    string
-	cpuProfileVal   *string
-	memProfileVal   *string
-	blockProfileVal *string
-	flagsRegistered = false
+	cpuProfile   string
+	memProfile   string
+	blockProfile string
 )
 
-func RegisterProfileFlags(flags *flag.FlagSet) {
-	if !flagsRegistered {
-		flagsRegistered = true
-		flags.StringVar(&cpuProfile, "cpuprofile", "", "write cpu profile to file")
-		flags.StringVar(&memProfile, "memprofile", "", "write memory profile to this file")
-		flags.StringVar(&blockProfile, "blockprofile", "", "write block profile to this file")
-	}
-}
-
-func ApplyProfileFlags(cpuProfileVal *string, memProfileVal *string, blockProfileVal *string) {
-	if cpuProfileVal != nil {
-		cpuProfile = *cpuProfileVal
-	}
-	if memProfileVal != nil {
-		memProfile = *memProfileVal
-	}
-	if blockProfileVal != nil {
-		blockProfile = *blockProfileVal
-	}
+func RegisterProfileFlags(app *kingpin.Application) {
+	// Must reset globals because under test this can get called multiple times.
+	cpuProfile = ""
+	memProfile = ""
+	blockProfile = ""
+	app.Flag("cpuprofile", "write cpu profile to file").StringVar(&cpuProfile)
+	app.Flag("memprofile", "write memory profile to file").StringVar(&memProfile)
+	app.Flag("blockprofile", "write block profile to file").StringVar(&blockProfile)
 }
 
 // MaybeStartProfile checks the -blockProfile, -cpuProfile, and -memProfile flag and, for each that is set, attempts to start gathering profiling data into the appropriate files. It returns an object with one method, Stop(), that must be called in order to flush profile data to disk before the process terminates.

@@ -7,7 +7,7 @@ package verbose
 import (
 	"log"
 
-	flag "github.com/juju/gnuflag"
+	"github.com/attic-labs/kingpin"
 )
 
 var (
@@ -16,11 +16,12 @@ var (
 )
 
 // RegisterVerboseFlags registers -v|--verbose flags for general usage
-func RegisterVerboseFlags(flags *flag.FlagSet) {
-	flags.BoolVar(&verbose, "verbose", false, "show more")
-	flags.BoolVar(&verbose, "v", false, "")
-	flags.BoolVar(&quiet, "quiet", false, "show less")
-	flags.BoolVar(&quiet, "q", false, "")
+func RegisterVerboseFlags(app *kingpin.Application) {
+	// Must reset globals because under test this can get called multiple times.
+	verbose = false
+	quiet = false
+	app.Flag("verbose", "show more").Short('v').BoolVar(&verbose)
+	app.Flag("quite", "show less").Short('q').BoolVar(&quiet)
 }
 
 // Verbose returns True if the verbose flag was set

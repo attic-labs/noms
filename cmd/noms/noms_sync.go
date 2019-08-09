@@ -21,7 +21,7 @@ import (
 )
 
 func nomsSync(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
-	cmd := noms.Command("sync", "Efficiently moves values between databases")
+	cmd := noms.Command("sync", "Efficiently moves values between databases.")
 	source := cmd.Arg("source-value", "see Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
 	dest := cmd.Arg("dest-dataset", "see Spelling Datasets at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
 

@@ -8,14 +8,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/attic-labs/kingpin"
 	"github.com/attic-labs/noms/go/util/exit"
-	flag "github.com/juju/gnuflag"
 )
 
 func CheckError(err error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
-		flag.Usage()
+		kingpin.Usage()
 		exit.Fail()
 	}
 }

@@ -6,7 +6,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"strings"
@@ -17,16 +16,9 @@ import (
 	"github.com/attic-labs/noms/cmd/noms/splore"
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/datas"
-	"github.com/attic-labs/noms/go/util/exit"
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/verbose"
-
-	flag "github.com/juju/gnuflag"
 )
-
-var commands = []*util.Command{
-	nomsVersion,
-}
 
 var kingpinCommands = []util.KingpinCommand{
 	nomsBlob,
@@ -47,6 +39,7 @@ var kingpinCommands = []util.KingpinCommand{
 	nomsStruct,
 	nomsSync,
 	splore.Cmd,
+	nomsVersion,
 }
 
 var actions = []string{
@@ -74,15 +67,9 @@ func main() {
 	noms := kingpin.New("noms", usageString())
 
 	// global flags
-	cpuProfileVal := noms.Flag("cpuprofile", "write cpu profile to file").String()
-	memProfileVal := noms.Flag("memprofile", "write memory profile to file").String()
-	blockProfileVal := noms.Flag("blockprofile", "write block profile to file").String()
-	verboseVal := noms.Flag("verbose", "show more").Short('v').Bool()
-	quietVal := noms.Flag("quiet", "show less").Short('q').Bool()
+	profile.RegisterProfileFlags(noms)
+	verbose.RegisterVerboseFlags(noms)
 	noms.Flag("send-content-length", "always send the HTTP content-length header (slower, but needed for some bad servers)").BoolVar(&datas.SendContentLengthForWriteRequest)
-
-	// set up docs for non-kingpin commands
-	addNomsDocs(noms)
 
 	handlers := map[string]util.KingpinHandler{}
 
@@ -94,50 +81,7 @@ func main() {
 
 	input := kingpin.MustParse(noms.Parse(os.Args[1:]))
 
-	// apply global flags
-	profile.ApplyProfileFlags(cpuProfileVal, memProfileVal, blockProfileVal)
-	verbose.SetVerbose(*verboseVal)
-	verbose.SetQuiet(*quietVal)
-
 	if handler := handlers[strings.Split(input, " ")[0]]; handler != nil {
 		handler(input)
 	}
-
-	// fall back to previous (non-kingpin) noms commands
-
-	flag.Parse(false)
-
-	args := flag.Args()
-
-	// Don't prefix log messages with timestamp when running interactively
-	log.SetFlags(0)
-
-	for _, cmd := range commands {
-		if cmd.Name() == args[0] {
-			flags := cmd.Flags()
-			flags.Usage = cmd.Usage
-
-			flags.Parse(true, args[1:])
-			args = flags.Args()
-			if cmd.Nargs != 0 && len(args) < cmd.Nargs {
-				cmd.Usage()
-			}
-			exitCode := cmd.Run(args)
-			if exitCode != 0 {
-				exit.Exit(exitCode)
-			}
-			return
-		}
-	}
-}
-
-// addDatabaseArg adds a "database" arg to the passed command
-func addDatabaseArg(cmd *kingpin.CmdClause) (arg *string) {
-	return cmd.Arg("database", "a noms database path").Required().String() // TODO: custom parser for noms db URL?
-}
-
-// addNomsDocs - adds documentation (docs only, not commands) for existing (pre-kingpin) commands.
-func addNomsDocs(noms *kingpin.Application) {
-	// version
-	noms.Command("version", "Print the noms version")
 }

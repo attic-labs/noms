@@ -20,7 +20,7 @@ import (
 )
 
 func nomsSet(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
-	set := noms.Command("set", "interact with sets")
+	set := noms.Command("set", "Interact with sets.")
 
 	setNew := set.Command("new", "creates a new set")
 	newDb := setNew.Arg("database", "spec to db to create set within").Required().String()

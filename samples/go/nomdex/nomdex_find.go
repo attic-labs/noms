@@ -7,15 +7,13 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 
-	"github.com/attic-labs/noms/cmd/util"
+	"github.com/attic-labs/kingpin"
+
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/outputpager"
-	"github.com/attic-labs/noms/go/util/verbose"
-	flag "github.com/juju/gnuflag"
 )
 
 var longFindHelp = `'nomdex find' retrieves and prints objects that satisfy the 'query' argument.
@@ -61,33 +59,17 @@ Parentheses can (and should) be used to ensure that the evaluation is done in
 the desired order.
 `
 
-var find = &util.Command{
-	Run:       runFind,
-	UsageLine: "find --db <database spec> <query>",
-	Short:     "Print objects in index that satisfy 'query'",
-	Long:      longFindHelp,
-	Flags:     setupFindFlags,
-	Nargs:     1,
-}
-
 var dbPath = ""
+var query = ""
 
-func setupFindFlags() *flag.FlagSet {
-	flagSet := flag.NewFlagSet("find", flag.ExitOnError)
-	flagSet.StringVar(&dbPath, "db", "", "database containing index")
-	outputpager.RegisterOutputpagerFlags(flagSet)
-	verbose.RegisterVerboseFlags(flagSet)
-	return flagSet
+func registerFind() {
+	cmd := kingpin.Command("find", "Search an index")
+	cmd.Flag("db", "Database containing index").Required().StringVar(&dbPath)
+	cmd.Arg("query", "query to evalute").Required().StringVar(&query)
+	outputpager.RegisterOutputpagerFlags(cmd)
 }
 
-func runFind(args []string) int {
-	query := args[0]
-	if dbPath == "" {
-		fmt.Fprintf(os.Stderr, "Missing required 'index' arg\n")
-		flag.Usage()
-		return 1
-	}
-
+func runFind() int {
 	cfg := config.NewResolver()
 	db, err := cfg.GetDatabase(dbPath)
 	if printError(err, "Unable to open database\n\terror: ") {

@@ -130,7 +130,7 @@ func (s *testSuite) validateColumnar(vrw types.ValueReadWriter, str types.Struct
 func (s *testSuite) TestCSVImporter() {
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--column-types", TEST_FIELDS, s.tmpFileName, dataspec})
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--column-types", TEST_FIELDS, dataspec, s.tmpFileName})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
@@ -151,7 +151,7 @@ func (s *testSuite) TestCSVImporterLowercase() {
 
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--lowercase", "--column-types", TEST_FIELDS, input.Name(), dataspec})
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--lowercase", "--column-types", TEST_FIELDS, dataspec, input.Name()})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
@@ -172,7 +172,7 @@ func (s *testSuite) TestCSVImporterLowercaseDuplicate() {
 
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	_, stderr, _ := s.Run(main, []string{"--no-progress", "--lowercase", "--column-types", TEST_FIELDS, input.Name(), dataspec})
+	_, stderr, _ := s.Run(main, []string{"--no-progress", "--lowercase", "--column-types", TEST_FIELDS, dataspec, input.Name()})
 	s.Contains(stderr, "must be unique")
 }
 
@@ -213,7 +213,7 @@ func (s *testSuite) TestCSVImporterFromBlob() {
 func (s *testSuite) TestCSVImporterToMap() {
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--column-types", TEST_FIELDS, "--dest-type", "map:1", s.tmpFileName, dataspec})
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--column-types", TEST_FIELDS, "--dest-type", "map:1", dataspec, s.tmpFileName})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
@@ -229,7 +229,7 @@ func (s *testSuite) TestCSVImporterToMap() {
 func (s *testSuite) TestCSVImporterToNestedMap() {
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--column-types", TEST_FIELDS, "--dest-type", "map:0,1", s.tmpFileName, dataspec})
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--column-types", TEST_FIELDS, "--dest-type", "map:0,1", dataspec, s.tmpFileName})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
@@ -245,7 +245,7 @@ func (s *testSuite) TestCSVImporterToNestedMap() {
 func (s *testSuite) TestCSVImporterToNestedMapByName() {
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--column-types", TEST_FIELDS, "--dest-type", "map:year,a", s.tmpFileName, dataspec})
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--column-types", TEST_FIELDS, "--dest-type", "map:year,a", dataspec, s.tmpFileName})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
@@ -261,7 +261,7 @@ func (s *testSuite) TestCSVImporterToNestedMapByName() {
 func (s *testSuite) TestCSVImporterToColumnar() {
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--invert", "--column-types", TEST_FIELDS, s.tmpFileName, dataspec})
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--invert", "--column-types", TEST_FIELDS, dataspec, s.tmpFileName})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
@@ -277,7 +277,7 @@ func (s *testSuite) TestCSVImporterToColumnar() {
 func (s *testSuite) TestCSVImporterToColumnarAppend() {
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--invert", "--column-types", TEST_FIELDS, s.tmpFileName, dataspec})
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--invert", "--column-types", TEST_FIELDS, dataspec, s.tmpFileName})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
@@ -287,7 +287,7 @@ func (s *testSuite) TestCSVImporterToColumnarAppend() {
 	writeCSVWithHeader(input, "year,a,b,c\n", 100)
 	defer os.Remove(input.Name())
 
-	stdout, stderr = s.MustRun(main, []string{"--no-progress", "--invert", "--append", "--column-types", TEST_FIELDS, input.Name(), dataspec})
+	stdout, stderr = s.MustRun(main, []string{"--no-progress", "--invert", "--append", "--column-types", TEST_FIELDS, dataspec, input.Name()})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
@@ -311,7 +311,7 @@ func (s *testSuite) TestCSVImporterWithPipe() {
 
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--column-types", "String,Number", "--delimiter", "|", input.Name(), dataspec})
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--column-types", "String,Number", "--delimiter", "|", dataspec, input.Name()})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
@@ -339,7 +339,7 @@ func (s *testSuite) TestCSVImporterWithExternalHeader() {
 
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--column-types", "String,Number", "--header", "x,y", input.Name(), dataspec})
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--column-types", "String,Number", "--header", "x,y", dataspec, input.Name()})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
@@ -367,7 +367,7 @@ func (s *testSuite) TestCSVImporterWithInvalidExternalHeader() {
 
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	stdout, stderr, exitErr := s.Run(main, []string{"--no-progress", "--column-types", "String,Number", "--header", "x,x", input.Name(), dataspec})
+	stdout, stderr, exitErr := s.Run(main, []string{"--no-progress", "--column-types", "String,Number", "--header", "x,x", dataspec, input.Name()})
 	s.Equal("", stdout)
 	s.Equal("error: Invalid headers specified, headers must be unique\n", stderr)
 	s.Equal(clienttest.ExitError{Code: 1}, exitErr)
@@ -384,7 +384,7 @@ func (s *testSuite) TestCSVImporterWithInvalidNumColumnTypeSpec() {
 
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	stdout, stderr, exitErr := s.Run(main, []string{"--no-progress", "--column-types", "String", "--header", "x,y", input.Name(), dataspec})
+	stdout, stderr, exitErr := s.Run(main, []string{"--no-progress", "--column-types", "String", "--header", "x,y", dataspec, input.Name()})
 	s.Equal("", stdout)
 	s.Equal("error: Invalid column-types specified, column types do not correspond to number of headers\n", stderr)
 	s.Equal(clienttest.ExitError{Code: 1}, exitErr)
@@ -411,7 +411,7 @@ func (s *testSuite) TestCSVImportSkipRecords() {
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
 
-	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--skip-records", "2", input.Name(), dataspec})
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--skip-records", "2", dataspec, input.Name()})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 
@@ -440,7 +440,7 @@ func (s *testSuite) TestCSVImportSkipRecordsTooMany() {
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
 
-	stdout, stderr, recoveredErr := s.Run(main, []string{"--no-progress", "--skip-records", "100", input.Name(), dataspec})
+	stdout, stderr, recoveredErr := s.Run(main, []string{"--no-progress", "--skip-records", "100", dataspec, input.Name()})
 	s.Equal("", stdout)
 	s.Equal("error: skip-records skipped past EOF\n", stderr)
 	s.Equal(clienttest.ExitError{Code: 1}, recoveredErr)
@@ -460,7 +460,7 @@ func (s *testSuite) TestCSVImportSkipRecordsCustomHeader() {
 
 	setName := "csv"
 	dataspec := spec.CreateValueSpecString("nbs", s.DBDir, setName)
-	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--skip-records", "1", "--header", "x,y", input.Name(), dataspec})
+	stdout, stderr := s.MustRun(main, []string{"--no-progress", "--skip-records", "1", "--header", "x,y", dataspec, input.Name()})
 	s.Equal("", stdout)
 	s.Equal("", stderr)
 

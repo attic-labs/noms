@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/attic-labs/kingpin"
+	humanize "github.com/dustin/go-humanize"
+
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
@@ -23,8 +26,6 @@ import (
 	"github.com/attic-labs/noms/go/util/status"
 	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/attic-labs/noms/samples/go/csv"
-	humanize "github.com/dustin/go-humanize"
-	flag "github.com/juju/gnuflag"
 )
 
 const (
@@ -33,45 +34,38 @@ const (
 )
 
 func main() {
+	app := kingpin.New("csv-importer", "")
+
 	// Actually the delimiter uses runes, which can be multiple characters long.
 	// https://blog.golang.org/strings
-	delimiter := flag.String("delimiter", ",", "field delimiter for csv file, must be exactly one character long.")
-	header := flag.String("header", "", "header row. If empty, we'll use the first row of the file")
-	lowercase := flag.Bool("lowercase", false, "convert column names to lowercase (otherwise preserve the case in the resulting struct fields)")
-	name := flag.String("name", "Row", "struct name. The user-visible name to give to the struct type that will hold each row of data.")
-	columnTypes := flag.String("column-types", "", "a comma-separated list of types representing the desired type of each column. if absent all types default to be String")
-	pathDescription := "noms path to blob to import"
-	path := flag.String("path", "", pathDescription)
-	flag.StringVar(path, "p", "", pathDescription)
-	noProgress := flag.Bool("no-progress", false, "prevents progress from being output if true")
-	destType := flag.String("dest-type", "list", "the destination type to import to. can be 'list' or 'map:<pk>', where <pk> is a list of comma-delimited column headers or indexes (0-based) used to uniquely identify a row")
-	skipRecords := flag.Uint("skip-records", 0, "number of records to skip at beginning of file")
-	limit := flag.Uint64("limit-records", math.MaxUint64, "maximum number of records to process")
-	performCommit := flag.Bool("commit", true, "commit the data to head of the dataset (otherwise only write the data to the dataset)")
-	append := flag.Bool("append", false, "append new data to list at head of specified dataset.")
-	invert := flag.Bool("invert", false, "import rows in column major format rather than row major")
-	spec.RegisterCommitMetaFlags(flag.CommandLine)
-	verbose.RegisterVerboseFlags(flag.CommandLine)
-	profile.RegisterProfileFlags(flag.CommandLine)
+	delimiter := app.Flag("delimiter", "field delimiter for csv file, must be exactly one character long.").Default(",").String()
+	header := app.Flag("header", "header row. If empdataaty, we'll use the first row of the file").String()
+	lowercase := app.Flag("lowercase", "convert column names to lowercase (otherwise preserve the case in the resulting struct fields)").Bool()
+	name := app.Flag("name", "struct name. The user-visible name to give to the struct type that will hold each row of data.").Default("Row").String()
+	columnTypes := app.Flag("column-types", "a comma-separated list of types representing the desired type of each column. if absent all types default to be String").String()
+	path := app.Flag("path", "noms path to blob to import").Short('p').String()
+	noProgress := app.Flag("no-progress", "prevents progress from being output if true").Bool()
+	destType := app.Flag("dest-type", "the destination type to import to. can be 'list' or 'map:<pk>', where <pk> is a list of comma-delimited column headers or indexes (0-based) used to uniquely identify a row").Default("list").String()
+	skipRecords := app.Flag("skip-records", "number of records to skip at beginning of file").Uint()
+	limit := app.Flag("limit-records", "maximum number of records to process").Default(fmt.Sprintf("%d", math.MaxUint32)).Uint64()
+	performCommit := app.Flag("commit", "commit the data to head of the dataset (otherwise only write the data to the dataset)").Default("true").Bool()
+	appendFlag := app.Flag("append", "append new data to list at head of specified dataset.").Bool()
+	invert := app.Flag("invert", "import rows in column major format rather than row major").Bool()
+	dataset := app.Arg("dataset", "datset to write to").Required().String()
+	csvFile := app.Arg("csvfile", "csv file to import").String()
 
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: csv-import [options] <csvfile> <dataset>\n\n")
-		flag.PrintDefaults()
-	}
+	verbose.RegisterVerboseFlags(app)
+	profile.RegisterProfileFlags(app)
 
-	flag.Parse(true)
+	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	var err error
 	switch {
-	case flag.NArg() == 0:
-		err = errors.New("Maybe you put options after the dataset?")
-	case flag.NArg() == 1 && *path == "":
-		err = errors.New("If <csvfile> isn't specified, you must specify a noms path with -p")
-	case flag.NArg() == 2 && *path != "":
-		err = errors.New("Cannot specify both <csvfile> and a noms path with -p")
-	case flag.NArg() > 2:
-		err = errors.New("Too many arguments")
-	case strings.HasPrefix(*destType, "map") && *append:
+	case *csvFile == "" && *path == "":
+		err = errors.New("Either csvfile or path is required")
+	case *csvFile != "" && *path != "":
+		err = errors.New("Cannot specify both csvfile and path")
+	case strings.HasPrefix(*destType, "map") && *appendFlag:
 		err = errors.New("--append is only compatible with list imports")
 	case strings.HasPrefix(*destType, "map") && *invert:
 		err = errors.New("--invert is only compatible with list imports")
@@ -82,8 +76,6 @@ func main() {
 
 	var r io.Reader
 	var size uint64
-	var filePath string
-	var dataSetArgN int
 
 	cfg := config.NewResolver()
 	if *path != "" {
@@ -104,17 +96,14 @@ func main() {
 		}()
 		r = preader
 		size = blob.Len()
-		dataSetArgN = 0
 	} else {
-		filePath = flag.Arg(0)
-		res, err := os.Open(filePath)
+		res, err := os.Open(*csvFile)
 		d.CheckError(err)
 		defer res.Close()
 		fi, err := res.Stat()
 		d.CheckError(err)
 		r = res
 		size = uint64(fi.Size())
-		dataSetArgN = 1
 	}
 
 	if !*noProgress {
@@ -177,7 +166,7 @@ func main() {
 		}
 	}
 
-	db, ds, err := cfg.GetDataset(flag.Arg(dataSetArgN))
+	db, ds, err := cfg.GetDataset(*dataset)
 	d.CheckError(err)
 	defer db.Close()
 
@@ -191,9 +180,9 @@ func main() {
 	}
 
 	if *performCommit {
-		meta, err := spec.CreateCommitMetaStruct(ds.Database(), "", "", additionalMetaInfo(filePath, *path), nil)
+		meta, err := spec.CreateCommitMetaStruct(ds.Database(), "", "", additionalMetaInfo(*csvFile, *path), nil)
 		d.CheckErrorNoUsage(err)
-		if *append {
+		if *appendFlag {
 			if headVal, present := ds.MaybeHeadValue(); present {
 				switch headVal.Kind() {
 				case types.ListKind:

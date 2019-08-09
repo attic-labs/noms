@@ -15,7 +15,7 @@ import (
 )
 
 func nomsStats(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
-	stats := noms.Command("stats", "Shows stats summary for a Noms Database")
+	stats := noms.Command("stats", "Shows stats summary for a Noms Database.")
 	database := stats.Arg("database", "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.").Required().String()
 
 	return stats, func(input string) int {

@@ -5,13 +5,13 @@
 package clienttest
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/util/exit"
-	flag "github.com/juju/gnuflag"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,6 +29,10 @@ type ClientTestSuite struct {
 
 type ExitError struct {
 	Code int
+}
+
+func (e ExitError) Error() string {
+	return fmt.Sprintf("main exited with code: %d", e.Code)
 }
 
 func (suite *ClientTestSuite) SetupSuite() {
@@ -69,6 +73,7 @@ func (suite *ClientTestSuite) MustRun(m func(), args []string) (stdout string, s
 // If m()  panics the panic is caught, and returned with recoveredError
 // If m() calls exit.Exit() m() will panic and return ExitError with recoveredError
 func (suite *ClientTestSuite) Run(m func(), args []string) (stdout string, stderr string, recoveredErr interface{}) {
+	fmt.Println(args)
 	origArgs := os.Args
 	origOut := os.Stdout
 	origErr := os.Stderr
@@ -108,7 +113,6 @@ func (suite *ClientTestSuite) Run(m func(), args []string) (stdout string, stder
 	}()
 
 	suite.ExitStatus = 0
-	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	m()
 	return
 }

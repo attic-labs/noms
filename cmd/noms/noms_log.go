@@ -47,7 +47,7 @@ func nomsLog(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler
 	var color int
 	var tzName string
 
-	cmd := noms.Command("log", "lists the history of changes to a path -- see Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md")
+	cmd := noms.Command("log", "Lists the history of changes to a path -- see Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md.")
 	cmd.Flag("color", "set to 1 to force color on, 0 to force off").Default("-1").IntVar(&color)
 
 	cmd.Flag("max-lines", "max number of lines to show per commit (-1 for all lines)").Default("9").IntVar(&o.maxLines)
@@ -59,7 +59,7 @@ func nomsLog(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler
 
 	cmd.Arg("value", "dataset or value to display history for").Required().StringVar(&o.path)
 
-	outputpager.RegisterOutputpagerFlagsKingpin(cmd)
+	outputpager.RegisterOutputpagerFlags(cmd)
 
 	return cmd, func(input string) int {
 		o.useColor = shouldUseColor(color)

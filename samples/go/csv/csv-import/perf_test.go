@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
+	pp "path"
 	"testing"
 
 	"github.com/attic-labs/noms/go/perf/suite"
@@ -91,7 +91,7 @@ func (s *perfSuite) execCsvImportExe(dsName string, args ...string) {
 func (s *perfSuite) TestParseSfCrime() {
 	assert := s.NewAssert()
 
-	files := s.OpenGlob(path.Join(s.Testdata, "sf-crime", "2016-07-28.*"))
+	files := s.OpenGlob(pp.Join(s.Testdata, "sf-crime", "2016-07-28.*"))
 	defer s.CloseGlob(files)
 
 	reader := csv.NewCSVReader(io.MultiReader(files...), ',')

@@ -17,7 +17,7 @@ import (
 )
 
 func nomsStruct(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
-	strukt := noms.Command("struct", "interact with structs")
+	strukt := noms.Command("struct", "Interact with structs.")
 
 	struktNew := strukt.Command("new", "creates a new struct")
 	newDb := struktNew.Arg("database", "spec to db to create struct within").Required().String()

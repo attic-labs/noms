@@ -5,13 +5,13 @@
 package main
 
 import (
-	"fmt"
 	"os"
+
+	"github.com/attic-labs/kingpin"
+	"github.com/dustin/go-humanize"
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/nbs/benchmarks/gen"
-	"github.com/dustin/go-humanize"
-	flag "github.com/juju/gnuflag"
 )
 
 const (
@@ -21,37 +21,27 @@ const (
 )
 
 var (
-	genSize    = flag.Uint64("gen", 1024, "MiB of data to generate and chunk")
-	chunkInput = flag.Bool("chunk", false, "Treat arg as data file to chunk")
+	genSize    = kingpin.Flag("gen", "MiB of data to generate and chunk").Default("1024").Uint64()
+	chunkInput = kingpin.Flag("chunk", "Treat arg as data file to chunk").Bool()
+	fileName   = kingpin.Arg("file", "filename").String()
 )
 
 func main() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "%s [--gen=<data in MiB>|--chunk] /path/to/file\n", os.Args[0])
-		flag.PrintDefaults()
-	}
-	flag.Parse(true)
-	if flag.NArg() != 1 {
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	fileName := flag.Arg(0)
+	kingpin.Parse()
 
 	var fd *os.File
 	var err error
 	if *chunkInput {
-		fd, err = os.Open(fileName)
+		fd, err = os.Open(*fileName)
 		d.Chk.NoError(err)
 		defer fd.Close()
 	} else {
-		fd, err = gen.OpenOrGenerateDataFile(fileName, (*genSize)*humanize.MiByte)
+		fd, err = gen.OpenOrGenerateDataFile(*fileName, (*genSize)*humanize.MiByte)
 		d.Chk.NoError(err)
 		defer fd.Close()
 	}
 
-	cm := gen.OpenOrBuildChunkMap(fileName+".chunks", fd)
+	cm := gen.OpenOrBuildChunkMap(*fileName+".chunks", fd)
 	defer cm.Close()
 
 	return

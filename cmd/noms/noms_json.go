@@ -20,7 +20,7 @@ import (
 func nomsJSON(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
 	// noms json in <db-spec> <file-or->
 	// noms json out <path-spec> <file-or->
-	jsonCmd := noms.Command("json", "import or export JSON")
+	jsonCmd := noms.Command("json", "Import or export JSON.")
 
 	jsonIn := jsonCmd.Command("in", "imports data into Noms from JSON")
 	structsIn := jsonIn.Flag("structs", "JSON objects will be imported to structs, otherwise maps").Bool()

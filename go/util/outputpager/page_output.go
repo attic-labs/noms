@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/attic-labs/kingpin"
-	flag "github.com/juju/gnuflag"
 	goisatty "github.com/mattn/go-isatty"
 
 	"github.com/attic-labs/noms/go/d"
@@ -78,11 +77,7 @@ func (p *Pager) closePipe() {
 	}
 }
 
-func RegisterOutputpagerFlags(flags *flag.FlagSet) {
-	flags.BoolVar(&noPager, "no-pager", false, "suppress paging functionality")
-}
-
-func RegisterOutputpagerFlagsKingpin(cmd *kingpin.CmdClause) {
+func RegisterOutputpagerFlags(cmd *kingpin.CmdClause) {
 	cmd.Flag("no-pager", "suppress paging functionality").BoolVar(&noPager)
 }
 

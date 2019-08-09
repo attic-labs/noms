@@ -7,41 +7,29 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
+
+	"github.com/attic-labs/kingpin"
 
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/marshal"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/verbose"
-	flag "github.com/juju/gnuflag"
 )
 
 func main() {
-	var dsStr = flag.String("ds", "", "noms dataset to read/write from")
+	app := kingpin.New("hr", "")
+	var dsStr = app.Flag("ds", "noms dataset to read/write from").Required().String()
 
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [flags] [command] [command-args]\n\n", os.Args[0])
-		fmt.Fprintln(os.Stderr, "Flags:")
-		flag.PrintDefaults()
-		fmt.Fprintln(os.Stderr, "\nCommands:")
-		fmt.Fprintln(os.Stderr, "\tadd-person <id> <name> <title>")
-		fmt.Fprintln(os.Stderr, "\tlist-persons")
-	}
+	addCmd := app.Command("add-person", "Add a new person")
+	id := addCmd.Arg("id", "unique person id").Required().Uint64()
+	name := addCmd.Arg("name", "person name").Required().String()
+	title := addCmd.Arg("title", "person title").Required().String()
 
-	verbose.RegisterVerboseFlags(flag.CommandLine)
-	flag.Parse(true)
+	app.Command("list-persons", "list current persons")
 
-	if flag.NArg() == 0 {
-		fmt.Fprintln(os.Stderr, "Not enough arguments")
-		return
-	}
-
-	if *dsStr == "" {
-		fmt.Fprintln(os.Stderr, "Required flag '--ds' not set")
-		return
-	}
-
+	verbose.RegisterVerboseFlags(app)
+	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
 	cfg := config.NewResolver()
 	db, ds, err := cfg.GetDataset(*dsStr)
 	if err != nil {
@@ -50,13 +38,11 @@ func main() {
 	}
 	defer db.Close()
 
-	switch flag.Arg(0) {
+	switch cmd {
 	case "add-person":
-		addPerson(db, ds)
+		addPerson(db, ds, *id, *name, *title)
 	case "list-persons":
 		listPersons(ds)
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", flag.Arg(0))
 	}
 }
 
@@ -65,19 +51,8 @@ type Person struct {
 	Id          uint64
 }
 
-func addPerson(db datas.Database, ds datas.Dataset) {
-	if flag.NArg() != 4 {
-		fmt.Fprintln(os.Stderr, "Not enough arguments for command add-person")
-		return
-	}
-
-	id, err := strconv.ParseUint(flag.Arg(1), 10, 64)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Invalid person-id: %s", flag.Arg(1))
-		return
-	}
-
-	np, err := marshal.Marshal(db, Person{flag.Arg(2), flag.Arg(3), id})
+func addPerson(db datas.Database, ds datas.Dataset, id uint64, name, title string) {
+	np, err := marshal.Marshal(db, Person{name, title, id})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return

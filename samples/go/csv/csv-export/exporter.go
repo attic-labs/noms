@@ -5,9 +5,10 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
+
+	"github.com/attic-labs/kingpin"
 
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
@@ -15,30 +16,23 @@ import (
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/verbose"
 	"github.com/attic-labs/noms/samples/go/csv"
-	flag "github.com/juju/gnuflag"
 )
 
 func main() {
+	app := kingpin.New("exporter", "")
+
 	// Actually the delimiter uses runes, which can be multiple characters long.
 	// https://blog.golang.org/strings
-	delimiter := flag.String("delimiter", ",", "field delimiter for csv file, must be exactly one character long.")
+	delimiter := app.Flag("delimiter", "field delimiter for csv file, must be exactly one character long.").Default(",").String()
+	dataset := app.Arg("dataset", "dataset to export").Required().String()
 
-	verbose.RegisterVerboseFlags(flag.CommandLine)
-	profile.RegisterProfileFlags(flag.CommandLine)
+	verbose.RegisterVerboseFlags(app)
+	profile.RegisterProfileFlags(app)
 
-	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: csv-export [options] dataset > filename")
-		flag.PrintDefaults()
-	}
-
-	flag.Parse(true)
-
-	if flag.NArg() != 1 {
-		d.CheckError(errors.New("expected dataset arg"))
-	}
+	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	cfg := config.NewResolver()
-	db, ds, err := cfg.GetDataset(flag.Arg(0))
+	db, ds, err := cfg.GetDataset(*dataset)
 	d.CheckError(err)
 
 	defer db.Close()

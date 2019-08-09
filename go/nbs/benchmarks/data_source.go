@@ -11,15 +11,15 @@ import (
 	"io"
 	"os"
 
+	"github.com/attic-labs/kingpin"
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/nbs/benchmarks/gen"
 	"github.com/dustin/go-humanize"
-	flag "github.com/juju/gnuflag"
 )
 
-var readFile = flag.String("input-file", "", "A file full of test data. Creates and saves associated .chunks file at runtime if it doesn't yet exist. If none is specified, data and .chunks files will be generated and saved.")
+var readFile = kingpin.Flag("input-file", "A file full of test data. Creates and saves associated .chunks file at runtime if it doesn't yet exist. If none is specified, data and .chunks files will be generated and saved.").String()
 
 const averageChunkSize = 4 * 1024
 

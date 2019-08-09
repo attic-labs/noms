@@ -14,31 +14,21 @@ import (
 	"os"
 	"time"
 
+	"github.com/attic-labs/kingpin"
 	"github.com/codahale/blake2"
 	humanize "github.com/dustin/go-humanize"
-	flag "github.com/juju/gnuflag"
 	"github.com/kch42/buzhash"
 )
 
 func main() {
-	useSHA := flag.String("use-sha", "", "<default>=no hashing, 1=sha1, 256=sha256, 512=sha512, blake=blake2b")
-	useBH := flag.Bool("use-bh", false, "whether we buzhash the bytes")
-	flag.Parse(true)
+	useSHA := kingpin.Flag("use-sha", "<default>=no hashing, 1=sha1, 256=sha256, 512=sha512, blake=blake2b").String()
+	useBH := kingpin.Flag("use-bh", "whether we buzhash the bytes").Bool()
+	bigFile := kingpin.Arg("bigfile", "input file to chunk").Required().String()
 
-	flag.Usage = func() {
-		fmt.Printf("%s <big-file>\n", os.Args[0])
-		flag.PrintDefaults()
-		return
-	}
+	kingpin.Parse()
 
-	if len(flag.Args()) < 1 {
-		flag.Usage()
-		return
-	}
-
-	p := flag.Args()[0]
 	bh := buzhash.NewBuzHash(64 * 8)
-	f, _ := os.Open(p)
+	f, _ := os.Open(*bigFile)
 	defer f.Close()
 	t0 := time.Now()
 	buf := make([]byte, 4*1024)

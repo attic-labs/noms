@@ -12,7 +12,6 @@ import (
 
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/types"
-	flag "github.com/juju/gnuflag"
 )
 
 const CommitMetaDateFormat = time.RFC3339
@@ -23,14 +22,6 @@ var (
 	commitMetaKeyValueStrings string
 	commitMetaKeyValuePaths   string
 )
-
-// RegisterCommitMetaFlags registers command line flags used for creating commit meta structs.
-func RegisterCommitMetaFlags(flags *flag.FlagSet) {
-	flags.StringVar(&commitMetaDate, "date", "", "alias for -meta 'date=<date>'. '<date>' must be iso8601-formatted. If '<date>' is empty, it defaults to the current date.")
-	flags.StringVar(&commitMetaMessage, "message", "", "alias for -meta 'message=<message>'")
-	flags.StringVar(&commitMetaKeyValueStrings, "meta", "", "'<key>=<value>' - creates a metadata field called 'key' set to 'value'. Value should be human-readable encoded.")
-	flags.StringVar(&commitMetaKeyValuePaths, "meta-p", "", "'<key>=<path>' - creates a metadata field called 'key' set to the value at <path>")
-}
 
 // CreateCommitMetaStruct creates and returns a Noms struct suitable for use in CommitOptions.Meta.
 // It returns types.EmptyStruct and an error if any issues are encountered.

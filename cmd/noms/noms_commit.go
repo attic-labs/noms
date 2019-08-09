@@ -18,7 +18,7 @@ import (
 )
 
 func nomsCommit(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
-	commit := noms.Command("commit", "commits a value to a dataset")
+	commit := noms.Command("commit", "Commits a value to a dataset.")
 	allowDupe := commit.Flag("allow-dupe", "creates a new commit, even if it would be identical (modulo metadata and parents) to the existing HEAD").Bool()
 	message := commit.Flag("message", "commit message").String()
 	date := commit.Flag("date", "commit date formatted as 2019-08-08T21:52:46Z - defaults to current date").String()

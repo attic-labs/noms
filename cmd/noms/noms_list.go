@@ -17,7 +17,7 @@ import (
 )
 
 func nomsList(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
-	list := noms.Command("list", "interact with lists")
+	list := noms.Command("list", "Interact with lists.")
 
 	listNew := list.Command("new", "creates a new list")
 	newDb := listNew.Arg("database", "spec to db to create list within").Required().String()
