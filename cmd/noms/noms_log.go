@@ -55,7 +55,7 @@ func nomsLog(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler
 	cmd.Flag("oneline", "show a summary of each commit on a single line").BoolVar(&o.oneline)
 	cmd.Flag("graph", "show ascii-based commit hierarchy on left side of output").BoolVar(&o.showGraph)
 	cmd.Flag("show-value", "show commit value rather than diff information").BoolVar(&o.showValue)
-	cmd.Flag("tz", "display formatted date comments in specified timezone, must be: local or utc").Default("tz").StringVar(&tzName)
+	cmd.Flag("tz", "display formatted date comments in specified timezone, must be: local or utc").Default("local").StringVar(&tzName)
 
 	cmd.Arg("value", "dataset or value to display history for").Required().StringVar(&o.path)
 
