@@ -25,7 +25,6 @@ import (
 )
 
 var commands = []*util.Command{
-	nomsRoot,
 	nomsServe,
 	nomsShow,
 	nomsSync,
@@ -43,6 +42,7 @@ var kingpinCommands = []util.KingpinCommand{
 	nomsMerge,
 	nomsJSON,
 	nomsMap,
+	nomsRoot,
 	nomsSet,
 	nomsStats,
 	nomsStruct,
@@ -138,13 +138,6 @@ func addDatabaseArg(cmd *kingpin.CmdClause) (arg *string) {
 
 // addNomsDocs - adds documentation (docs only, not commands) for existing (pre-kingpin) commands.
 func addNomsDocs(noms *kingpin.Application) {
-	// root
-	root := noms.Command("root", `Get or set the current root hash of the entire database
-See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
-`)
-	root.Flag("update", "Replaces the entire database with the one with the given hash").String()
-	addDatabaseArg(root)
-
 	// serve
 	serve := noms.Command("serve", `Serves a Noms database over HTTP
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
