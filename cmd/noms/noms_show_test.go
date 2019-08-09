@@ -82,7 +82,7 @@ func (s *nomsShowTestSuite) TestNomsShowNotFound() {
 	str := spec.CreateValueSpecString("nbs", s.DBDir, "not-there")
 	stdout, stderr, err := s.Run(main, []string{"show", str})
 	s.Equal("", stdout)
-	s.Equal(fmt.Sprintf("Object not found: %s\n", str), stderr)
+	s.Equal(fmt.Sprintf("Value not found: %s\n", str), stderr)
 	s.Nil(err)
 }
 

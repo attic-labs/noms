@@ -17,10 +17,6 @@ import (
 	"github.com/attic-labs/noms/go/util/profile"
 )
 
-var (
-	port int
-)
-
 func nomsServe(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
 	cmd := noms.Command("serve", "Serves a Noms database over HTTP.")
 	port := cmd.Flag("port", "port to listen on").Default("8080").Int()

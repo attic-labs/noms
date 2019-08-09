@@ -25,7 +25,6 @@ import (
 )
 
 var commands = []*util.Command{
-	nomsShow,
 	nomsSync,
 	nomsVersion,
 }
@@ -44,6 +43,7 @@ var kingpinCommands = []util.KingpinCommand{
 	nomsRoot,
 	nomsServe,
 	nomsSet,
+	nomsShow,
 	nomsStats,
 	nomsStruct,
 	splore.Cmd,
@@ -138,15 +138,6 @@ func addDatabaseArg(cmd *kingpin.CmdClause) (arg *string) {
 
 // addNomsDocs - adds documentation (docs only, not commands) for existing (pre-kingpin) commands.
 func addNomsDocs(noms *kingpin.Application) {
-	// show
-	show := noms.Command("show", `Shows a serialization of a Noms object
-See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object argument.
-`)
-	show.Flag("raw", "If true, dumps the raw binary version of the data").Bool()
-	show.Flag("stats", "If true, reports statistics related to the value").Bool()
-	show.Flag("tz", "display formatted date comments in specified timezone, must be: local or utc").Enum("local", "utc")
-	show.Arg("object", "a noms object").Required().String()
-
 	// sync
 	sync := noms.Command("sync", `Moves datasets between or within databases
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object and dataset arguments.
