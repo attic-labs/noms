@@ -25,7 +25,6 @@ import (
 )
 
 var commands = []*util.Command{
-	nomsServe,
 	nomsShow,
 	nomsSync,
 	nomsVersion,
@@ -43,6 +42,7 @@ var kingpinCommands = []util.KingpinCommand{
 	nomsJSON,
 	nomsMap,
 	nomsRoot,
+	nomsServe,
 	nomsSet,
 	nomsStats,
 	nomsStruct,
@@ -138,13 +138,6 @@ func addDatabaseArg(cmd *kingpin.CmdClause) (arg *string) {
 
 // addNomsDocs - adds documentation (docs only, not commands) for existing (pre-kingpin) commands.
 func addNomsDocs(noms *kingpin.Application) {
-	// serve
-	serve := noms.Command("serve", `Serves a Noms database over HTTP
-See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
-`)
-	serve.Flag("port", "port to listen on for HTTP requests").Default("8000").Int()
-	addDatabaseArg(serve)
-
 	// show
 	show := noms.Command("show", `Shows a serialization of a Noms object
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the object argument.
