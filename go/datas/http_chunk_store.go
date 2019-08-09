@@ -39,11 +39,6 @@ var customHTTPTransport = http.Transport{
 	ResponseHeaderTimeout: time.Duration(4) * time.Minute,
 }
 
-// Some broken HTTP proxies require the content-length header.
-// For the write request, this is expensive to calculate, so we
-// don't do it by default.
-var SendContentLengthForWriteRequest = false
-
 type httpChunkStore struct {
 	host         *url.URL
 	httpClient   httpDoer
@@ -398,13 +393,15 @@ func sendWriteRequest(u url.URL, auth, vers string, p *nbs.NomsBlockCache, cli h
 
 	body := buildWriteValueRequest(chunkChan)
 	n := int64(0)
-	if SendContentLengthForWriteRequest {
-		nb := &bytes.Buffer{}
-		var err error
-		n, err = io.Copy(nb, body)
-		d.PanicIfError(err)
-		body = ioutil.NopCloser(nb)
-	}
+
+	// Sad that we have to buffer this, but required for servers that need a content-length.
+	// See: https://spectrum.chat/zeit/now/are-streaming-request-bodies-supported~8f085d13-2e35-4613-9cc0-818abcd04dfe
+	nb := &bytes.Buffer{}
+	var err error
+	n, err = io.Copy(nb, body)
+	d.PanicIfError(err)
+	body = ioutil.NopCloser(nb)
+
 	req := newRequest("POST", auth, u.String(), body, http.Header{
 		"Content-Encoding": {"x-snappy-framed"},
 		"Content-Type":     {"application/octet-stream"},

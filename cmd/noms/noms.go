@@ -15,7 +15,6 @@ import (
 
 	"github.com/attic-labs/noms/cmd/noms/splore"
 	"github.com/attic-labs/noms/cmd/util"
-	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/verbose"
 )
@@ -69,7 +68,6 @@ func main() {
 	// global flags
 	profile.RegisterProfileFlags(noms)
 	verbose.RegisterVerboseFlags(noms)
-	noms.Flag("send-content-length", "always send the HTTP content-length header (slower, but needed for some bad servers)").BoolVar(&datas.SendContentLengthForWriteRequest)
 
 	handlers := map[string]util.KingpinHandler{}
 
