@@ -10,6 +10,8 @@ import (
 	"os"
 	"regexp"
 
+	"github.com/attic-labs/kingpin"
+
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
@@ -18,28 +20,39 @@ import (
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/status"
 	"github.com/attic-labs/noms/go/util/verbose"
-	flag "github.com/juju/gnuflag"
 )
 
 var (
-	resolver string
-
-	nomsMerge = &util.Command{
-		Run:       runMerge,
-		UsageLine: "merge [options] <database> <left-dataset-name> <right-dataset-name> <output-dataset-name>",
-		Short:     "Merges and commits the head values of two named datasets",
-		Long:      "See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.\nYu must provide a working database and the names of two Datasets you want to merge. The values at the heads of these Datasets will be merged, put into a new Commit object, and set as the Head of the third provided Dataset name.",
-		Flags:     setupMergeFlags,
-		Nargs:     1, // if absolute-path not present we read it from stdin
-	}
 	datasetRe = regexp.MustCompile("^" + datas.DatasetRe.String() + "$")
 )
 
-func setupMergeFlags() *flag.FlagSet {
-	commitFlagSet := flag.NewFlagSet("merge", flag.ExitOnError)
-	commitFlagSet.StringVar(&resolver, "policy", "n", "conflict resolution policy for merging. Defaults to 'n', which means no resolution strategy will be applied. Supported values are 'l' (left), 'r' (right) and 'p' (prompt). 'prompt' will bring up a simple command-line prompt allowing you to resolve conflicts by choosing between 'l' or 'r' on a case-by-case basis.")
-	verbose.RegisterVerboseFlags(commitFlagSet)
-	return commitFlagSet
+func nomsMerge(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
+	cmd := noms.Command("merge", "Merges two datasets.")
+	resolver := cmd.Flag("policy", "Conflict resolution policy for merging - defaults to 'n', which means no resolution strategy will be applied. Supported values are 'l' (left), 'r' (right) and 'p' (prompt). 'prompt' will bring up a simple command-line prompt allowing you to resolve conflicts by choosing between 'l' or 'r' on a case-by-case basis.").Default("n").String()
+	db := cmd.Arg("db", "database to work with - see Spelling Databases at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
+	left := cmd.Arg("left", "left dataset name").Required().String()
+	right := cmd.Arg("right", "right dataset name").Required().String()
+
+	return cmd, func(input string) int {
+		cfg := config.NewResolver()
+
+		db, err := cfg.GetDatabase(*db)
+		d.CheckError(err)
+		defer db.Close()
+
+		leftDS, rightDS := resolveDatasets(db, *left, *right)
+		left, right, ancestor := getMergeCandidates(db, leftDS, rightDS)
+		policy := decidePolicy(*resolver)
+		pc := newMergeProgressChan()
+		merged, err := policy(left, right, ancestor, db, pc)
+		d.CheckErrorNoUsage(err)
+		close(pc)
+
+		r := db.WriteValue(datas.NewCommit(merged, types.NewSet(db, leftDS.HeadRef(), rightDS.HeadRef()), types.EmptyStruct))
+		db.Flush()
+		fmt.Println(r.TargetHash())
+		return 0
+	}
 }
 
 func checkIfTrue(b bool, format string, args ...interface{}) {
@@ -48,34 +61,7 @@ func checkIfTrue(b bool, format string, args ...interface{}) {
 	}
 }
 
-func runMerge(args []string) int {
-	cfg := config.NewResolver()
-
-	if len(args) != 4 {
-		d.CheckErrorNoUsage(fmt.Errorf("Incorrect number of arguments"))
-	}
-	db, err := cfg.GetDatabase(args[0])
-	d.CheckError(err)
-	defer db.Close()
-
-	leftDS, rightDS, outDS := resolveDatasets(db, args[1], args[2], args[3])
-	left, right, ancestor := getMergeCandidates(db, leftDS, rightDS)
-	policy := decidePolicy(resolver)
-	pc := newMergeProgressChan()
-	merged, err := policy(left, right, ancestor, db, pc)
-	d.CheckErrorNoUsage(err)
-	close(pc)
-
-	_, err = db.SetHead(outDS, db.WriteValue(datas.NewCommit(merged, types.NewSet(db, leftDS.HeadRef(), rightDS.HeadRef()), types.EmptyStruct)))
-	d.PanicIfError(err)
-	if !verbose.Quiet() {
-		status.Printf("Done")
-		status.Done()
-	}
-	return 0
-}
-
-func resolveDatasets(db datas.Database, leftName, rightName, outName string) (leftDS, rightDS, outDS datas.Dataset) {
+func resolveDatasets(db datas.Database, leftName, rightName string) (leftDS, rightDS datas.Dataset) {
 	makeDS := func(dsName string) datas.Dataset {
 		if !datasetRe.MatchString(dsName) {
 			d.CheckErrorNoUsage(fmt.Errorf("Invalid dataset %s, must match %s", dsName, datas.DatasetRe.String()))
@@ -84,7 +70,6 @@ func resolveDatasets(db datas.Database, leftName, rightName, outName string) (le
 	}
 	leftDS = makeDS(leftName)
 	rightDS = makeDS(rightName)
-	outDS = makeDS(outName)
 	return
 }
 

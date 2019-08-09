@@ -6,8 +6,10 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/attic-labs/noms/go/datas"
@@ -80,11 +82,10 @@ func (s *nomsMergeTestSuite) TestNomsMerge_Success() {
 			types.String("foo"), types.Number(1), types.Number(2), types.String("bar")),
 	})
 
-	output := "output"
-	stdout, stderr, err := s.Run(main, []string{"merge", s.DBDir, left, right, output})
+	stdout, stderr, err := s.Run(main, []string{"merge", s.DBDir, left, right})
 	if err == nil {
 		s.Equal("", stderr)
-		s.validateDataset(output, expected, l, r)
+		s.validateOutput(stdout, expected, l, r)
 	} else {
 		s.Fail("Run failed", "err: %v\nstdout: %s\nstderr: %s\n", err, stdout, stderr)
 	}
@@ -103,14 +104,15 @@ func (s *nomsMergeTestSuite) setupMergeDataset(sp spec.Spec, data types.StructDa
 	return ds.HeadRef()
 }
 
-func (s *nomsMergeTestSuite) validateDataset(name string, expected types.Struct, parents ...types.Value) {
-	sp, err := spec.ForDataset(spec.CreateValueSpecString("nbs", s.DBDir, name))
+func (s *nomsMergeTestSuite) validateOutput(outHash string, expected types.Struct, parents ...types.Value) {
+	outHash = strings.TrimSpace(outHash)
+	sp, err := spec.ForPath(spec.CreateValueSpecString("nbs", s.DBDir, fmt.Sprintf("#%s", outHash)))
 	db := sp.GetDatabase()
 	if s.NoError(err) {
 		defer sp.Close()
-		commit := sp.GetDataset().Head()
+		commit := sp.GetValue().(types.Struct)
 		s.True(commit.Get(datas.ParentsField).Equals(types.NewSet(db, parents...)))
-		merged := sp.GetDataset().HeadValue()
+		merged := commit.Get("value")
 		s.True(expected.Equals(merged), "%s != %s", types.EncodedValue(expected), types.EncodedValue(merged))
 	}
 }
@@ -130,11 +132,10 @@ func (s *nomsMergeTestSuite) TestNomsMerge_Left() {
 
 	expected := types.NewStruct("", types.StructData{"num": types.Number(43)})
 
-	output := "output"
-	stdout, stderr, err := s.Run(main, []string{"merge", "--policy=l", s.DBDir, left, right, output})
+	stdout, stderr, err := s.Run(main, []string{"merge", "--policy=l", s.DBDir, left, right})
 	if err == nil {
 		s.Equal("", stderr)
-		s.validateDataset(output, expected, l, r)
+		s.validateOutput(stdout, expected, l, r)
 	} else {
 		s.Fail("Run failed", "err: %v\nstdout: %s\nstderr: %s\n", err, stdout, stderr)
 	}
@@ -155,11 +156,10 @@ func (s *nomsMergeTestSuite) TestNomsMerge_Right() {
 
 	expected := types.NewStruct("", types.StructData{"num": types.Number(44)})
 
-	output := "output"
-	stdout, stderr, err := s.Run(main, []string{"merge", "--policy=r", s.DBDir, left, right, output})
+	stdout, stderr, err := s.Run(main, []string{"merge", "--policy=r", s.DBDir, left, right})
 	if err == nil {
 		s.Equal("", stderr)
-		s.validateDataset(output, expected, l, r)
+		s.validateOutput(stdout, expected, l, r)
 	} else {
 		s.Fail("Run failed", "err: %v\nstdout: %s\nstderr: %s\n", err, stdout, stderr)
 	}
@@ -177,7 +177,7 @@ func (s *nomsMergeTestSuite) TestNomsMerge_Conflict() {
 	s.setupMergeDataset(leftSpec, types.StructData{"num": types.Number(43)}, types.NewSet(leftSpec.GetDatabase(), p))
 	s.setupMergeDataset(rightSpec, types.StructData{"num": types.Number(44)}, types.NewSet(rightSpec.GetDatabase(), p))
 
-	s.Panics(func() { s.MustRun(main, []string{"merge", s.DBDir, left, right, "output"}) })
+	s.Panics(func() { s.MustRun(main, []string{"merge", s.DBDir, left, right}) })
 }
 
 func (s *nomsMergeTestSuite) TestBadInput() {
@@ -185,16 +185,15 @@ func (s *nomsMergeTestSuite) TestBadInput() {
 	s.NoError(err)
 	defer sp.Close()
 
-	l, r, o := "left", "right", "output"
+	l, r := "left", "right"
 	type c struct {
 		args []string
 		err  string
 	}
 	cases := []c{
-		{[]string{sp.String(), l + "!!", r, o}, "error: Invalid dataset " + l + "!!, must match [a-zA-Z0-9\\-_/]+\n"},
-		{[]string{sp.String(), l + "2", r, o}, "error: Dataset " + l + "2 has no data\n"},
-		{[]string{sp.String(), l, r + "2", o}, "error: Dataset " + r + "2 has no data\n"},
-		{[]string{sp.String(), l, r, "!invalid"}, "error: Invalid dataset !invalid, must match [a-zA-Z0-9\\-_/]+\n"},
+		{[]string{sp.String(), l + "!!", r}, "error: Invalid dataset " + l + "!!, must match [a-zA-Z0-9\\-_/]+\n"},
+		{[]string{sp.String(), l + "2", r}, "error: Dataset " + l + "2 has no data\n"},
+		{[]string{sp.String(), l, r + "2"}, "error: Dataset " + r + "2 has no data\n"},
 	}
 
 	db := sp.GetDatabase()
@@ -208,13 +207,13 @@ func (s *nomsMergeTestSuite) TestBadInput() {
 
 	for _, c := range cases {
 		stdout, stderr, err := s.Run(main, append([]string{"merge"}, c.args...))
-		s.Empty(stdout, "Expected empty stdout for case: %#v", c.args)
+		s.Empty(stdout, "Expected non-empty stdout for case: %#v", c.args)
 		if !s.NotNil(err, "Unexpected success for case: %#v\n", c.args) {
 			continue
 		}
 		if mainErr, ok := err.(clienttest.ExitError); ok {
 			s.Equal(1, mainErr.Code)
-			s.Equal(c.err, stderr, "Unexpected output for case: %#v\n", c.args)
+			s.Equal(c.err, stderr, "Unexpected error output for case: %#v\n", c.args)
 		} else {
 			s.Fail("Run() recovered non-error panic", "err: %#v\nstdout: %s\nstderr: %s\n", err, stdout, stderr)
 		}

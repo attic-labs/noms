@@ -25,7 +25,6 @@ import (
 )
 
 var commands = []*util.Command{
-	nomsMerge,
 	nomsRoot,
 	nomsServe,
 	nomsShow,
@@ -41,6 +40,7 @@ var kingpinCommands = []util.KingpinCommand{
 	nomsDs,
 	nomsList,
 	nomsLog,
+	nomsMerge,
 	nomsJSON,
 	nomsMap,
 	nomsSet,
@@ -138,17 +138,6 @@ func addDatabaseArg(cmd *kingpin.CmdClause) (arg *string) {
 
 // addNomsDocs - adds documentation (docs only, not commands) for existing (pre-kingpin) commands.
 func addNomsDocs(noms *kingpin.Application) {
-	// merge
-	merge := noms.Command("merge", `Merges and commits the head values of two named datasets
-See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.
-You must provide a working database and the names of two Datasets you want to merge. The values at the heads of these Datasets will be merged, put into a new Commit object, and set as the Head of the third provided Dataset name.
-`)
-	merge.Flag("policy", "conflict resolution policy for merging. Defaults to 'n', which means no resolution strategy will be applied. Supported values are 'l' (left), 'r' (right) and 'p' (prompt). 'prompt' will bring up a simple command-line prompt allowing you to resolve conflicts by choosing between 'l' or 'r' on a case-by-case basis.").Default("n").Enum("n", "r", "l", "p")
-	addDatabaseArg(merge)
-	merge.Arg("left-dataset-name", "a dataset").Required().String()
-	merge.Arg("right-dataset-name", "a dataset").Required().String()
-	merge.Arg("output-dataset-name", "a dataset").Required().String()
-
 	// root
 	root := noms.Command("root", `Get or set the current root hash of the entire database
 See Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md for details on the database argument.

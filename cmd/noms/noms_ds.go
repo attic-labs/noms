@@ -15,7 +15,7 @@ import (
 )
 
 func nomsDs(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
-	cmd := noms.Command("ds", "dataset management")
+	cmd := noms.Command("ds", "Dataset management.")
 	del := cmd.Flag("delete", "delete a dataset").Short('d').Bool()
 	name := cmd.Arg("name", "name of the database to list or dataset to delete - see Spelling Objects at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").String()
 

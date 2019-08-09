@@ -16,7 +16,7 @@ import (
 )
 
 func nomsDiff(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
-	cmd := noms.Command("diff", "shows the difference between two values")
+	cmd := noms.Command("diff", "Shows the difference between two values.")
 	stat := cmd.Flag("stat", "writes a summary of the changes instead").Bool()
 	o1 := cmd.Arg("val1", "first value - see Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
 	o2 := cmd.Arg("val2", "second value - see Spelling Values at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
