@@ -173,32 +173,6 @@ func (sp Spec) GetDatabase() datas.Database {
 	return *sp.db
 }
 
-// NewChunkStore returns a new ChunkStore instance that this Spec's
-// DatabaseName describes. It's unusual to call this method, GetDatabase is
-// more useful. Unlike GetDatabase, a new ChunkStore instance is returned every
-// time. If there is no ChunkStore, for example remote databases, returns nil.
-func (sp Spec) NewChunkStore() chunks.ChunkStore {
-	switch sp.Protocol {
-	case "http", "https":
-		return nil
-	case "aws":
-		return parseAWSSpec(sp.Href())
-	case "nbs":
-		return nbs.NewLocalStore(sp.DatabaseName, 1<<28)
-	case "mem":
-		storage := &chunks.MemoryStorage{}
-		return storage.NewView()
-	default:
-		impl, ok := ExternalProtocols[sp.Protocol]
-		if !ok {
-			d.PanicIfError(fmt.Errorf("Unknown protocol: %s", sp.Protocol))
-		}
-		r, err := impl.NewChunkStore(sp)
-		d.PanicIfError(err)
-		return r
-	}
-}
-
 func parseAWSSpec(awsURL string) chunks.ChunkStore {
 	u, _ := url.Parse(awsURL)
 	parts := strings.SplitN(u.Host, ":", 2) // [table] [, bucket]?
@@ -282,22 +256,40 @@ func (sp Spec) Close() error {
 
 func (sp Spec) createDatabase() datas.Database {
 	switch sp.Protocol {
-	case "http", "https":
-		return datas.NewDatabase(datas.NewHTTPChunkStore(sp.Href(), sp.Options.Authorization))
-	case "aws":
-		return datas.NewDatabase(parseAWSSpec(sp.Href()))
-	case "nbs":
-		os.Mkdir(sp.DatabaseName, 0777)
-		return datas.NewDatabase(nbs.NewLocalStore(sp.DatabaseName, 1<<28))
-	case "mem":
-		storage := &chunks.MemoryStorage{}
-		return datas.NewDatabase(storage.NewView())
+	case "http", "https", "aws", "nbs", "mem":
+		return datas.NewDatabase(sp.NewChunkStore())
 	default:
 		impl, ok := ExternalProtocols[sp.Protocol]
 		if !ok {
 			d.PanicIfError(fmt.Errorf("Unknown protocol: %s", sp.Protocol))
 		}
 		r, err := impl.NewDatabase(sp)
+		d.PanicIfError(err)
+		return r
+	}
+}
+
+// NewChunkStore returns a new ChunkStore instance that this Spec's
+// DatabaseName describes. It's unusual to call this method, GetDatabase is
+// more useful.
+func (sp Spec) NewChunkStore() chunks.ChunkStore {
+	switch sp.Protocol {
+	case "http", "https":
+		return datas.NewHTTPChunkStore(sp.Href(), sp.Options.Authorization)
+	case "aws":
+		return parseAWSSpec(sp.Href())
+	case "nbs":
+		os.Mkdir(sp.DatabaseName, 0777)
+		return nbs.NewLocalStore(sp.DatabaseName, 1<<28)
+	case "mem":
+		storage := &chunks.MemoryStorage{}
+		return storage.NewView()
+	default:
+		impl, ok := ExternalProtocols[sp.Protocol]
+		if !ok {
+			d.PanicIfError(fmt.Errorf("Unknown protocol: %s", sp.Protocol))
+		}
+		r, err := impl.NewChunkStore(sp)
 		d.PanicIfError(err)
 		return r
 	}
