@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -263,6 +264,8 @@ func handleGetRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs ch
 
 	hashes := extractHashes(req)
 
+	verbose.Log("Handling getRefs request for: %v\n", hashes)
+
 	w.Header().Add("Content-Type", "application/octet-stream")
 	writer := respWriter(req, w)
 	defer writer.Close()
@@ -276,6 +279,7 @@ func handleGetRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs ch
 		}
 
 		chunkChan := make(chan *chunks.Chunk, maxGetBatchSize)
+		absent := batch.HashSet()
 		go func() {
 			cs.GetMany(batch.HashSet(), chunkChan)
 			close(chunkChan)
@@ -283,6 +287,11 @@ func handleGetRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs ch
 
 		for c := range chunkChan {
 			chunks.Serialize(*c, writer)
+			absent.Remove(c.Hash())
+		}
+
+		if len(absent) > 0 {
+			fmt.Fprintf(os.Stderr, "ERROR: Could not get chunks: %v\n", absent)
 		}
 
 		hashes = hashes[len(batch):]
