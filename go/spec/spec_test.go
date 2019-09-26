@@ -553,3 +553,13 @@ func TestExternalProtocol(t *testing.T) {
 
 	assert.True(types.String("hi!").Equals(ds.HeadValue()))
 }
+
+func TestMkDirAll(t *testing.T) {
+	assert := assert.New(t)
+	td, err := ioutil.TempDir("", "")
+	assert.NoError(err)
+	p := path.Join(td, "foo", "bar", "baz")
+	sp, err := ForDatabase(p)
+	assert.NoError(err)
+	_ = sp.NewChunkStore()
+}

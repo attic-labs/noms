@@ -274,7 +274,7 @@ func (sp Spec) NewChunkStore() chunks.ChunkStore {
 		sess := session.Must(session.NewSession(aws.NewConfig().WithRegion("us-west-2")))
 		return nbs.NewAWSStore(parts[0], parts[2], parts[1], s3.New(sess), dynamodb.New(sess), 1<<28)
 	case "nbs":
-		os.Mkdir(sp.DatabaseName, 0777)
+		os.MkdirAll(sp.DatabaseName, 0777)
 		return nbs.NewLocalStore(sp.DatabaseName, 1<<28)
 	case "mem":
 		storage := &chunks.MemoryStorage{}
