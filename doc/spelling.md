@@ -20,7 +20,7 @@ The `path` part of the name is interpreted differently depending on the protocol
 - **mem** specs describe an ephemeral memory-backed database. In this case, the path component is not used and must be empty.
 - **nbs** specs describe a local [Noms Block Store (NBS)](https://github.com/attic-labs/noms/tree/master/go/nbs)-backed database. In this case, the path component should be a relative or absolute path on disk to a directory in which to store the data, e.g. `nbs:/tmp/noms-data`.
   - In Go, `nbs:` can be ommitted (just `/tmp/noms-data` will work).
-- **aws** specs describe a remote Noms Block Store backed directly by Amazon Web Services, specifically DynamoDB and S3. The format is a URI containing the names of the DynamoDB table to use, the S3 bucket to use, and the database to serve. For example: `aws://dynamo-table:s3-bucket/database`.
+- **aws** specs describe a remote Noms Block Store backed directly by Amazon Web Services, specifically DynamoDB and S3. The format is a URI containing the names of the DynamoDB table to use, the S3 bucket to use, and the database to serve. For example: `aws:dynamo-table/s3-bucket/database`.
 
 ## Spelling Datasets
 

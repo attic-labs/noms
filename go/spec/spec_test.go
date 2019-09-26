@@ -177,12 +177,12 @@ func TestHref(t *testing.T) {
 	sp, _ = ForPath("https://my.example.com/foo/bar/baz::myds.my.path")
 	assert.Equal("https://my.example.com/foo/bar/baz", sp.Href())
 
-	sp, _ = ForDatabase("aws://table/foo/bar/baz")
-	assert.Equal("aws://table/foo/bar/baz", sp.Href())
-	sp, _ = ForDataset("aws://table:bucket/foo/bar/baz::myds")
-	assert.Equal("aws://table:bucket/foo/bar/baz", sp.Href())
-	sp, _ = ForPath("aws://table:bucket/foo/bar/baz::myds.my.path")
-	assert.Equal("aws://table:bucket/foo/bar/baz", sp.Href())
+	sp, _ = ForDatabase("aws:table/bucket/ns")
+	assert.Equal("aws:table/bucket/ns", sp.Href())
+	sp, _ = ForDataset("aws:table/bucket/ns::myds")
+	assert.Equal("aws:table/bucket/ns", sp.Href())
+	sp, _ = ForPath("aws:table/bucket/ns::myds.my.path")
+	assert.Equal("aws:table/bucket/ns", sp.Href())
 
 	sp, err := ForPath("mem::myds.my.path")
 	assert.NoError(err)
@@ -202,13 +202,19 @@ func TestForDatabase(t *testing.T) {
 		"https:",
 		"https://",
 		"https://%",
+		"http://::192.30.252.154",
+		"http://0:0:0:0:0:ffff:c01e:fc9a",
+		"http://::ffff:c01e:fc9a",
+		"http://::ffff::1e::9a",
 		"ldb:",
 		"random:",
 		"random:random",
 		"/file/ba:d",
-		"aws://t:b",
-		"aws://t",
-		"aws://t:",
+		"aws:",
+		"aws:t",
+		"aws:t/b",
+		"aws:t/b/ns/foo",
+		"aws://table/bucket/db",
 	}
 
 	for _, spec := range badSpecs {
@@ -234,12 +240,7 @@ func TestForDatabase(t *testing.T) {
 		{"http://some/::/one", "http", "//some/::/one", ""},
 		{"http://::1", "http", "//::1", ""},
 		{"http://192.30.252.154", "http", "//192.30.252.154", ""},
-		{"http://::192.30.252.154", "http", "//::192.30.252.154", ""},
-		{"http://0:0:0:0:0:ffff:c01e:fc9a", "http", "//0:0:0:0:0:ffff:c01e:fc9a", ""},
-		{"http://::ffff:c01e:fc9a", "http", "//::ffff:c01e:fc9a", ""},
-		{"http://::ffff::1e::9a", "http", "//::ffff::1e::9a", ""},
-		{"aws://table:bucket/db", "aws", "//table:bucket/db", ""},
-		{"aws://table/db", "aws", "//table/db", ""},
+		{"aws:table/bucket/db", "aws", "table/bucket/db", ""},
 	}
 
 	for _, tc := range testCases {
@@ -274,10 +275,17 @@ func TestForDataset(t *testing.T) {
 		"http:::dsname",
 		"mem:/a/bogus/path:dsname",
 		"http://localhost:8000/one",
+		"http://::192.30.252.154::foo",
+		"http://0:0:0:0:0:ffff:c01e:fc9a::foo",
+		"http://::ffff::1e::9a::foo",
 		"nbs:",
 		"nbs:hello",
-		"aws://t:b/db",
-		"mem::foo.value",
+		"aws://table:bucket/db::ds",
+		"aws:t::ds",
+		"aws:t/b::ds",
+		"aws:t/b/foo/bar::ds",
+		"aws://t/b/foo::ds",
+		"mem::foo.value::ds",
 	}
 
 	for _, spec := range badSpecs {
@@ -314,12 +322,7 @@ func TestForDataset(t *testing.T) {
 		{"https://localhost:8000?qp1=x&access_token=abc&qp2=y::ds/one", "https", "//localhost:8000?qp1=x&access_token=abc&qp2=y", "ds/one", ""},
 		{"http://192.30.252.154::foo", "http", "//192.30.252.154", "foo", ""},
 		{"http://::1::foo", "http", "//::1", "foo", ""},
-		{"http://::192.30.252.154::foo", "http", "//::192.30.252.154", "foo", ""},
-		{"http://0:0:0:0:0:ffff:c01e:fc9a::foo", "http", "//0:0:0:0:0:ffff:c01e:fc9a", "foo", ""},
-		{"http://::ffff:c01e:fc9a::foo", "http", "//::ffff:c01e:fc9a", "foo", ""},
-		{"http://::ffff::1e::9a::foo", "http", "//::ffff::1e::9a", "foo", ""},
-		{"aws://table:bucket/db::ds", "aws", "//table:bucket/db", "ds", ""},
-		{"aws://table/db::ds", "aws", "//table/db", "ds", ""},
+		{"aws:table/bucket/db::ds", "aws", "table/bucket/db", "ds", ""},
 	}
 
 	for _, tc := range testCases {
@@ -347,6 +350,12 @@ func TestForPath(t *testing.T) {
 		"mem::#s",
 		"mem::#foobarbaz",
 		"mem::#wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+		"http://::192.30.252.154::baz[42]",
+		"http://0:0:0:0:0:ffff:c01e:fc9a::foo[42].bar",
+		"http://::ffff:c01e:fc9a::foo.foo",
+		"http://::ffff::1e::9a::hello[\"world\"]",
+		"aws://table:bucket/db::foo.foo",
+		"aws://table/db/foo.foo",
 	}
 
 	for _, bs := range badSpecs {
@@ -369,12 +378,7 @@ func TestForPath(t *testing.T) {
 		{"http://localhost:8000/john/doe/::ds1", "http", "//localhost:8000/john/doe/", "ds1", ""},
 		{"http://192.30.252.154::foo.bar", "http", "//192.30.252.154", "foo.bar", ""},
 		{"http://::1::foo.bar.baz", "http", "//::1", "foo.bar.baz", ""},
-		{"http://::192.30.252.154::baz[42]", "http", "//::192.30.252.154", "baz[42]", ""},
-		{"http://0:0:0:0:0:ffff:c01e:fc9a::foo[42].bar", "http", "//0:0:0:0:0:ffff:c01e:fc9a", "foo[42].bar", ""},
-		{"http://::ffff:c01e:fc9a::foo.foo", "http", "//::ffff:c01e:fc9a", "foo.foo", ""},
-		{"http://::ffff::1e::9a::hello[\"world\"]", "http", "//::ffff::1e::9a", "hello[\"world\"]", ""},
-		{"aws://table:bucket/db::foo.foo", "aws", "//table:bucket/db", "foo.foo", ""},
-		{"aws://table/db::foo.foo", "aws", "//table/db", "foo.foo", ""},
+		{"aws:table/bucket/db::foo.foo", "aws", "table/bucket/db", "foo.foo", ""},
 	}
 
 	for _, tc := range testCases {

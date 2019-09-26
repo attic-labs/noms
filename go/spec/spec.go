@@ -173,14 +173,6 @@ func (sp Spec) GetDatabase() datas.Database {
 	return *sp.db
 }
 
-func parseAWSSpec(awsURL string) chunks.ChunkStore {
-	u, _ := url.Parse(awsURL)
-	parts := strings.SplitN(u.Host, ":", 2) // [table] [, bucket]?
-	d.PanicIfFalse(len(parts) == 2)
-	sess := session.Must(session.NewSession(aws.NewConfig().WithRegion("us-west-2")))
-	return nbs.NewAWSStore(parts[0], u.Path, parts[1], s3.New(sess), dynamodb.New(sess), 1<<28)
-}
-
 // GetDataset returns the current Dataset instance for this Spec's Database.
 // GetDataset is live, so if Commit is called on this Spec's Database later, a
 // new up-to-date Dataset will returned on the next call to GetDataset.  If
@@ -277,7 +269,10 @@ func (sp Spec) NewChunkStore() chunks.ChunkStore {
 	case "http", "https":
 		return datas.NewHTTPChunkStore(sp.Href(), sp.Options.Authorization)
 	case "aws":
-		return parseAWSSpec(sp.Href())
+		parts := strings.Split(sp.DatabaseName, "/") // table/bucket/ns
+		d.PanicIfFalse(len(parts) == 3)              // parse should have ensured this was true
+		sess := session.Must(session.NewSession(aws.NewConfig().WithRegion("us-west-2")))
+		return nbs.NewAWSStore(parts[0], parts[2], parts[1], s3.New(sess), dynamodb.New(sess), 1<<28)
 	case "nbs":
 		os.Mkdir(sp.DatabaseName, 0777)
 		return nbs.NewLocalStore(sp.DatabaseName, 1<<28)
@@ -325,14 +320,21 @@ func parseDatabaseSpec(spec string) (protocol, name string, err error) {
 	case "nbs":
 		protocol, name = parts[0], parts[1]
 
-	case "http", "https", "aws":
+	case "aws":
+		p, n := parts[0], parts[1]
+		pattern := regexp.MustCompile("^[^/]+/[^/]+/[^/]*$")
+		if !pattern.MatchString(n) {
+			err = errors.New("aws spec must match pattern aws:" + pattern.String())
+		}
+		protocol, name = p, n
+		return
+
+	case "http", "https":
 		u, perr := url.Parse(spec)
 		if perr != nil {
 			err = perr
 		} else if u.Host == "" {
 			err = fmt.Errorf("%s has empty host", spec)
-		} else if parts[0] == "aws" && u.Path == "" {
-			err = fmt.Errorf("%s does not specify a database ID", spec)
 		} else {
 			protocol, name = parts[0], parts[1]
 		}
