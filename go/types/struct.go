@@ -287,6 +287,21 @@ func (s Struct) Set(n string, v Value) Struct {
 	return Struct{valueImpl{s.vrw, w.data(), nil}}
 }
 
+func (s Struct) SetName(name string) Struct {
+	verifyStructName(name)
+
+	w := binaryNomsWriter{make([]byte, len(s.buff)), 0}
+	StructKind.writeTo(&w)
+	w.writeString(name)
+
+	dec := s.decoder()
+	dec.skipKind()
+	dec.skipString()
+
+	w.writeRaw(dec.buff[dec.offset:])
+	return Struct{valueImpl{s.vrw, w.data(), nil}}
+}
+
 // splitFieldsAt splits the buffer into two parts. The fields coming before the field we are looking for
 // and the fields coming after it.
 func (s Struct) splitFieldsAt(name string) (prolog, head, tail []byte, count uint64, found bool) {

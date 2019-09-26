@@ -366,3 +366,13 @@ func TestStructIterFields(t *testing.T) {
 
 	assert.Equal(1, i)
 }
+
+func TestStructSetName(t *testing.T) {
+	assert := assert.New(t)
+	s1 := NewStruct("", StructData{"foo": Number(42), "bar": String("baz")})
+	s2 := s1.SetName("S")
+	assert.Equal(2, s2.Len())
+	assert.Equal(42.0, float64(s2.Get("foo").(Number)))
+	assert.Equal("baz", string(s2.Get("bar").(String)))
+	assert.Equal("S", s2.Name())
+}
