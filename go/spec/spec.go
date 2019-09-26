@@ -29,6 +29,10 @@ const Separator = "::"
 
 var datasetRe = regexp.MustCompile("^" + datas.DatasetRe.String() + "$")
 
+var GetAWSSession func() *session.Session = func() *session.Session {
+	return session.Must(session.NewSession(aws.NewConfig().WithRegion("us-west-2")))
+}
+
 type ProtocolImpl interface {
 	NewChunkStore(sp Spec) (chunks.ChunkStore, error)
 	NewDatabase(sp Spec) (datas.Database, error)
@@ -271,7 +275,7 @@ func (sp Spec) NewChunkStore() chunks.ChunkStore {
 	case "aws":
 		parts := strings.Split(sp.DatabaseName, "/") // table/bucket/ns
 		d.PanicIfFalse(len(parts) == 3)              // parse should have ensured this was true
-		sess := session.Must(session.NewSession(aws.NewConfig().WithRegion("us-west-2")))
+		sess := GetAWSSession()
 		return nbs.NewAWSStore(parts[0], parts[2], parts[1], s3.New(sess), dynamodb.New(sess), 1<<28)
 	case "nbs":
 		os.MkdirAll(sp.DatabaseName, 0777)
