@@ -213,6 +213,7 @@ func TestForDatabase(t *testing.T) {
 		"aws:",
 		"aws:t",
 		"aws:t/b",
+		"aws:t/b/ns/foo",
 		"aws://table/bucket/db",
 	}
 
@@ -240,7 +241,6 @@ func TestForDatabase(t *testing.T) {
 		{"http://::1", "http", "//::1", ""},
 		{"http://192.30.252.154", "http", "//192.30.252.154", ""},
 		{"aws:table/bucket/db", "aws", "table/bucket/db", ""},
-		{"aws:table/bucket/db/other/random/crap", "aws", "table/bucket/db/other/random/crap", ""},
 	}
 
 	for _, tc := range testCases {
@@ -283,6 +283,7 @@ func TestForDataset(t *testing.T) {
 		"aws://table:bucket/db::ds",
 		"aws:t::ds",
 		"aws:t/b::ds",
+		"aws:t/b/foo/bar::ds",
 		"aws://t/b/foo::ds",
 		"mem::foo.value::ds",
 	}
