@@ -7,6 +7,8 @@ package spec
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
 	"testing"
@@ -561,4 +563,20 @@ func TestMkDirAll(t *testing.T) {
 	sp, err := ForDatabase(p)
 	assert.NoError(err)
 	_ = sp.NewChunkStore()
+}
+
+func TestNetworkError(t *testing.T) {
+	assert := assert.New(t)
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("monkey"))
+	}))
+
+	sp, err := ForDatabase(svr.URL)
+	assert.NoError(err)
+	err = d.Try(func() {
+		sp.GetDatabase()
+	})
+	assert.Equal("Unexpected response: Forbidden: monkey", err.(d.WrappedError).Cause().Error())
 }

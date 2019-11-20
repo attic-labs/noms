@@ -116,6 +116,14 @@ func (hcs *httpChunkStore) Stats() interface{} {
 	return nil
 }
 
+func checkStatus(status int, res *http.Response, body io.Reader) {
+	if status == res.StatusCode {
+		return
+	}
+	buf, _ := ioutil.ReadAll(body)
+	d.Panic("Unexpected response: %s: %s", http.StatusText(res.StatusCode), string(buf))
+}
+
 func (hcs *httpChunkStore) StatsSummary() string {
 	// GET http://<host>/stats. Response will be string containing a summary of database stats.
 	u := *hcs.host
@@ -124,9 +132,7 @@ func (hcs *httpChunkStore) StatsSummary() string {
 	d.PanicIfError(err)
 	defer closeResponse(res.Body)
 
-	if http.StatusOK != res.StatusCode {
-		d.Panic("Unexpected response: %s", http.StatusText(res.StatusCode))
-	}
+	checkStatus(http.StatusOK, res, res.Body)
 	data, err := ioutil.ReadAll(res.Body)
 	d.PanicIfError(err)
 
@@ -311,10 +317,7 @@ func (hcs *httpChunkStore) getRefs(batch chunks.ReadBatch) {
 	reader := resBodyReader(res)
 	defer closeResponse(reader)
 
-	if http.StatusOK != res.StatusCode {
-		data, _ := ioutil.ReadAll(reader)
-		d.Panic("Unexpected response: %s\n%s", http.StatusText(res.StatusCode), string(data))
-	}
+	checkStatus(http.StatusOK, res, reader)
 
 	chunkChan := make(chan *chunks.Chunk, 16)
 	go func() { defer close(chunkChan); chunks.Deserialize(reader, chunkChan) }()
@@ -345,9 +348,7 @@ func (hcs *httpChunkStore) hasRefs(batch chunks.ReadBatch) {
 	reader := resBodyReader(res)
 	defer closeResponse(reader)
 
-	if http.StatusOK != res.StatusCode {
-		d.Panic("Unexpected response: %s", http.StatusText(res.StatusCode))
-	}
+	checkStatus(http.StatusOK, res, reader)
 
 	scanner := bufio.NewScanner(reader)
 	scanner.Split(bufio.ScanWords)
@@ -413,9 +414,7 @@ func sendWriteRequest(u url.URL, auth, vers string, p *nbs.NomsBlockCache, cli h
 	expectVersion(vers, res)
 	defer closeResponse(res.Body)
 
-	if http.StatusCreated != res.StatusCode {
-		d.Panic("Unexpected response: %s", formatErrorResponse(res))
-	}
+	checkStatus(http.StatusCreated, res, res.Body)
 }
 
 func (hcs *httpChunkStore) Root() hash.Hash {
@@ -439,9 +438,7 @@ func (hcs *httpChunkStore) getRoot(checkVers bool) (root hash.Hash, vers string)
 	}
 	defer closeResponse(res.Body)
 
-	if http.StatusOK != res.StatusCode {
-		d.Panic("Unexpected response: %s", http.StatusText(res.StatusCode))
-	}
+	checkStatus(http.StatusOK, res, res.Body)
 	data, err := ioutil.ReadAll(res.Body)
 	d.PanicIfError(err)
 
@@ -529,12 +526,6 @@ func newRequest(method, auth, url string, body io.Reader, header http.Header) *h
 		req.Header.Set("Authorization", auth)
 	}
 	return req
-}
-
-func formatErrorResponse(res *http.Response) string {
-	data, err := ioutil.ReadAll(res.Body)
-	d.Chk.NoError(err)
-	return fmt.Sprintf("%s:\n%s\n", res.Status, data)
 }
 
 func expectVersion(expected string, res *http.Response) {
