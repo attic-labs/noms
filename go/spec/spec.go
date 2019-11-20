@@ -273,8 +273,8 @@ func (sp Spec) NewChunkStore() chunks.ChunkStore {
 	case "http", "https":
 		return datas.NewHTTPChunkStore(sp.Href(), sp.Options.Authorization)
 	case "aws":
-		parts := strings.Split(sp.DatabaseName, "/") // table/bucket/ns
-		d.PanicIfFalse(len(parts) == 3)              // parse should have ensured this was true
+		parts := strings.SplitN(sp.DatabaseName, "/", 3) // table/bucket/ns
+		d.PanicIfFalse(len(parts) >= 3)                  // parse should have ensured this was true
 		sess := GetAWSSession()
 		return nbs.NewAWSStore(parts[0], parts[2], parts[1], s3.New(sess), dynamodb.New(sess), 1<<28)
 	case "nbs":
@@ -326,7 +326,7 @@ func parseDatabaseSpec(spec string) (protocol, name string, err error) {
 
 	case "aws":
 		p, n := parts[0], parts[1]
-		pattern := regexp.MustCompile("^[^/]+/[^/]+/[^/]*$")
+		pattern := regexp.MustCompile("^[^/]+/[^/]+/.*$")
 		if !pattern.MatchString(n) {
 			err = errors.New("aws spec must match pattern aws:" + pattern.String())
 		}
