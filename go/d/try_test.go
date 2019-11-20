@@ -213,6 +213,7 @@ func TestWrap(t *testing.T) {
 	te := testError{"te"}
 	we := Wrap(te)
 	assert.Equal(te, we.Cause())
+	assert.Equal(te, errors.Unwrap(we))
 	assert.IsType(wrappedError{}, we)
 	assert.Equal(we, Wrap(we))
 	fmt.Printf("st: %s, cause: %s\n", we.Error(), we.Cause())

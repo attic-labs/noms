@@ -144,6 +144,7 @@ type wrappedError struct {
 
 func (we wrappedError) Error() string { return we.msg }
 func (we wrappedError) Cause() error  { return we.cause }
+func (we wrappedError) Unwrap() error { return we.cause }
 
 type stackTracer struct {
 	stackTrace string
