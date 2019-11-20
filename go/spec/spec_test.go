@@ -570,7 +570,7 @@ func TestNetworkError(t *testing.T) {
 
 	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte("monkey"))
+		w.Write([]byte("monkey\n"))
 	}))
 
 	sp, err := ForDatabase(svr.URL)

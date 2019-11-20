@@ -121,7 +121,7 @@ func checkStatus(status int, res *http.Response, body io.Reader) {
 		return
 	}
 	buf, _ := ioutil.ReadAll(body)
-	d.Panic("Unexpected response: %s: %s", http.StatusText(res.StatusCode), string(buf))
+	d.Panic("Unexpected response: %s: %s", http.StatusText(res.StatusCode), strings.TrimSpace(string(buf)))
 }
 
 func (hcs *httpChunkStore) StatsSummary() string {
