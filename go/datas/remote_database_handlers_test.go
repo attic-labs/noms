@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
@@ -47,7 +46,7 @@ func TestHandleWriteValue(t *testing.T) {
 	chunks.Serialize(listChunk, body)
 
 	w := httptest.NewRecorder()
-	HandleWriteValue(w, newRequest("POST", "", "", body, nil), params{}, storage.NewView())
+	HandleWriteValue(w, newRequest("POST", "", "", body.Bytes(), nil), params{}, storage.NewView())
 
 	if assert.Equal(http.StatusCreated, w.Code, "Handler error:\n%s", string(w.Body.Bytes())) {
 		db2 := NewDatabase(storage.NewView())
@@ -66,7 +65,7 @@ func TestHandleWriteValuePanic(t *testing.T) {
 	body.WriteString("Bogus")
 
 	w := httptest.NewRecorder()
-	HandleWriteValue(w, newRequest("POST", "", "", body, nil), params{}, storage.NewView())
+	HandleWriteValue(w, newRequest("POST", "", "", body.Bytes(), nil), params{}, storage.NewView())
 
 	assert.Equal(http.StatusBadRequest, w.Code, "Handler error:\n%s", string(w.Body.Bytes()))
 }
@@ -87,7 +86,7 @@ func TestHandleWriteValueDupChunks(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	HandleWriteValue(w, newRequest("POST", "", "", body, nil), params{}, storage.NewView())
+	HandleWriteValue(w, newRequest("POST", "", "", body.Bytes(), nil), params{}, storage.NewView())
 
 	if assert.Equal(http.StatusCreated, w.Code, "Handler error:\n%s", string(w.Body.Bytes())) {
 		db := NewDatabase(storage.NewView())
@@ -142,8 +141,7 @@ func TestBuildHashesRequest(t *testing.T) {
 		hash.Parse("00000000000000000000000000000003"): nil,
 	}
 	r := buildHashesRequest(batch)
-	defer r.Close()
-	requested := deserializeHashes(r)
+	requested := deserializeHashes(bytes.NewReader(r))
 
 	for _, h := range requested {
 		_, present := batch[h]
@@ -207,7 +205,7 @@ func TestHandleGetBlob(t *testing.T) {
 	w := httptest.NewRecorder()
 	HandleGetBlob(
 		w,
-		newRequest("GET", "", "/getBlob/", strings.NewReader(""), http.Header{}),
+		newRequest("GET", "", "/getBlob/", nil, http.Header{}),
 		params{},
 		storage.NewView(),
 	)
@@ -219,7 +217,7 @@ func TestHandleGetBlob(t *testing.T) {
 	w = httptest.NewRecorder()
 	HandleGetBlob(
 		w,
-		newRequest("GET", "", fmt.Sprintf("/getBlob/?h=%s", b.Hash().String()), strings.NewReader(""), http.Header{}),
+		newRequest("GET", "", fmt.Sprintf("/getBlob/?h=%s", b.Hash().String()), nil, http.Header{}),
 		params{},
 		storage.NewView(),
 	)
@@ -233,7 +231,7 @@ func TestHandleGetBlob(t *testing.T) {
 	w = httptest.NewRecorder()
 	HandleGetBlob(
 		w,
-		newRequest("GET", "", fmt.Sprintf("/getBlob/?h=%s", r.TargetHash().String()), strings.NewReader(""), http.Header{}),
+		newRequest("GET", "", fmt.Sprintf("/getBlob/?h=%s", r.TargetHash().String()), nil, http.Header{}),
 		params{},
 		storage.NewView(),
 	)
@@ -251,7 +249,7 @@ func TestHandleGetBlob(t *testing.T) {
 	w = httptest.NewRecorder()
 	HandleGetBlob(
 		w,
-		newRequest("GET", "", fmt.Sprintf("/getBlob/?h=%s", r2.TargetHash().String()), strings.NewReader(""), http.Header{}),
+		newRequest("GET", "", fmt.Sprintf("/getBlob/?h=%s", r2.TargetHash().String()), nil, http.Header{}),
 		params{},
 		storage.NewView(),
 	)

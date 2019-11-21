@@ -5,6 +5,7 @@
 package datas
 
 import (
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"errors"
@@ -330,7 +331,7 @@ func extractHashes(req *http.Request) hash.HashSlice {
 	return deserializeHashes(reader)
 }
 
-func BuildHashesRequestForTest(hashes hash.HashSet) io.ReadCloser {
+func BuildHashesRequestForTest(hashes hash.HashSet) []byte {
 	batch := chunks.ReadBatch{}
 	for h := range hashes {
 		batch[h] = nil
@@ -338,13 +339,10 @@ func BuildHashesRequestForTest(hashes hash.HashSet) io.ReadCloser {
 	return buildHashesRequest(batch)
 }
 
-func buildHashesRequest(batch chunks.ReadBatch) io.ReadCloser {
-	body, pw := io.Pipe()
-	go func() {
-		defer checkClose(pw)
-		serializeHashes(pw, batch)
-	}()
-	return body
+func buildHashesRequest(batch chunks.ReadBatch) []byte {
+	buf := &bytes.Buffer{}
+	serializeHashes(buf, batch)
+	return buf.Bytes()
 }
 
 func handleHasRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore) {

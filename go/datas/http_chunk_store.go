@@ -392,22 +392,17 @@ func sendWriteRequest(u url.URL, auth, vers string, p *nbs.NomsBlockCache, cli h
 		close(chunkChan)
 	}()
 
-	body := buildWriteValueRequest(chunkChan)
-	n := int64(0)
-
 	// Sad that we have to buffer this, but required for servers that need a content-length.
 	// See: https://spectrum.chat/zeit/now/are-streaming-request-bodies-supported~8f085d13-2e35-4613-9cc0-818abcd04dfe
-	nb := &bytes.Buffer{}
-	var err error
-	n, err = io.Copy(nb, body)
+	body := buildWriteValueRequest(chunkChan)
+	b, err := ioutil.ReadAll(body)
 	d.PanicIfError(err)
-	body = ioutil.NopCloser(nb)
 
-	req := newRequest("POST", auth, u.String(), body, http.Header{
+	req := newRequest("POST", auth, u.String(), b, http.Header{
 		"Content-Encoding": {"x-snappy-framed"},
 		"Content-Type":     {"application/octet-stream"},
 	})
-	req.ContentLength = n
+	req.ContentLength = int64(len(b))
 
 	res, err := cli.Do(req)
 	d.PanicIfError(err)
@@ -513,9 +508,15 @@ func (hcs *httpChunkStore) requestRoot(method string, current, last hash.Hash) *
 	return res
 }
 
-func newRequest(method, auth, url string, body io.Reader, header http.Header) *http.Request {
-	req, err := http.NewRequest(method, url, body)
+func newRequest(method, auth, url string, body []byte, header http.Header) *http.Request {
+	gb := func() (io.ReadCloser, error) {
+		return ioutil.NopCloser(bytes.NewReader(body)), nil
+	}
+	b, _ := gb()
+
+	req, err := http.NewRequest(method, url, b)
 	d.Chk.NoError(err)
+	req.GetBody = gb
 	req.Header.Set(NomsVersionHeader, constants.NomsVersion)
 	for k, vals := range header {
 		for _, v := range vals {
