@@ -8,9 +8,11 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -309,11 +311,10 @@ func (hcs *httpChunkStore) getRefs(batch chunks.ReadBatch) {
 		"Accept-Encoding": {"x-snappy-framed"},
 		"Content-Type":    {"application/octet-stream"},
 	})
-	req.ContentLength = int64(serializedLength(batch))
 
 	res, err := hcs.httpClient.Do(req)
 	d.Chk.NoError(err)
-	expectVersion(hcs.version, res)
+	expectVersion(hcs.version, req, res)
 	reader := resBodyReader(res)
 	defer closeResponse(reader)
 
@@ -340,11 +341,10 @@ func (hcs *httpChunkStore) hasRefs(batch chunks.ReadBatch) {
 		"Accept-Encoding": {"x-snappy-framed"},
 		"Content-Type":    {"application/octet-stream"},
 	})
-	req.ContentLength = int64(serializedLength(batch))
 
 	res, err := hcs.httpClient.Do(req)
 	d.Chk.NoError(err)
-	expectVersion(hcs.version, res)
+	expectVersion(hcs.version, req, res)
 	reader := resBodyReader(res)
 	defer closeResponse(reader)
 
@@ -402,11 +402,10 @@ func sendWriteRequest(u url.URL, auth, vers string, p *nbs.NomsBlockCache, cli h
 		"Content-Encoding": {"x-snappy-framed"},
 		"Content-Type":     {"application/octet-stream"},
 	})
-	req.ContentLength = int64(len(b))
 
 	res, err := cli.Do(req)
 	d.PanicIfError(err)
-	expectVersion(vers, res)
+	expectVersion(vers, req, res)
 	defer closeResponse(res.Body)
 
 	checkStatus(http.StatusCreated, res, res.Body)
@@ -429,7 +428,7 @@ func (hcs *httpChunkStore) getRoot(checkVers bool) (root hash.Hash, vers string)
 	// GET http://<host>/root. Response will be ref of root.
 	res := hcs.requestRoot("GET", hash.Hash{}, hash.Hash{})
 	if checkVers {
-		expectVersion(hcs.version, res)
+		expectVersion(hcs.version, nil, res)
 	}
 	defer closeResponse(res.Body)
 
@@ -465,7 +464,7 @@ func (hcs *httpChunkStore) Commit(current, last hash.Hash) bool {
 
 	// POST http://<host>/root?current=<ref>&last=<ref>. Response will be 200 on success, 409 if current is outdated. Regardless, the server returns its current root for this store
 	res := hcs.requestRoot("POST", current, last)
-	expectVersion(hcs.version, res)
+	expectVersion(hcs.version, nil, res)
 	defer closeResponse(res.Body)
 
 	var success bool
@@ -517,6 +516,9 @@ func newRequest(method, auth, url string, body []byte, header http.Header) *http
 	req, err := http.NewRequest(method, url, b)
 	d.Chk.NoError(err)
 	req.GetBody = gb
+	req.ContentLength = int64(len(body))
+	log.Printf("Requesting: %s", url)
+	log.Printf("Setting ContentLength to %d", req.ContentLength)
 	req.Header.Set(NomsVersionHeader, constants.NomsVersion)
 	for k, vals := range header {
 		for _, v := range vals {
@@ -529,17 +531,27 @@ func newRequest(method, auth, url string, body []byte, header http.Header) *http
 	return req
 }
 
-func expectVersion(expected string, res *http.Response) {
+func expectVersion(expected string, req *http.Request, res *http.Response) {
 	dataVersion := res.Header.Get(NomsVersionHeader)
 	if expected != dataVersion {
 		b, _ := ioutil.ReadAll(res.Body)
 		res.Body.Close()
+		var url string
+		var body string
+		if req != nil {
+			url = req.URL.String()
+			br, _ := req.GetBody()
+			bb, _ := ioutil.ReadAll(br)
+			body = hex.EncodeToString(bb)
+		}
 		d.Panic(
 			"Version skew\n\r"+
 				"\tServer data version changed from '%s' to '%s'\n\r"+
-				"\tHTTP Response: %d (%s): %s\n",
+				"\tHTTP Response: %d (%s): %s\n"+
+				"\tURL: %s\n"+
+				"\tBODY: %s\n",
 			expected, dataVersion,
-			res.StatusCode, res.Status, string(b))
+			res.StatusCode, res.Status, string(b), url, body)
 	}
 }
 

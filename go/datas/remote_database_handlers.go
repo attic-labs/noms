@@ -103,6 +103,7 @@ func createHandler(hndlr Handler, versionCheck bool) Handler {
 
 		if versionCheck && req.Header.Get(NomsVersionHeader) != constants.NomsVersion {
 			log.Printf("returning version mismatch error")
+			log.Printf("Bonkboknn for %s", req.URL.String())
 			http.Error(
 				w,
 				fmt.Sprintf("Error: SDK version %s is incompatible with data of version %s", req.Header.Get(NomsVersionHeader), constants.NomsVersion),
@@ -114,10 +115,13 @@ func createHandler(hndlr Handler, versionCheck bool) Handler {
 		err := d.Try(func() { hndlr(w, req, ps, cs) })
 		if err != nil {
 			err = d.Unwrap(err)
+			log.Printf("Bonk for %s", req.URL.String())
 			log.Printf("returning bad request error: %v", err)
 			http.Error(w, fmt.Sprintf("Error: %v", err), http.StatusBadRequest)
 			return
 		}
+
+		log.Printf("Done with %s: all good in the hood", req.URL.String())
 	}
 }
 
