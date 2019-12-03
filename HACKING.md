@@ -1,6 +1,6 @@
 # Prerequisites
 
-* [Go 1.13+ or greater](https://golang.org/dl/)
+* [Go 1.13 or later](https://golang.org/dl/)
 * Mac or Linux (Noms isn't currently supported on Windows)
 
 # Get
