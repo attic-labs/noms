@@ -282,11 +282,27 @@ func TestValueList(t *testing.T) {
 	assertParseError(t, "[,]", "Unexpected token \",\", example:1:3")
 
 	assertParse(t, vs, `[42,
-                Bool,
-        ]`, types.NewList(vs, types.Number(42), types.BoolType))
+	            Bool,
+	    ]`, types.NewList(vs, types.Number(42), types.BoolType))
 	assertParse(t, vs, `[42,
-                Bool
-        ]`, types.NewList(vs, types.Number(42), types.BoolType))
+	            Bool
+		]`, types.NewList(vs, types.Number(42), types.BoolType))
+}
+
+func TestEmptyValuesInEditors(t *testing.T) {
+	vs := newTestValueStore()
+
+	assertParse(t, vs, "[[]]", types.NewList(vs, types.NewList(vs)))
+	assertParse(t, vs, "[set {}]", types.NewList(vs, types.NewSet(vs)))
+	assertParse(t, vs, "[map {}]", types.NewList(vs, types.NewMap(vs)))
+
+	assertParse(t, vs, "set {[]}", types.NewSet(vs, types.NewList(vs)))
+	assertParse(t, vs, "set {set {}}", types.NewSet(vs, types.NewSet(vs)))
+	assertParse(t, vs, "set {map {}}", types.NewSet(vs, types.NewMap(vs)))
+
+	assertParse(t, vs, "map {map {}: map {}}", types.NewMap(vs, types.NewMap(vs), types.NewMap(vs)))
+	assertParse(t, vs, "map {[]: []}", types.NewMap(vs, types.NewList(vs), types.NewList(vs)))
+	assertParse(t, vs, "map {set {}: set {}}", types.NewMap(vs, types.NewSet(vs), types.NewSet(vs)))
 }
 
 func TestValueSet(t *testing.T) {

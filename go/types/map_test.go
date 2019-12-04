@@ -1666,5 +1666,9 @@ func TestNestedEditing(t *testing.T) {
 	se2b.Remove(String("bb"))
 
 	mOut = me0.Map()
-	assert.True(t, mOut.Equals(NewMap(vrw))) // remove empty
+	fmt.Println(EncodedValue(mOut))
+	assert.True(t, mOut.Equals(NewMap(vrw,
+		String("a"), NewMap(vrw, String("a"), NewSet(vrw)),
+		String("b"), NewMap(vrw, String("b"), NewSet(vrw)),
+	))) // do not remove empty
 }
