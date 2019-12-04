@@ -78,12 +78,6 @@ func (me *MapEditor) Map() Map {
 
 			go func() {
 				sv := edit.value.Value()
-				if e, ok := sv.(Emptyable); ok {
-					if e.Empty() {
-						sv = nil
-					}
-				}
-
 				kvc <- mapEntry{edit.key, sv}
 			}()
 		}

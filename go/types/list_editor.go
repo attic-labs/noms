@@ -101,10 +101,6 @@ func (le *ListEditor) List() List {
 		}
 
 		for _, v := range sp.inserted {
-			if emp, ok := v.(Emptyable); ok && emp.Empty() {
-				continue
-			}
-
 			ch.Append(v)
 		}
 	}
