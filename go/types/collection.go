@@ -6,7 +6,7 @@ package types
 
 type Collection interface {
 	Value
-	Emptyable
+	Empty() bool
 	Len() uint64
 	asSequence() sequence
 }

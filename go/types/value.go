@@ -21,11 +21,6 @@ type Valuable interface {
 	Value() Value
 }
 
-// Emptyable is an interface for Values which may or may not be empty
-type Emptyable interface {
-	Empty() bool
-}
-
 // Value is the interface all Noms values implement.
 type Value interface {
 	Valuable
