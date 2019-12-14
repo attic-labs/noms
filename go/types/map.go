@@ -202,18 +202,18 @@ func (m Map) Any(cb func(k, v Value) bool) (yep bool) {
 	return
 }
 
-func (m Map) Iterator() *mapIterator {
+func (m Map) Iterator() *MapIterator {
 	return m.IteratorAt(0)
 }
 
-func (m Map) IteratorAt(pos uint64) *mapIterator {
-	return &mapIterator{
+func (m Map) IteratorAt(pos uint64) *MapIterator {
+	return &MapIterator{
 		cursor: newCursorAtIndex(m.orderedSequence, pos),
 	}
 }
 
-func (m Map) IteratorFrom(key Value) *mapIterator {
-	return &mapIterator{
+func (m Map) IteratorFrom(key Value) *MapIterator {
+	return &MapIterator{
 		cursor: newCursorAtValue(m.orderedSequence, key, false, false),
 	}
 }

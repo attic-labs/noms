@@ -54,7 +54,7 @@ func TestMapIterator(t *testing.T) {
 
 	for i, t := range tc {
 		lbl := fmt.Sprintf("test case %d", i)
-		var it *mapIterator
+		var it *MapIterator
 		if t.iter {
 			it = m.Iterator()
 		} else if t.iterFrom != "" {
