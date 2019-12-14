@@ -551,6 +551,12 @@ func getCollectionArgs(vrw types.ValueReadWriter, col types.Collection, args map
 
 type mapAppender func(slice []interface{}, k, v types.Value) []interface{}
 
+type mapiter interface {
+	Valid() bool
+	Entry() (k, v types.Value)
+	Next() bool
+}
+
 func getMapElements(vrw types.ValueReadWriter, v types.Value, args map[string]interface{}, app mapAppender) (interface{}, error) {
 	m := v.(types.Map)
 
@@ -562,7 +568,7 @@ func getMapElements(vrw types.ValueReadWriter, v types.Value, args map[string]in
 			return m.IteratorAt(at)
 		},
 		First: func() interface{} {
-			return &mapFirstIterator{m: m}
+			return &mapFirstIterator{m: &m}
 		},
 	})
 
@@ -570,13 +576,14 @@ func getMapElements(vrw types.ValueReadWriter, v types.Value, args map[string]in
 		return ([]interface{})(nil), nil
 	}
 
-	mapIter := iter.(types.MapIterator)
+	mapIter := iter.(mapiter)
 	values := make([]interface{}, 0, count)
 	for i := uint64(0); i < count; i++ {
-		k, v := mapIter.Next()
-		if k == nil {
+		if !mapIter.Valid() {
 			break
 		}
+
+		k, v := mapIter.Entry()
 
 		if singleExactMatch {
 			if nomsKey.Equals(k) {
@@ -594,6 +601,8 @@ func getMapElements(vrw types.ValueReadWriter, v types.Value, args map[string]in
 		} else {
 			values = app(values, k, v)
 		}
+
+		mapIter.Next()
 	}
 
 	return values, nil
@@ -1018,14 +1027,22 @@ type mapIteratorForKeys struct {
 	idx  int
 }
 
-func (it *mapIteratorForKeys) Next() (k, v types.Value) {
+func (it *mapIteratorForKeys) Valid() bool {
+	return it.idx < len(it.keys)
+}
+
+func (it *mapIteratorForKeys) Entry() (k, v types.Value) {
 	if it.idx >= len(it.keys) {
 		return
 	}
 	k = it.keys[it.idx]
 	v = it.m.Get(k)
-	it.idx++
 	return
+}
+
+func (it *mapIteratorForKeys) Next() bool {
+	it.idx++
+	return it.Valid()
 }
 
 type setFirstIterator struct {
@@ -1041,9 +1058,22 @@ func (it *setFirstIterator) SkipTo(v types.Value) types.Value {
 }
 
 type mapFirstIterator struct {
-	m types.Map
+	m *types.Map
 }
 
-func (it *mapFirstIterator) Next() (types.Value, types.Value) {
-	return it.m.First()
+func (it *mapFirstIterator) Valid() bool {
+	return it.m != nil && !it.m.Empty()
+}
+
+func (it *mapFirstIterator) Entry() (types.Value, types.Value) {
+	if it.m == nil {
+		return nil, nil
+	}
+	k, v := it.m.First()
+	it.m = nil
+	return k, v
+}
+
+func (it *mapFirstIterator) Next() bool {
+	return false
 }

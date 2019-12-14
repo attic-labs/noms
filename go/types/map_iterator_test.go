@@ -5,6 +5,7 @@
 package types
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,27 +22,67 @@ func TestMapIterator(t *testing.T) {
 	}
 
 	m := me.Map()
-	test := func(it MapIterator, start int, msg string) {
-		for i := start; i < 5; i++ {
-			k, v := it.Next()
-			assert.True(k.Equals(k), msg)
-			assert.True(v.Equals(v), msg)
-			assert.True(String(string(byte(65+i))).Equals(k), msg)
-			assert.True(Number(i).Equals(v), msg)
-		}
-		k, v := it.Next()
-		assert.Nil(k, msg)
-		assert.Nil(v, msg)
+
+	tc := []struct {
+		reverse  bool
+		iter     bool
+		iterAt   uint64
+		iterFrom string
+		expected []string
+	}{
+		{false, true, 0, "", []string{"A", "B", "C", "D", "E"}},
+		{false, false, 0, "", []string{"A", "B", "C", "D", "E"}},
+		{false, false, 2, "", []string{"C", "D", "E"}},
+		{false, false, 4, "", []string{"E"}},
+		{false, false, 5, "", []string{}},
+		{false, false, 0, "A", []string{"A", "B", "C", "D", "E"}},
+		{false, false, 0, "C", []string{"C", "D", "E"}},
+		{false, false, 4, "E", []string{"E"}},
+		{false, false, 0, "AA", []string{"B", "C", "D", "E"}},
+		{false, false, 0, "F", []string{}},
+		{true, false, 0, "", []string{}},
+		{true, true, 0, "", []string{}},
+		{true, false, 2, "", []string{"C", "B", "A"}},
+		{true, false, 4, "", []string{"E", "D", "C", "B", "A"}},
+		{true, false, 5, "", []string{}},
+		{true, false, 0, "A", []string{"A"}},
+		{true, false, 0, "C", []string{"C", "B", "A"}},
+		{true, false, 0, "E", []string{"E", "D", "C", "B", "A"}},
+		{true, false, 0, "AA", []string{"B", "A"}},
+		{true, false, 0, "F", []string{}},
 	}
 
-	test(m.Iterator(), 0, "Iterator()")
-	test(m.IteratorAt(0), 0, "IteratorAt(0)")
-	test(m.IteratorAt(5), 5, "IteratorAt(5)")
-	test(m.IteratorAt(6), 5, "IteratorAt(6)")
-	test(m.IteratorFrom(String("?")), 0, "IteratorFrom(?)")
-	test(m.IteratorFrom(String("A")), 0, "IteratorFrom(A)")
-	test(m.IteratorFrom(String("C")), 2, "IteratorFrom(C)")
-	test(m.IteratorFrom(String("E")), 4, "IteratorFrom(E)")
-	test(m.IteratorFrom(String("F")), 5, "IteratorFrom(F)")
-	test(m.IteratorFrom(String("G")), 5, "IteratorFrom(G)")
+	for i, t := range tc {
+		lbl := fmt.Sprintf("test case %d", i)
+		var it *mapIterator
+		if t.iter {
+			it = m.Iterator()
+		} else if t.iterFrom != "" {
+			it = m.IteratorFrom(String(t.iterFrom))
+		} else {
+			it = m.IteratorAt(t.iterAt)
+		}
+		for i, e := range t.expected {
+			lbl := fmt.Sprintf("%s: iteration %d", lbl, i)
+			assert.True(it.Valid(), lbl)
+
+			assert.Equal(e, string(it.Key().(String)), lbl)
+			assert.True(m.Get(it.Key()).Equals(it.Value()), lbl)
+
+			k, v := it.Entry()
+			assert.Equal(e, string(k.(String)), lbl)
+			assert.True(m.Get(it.Key()).Equals(v), lbl)
+
+			assert.True(m.Get(it.Key()).Equals(Number(it.Position())), lbl)
+
+			var last bool
+			if t.reverse {
+				last = it.Prev()
+			} else {
+				last = it.Next()
+			}
+			assert.Equal(i < len(t.expected)-1, last, lbl)
+			assert.Equal(i < len(t.expected)-1, it.Valid(), lbl)
+		}
+	}
 }

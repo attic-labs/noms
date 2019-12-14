@@ -4,11 +4,6 @@
 
 package types
 
-// MapIterator is the interface used by iterators over Noms Maps.
-type MapIterator interface {
-	Next() (k, v Value)
-}
-
 // mapIterator can efficiently iterate through a Noms Map.
 type mapIterator struct {
 	cursor       *sequenceCursor
@@ -16,15 +11,48 @@ type mapIterator struct {
 	currentValue Value
 }
 
+func (mi *mapIterator) Valid() bool {
+	return mi.cursor.valid()
+}
+
+func (mi *mapIterator) Entry() (k Value, v Value) {
+	return mi.Key(), mi.Value()
+}
+
+func (mi *mapIterator) Key() Value {
+	if !mi.cursor.valid() {
+		return nil
+	}
+	return mi.cursor.current().(mapEntry).key
+}
+
+func (mi *mapIterator) Value() Value {
+	if !mi.cursor.valid() {
+		return nil
+	}
+	return mi.cursor.current().(mapEntry).value
+}
+
+func (mi *mapIterator) Position() uint64 {
+	if !mi.cursor.valid() {
+		return 0
+	}
+	return uint64(mi.cursor.idx)
+}
+
+// Prev returns the previous entry from the Map. If there is no previous entry, Prev() returns nils.
+func (mi *mapIterator) Prev() bool {
+	if !mi.cursor.valid() {
+		return false
+	}
+	return mi.cursor.retreat()
+}
+
 // Next returns the subsequent entries from the Map, starting with the entry at which the iterator
 // was created. If there are no more entries, Next() returns nils.
-func (mi *mapIterator) Next() (k, v Value) {
-	if mi.cursor.valid() {
-		entry := mi.cursor.current().(mapEntry)
-		mi.currentKey, mi.currentValue = entry.key, entry.value
-		mi.cursor.advance()
-	} else {
-		mi.currentKey, mi.currentValue = nil, nil
+func (mi *mapIterator) Next() bool {
+	if !mi.cursor.valid() {
+		return false
 	}
-	return mi.currentKey, mi.currentValue
+	return mi.cursor.advance()
 }
