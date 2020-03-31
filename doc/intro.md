@@ -238,7 +238,7 @@ Structured sharing | ❌ | 🙌 | 🙌
 
 ### Indexing and Searching with Prolly Trees
 
-Like B-Trees, Prolly Trees are sorted. Keys of type Boolean, Number, and String sort in their natural order. Other types sort by their hash.
+Like B-Trees, Prolly Trees are sorted. In Noms, we sort keys of type Boolean, Number, and String by their natural order. We sort other key types by their hash.
 
 Because of this sorting, Noms collections can be used as efficient indexes, in the same manner as primary and secondary indexes in traditional databases.
 
