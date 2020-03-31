@@ -183,17 +183,17 @@ Sadly, this invariant also rules out the use of classical B-Trees, because a B-T
 
 ### Prolly Tree Structure
 
-![Prolly Tree Diagram](prolly-tree-structure.png)
-
 A Prolly Tree is a [search tree](https://en.wikipedia.org/wiki/Search_tree) where the number of values stored in each node is determined probabilistically, based on the data which is stored in the tree.
+
+![Prolly Tree Diagram](prolly-tree-structure.png)
 
 A Prolly Tree is similar in many ways to a B-Tree, except that the number of values in each node has a probabilistic average rather than an enforced upper and lower bound, and the set of values in each node is determined by the output of a rolling hash function over the values, rather than via split and join operations when upper and lower bounds are exceeded.
 
 ### Prolly Tree Construction
 
-![Prolly Tree Construction](prolly-tree-construction.png)
+Prolly Trees are constructed from scratch using a variation of [content-slicing](https://en.wikipedia.org/wiki/Rolling_hash#Content-based_slicing_using_a_rolling_hash), as used in bup, rsync, Camlistore, and many others.
 
-Prolly Tree use a minor variation of [content-slicing](https://en.wikipedia.org/wiki/Rolling_hash#Content-based_slicing_using_a_rolling_hash), as used in bup, rsync, Camlistore, and many others.
+![Prolly Tree Construction](prolly-tree-construction.png)
 
 To start, we "chunk" the serialization of a larged sorted sequence by sliding a fixed-size window through it, one byte at a time.
 
@@ -207,9 +207,9 @@ Noms uses a window size of 64 bytes, so the probability of any 1 bit change movi
 
 ### Prolly Tree Mutation
 
-![Prolly Tree Mutation](prolly-tree-mutation.png)
-
 To mutate a Prolly Tree, conceptually we build a new Prolly Tree from scratch, except that we can reuse everything from the previous tree that we know cannot have been affected (because it is outside the window).
+
+![Prolly Tree Mutation](prolly-tree-mutation.png)
 
 In the example above, we insert the value _I_ into the set. The chunk boundary is unchanged in this case so the subtrees before and after the modified chunk can be reused as-is.
 
