@@ -203,9 +203,11 @@ To start, we "chunk" the serialization of a larged sorted sequence by sliding a 
 
 At each position, we compute a hash of the bytes in the window. Any hash can be used, but in Noms a [rolling hash](https://en.wikipedia.org/wiki/Rolling_hash) is used for performance.
 
-Within each hash, we look for a pattern that has a known probability of occuring. If the pattern is found, that position is a _boundary_. We write a new _chunk_ containing the bytes between this boundary and the previous, if any. By adjusting the pattern we look for, we can control the average size of the chunks our tree will be broken into.
+Within each hash, we look for a pattern that has a known probability of occuring. If the pattern is found, that position is a _boundary_. We slide the window forward to the end of the containing item, and write a new _chunk_ containing the bytes between this boundary and the previous, if any. The resulting chunk is stored in a content-addressed storage system using its hash as the key. Again, any hash can be used, but in Noms a [truncated SHA-512 is used](https://github.com/attic-labs/noms/blob/master/go/hash/hash.go).
 
-In Noms, the pattern we look for is the 12 high bits being 1. Since this has a probability of 1/2^12, the average chunk size in Noms is 4kb.
+By adjusting the pattern we look for, we can control the average size of the chunks our tree will be broken into.
+
+In Noms, the pattern we look for is the [12 high bits being 1](https://github.com/attic-labs/noms/blob/master/go/types/rolling_value_hasher.go). Since this has a probability of 1/2^12, the average chunk size in Noms is 4kb.
 
 Once we've created an initial pass of chunks this way, we build an index describing the contents of each of those chunks, and perform the chunking operation again on that index. This continues recursively, until we are left with only a single chunk. This is the root of the tree.
 
