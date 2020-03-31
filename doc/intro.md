@@ -185,9 +185,11 @@ Sadly, this invariant also rules out the use of classical B-Trees, because a B-T
 
 A Prolly Tree is a [search tree](https://en.wikipedia.org/wiki/Search_tree) where the number of values stored in each node is determined probabilistically, based on the data which is stored in the tree.
 
-![Prolly Tree Diagram](prolly-tree-structure.png)
-
 A Prolly Tree is similar in many ways to a B-Tree, except that the number of values in each node has a probabilistic average rather than an enforced upper and lower bound, and the set of values in each node is determined by the output of a rolling hash function over the values, rather than via split and join operations when upper and lower bounds are exceeded.
+
+Like B-Trees, Prolly Trees can model lists, maps, tables, and sets. Below is an example of a small set of characters stored in a Prolly Tree:
+
+![Prolly Tree Diagram](prolly-tree-structure.png)
 
 ### Prolly Tree Construction
 
