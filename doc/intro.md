@@ -177,9 +177,11 @@ Type accretion has a number of benefits related to schema changes:
 
 ## Prolly Trees: Probabilistic B-Trees
 
-A critical invariant of Noms is [history-independence](https://arxiv.org/pdf/1501.06508.pdf): the same Noms value will be represented by the same graph of physical chunks, and the same hashes, regardless of what past sequence of logical mutations resulted in the value. This is what makes fast diff, sync, and merge possible in Noms: we can compare two values just by looking at their hash. If their hashes are identical, we know the values are identical without additional work.
+A critical invariant of Noms is [history-independence](https://arxiv.org/pdf/1501.06508.pdf): the same Noms value will be represented by the same graph of physical chunks, and the same hashes, regardless of what past sequence of logical mutations resulted in the value. This is what makes fast diff, sync, and merge possible in Noms: we can compare two values just by looking at their hash. If their hashes are identical, we know the values are identical without additional work. By modeling collections as trees of values, the same trick can be used to quickly find the differences between larges sets of values.
 
-Sadly, this invariant also rules out the use of classical B-Trees, because a B-Tree’s internal state depends upon its mutation history. In order to model large mutable collections in Noms, of the type where B-Trees would typically be used, Noms instead introduces _Prolly Trees_.
+But Noms is also a database, and needs to do things databases do: efficiently search, scan, and mutate large collections. The class data structures that enable these features — B-Trees and LSM Trees — can't be used by Noms because they aren't history-independent: their internal state depends upon their mutation history.
+
+In order to model large mutable collections in Noms, of the type where B-Trees would typically be used, Noms instead introduces _Prolly Trees_.
 
 ### Prolly Tree Structure
 
@@ -187,13 +189,13 @@ A Prolly Tree is a [search tree](https://en.wikipedia.org/wiki/Search_tree) wher
 
 A Prolly Tree is similar in many ways to a B-Tree, except that the number of values in each node has a probabilistic average rather than an enforced upper and lower bound, and the set of values in each node is determined by the output of a rolling hash function over the values, rather than via split and join operations when upper and lower bounds are exceeded.
 
-Like B-Trees, Prolly Trees can model lists, maps, tables, and sets. Below is an example of a small set of characters stored in a Prolly Tree:
+Like B-Trees, Prolly Trees can model lists, maps, tables, and sets. Below is an example of a small set of ASCII characters stored in a Prolly Tree:
 
 ![Prolly Tree Diagram](prolly-tree-structure.png)
 
 ### Prolly Tree Construction
 
-Prolly Trees are constructed from scratch using a variation of [content-slicing](https://en.wikipedia.org/wiki/Rolling_hash#Content-based_slicing_using_a_rolling_hash), as used in bup, rsync, Camlistore, and many others.
+Prolly Trees can be constructed from scratch using a variation of [content-slicing](https://en.wikipedia.org/wiki/Rolling_hash#Content-based_slicing_using_a_rolling_hash), as used in bup, rsync, Camlistore, and many other systems.
 
 ![Prolly Tree Construction](prolly-tree-construction.png)
 
@@ -201,11 +203,13 @@ To start, we "chunk" the serialization of a larged sorted sequence by sliding a 
 
 At each position, we compute a hash of the bytes in the window. Any hash can be used, but in Noms a [rolling hash](https://en.wikipedia.org/wiki/Rolling_hash) is used for performance.
 
-If the 12 high bits are 1, the last started item in the window is a chunk boundary. On average, if we look at 12 bits, chunks will be 4kb (2^12).
+Within each hash, we look for a pattern that has a known probability of occuring. If the pattern is found, that position is a _boundary_. We write a new _chunk_ containing the bytes between this boundary and the previous, if any. By adjusting the pattern we look for, we can control the average size of the chunks our tree will be broken into.
 
-Once we've gone through entire serialization, we build an index describing the contents of each of those chunks, and perform the chunking operation again on that index. This continues recursively, until we are left with only a single chunk. This is the root of the tree.
+In Noms, the pattern we look for is the 12 high bits being 1. Since this has a probability of 1/2^12, the average chunk size in Noms is 4kb.
 
-Noms uses a window size of 64 bytes, so the probability of any 1 bit change moving a boundary is about 65/4kb ~= 0.016.
+Once we've created an initial pass of chunks this way, we build an index describing the contents of each of those chunks, and perform the chunking operation again on that index. This continues recursively, until we are left with only a single chunk. This is the root of the tree.
+
+Noms uses a window size of 64 bytes, so the probability of any 1 bit change moving a boundary is about 64/4kb ~= 0.016.
 
 ### Prolly Tree Mutation
 
@@ -217,9 +221,7 @@ In the example above, we insert the value _I_ into the set. The chunk boundary i
 
 Every so often (1.6% of the time in Noms) a write will move a chunk boundary. This results in one extra chunk getting written at that level in the tree. This can happen at each level, so the expected number of operations to make a change to a prolly tree is 1.016*treedepth.
 
-A 4-level Prolly Tree in Noms can hold about 281TB of data. We can make a single mutation to that tree with about 4 4kb writes.
-
-Insertions of sorted runs can be done even more efficiently.
+A 4-level Prolly Tree in Noms can hold 4096^4 ~= 281TB of data. We can make a single mutation to that tree with about 4 4kb writes.
 
 ### Some Properties of Prolly Trees
 
@@ -232,7 +234,7 @@ Calculate diff of size d | 💩n | 🎉d | 🎉d
 Verification, proofs | ❌ | 🙌 | 🙌
 Structured sharing | ❌ | 🙌 | 🙌
 
-† assuming hashed keys, unhashed destroys perf — **n**: total leaf data in tree, **k**: average block size, **w**: window width
+**†** assuming hashed keys, unhashed destroys perf — **n**: total leaf data in tree, **k**: average block size, **w**: window width
 
 ### Indexing and Searching with Prolly Trees
 
