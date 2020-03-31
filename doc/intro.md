@@ -179,9 +179,9 @@ Type accretion has a number of benefits related to schema changes:
 
 A critical invariant of Noms is [history-independence](https://arxiv.org/pdf/1501.06508.pdf): the same Noms value will be represented by the same graph of physical chunks, and the same hashes, regardless of what past sequence of logical mutations resulted in the value. This is what makes fast diff, sync, and merge possible in Noms: we can compare two values just by looking at their hash. If their hashes are identical, we know the values are identical without additional work. By modeling collections as trees of values, the same trick can be used to quickly find the differences between larges sets of values.
 
-But Noms is also a database, and needs to do things databases do: efficiently search, scan, and mutate large collections. The class data structures that enable these features — B-Trees and LSM Trees — can't be used by Noms because they aren't history-independent: their internal state depends upon their mutation history.
+But Noms is also a database, and needs to do what databases do: efficiently search, scan, and mutate large collections. The classic data structures that enable these features inside databases — B-Trees and LSM Trees — can't be used by Noms because they aren't history-independent: their internal state depends upon their mutation history.
 
-In order to model large mutable collections in Noms, of the type where B-Trees would typically be used, Noms instead introduces _Prolly Trees_.
+In order to model large mutable collections in Noms, of the type where B-Trees would typically be used, while preserving efficient diff, sync, and merge, Noms introduces _Prolly Trees_.
 
 ### Prolly Tree Structure
 
@@ -203,13 +203,13 @@ To start, we "chunk" the serialization of a larged sorted sequence by sliding a 
 
 At each position, we compute a hash of the bytes in the window. Any hash can be used, but in Noms a [rolling hash](https://en.wikipedia.org/wiki/Rolling_hash) is used for performance.
 
-Within each hash, we look for a pattern that has a known probability of occuring. If the pattern is found, that position is a _boundary_. We slide the window forward to the end of the containing item, and write a new _chunk_ containing the bytes between this boundary and the previous, if any. The resulting chunk is stored in a content-addressed storage system using its hash as the key. Again, any hash can be used, but in Noms a [truncated SHA-512 is used](https://github.com/attic-labs/noms/blob/master/go/hash/hash.go).
+Within each hash, we look for a pattern that has a known probability of occuring. If the pattern is found, that position is a _boundary_. We slide the window forward to the end of the containing item, and write a new _chunk_ containing the bytes between this boundary and the previous, if any. The resulting chunk is stored in a [content-addressed storage system](https://en.wikipedia.org/wiki/Content-addressable_storage). Again, any hash can be used for this, but in Noms [we use truncated SHA-512](https://github.com/attic-labs/noms/blob/master/go/hash/hash.go).
 
-By adjusting the pattern we look for, we can control the average size of the chunks our tree will be broken into.
+By adjusting the pattern we look for, we can control the average size of the chunks our tree will be decomposed into.
 
 In Noms, the pattern we look for is the [12 high bits being 1](https://github.com/attic-labs/noms/blob/master/go/types/rolling_value_hasher.go). Since this has a probability of 1/2^12, the average chunk size in Noms is 4kb.
 
-Once we've created an initial pass of chunks this way, we build an index describing the contents of each of those chunks, and perform the chunking operation again on that index. This continues recursively, until we are left with only a single chunk. This is the root of the tree.
+Once we've created an initial pass of chunks this way, we build an index describing the contents of each of those chunks, and perform the chunking operation again on the serialization of that index. This continues recursively, until we are left with a node that doesn't chunk. This is the root of the tree.
 
 Noms uses a window size of 64 bytes, so the probability of any 1 bit change moving a boundary is about 64/4kb ~= 0.016.
 
