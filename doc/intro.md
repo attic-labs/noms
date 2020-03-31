@@ -221,6 +221,19 @@ A 4-level Prolly Tree in Noms can hold about 281TB of data. We can make a single
 
 Insertions of sorted runs can be done even more efficiently.
 
+### Some Properties of Prolly Trees
+
+Operation | B-Trees | Patricia Trees† / HAMTs | Prolly Trees
+--------- | ------- | ----------------------- | ------------
+1 Random Read | 🎉logk(n) | 🎉logk(n) | 🎉logk(n)
+1 Random Write | 🎉logk(n) | 💩2*logk(n) | 👍(1+k/w)*logk(n)
+Ordered scan of one item with size z | 🎉z/k | ❌ | 🎉z/k
+Calculate diff of size d | 💩n | 🎉d | 🎉d
+Verification, proofs | ❌ | 🙌 | 🙌
+Structured sharing | ❌ | 🙌 | 🙌
+
+† assuming hashed keys, unhashed destroys perf — **n**: total leaf data in tree, **k**: average block size, **w**: window width
+
 ### Indexing and Searching with Prolly Trees
 
 Like B-Trees, Prolly Trees are sorted. Keys of type Boolean, Number, and String sort in their natural order. Other types sort by their hash.
