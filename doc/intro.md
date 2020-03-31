@@ -177,13 +177,47 @@ Type accretion has a number of benefits related to schema changes:
 
 ## Prolly Trees: Probabilistic B-Trees
 
-A critical invariant of Noms is that the same value will be represented by the same graph, having the same chunk boundaries, regardless of what past sequence of logical mutations resulted in the value. This is the essence of content-addressing and it is what makes deduplication, efficient sync, indexing, and and other features of Noms possible.
+A critical invariant of Noms is [history-independence](https://arxiv.org/pdf/1501.06508.pdf): the same Noms value will be represented by the same graph of physical chunks, and the same hashes, regardless of what past sequence of logical mutations resulted in the value. This is what makes fast diff, sync, and merge possible in Noms: we can compare two values just by looking at their hash. If their hashes are identical, we know the values are identical without additional work.
 
-But this invariant also rules out the use of classical B-Trees, because a B-Tree’s internal state depends upon its mutation history. In order to model large mutable collections in Noms, of the type where B-Trees would typically be used, Noms instead introduces _Prolly Trees_.
+Sadly, this invariant also rules out the use of classical B-Trees, because a B-Tree’s internal state depends upon its mutation history. In order to model large mutable collections in Noms, of the type where B-Trees would typically be used, Noms instead introduces _Prolly Trees_.
+
+### Prolly Tree Structure
+
+![Prolly Tree Diagram](prolly-tree-structure.png)
 
 A Prolly Tree is a [search tree](https://en.wikipedia.org/wiki/Search_tree) where the number of values stored in each node is determined probabilistically, based on the data which is stored in the tree.
 
 A Prolly Tree is similar in many ways to a B-Tree, except that the number of values in each node has a probabilistic average rather than an enforced upper and lower bound, and the set of values in each node is determined by the output of a rolling hash function over the values, rather than via split and join operations when upper and lower bounds are exceeded.
+
+### Prolly Tree Construction
+
+![Prolly Tree Construction](prolly-tree-construction.png)
+
+Prolly Tree use a minor variation of [content-slicing](https://en.wikipedia.org/wiki/Rolling_hash#Content-based_slicing_using_a_rolling_hash), as used in bup, rsync, Camlistore, and many others.
+
+To start, we "chunk" the serialization of a larged sorted sequence by sliding a fixed-size window through it, one byte at a time.
+
+At each position, we compute a hash of the bytes in the window. Any hash can be used, but in Noms a [rolling hash](https://en.wikipedia.org/wiki/Rolling_hash) is used for performance.
+
+If the 12 high bits are 1, the last started item in the window is a chunk boundary. On average, if we look at 12 bits, chunks will be 4kb (2^12).
+
+Once we've gone through entire serialization, we build an index describing the contents of each of those chunks, and perform the chunking operation again on that index. This continues recursively, until we are left with only a single chunk. This is the root of the tree.
+
+Noms uses a window size of 64 bytes, so the probability of any 1 bit change moving a boundary is about 65/4kb ~= 0.016.
+
+### Prolly Tree Mutation
+
+![Prolly Tree Mutation](prolly-tree-mutation.png)
+
+To mutate a Prolly Tree, conceptually we build a new Prolly Tree from scratch, except that we can reuse everything from the previous tree that we know cannot have been affected (because it is outside the window).
+
+In the example above, we insert the value _I_ into the set. The chunk boundary is unchanged in this case so the subtrees before and after the modified chunk can be reused as-is.
+
+Every so often (1.6% of the time in Noms) a write will move a chunk boundary. This results in one extra chunk getting written at that level in the tree. This can happen at each level, so the expected number of operations to make a change to a prolly tree is 1.016*treedepth.
+
+A 4-level Prolly Tree in Noms can hold about 281TB of data. We can make a single mutation to that tree with about 4 4kb writes.
+
+Insertions of sorted runs can be done even more efficiently.
 
 ### Indexing and Searching with Prolly Trees
 
