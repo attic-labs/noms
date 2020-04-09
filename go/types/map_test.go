@@ -547,6 +547,17 @@ func TestMapHas(t *testing.T) {
 	doTest(getTestRefToValueOrderMap, 2)
 }
 
+func TestMapRemoveMasksUnderlyingMap(t *testing.T) {
+	assert := assert.New(t)
+	vrw := newTestValueStore()
+
+	k := String("foo")
+	me := NewMap(vrw, k, String("bar")).Edit()
+	me.Remove(k)
+	assert.False(me.Has(k))
+	assert.Nil(me.Get(k))
+}
+
 func TestMapHasRemove(t *testing.T) {
 	assert := assert.New(t)
 	vrw := newTestValueStore()
