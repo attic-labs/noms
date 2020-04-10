@@ -150,10 +150,7 @@ func (me *MapEditor) Remove(k Value) *MapEditor {
 
 func (me *MapEditor) Get(k Value) Valuable {
 	if idx, found := me.findEdit(k); found {
-		v := me.edits[idx].value
-		if v != nil {
-			return v
-		}
+		return me.edits[idx].value
 	}
 
 	return me.m.Get(k)
