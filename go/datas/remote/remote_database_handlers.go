@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package datas
+package remote
 
 import (
 	"compress/gzip"
@@ -21,6 +21,8 @@ import (
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/datas"
+	"github.com/attic-labs/noms/go/datas/internal"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/ngql"
 	"github.com/attic-labs/noms/go/types"
@@ -252,11 +254,6 @@ func (wc wc) Close() error {
 	return nil
 }
 
-func persistChunks(cs chunks.ChunkStore) {
-	for !cs.Commit(cs.Root(), cs.Root()) {
-	}
-}
-
 func handleGetRefs(w http.ResponseWriter, req *http.Request, ps URLParams, cs chunks.ChunkStore) {
 	if req.Method != "POST" {
 		d.Panic("Expected post method.")
@@ -327,7 +324,7 @@ func extractHashes(req *http.Request) hash.HashSlice {
 	reader := bodyReader(req)
 	defer reader.Close()
 	defer io.Copy(ioutil.Discard, reader) // Ensure all data on reader is consumed
-	return deserializeHashes(reader)
+	return internal.DeserializeHashes(reader)
 }
 
 func BuildHashesRequestForTest(hashes hash.HashSet) io.ReadCloser {
@@ -342,7 +339,7 @@ func buildHashesRequest(batch chunks.ReadBatch) io.ReadCloser {
 	body, pw := io.Pipe()
 	go func() {
 		defer checkClose(pw)
-		serializeHashes(pw, batch)
+		internal.SerializeHashes(pw, batch)
 	}()
 	return body
 }
@@ -405,7 +402,7 @@ func handleRootPost(w http.ResponseWriter, req *http.Request, ps URLParams, cs c
 
 	proposedMap := validateProposed(proposed, last, vs)
 	if !proposedMap.Empty() {
-		assertMapOfStringToRefOfCommit(proposedMap, lastMap, vs)
+		internal.AssertMapOfStringToRefOfCommit(proposedMap, lastMap, vs)
 	}
 
 	// If some other client has committed to |vs| since it had |from| at the
@@ -475,6 +472,7 @@ func validateProposed(proposed, last hash.Hash, vrw types.ValueReadWriter) types
 	return proposedMap
 }
 
+/*
 func assertMapOfStringToRefOfCommit(proposed, datasets types.Map, vr types.ValueReader) {
 	stopChan := make(chan struct{})
 	defer close(stopChan)
@@ -493,12 +491,13 @@ func assertMapOfStringToRefOfCommit(proposed, datasets types.Map, vr types.Value
 			if !ok {
 				d.Panic("Root of a Database must be a Map<String, Ref<Commit>>, but key %s maps to a %s", change.Key.(types.String), types.TypeOf(val).Describe())
 			}
-			if targetValue := ref.TargetValue(vr); !IsCommit(targetValue) {
+			if targetValue := ref.TargetValue(vr); !datas.IsCommit(targetValue) {
 				d.Panic("Root of a Database must be a Map<String, Ref<Commit>>, but the ref at key %s points to a %s", change.Key.(types.String), types.TypeOf(targetValue).Describe())
 			}
 		}
 	}
 }
+*/
 
 func mergeDatasetMaps(a, b, parent types.Map, vrw types.ValueReadWriter) (types.Map, error) {
 	aChangeChan, bChangeChan := make(chan types.ValueChanged), make(chan types.ValueChanged)
@@ -603,7 +602,7 @@ func handleGraphQL(w http.ResponseWriter, req *http.Request, ps URLParams, cs ch
 	}
 
 	// Note: we don't close this becaues |cs| will be closed by the generic endpoint handler
-	db := NewDatabase(cs)
+	db := datas.NewDatabase(cs)
 
 	var rootValue types.Value
 	var err error

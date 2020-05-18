@@ -13,7 +13,7 @@ import (
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/d"
-	"github.com/attic-labs/noms/go/datas"
+	"github.com/attic-labs/noms/go/datas/remote"
 	"github.com/attic-labs/noms/go/util/profile"
 )
 
@@ -26,7 +26,7 @@ func nomsServe(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandl
 		cfg := config.NewResolver()
 		cs, err := cfg.GetChunkStore(*db)
 		d.CheckError(err)
-		server := datas.NewRemoteDatabaseServer(cs, *port)
+		server := remote.NewRemoteDatabaseServer(cs, *port)
 
 		// Shutdown server gracefully so that profile may be written
 		c := make(chan os.Signal, 1)

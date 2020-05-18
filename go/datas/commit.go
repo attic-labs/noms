@@ -8,8 +8,8 @@ import (
 	"sort"
 
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/datas/internal"
 	"github.com/attic-labs/noms/go/hash"
-	"github.com/attic-labs/noms/go/nomdl"
 	"github.com/attic-labs/noms/go/types"
 )
 
@@ -21,12 +21,6 @@ const (
 )
 
 var commitTemplate = types.MakeStructTemplate(commitName, []string{MetaField, ParentsField, ValueField})
-
-var valueCommitType = nomdl.MustParseType(`Struct Commit {
-        meta: Struct {},
-        parents: Set<Ref<Cycle<Commit>>>,
-        value: Value,
-}`)
 
 // NewCommit creates a new commit object.
 //
@@ -126,11 +120,11 @@ func getRefElementType(t *types.Type) *types.Type {
 }
 
 func IsCommitType(t *types.Type) bool {
-	return types.IsSubtype(valueCommitType, t)
+	return internal.IsCommitType(t)
 }
 
 func IsCommit(v types.Value) bool {
-	return types.IsValueSubtypeOf(v, valueCommitType)
+	return internal.IsCommit(v)
 }
 
 func IsRefOfCommitType(t *types.Type) bool {

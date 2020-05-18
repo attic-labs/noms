@@ -12,13 +12,13 @@ import (
 
 	"github.com/attic-labs/noms/go/config"
 	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"github.com/attic-labs/noms/go/util/verbose/verboseflags"
 )
 
 func main() {
 	app := kingpin.New("counter", "")
 	dsStr := app.Arg("ds", "dataset to count in").Required().String()
-	verbose.RegisterVerboseFlags(app)
+	verboseflags.Register(app)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	cfg := config.NewResolver()

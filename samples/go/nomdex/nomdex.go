@@ -12,13 +12,13 @@ import (
 
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/util/profile"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"github.com/attic-labs/noms/go/util/verbose/verboseflags"
 )
 
 func main() {
 	registerUpdate()
 	registerFind()
-	verbose.RegisterVerboseFlags(kingpin.CommandLine)
+	verboseflags.Register(kingpin.CommandLine)
 	profile.RegisterProfileFlags(kingpin.CommandLine)
 
 	switch kingpin.Parse() {

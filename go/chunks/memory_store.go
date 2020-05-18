@@ -221,3 +221,43 @@ func (f *memoryStoreFactory) CreateStore(ns string) ChunkStore {
 func (f *memoryStoreFactory) Shutter() {
 	f.stores = nil
 }
+
+type TestStorage struct {
+	MemoryStorage
+}
+
+func (t *TestStorage) NewView() *TestStoreView {
+	return &TestStoreView{ChunkStore: t.MemoryStorage.NewView()}
+}
+
+type TestStoreView struct {
+	ChunkStore
+	Reads  int
+	Hases  int
+	Writes int
+}
+
+func (s *TestStoreView) Get(h hash.Hash) Chunk {
+	s.Reads++
+	return s.ChunkStore.Get(h)
+}
+
+func (s *TestStoreView) GetMany(hashes hash.HashSet, foundChunks chan *Chunk) {
+	s.Reads += len(hashes)
+	s.ChunkStore.GetMany(hashes, foundChunks)
+}
+
+func (s *TestStoreView) Has(h hash.Hash) bool {
+	s.Hases++
+	return s.ChunkStore.Has(h)
+}
+
+func (s *TestStoreView) HasMany(hashes hash.HashSet) hash.HashSet {
+	s.Hases += len(hashes)
+	return s.ChunkStore.HasMany(hashes)
+}
+
+func (s *TestStoreView) Put(c Chunk) {
+	s.Writes++
+	s.ChunkStore.Put(c)
+}

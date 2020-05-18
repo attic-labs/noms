@@ -10,6 +10,7 @@ import (
 
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/datas/internal"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/golang/snappy"
@@ -99,4 +100,8 @@ func Pull(srcDB, sinkDB Database, sourceRef types.Ref, progressCh chan PullProgr
 	}
 
 	persistChunks(sinkDB.chunkStore())
+}
+
+func persistChunks(cs chunks.ChunkStore) {
+	internal.PersistChunks(cs)
 }

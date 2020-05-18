@@ -9,9 +9,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"sync"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/attic-labs/kingpin"
 	"github.com/attic-labs/noms/go/config"
@@ -21,7 +24,7 @@ import (
 	"github.com/attic-labs/noms/go/types"
 	jsontonoms "github.com/attic-labs/noms/go/util/json"
 	"github.com/attic-labs/noms/go/util/profile"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"github.com/attic-labs/noms/go/util/verbose/verboseflags"
 	"github.com/clbanning/mxj"
 )
 
@@ -50,7 +53,7 @@ func (a refIndexList) Less(i, j int) bool { return a[i].index < a[j].index }
 
 func main() {
 	err := d.Try(func() {
-		verbose.RegisterVerboseFlags(kingpin.CommandLine)
+		verboseflags.Register(kingpin.CommandLine)
 		profile.RegisterProfileFlags(kingpin.CommandLine)
 		kingpin.Parse()
 
@@ -100,7 +103,8 @@ func main() {
 				file.Close()
 
 				nomsObj := jsontonoms.NomsValueFromDecodedJSON(db, object, false)
-				d.Chk.IsType(expectedType, nomsObj)
+				d.Chk.True(assert.ObjectsAreEqual(
+					reflect.TypeOf(expectedType), reflect.TypeOf(nomsObj)))
 
 				var r types.Ref
 				if !*noIO {

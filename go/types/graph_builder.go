@@ -36,6 +36,8 @@
 // calls to the mutation operations have completed before Build() is invoked.
 //
 
+// +build !js,!wasm
+
 package types
 
 import (

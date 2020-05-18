@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package datas
+package remote
 
 import (
 	"bufio"
@@ -20,6 +20,7 @@ import (
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/d"
+	"github.com/attic-labs/noms/go/datas/internal"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/nbs"
 	"github.com/attic-labs/noms/go/util/verbose"
@@ -309,7 +310,7 @@ func (hcs *httpChunkStore) getRefs(batch chunks.ReadBatch) {
 		"Accept-Encoding": {"x-snappy-framed"},
 		"Content-Type":    {"application/octet-stream"},
 	})
-	req.ContentLength = int64(serializedLength(batch))
+	req.ContentLength = int64(internal.SerializedLength(batch))
 
 	res, err := hcs.httpClient.Do(req)
 	d.Chk.NoError(err)
@@ -340,7 +341,7 @@ func (hcs *httpChunkStore) hasRefs(batch chunks.ReadBatch) {
 		"Accept-Encoding": {"x-snappy-framed"},
 		"Content-Type":    {"application/octet-stream"},
 	})
-	req.ContentLength = int64(serializedLength(batch))
+	req.ContentLength = int64(internal.SerializedLength(batch))
 
 	res, err := hcs.httpClient.Do(req)
 	d.Chk.NoError(err)
@@ -549,4 +550,8 @@ func closeResponse(rc io.ReadCloser) error {
 	// d.Chk.NoError(err)
 	// d.PanicIfFalse(0 == len(data), string(data))
 	return rc.Close()
+}
+
+func persistChunks(cs chunks.ChunkStore) {
+	internal.PersistChunks(cs)
 }

@@ -87,6 +87,7 @@ import (
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/datas"
+	"github.com/attic-labs/noms/go/datas/remote"
 	"github.com/attic-labs/noms/go/marshal"
 	"github.com/attic-labs/noms/go/nbs"
 	"github.com/attic-labs/noms/go/spec"
@@ -273,7 +274,7 @@ func Run(datasetID string, t *testing.T, suiteT perfSuiteT) {
 
 		serverHost, stopServerFn := suite.StartRemoteDatabase()
 		suite.DatabaseSpec = serverHost
-		suite.Database = datas.NewDatabase(datas.NewHTTPChunkStore(serverHost, ""))
+		suite.Database = datas.NewDatabase(remote.NewHTTPChunkStore(serverHost, ""))
 		defer suite.Database.Close()
 
 		if t, ok := suiteT.(SetupRepSuite); ok {
@@ -499,7 +500,7 @@ func (suite *PerfSuite) StartRemoteDatabase() (host string, stopFn func()) {
 		chunkStore = nbs.NewLocalStore(dbDir, 128*(1<<20))
 	}
 
-	server := datas.NewRemoteDatabaseServer(chunkStore, 0)
+	server := remote.NewRemoteDatabaseServer(chunkStore, 0)
 	portChan := make(chan int)
 	server.Ready = func() { portChan <- server.Port() }
 	go server.Run()

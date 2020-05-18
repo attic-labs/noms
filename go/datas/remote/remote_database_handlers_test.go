@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package datas
+package remote
 
 import (
 	"bufio"
@@ -17,6 +17,8 @@ import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
+	"github.com/attic-labs/noms/go/datas"
+	"github.com/attic-labs/noms/go/datas/internal"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/golang/snappy"
@@ -26,7 +28,7 @@ import (
 func TestHandleWriteValue(t *testing.T) {
 	assert := assert.New(t)
 	storage := &chunks.TestStorage{}
-	db := NewDatabase(storage.NewView())
+	db := datas.NewDatabase(storage.NewView())
 
 	l := types.NewList(
 		db,
@@ -50,7 +52,7 @@ func TestHandleWriteValue(t *testing.T) {
 	HandleWriteValue(w, newRequest("POST", "", "", body, nil), params{}, storage.NewView())
 
 	if assert.Equal(http.StatusCreated, w.Code, "Handler error:\n%s", string(w.Body.Bytes())) {
-		db2 := NewDatabase(storage.NewView())
+		db2 := datas.NewDatabase(storage.NewView())
 		v := db2.ReadValue(l2.Hash())
 		if assert.NotNil(v) {
 			assert.True(v.Equals(l2), "%+v != %+v", v, l2)
@@ -74,7 +76,7 @@ func TestHandleWriteValuePanic(t *testing.T) {
 func TestHandleWriteValueDupChunks(t *testing.T) {
 	assert := assert.New(t)
 	storage := &chunks.MemoryStorage{}
-	db := NewDatabase(storage.NewView())
+	db := datas.NewDatabase(storage.NewView())
 	defer db.Close()
 
 	newItem := types.NewEmptyBlob(db)
@@ -90,7 +92,7 @@ func TestHandleWriteValueDupChunks(t *testing.T) {
 	HandleWriteValue(w, newRequest("POST", "", "", body, nil), params{}, storage.NewView())
 
 	if assert.Equal(http.StatusCreated, w.Code, "Handler error:\n%s", string(w.Body.Bytes())) {
-		db := NewDatabase(storage.NewView())
+		db := datas.NewDatabase(storage.NewView())
 		v := db.ReadValue(newItem.Hash())
 		if assert.NotNil(v) {
 			assert.True(v.Equals(newItem), "%+v != %+v", v, newItem)
@@ -143,7 +145,7 @@ func TestBuildHashesRequest(t *testing.T) {
 	}
 	r := buildHashesRequest(batch)
 	defer r.Close()
-	requested := deserializeHashes(r)
+	requested := internal.DeserializeHashes(r)
 
 	for _, h := range requested {
 		_, present := batch[h]
@@ -200,7 +202,7 @@ func TestHandleGetBlob(t *testing.T) {
 
 	blobContents := "I am a blob"
 	storage := &chunks.MemoryStorage{}
-	db := NewDatabase(storage.NewView())
+	db := datas.NewDatabase(storage.NewView())
 	ds := db.GetDataset("foo")
 
 	// Test missing h
@@ -383,7 +385,7 @@ func buildPostRootURL(current, last hash.Hash) string {
 }
 
 func buildTestCommit(vrw types.ValueReadWriter, v types.Value, parents ...types.Value) types.Struct {
-	return NewCommit(v, types.NewSet(vrw, parents...), types.NewStruct("Meta", types.StructData{}))
+	return datas.NewCommit(v, types.NewSet(vrw, parents...), types.NewStruct("Meta", types.StructData{}))
 }
 
 func TestRejectPostRoot(t *testing.T) {

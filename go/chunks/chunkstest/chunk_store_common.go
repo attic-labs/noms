@@ -2,24 +2,26 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package chunks
+package chunkstest
 
 import (
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/constants"
 	"github.com/attic-labs/noms/go/hash"
 )
 
 type ChunkStoreTestSuite struct {
 	suite.Suite
-	Factory Factory
+	Factory chunks.Factory
 }
 
 func (suite *ChunkStoreTestSuite) TestChunkStorePut() {
 	store := suite.Factory.CreateStore("ns")
 	input := "abc"
-	c := NewChunk([]byte(input))
+	c := chunks.NewChunk([]byte(input))
 	store.Put(c)
 	h := c.Hash()
 
@@ -48,7 +50,7 @@ func (suite *ChunkStoreTestSuite) TestChunkStoreCommitPut() {
 	name := "ns"
 	store := suite.Factory.CreateStore(name)
 	input := "abc"
-	c := NewChunk([]byte(input))
+	c := chunks.NewChunk([]byte(input))
 	store.Put(c)
 	h := c.Hash()
 
@@ -82,7 +84,7 @@ func (suite *ChunkStoreTestSuite) TestChunkStoreVersion() {
 func (suite *ChunkStoreTestSuite) TestChunkStoreCommitUnchangedRoot() {
 	store1, store2 := suite.Factory.CreateStore("ns"), suite.Factory.CreateStore("ns")
 	input := "abc"
-	c := NewChunk([]byte(input))
+	c := chunks.NewChunk([]byte(input))
 	store1.Put(c)
 	h := c.Hash()
 
@@ -95,4 +97,15 @@ func (suite *ChunkStoreTestSuite) TestChunkStoreCommitUnchangedRoot() {
 	store2.Rebase()
 	// Now, reading c from store2 via the API should work...
 	assertInputInStore(input, h, store2, suite.Assert())
+}
+
+func assertInputInStore(input string, h hash.Hash, s chunks.ChunkStore, assert *assert.Assertions) {
+	chunk := s.Get(h)
+	assert.False(chunk.IsEmpty(), "Shouldn't get empty chunk for %s", h.String())
+	assert.Equal(input, string(chunk.Data()))
+}
+
+func assertInputNotInStore(input string, h hash.Hash, s chunks.ChunkStore, assert *assert.Assertions) {
+	chunk := s.Get(h)
+	assert.True(chunk.IsEmpty(), "Shouldn't get non-empty chunk for %s: %v", h.String(), chunk)
 }

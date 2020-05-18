@@ -2,12 +2,13 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package datas
+package remote
 
 import (
 	"testing"
 
 	"github.com/attic-labs/noms/go/chunks"
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/stretchr/testify/suite"
 )
@@ -34,8 +35,8 @@ type PullSuite struct {
 	suite.Suite
 	sinkCS      *chunks.TestStoreView
 	sourceCS    *chunks.TestStoreView
-	sink        Database
-	source      Database
+	sink        datas.Database
+	source      datas.Database
 	commitReads int // The number of reads triggered by commit differs across chunk store impls
 }
 
@@ -50,8 +51,8 @@ type LocalToLocalSuite struct {
 
 func (suite *LocalToLocalSuite) SetupTest() {
 	suite.sinkCS, suite.sourceCS = makeTestStoreViews()
-	suite.sink = NewDatabase(suite.sinkCS)
-	suite.source = NewDatabase(suite.sourceCS)
+	suite.sink = datas.NewDatabase(suite.sinkCS)
+	suite.source = datas.NewDatabase(suite.sourceCS)
 }
 
 type RemoteToLocalSuite struct {
@@ -60,7 +61,7 @@ type RemoteToLocalSuite struct {
 
 func (suite *RemoteToLocalSuite) SetupTest() {
 	suite.sinkCS, suite.sourceCS = makeTestStoreViews()
-	suite.sink = NewDatabase(suite.sinkCS)
+	suite.sink = datas.NewDatabase(suite.sinkCS)
 	suite.source = makeRemoteDb(suite.sourceCS)
 }
 
@@ -71,7 +72,7 @@ type LocalToRemoteSuite struct {
 func (suite *LocalToRemoteSuite) SetupTest() {
 	suite.sinkCS, suite.sourceCS = makeTestStoreViews()
 	suite.sink = makeRemoteDb(suite.sinkCS)
-	suite.source = NewDatabase(suite.sourceCS)
+	suite.source = datas.NewDatabase(suite.sourceCS)
 	suite.commitReads = 1
 }
 
@@ -86,8 +87,8 @@ func (suite *RemoteToRemoteSuite) SetupTest() {
 	suite.commitReads = 1
 }
 
-func makeRemoteDb(cs chunks.ChunkStore) Database {
-	return NewDatabase(newHTTPChunkStoreForTest(cs))
+func makeRemoteDb(cs chunks.ChunkStore) datas.Database {
+	return datas.NewDatabase(newHTTPChunkStoreForTest(cs))
 }
 
 func (suite *PullSuite) TearDownTest() {
@@ -98,14 +99,14 @@ func (suite *PullSuite) TearDownTest() {
 }
 
 type progressTracker struct {
-	Ch     chan PullProgress
-	doneCh chan []PullProgress
+	Ch     chan datas.PullProgress
+	doneCh chan []datas.PullProgress
 }
 
 func startProgressTracker() *progressTracker {
-	pt := &progressTracker{make(chan PullProgress), make(chan []PullProgress)}
+	pt := &progressTracker{make(chan datas.PullProgress), make(chan []datas.PullProgress)}
 	go func() {
-		progress := []PullProgress{}
+		progress := []datas.PullProgress{}
 		for info := range pt.Ch {
 			progress = append(progress, info)
 		}
@@ -152,13 +153,13 @@ func (suite *PullSuite) TestPullEverything() {
 	sourceRef := suite.commitToSource(l, types.NewSet(suite.source))
 	pt := startProgressTracker()
 
-	Pull(suite.source, suite.sink, sourceRef, pt.Ch)
+	datas.Pull(suite.source, suite.sink, sourceRef, pt.Ch)
 	suite.True(expectedReads-suite.sinkCS.Reads <= suite.commitReads)
 	pt.Validate(suite)
 
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
-	suite.True(l.Equals(v.Get(ValueField)))
+	suite.True(l.Equals(v.Get(datas.ValueField)))
 }
 
 // Source: -6-> C3(L5) -1-> N
@@ -194,14 +195,14 @@ func (suite *PullSuite) TestPullMultiGeneration() {
 
 	pt := startProgressTracker()
 
-	Pull(suite.source, suite.sink, sourceRef, pt.Ch)
+	datas.Pull(suite.source, suite.sink, sourceRef, pt.Ch)
 
 	suite.True(expectedReads-suite.sinkCS.Reads <= suite.commitReads)
 	pt.Validate(suite)
 
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
-	suite.True(srcL.Equals(v.Get(ValueField)))
+	suite.True(srcL.Equals(v.Get(datas.ValueField)))
 }
 
 // Source: -6-> C2(L5) -1-> N
@@ -240,14 +241,14 @@ func (suite *PullSuite) TestPullDivergentHistory() {
 
 	pt := startProgressTracker()
 
-	Pull(suite.source, suite.sink, sourceRef, pt.Ch)
+	datas.Pull(suite.source, suite.sink, sourceRef, pt.Ch)
 
 	suite.True(preReads-suite.sinkCS.Reads <= suite.commitReads)
 	pt.Validate(suite)
 
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
-	suite.True(srcL.Equals(v.Get(ValueField)))
+	suite.True(srcL.Equals(v.Get(datas.ValueField)))
 }
 
 // Source: -6-> C2(L4) -1-> N
@@ -282,26 +283,26 @@ func (suite *PullSuite) TestPullUpdates() {
 
 	pt := startProgressTracker()
 
-	Pull(suite.source, suite.sink, sourceRef, pt.Ch)
+	datas.Pull(suite.source, suite.sink, sourceRef, pt.Ch)
 
 	suite.True(expectedReads-suite.sinkCS.Reads <= suite.commitReads)
 	pt.Validate(suite)
 
 	v := suite.sink.ReadValue(sourceRef.TargetHash()).(types.Struct)
 	suite.NotNil(v)
-	suite.True(srcL.Equals(v.Get(ValueField)))
+	suite.True(srcL.Equals(v.Get(datas.ValueField)))
 }
 
 func (suite *PullSuite) commitToSource(v types.Value, p types.Set) types.Ref {
 	ds := suite.source.GetDataset(datasetID)
-	ds, err := suite.source.Commit(ds, v, CommitOptions{Parents: p})
+	ds, err := suite.source.Commit(ds, v, datas.CommitOptions{Parents: p})
 	suite.NoError(err)
 	return ds.HeadRef()
 }
 
 func (suite *PullSuite) commitToSink(v types.Value, p types.Set) types.Ref {
 	ds := suite.sink.GetDataset(datasetID)
-	ds, err := suite.sink.Commit(ds, v, CommitOptions{Parents: p})
+	ds, err := suite.sink.Commit(ds, v, datas.CommitOptions{Parents: p})
 	suite.NoError(err)
 	return ds.HeadRef()
 }

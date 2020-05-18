@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package datas
+package internal
 
 import (
 	"bytes"
@@ -23,14 +23,14 @@ func TestHashRoundTrip(t *testing.T) {
 	}
 	defer input.Close()
 
-	serializeHashes(b, input)
+	SerializeHashes(b, input)
 	serializedLen := b.Len()
-	output := deserializeHashes(b)
+	output := DeserializeHashes(b)
 	assert.Len(t, output, len(input), "Output has different number of elements than input: %v, %v", output, input)
 	for _, h := range output {
 		_, present := input[h]
 		assert.True(t, present, "%s is in output but not in input", h)
 	}
 
-	assert.Equal(t, uint32(serializedLen), serializedLength(input))
+	assert.Equal(t, uint32(serializedLen), SerializedLength(input))
 }
