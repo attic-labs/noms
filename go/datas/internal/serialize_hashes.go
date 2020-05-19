@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package datas
+package internal
 
 import (
 	"encoding/binary"
@@ -13,11 +13,11 @@ import (
 	"github.com/attic-labs/noms/go/hash"
 )
 
-func serializedLength(batch chunks.ReadBatch) uint32 {
+func SerializedLength(batch chunks.ReadBatch) uint32 {
 	return uint32(len(batch)*hash.ByteLen + binary.Size(uint32(0)))
 }
 
-func serializeHashes(w io.Writer, batch chunks.ReadBatch) {
+func SerializeHashes(w io.Writer, batch chunks.ReadBatch) {
 	err := binary.Write(w, binary.BigEndian, uint32(len(batch))) // 4 billion hashes is probably absurd. Maybe this should be smaller?
 	d.PanicIfError(err)
 	for h := range batch {
@@ -30,7 +30,7 @@ func serializeHash(w io.Writer, h hash.Hash) {
 	d.PanicIfError(err)
 }
 
-func deserializeHashes(reader io.Reader) hash.HashSlice {
+func DeserializeHashes(reader io.Reader) hash.HashSlice {
 	count := uint32(0)
 	err := binary.Read(reader, binary.BigEndian, &count)
 	d.PanicIfError(err)

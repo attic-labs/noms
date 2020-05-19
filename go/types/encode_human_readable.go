@@ -399,7 +399,9 @@ func encodedValueFormatMaxLines(v Value, floatFormat byte, maxLines uint32) stri
 	w := &hrsWriter{w: mlw, floatFormat: floatFormat}
 	w.Write(v)
 	if w.err != nil {
-		d.Chk.IsType(writers.MaxLinesError{}, w.err, "Unexpected error: %s", w.err)
+		if _, ok := w.err.(writers.MaxLinesError); !ok {
+			d.Chk.Fail("Unexpected error: %s", w.err)
+		}
 	}
 	return buf.String()
 }

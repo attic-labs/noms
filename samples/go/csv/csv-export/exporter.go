@@ -14,7 +14,7 @@ import (
 	"github.com/attic-labs/noms/go/d"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/attic-labs/noms/go/util/profile"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"github.com/attic-labs/noms/go/util/verbose/verboseflags"
 	"github.com/attic-labs/noms/samples/go/csv"
 )
 
@@ -26,7 +26,7 @@ func main() {
 	delimiter := app.Flag("delimiter", "field delimiter for csv file, must be exactly one character long.").Default(",").String()
 	dataset := app.Arg("dataset", "dataset to export").Required().String()
 
-	verbose.RegisterVerboseFlags(app)
+	verboseflags.Register(app)
 	profile.RegisterProfileFlags(app)
 
 	kingpin.MustParse(app.Parse(os.Args[1:]))

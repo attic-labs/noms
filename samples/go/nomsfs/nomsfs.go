@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -394,7 +395,7 @@ func (fs *nomsFS) Readlink(path string, context *fuse.Context) (string, fuse.Sta
 	}
 
 	inode := np.inode
-	d.Chk.Equal(nodeType(inode), "Symlink")
+	d.Chk.StringEqual(nodeType(inode), "Symlink")
 	link := inode.Get("contents")
 
 	return string(link.(types.Struct).Get("targetPath").(types.String)), fuse.OK
@@ -405,13 +406,13 @@ func (fs *nomsFS) Unlink(path string, context *fuse.Context) fuse.Status {
 	// Since we don't support hard links we don't need to worry about checking the link count.
 
 	return fs.removeCommon(path, func(inode types.Value) {
-		d.Chk.NotEqual(nodeType(inode), "Directory")
+		d.Chk.StringNotEqual(nodeType(inode), "Directory")
 	})
 }
 
 func (fs *nomsFS) Rmdir(path string, context *fuse.Context) (code fuse.Status) {
 	return fs.removeCommon(path, func(inode types.Value) {
-		d.Chk.Equal(nodeType(inode), "Directory")
+		d.Chk.StringEqual(nodeType(inode), "Directory")
 	})
 }
 
@@ -448,7 +449,7 @@ func (nfile nomsFile) Read(dest []byte, off int64) (fuse.ReadResult, fuse.Status
 
 	file := nfile.node.inode.Get("contents")
 
-	d.Chk.Equal(nodeType(nfile.node.inode), "File")
+	d.Chk.StringEqual(nodeType(nfile.node.inode), "File")
 
 	ref := file.(types.Struct).Get("data").(types.Ref)
 	blob := ref.TargetValue(nfile.fs.db).(types.Blob)
@@ -468,7 +469,7 @@ func (nfile nomsFile) Write(data []byte, off int64) (uint32, fuse.Status) {
 	defer nfile.node.nLock.Unlock()
 
 	inode := nfile.node.inode
-	d.Chk.Equal(nodeType(inode), "File")
+	d.Chk.StringEqual(nodeType(inode), "File")
 
 	attr := inode.Get("attr").(types.Struct)
 	file := inode.Get("contents").(types.Struct)
@@ -541,13 +542,18 @@ func nodeType(inode types.Value) string {
 func (fs *nomsFS) getNode(inode types.Struct, name string, parent *nNode) *nNode {
 	// The parent has to be a directory.
 	if parent != nil {
-		d.Chk.Equal("Directory", nodeType(parent.inode))
+		d.Chk.StringEqual("Directory", nodeType(parent.inode))
 	}
 
 	np, ok := fs.nodes[inode.Hash()]
 	if ok {
-		d.Chk.Equal(np.parent, parent)
-		d.Chk.Equal(np.name, name)
+		if ((np.parent == nil || parent == nil) && np.parent != parent) ||
+			!reflect.DeepEqual(np.parent, parent) {
+			d.Chk.Fail(fmt.Sprintf("Not equal: \n"+
+				"expected: %#v\n"+
+				"actual  : %#v", np.parent, parent))
+		}
+		d.Chk.StringEqual(np.name, name)
 	} else {
 		np = &nNode{
 			nLock:  &sync.Mutex{},
@@ -617,7 +623,7 @@ func (fs *nomsFS) getPathComponents(components []string) (*nNode, fuse.Status) {
 	np := fs.getNode(inode, "", nil)
 
 	for _, component := range components {
-		d.Chk.NotEqual(component, "")
+		d.Chk.StringNotEqual(component, "")
 
 		contents := inode.Get("contents")
 		if types.TypeOf(contents).Desc.(types.StructDesc).Name != "Directory" {

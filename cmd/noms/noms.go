@@ -16,7 +16,7 @@ import (
 	"github.com/attic-labs/noms/cmd/noms/splore"
 	"github.com/attic-labs/noms/cmd/util"
 	"github.com/attic-labs/noms/go/util/profile"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"github.com/attic-labs/noms/go/util/verbose/verboseflags"
 )
 
 var kingpinCommands = []util.KingpinCommand{
@@ -67,7 +67,7 @@ func main() {
 
 	// global flags
 	profile.RegisterProfileFlags(noms)
-	verbose.RegisterVerboseFlags(noms)
+	verboseflags.Register(noms)
 
 	handlers := map[string]util.KingpinHandler{}
 

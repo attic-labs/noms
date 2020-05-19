@@ -2,7 +2,7 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package datas
+package remote
 
 import (
 	"encoding/binary"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/attic-labs/noms/go/chunks"
 	"github.com/attic-labs/noms/go/constants"
+	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/hash"
 	"github.com/attic-labs/noms/go/types"
 	"github.com/julienschmidt/httprouter"
@@ -190,7 +191,7 @@ func (suite *HTTPChunkStoreSuite) TestStats() {
 
 func (suite *HTTPChunkStoreSuite) TestRebase() {
 	suite.Equal(hash.Hash{}, suite.http.Root())
-	db := NewDatabase(suite.serverCS)
+	db := datas.NewDatabase(suite.serverCS)
 	defer db.Close()
 	c := types.EncodeValue(types.NewMap(db))
 	suite.serverCS.Put(c)
@@ -202,7 +203,7 @@ func (suite *HTTPChunkStoreSuite) TestRebase() {
 }
 
 func (suite *HTTPChunkStoreSuite) TestRoot() {
-	db := NewDatabase(suite.serverCS)
+	db := datas.NewDatabase(suite.serverCS)
 	defer db.Close()
 	c := types.EncodeValue(types.NewMap(db))
 	suite.serverCS.Put(c)
@@ -220,7 +221,7 @@ func (suite *HTTPChunkStoreSuite) TestVersionMismatch() {
 }
 
 func (suite *HTTPChunkStoreSuite) TestCommit() {
-	db := NewDatabase(suite.serverCS)
+	db := datas.NewDatabase(suite.serverCS)
 	defer db.Close()
 	c := types.EncodeValue(types.NewMap(db))
 	suite.serverCS.Put(c)

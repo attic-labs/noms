@@ -24,7 +24,7 @@ import (
 	"github.com/attic-labs/noms/go/util/profile"
 	"github.com/attic-labs/noms/go/util/progressreader"
 	"github.com/attic-labs/noms/go/util/status"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"github.com/attic-labs/noms/go/util/verbose/verboseflags"
 	"github.com/attic-labs/noms/samples/go/csv"
 )
 
@@ -54,7 +54,7 @@ func main() {
 	dataset := app.Arg("dataset", "datset to write to").Required().String()
 	csvFile := app.Arg("csvfile", "csv file to import").String()
 
-	verbose.RegisterVerboseFlags(app)
+	verboseflags.Register(app)
 	profile.RegisterProfileFlags(app)
 
 	kingpin.MustParse(app.Parse(os.Args[1:]))

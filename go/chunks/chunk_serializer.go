@@ -13,6 +13,10 @@ import (
 	"github.com/attic-labs/noms/go/hash"
 )
 
+var (
+	emptyChunkHash = EmptyChunk.Hash()
+)
+
 /*
   Chunk Serialization:
     Chunk 0
@@ -55,7 +59,10 @@ func Deserialize(reader io.Reader, chunkChan chan<- *Chunk) (err error) {
 		if err != nil {
 			break
 		}
-		d.Chk.NotEqual(EmptyChunk.Hash(), c.Hash())
+		h := c.Hash()
+		if bytes.Equal(emptyChunkHash[:], h[:]) {
+			d.Chk.Fail("Should not be: %#v\n", h)
+		}
 		chunkChan <- &c
 	}
 	if err == io.EOF {

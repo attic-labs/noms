@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/attic-labs/noms/go/d"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -461,10 +460,10 @@ func makeTestStructTypeFromFieldNames(s string) *Type {
 	return MakeStructType("", fields...)
 }
 
-func makeTestStructFromFieldNames(s string) Struct {
+func makeTestStructFromFieldNames(assert *assert.Assertions, s string) Struct {
 	t := makeTestStructTypeFromFieldNames(s)
 	fields := t.Desc.(StructDesc).fields
-	d.Chk.NotEmpty(fields)
+	assert.NotEmpty(fields)
 
 	fieldNames := make([]string, len(fields))
 	for i, field := range fields {
@@ -805,7 +804,7 @@ func TestIsValueSubtypeOfDetails(tt *testing.T) {
 	a := assert.New(tt)
 
 	test := func(vString, tString string, exp1, exp2 bool) {
-		v := makeTestStructFromFieldNames(vString)
+		v := makeTestStructFromFieldNames(a, vString)
 		t := makeTestStructTypeFromFieldNames(tString)
 		isSub, hasExtra := IsValueSubtypeOfDetails(v, t)
 		a.Equal(exp1, isSub, "expected %t for IsSub, received: %t", exp1, isSub)

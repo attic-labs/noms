@@ -59,6 +59,8 @@
 //    ldbKey. The value being appended to the list.
 //
 
+// +build !js,!wasm
+
 package types
 
 import (

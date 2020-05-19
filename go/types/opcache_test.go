@@ -9,7 +9,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/attic-labs/noms/go/d"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -57,8 +56,8 @@ func (suite *OpCacheSuite) TestMapSet() {
 	defer iter.Release()
 	for iter.Next() {
 		keys, kind, item := iter.GraphOp()
-		d.Chk.Empty(keys)
-		d.Chk.Equal(MapKind, kind)
+		suite.Empty(keys)
+		suite.Equal(MapKind, kind)
 		iterated = append(iterated, item.(mapEntry))
 	}
 	suite.True(entries.Equals(iterated))
@@ -95,8 +94,8 @@ func (suite *OpCacheSuite) TestSetInsert() {
 	defer iter.Release()
 	for iter.Next() {
 		keys, kind, item := iter.GraphOp()
-		d.Chk.Empty(keys)
-		d.Chk.Equal(SetKind, kind)
+		suite.Empty(keys)
+		suite.Equal(SetKind, kind)
 		iterated = append(iterated, item.(Value))
 	}
 	suite.True(entries.Equals(iterated))
@@ -132,8 +131,8 @@ func (suite *OpCacheSuite) TestListAppend() {
 	defer iter.Release()
 	for iter.Next() {
 		keys, kind, item := iter.GraphOp()
-		d.Chk.Empty(keys)
-		d.Chk.Equal(ListKind, kind)
+		suite.Empty(keys)
+		suite.Equal(ListKind, kind)
 		iterated = append(iterated, item.(Value))
 	}
 	suite.True(entries.Equals(iterated))

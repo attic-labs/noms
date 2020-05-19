@@ -9,13 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-
-	"github.com/stretchr/testify/assert"
 )
 
 // d.Chk.<Method>() -- used in test cases and as assertions
 var (
-	Chk = assert.New(&panicker{})
+	Chk = newAssert(&panicker{})
 )
 
 type panicker struct {
@@ -95,7 +93,7 @@ func Wrap(err error) WrappedError {
 	}
 
 	st := stackTracer{}
-	assert := assert.New(&st)
+	assert := newAssert(&st)
 	assert.Fail(err.Error())
 
 	return wrappedError{st.stackTrace, err}

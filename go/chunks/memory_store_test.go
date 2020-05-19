@@ -2,12 +2,15 @@
 // Licensed under the Apache License, version 2.0:
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package chunks
+package chunks_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
+	"github.com/attic-labs/noms/go/chunks"
+	"github.com/attic-labs/noms/go/chunks/chunkstest"
 )
 
 func TestMemoryStoreTestSuite(t *testing.T) {
@@ -15,11 +18,11 @@ func TestMemoryStoreTestSuite(t *testing.T) {
 }
 
 type MemoryStoreTestSuite struct {
-	ChunkStoreTestSuite
+	chunkstest.ChunkStoreTestSuite
 }
 
 func (suite *MemoryStoreTestSuite) SetupTest() {
-	suite.Factory = NewMemoryStoreFactory()
+	suite.Factory = chunks.NewMemoryStoreFactory()
 }
 
 func (suite *MemoryStoreTestSuite) TearDownTest() {

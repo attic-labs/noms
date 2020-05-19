@@ -14,7 +14,7 @@ import (
 	"github.com/attic-labs/noms/go/datas"
 	"github.com/attic-labs/noms/go/marshal"
 	"github.com/attic-labs/noms/go/types"
-	"github.com/attic-labs/noms/go/util/verbose"
+	"github.com/attic-labs/noms/go/util/verbose/verboseflags"
 )
 
 func main() {
@@ -28,7 +28,7 @@ func main() {
 
 	app.Command("list-persons", "list current persons")
 
-	verbose.RegisterVerboseFlags(app)
+	verboseflags.Register(app)
 	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
 	cfg := config.NewResolver()
 	db, ds, err := cfg.GetDataset(*dsStr)
