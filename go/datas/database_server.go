@@ -83,7 +83,7 @@ func (s *RemoteDatabaseServer) Run() {
 	d.Chk.NoError(err)
 	s.port, err = strconv.Atoi(port)
 	d.Chk.NoError(err)
-	log.Printf("Listening on port %d...\n", s.port)
+	log.Printf("Listening on  %s:%d...\n", s.address, s.port)
 
 	router := Router(s.cs, "")
 
