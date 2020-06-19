@@ -19,6 +19,7 @@ import (
 
 func nomsServe(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandler) {
 	cmd := noms.Command("serve", "Serves a Noms database over HTTP.")
+	address := cmd.Flag("address", "address to listen on").Default("0.0.0.0").String()
 	port := cmd.Flag("port", "port to listen on").Default("8080").Int()
 	db := cmd.Arg("db", "database to work with - see Spelling Databases at https://github.com/attic-labs/noms/blob/master/doc/spelling.md").Required().String()
 
@@ -26,7 +27,7 @@ func nomsServe(noms *kingpin.Application) (*kingpin.CmdClause, util.KingpinHandl
 		cfg := config.NewResolver()
 		cs, err := cfg.GetChunkStore(*db)
 		d.CheckError(err)
-		server := datas.NewRemoteDatabaseServer(cs, *port)
+		server := datas.NewRemoteDatabaseServer(cs, *address, *port)
 
 		// Shutdown server gracefully so that profile may be written
 		c := make(chan os.Signal, 1)

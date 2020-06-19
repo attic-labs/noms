@@ -499,7 +499,7 @@ func (suite *PerfSuite) StartRemoteDatabase() (host string, stopFn func()) {
 		chunkStore = nbs.NewLocalStore(dbDir, 128*(1<<20))
 	}
 
-	server := datas.NewRemoteDatabaseServer(chunkStore, 0)
+	server := datas.NewRemoteDatabaseServer(chunkStore, "0.0.0.0", 0)
 	portChan := make(chan int)
 	server.Ready = func() { portChan <- server.Port() }
 	go server.Run()
