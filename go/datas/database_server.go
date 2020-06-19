@@ -24,6 +24,7 @@ type connectionState struct {
 
 type RemoteDatabaseServer struct {
 	cs      chunks.ChunkStore
+	address string
 	port    int
 	l       *net.Listener
 	csChan  chan *connectionState
@@ -32,13 +33,13 @@ type RemoteDatabaseServer struct {
 	Ready func()
 }
 
-func NewRemoteDatabaseServer(cs chunks.ChunkStore, port int) *RemoteDatabaseServer {
+func NewRemoteDatabaseServer(cs chunks.ChunkStore, address string, port int) *RemoteDatabaseServer {
 	dataVersion := cs.Version()
 	if constants.NomsVersion != dataVersion {
 		d.Panic("SDK version %s is incompatible with data of version %s", constants.NomsVersion, dataVersion)
 	}
 	return &RemoteDatabaseServer{
-		cs, port, nil, make(chan *connectionState, 16), false, func() {},
+		cs, address, port, nil, make(chan *connectionState, 16), false, func() {},
 	}
 }
 
@@ -75,7 +76,7 @@ func Router(cs chunks.ChunkStore, prefix string) *httprouter.Router {
 // Run blocks while the RemoteDatabaseServer is listening. Running on a separate go routine is supported.
 func (s *RemoteDatabaseServer) Run() {
 
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
+	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.address, s.port))
 	d.Chk.NoError(err)
 	s.l = &l
 	_, port, err := net.SplitHostPort(l.Addr().String())
