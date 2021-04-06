@@ -244,7 +244,7 @@ Like B-Trees, Prolly Trees are sorted. In Noms, we sort keys of type Boolean, Nu
 
 Because of this sorting, Noms collections can be used as efficient indexes, in the same manner as primary and secondary indexes in traditional databases.
 
-For example, say you want to quickly be able to find `Person` structs by their age. You could build a map of type `Map<Number, Set<Person>>`. This would allow you to quickly (~log<sub>k</sub>(n) seeks, where `k` is average prolly tree width, which is currently 64) find all the people of an exact age. But it would _also_ allow you to find all people within a range of ages efficiently (~num_results/log<sub>k</sub>(n) seeks), even if the ages are non-integral.
+For example, say you want to quickly be able to find `Person` structs by their age. You could build a map of type `Map<Number, Set<Person>>`. This would allow you to quickly (~log<sub>k</sub>(n) seeks) find all the people of an exact age. But it would _also_ allow you to find all people within a range of ages efficiently (~num_results/log<sub>k</sub>(n) seeks), even if the ages are non-integral.
 
 Also, because Noms collections are ordered search trees, it is possible to implement set operations like union and intersect efficiently on them.
 
