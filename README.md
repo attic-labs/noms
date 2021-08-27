@@ -1,3 +1,14 @@
+# Warning - This project is not active
+
+Noms is not being maintained. You shouldn't use it, except maybe for fun or research.
+
+If you are interested in something like Noms, you probably want Dolt (https://github.com/dolthub/dolt) which is a fork of this project and actively maintained.
+
+Send me (aaron at aaronboodman.com) a message if you have questions.
+
+<hr>
+
+
 <img src='doc/nommy_cropped_smaller.png' width='350' title='Nommy, the snacky otter'>
 
 [Use Cases](#use-cases)&nbsp; | &nbsp;[Setup](#setup)&nbsp; | &nbsp;[Status](#status)&nbsp; | &nbsp;[Documentation](./doc/intro.md)&nbsp; | &nbsp;[Contact](#contact-us)
